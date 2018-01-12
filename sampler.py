@@ -43,6 +43,8 @@ class OFTI(object):
         Return:
             accepted_orbits (np.array): array of accepted orbits. First dimension has size total_orbits.
         """
+        # this function shold first check if we have reached enough orbits, and break when we do
+
         pass
 
 
