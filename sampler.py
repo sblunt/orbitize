@@ -1,0 +1,70 @@
+class OFTI(object):
+    """
+    OFTI Sampler
+
+    Args:
+        lnlike: likelihood object (TBD)
+        system: system object that describes the star and planets in the system (TBD)
+    """
+    def __init__(self, lnlike, system):
+        pass
+
+    def prepare_samples(self, num_samples):
+        """
+        Prepare some orbits for rejection sampling. This draws random orbits from priors, and performs scale & rotate.
+
+        Args:
+            num_samples (int): number of orbits to prepare for OFTI to run rejection sampling on
+
+        Return:
+            orbit_configs (np.array): array of prepared samples. The first dimension has size of num_samples. This should be able to be passed into reject()
+        """
+        pass
+
+    def reject(self, orbit_configs):
+        """
+        Runs rejection sampling on some prepared samples
+
+        Args:
+            orbit_configs (np.array): array of prepared samples. The first dimension has size of num_samples. This should be the output of prepare_samples()
+
+        Return:
+            accepted_orbits (np.array): a subset of orbit_configs that are accepted based on the data.
+        """
+        pass
+
+    def run_sampler(self, total_orbits):
+        """
+        Runs OFTI until we get the number of total accepted orbits we want. 
+
+        Args:
+            total_orbits (int): total number of accepted possible orbits that are desired
+
+        Return:
+            accepted_orbits (np.array): array of accepted orbits. First dimension has size total_orbits.
+        """
+        pass
+
+
+class PTMCMC(object):
+    """
+    Parallel-Tempered MCMC Sampler using the emcee Affine-infariant sampler
+
+    Args:
+        lnlike: likelihood object (TBD)
+        system: system object that describes the star and planets in the system (TBD)
+        num_temps (int): number of temperatures to run the sampler at
+        num_walkers (int): number of walkers at each temperature
+    """
+    def __init__(self, lnlike, system, num_temps, num_walkers):
+        pass
+
+    def run_sampler(self, total_orbits, burn_steps=0, thin=1):
+        """
+        Runs PT MCMC sampler
+
+        Args:
+            total_orbits (int): total number of accepted possible orbits that are desired. This equals to num_steps_per_walker*num_walkers
+            burn_steps (int): optional paramter to tell sampler to discard certain number of steps at the beginning
+            thin (int): factor to thin the steps of each walker by to remove correlations in the walker steps
+        """
