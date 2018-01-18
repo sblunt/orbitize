@@ -1,0 +1,8 @@
+Sarah Blunt -- collaboratively designed basic API
+
+Jason Wang -- collaboratively designed basic API
+
+Henry Ngo -- wrote code to read inputs
+
+
+
