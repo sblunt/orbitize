@@ -16,18 +16,21 @@ def read_csv(filename):
     epoch,raoff,raoff_err,decoff,decoff_err,sep,sep_err,pa,pa_err,rv,rv_err
 
     Generally expect to receive one of the following sets of valid measurements:
-    - RA and DEC offset, or
-    - Sep and PA, or
-    - RV measurement
+        - RA and DEC offset, or
+        - Sep and PA, or
+        - RV measurement
+        
     If more than one valid set given, will generate separate output row for each valid set
 
     Args:
         filename (str): Input file name
 
     Returns:
-        Astropy Table containing all astrometric measurements for given object with columns:
-        epoch,quant1,quant1_err,quant2,quant2_err,quant_type
+        astropy.Table: table containing all astrometric measurements for given object. Columns returned are
+        [epoch,quant1,quant1_err,quant2,quant2_err,quant_type], 
         where quant_type is one of "radec", "seppa", or "rv"
+
+    (written) Henry Ngo, 2018
     """
 
     # Initialize output table

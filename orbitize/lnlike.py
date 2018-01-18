@@ -1,6 +1,5 @@
 def chi2_likelihood(data, errors, model):
-    """
-    Log of the Chi2 Likelihood Computation
+    """Log of the Chi2 Likelihood Computation
 
     Args:
         data (np.array): 1-D array of data
