@@ -13,7 +13,7 @@ class OFTI(object):
     def prepare_samples(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits 
-            from priors, and performs scale & rotate.
+        from priors, and performs scale & rotate.
 
         Args:
             num_samples (int): number of orbits to prepare for OFTI to run 
