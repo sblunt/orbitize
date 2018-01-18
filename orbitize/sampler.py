@@ -20,9 +20,7 @@ class OFTI(object):
                 rejection sampling on
 
         Return:
-            orbit_configs (np.array): array of prepared samples. The first 
-                dimension has size of num_samples. This should be able to be 
-                passed into reject()
+            np.array: array of prepared samples. The first dimension has size of num_samples. This should be able to be passed into `reject()`
         """
 
         # draw an array of num_samples smas, eccs, etc. from prior objects: prior = (some object inhertiting from priors.Prior); samples = prior.draw_samples(#)
@@ -36,13 +34,11 @@ class OFTI(object):
         Runs rejection sampling on some prepared samples
 
         Args:
-            orbit_configs (np.array): array of prepared samples. The first 
-                dimension has size of num_samples. This should be the output 
-                of prepare_samples()
+            orbit_configs (np.array): array of prepared samples. The first dimension has size `num_samples`. This should be the output of `prepare_samples()`
 
         Return:
-            accepted_orbits (np.array): a subset of orbit_configs that are 
-                accepted based on the data.
+            np.array: a subset of orbit_configs that are accepted based on the data.
+
         """
         pass
 
@@ -55,8 +51,7 @@ class OFTI(object):
                 are desired
 
         Return:
-            accepted_orbits (np.array): array of accepted orbits. First 
-                dimension has size total_orbits.
+            np.array: array of accepted orbits. First dimension has size `total_orbits`.
         """
         # this function shold first check if we have reached enough orbits, and break when we do
 
@@ -82,10 +77,7 @@ class PTMCMC(object):
         Runs PT MCMC sampler
 
         Args:
-            total_orbits (int): total number of accepted possible orbits that 
-                are desired. This equals to num_steps_per_walker*num_walkers
-            burn_steps (int): optional paramter to tell sampler to discard 
-                certain number of steps at the beginning
-            thin (int): factor to thin the steps of each walker by to remove 
-                correlations in the walker steps
+            total_orbits (int): total number of accepted possible orbits that are desired. This equals `num_steps_per_walker`x`num_walkers`
+            burn_steps (int): optional paramter to tell sampler to discard certain number of steps at the beginning
+            thin (int): factor to thin the steps of each walker by to remove correlations in the walker steps
         """
