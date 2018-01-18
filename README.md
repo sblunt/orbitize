@@ -1,5 +1,5 @@
 # orbitize
-Orbit-fitting for directly imaged objects. Documentation is available at orbitize.readthedocs.io.
+Orbit-fitting for directly imaged objects. Documentation is available [here](orbitize.readthedocs.io).
 
 ## Installation For Developers
 
