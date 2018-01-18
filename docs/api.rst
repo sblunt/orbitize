@@ -1,6 +1,4 @@
-api.rst
-
-. _api:
+.. _api:
 
 API
 ===
