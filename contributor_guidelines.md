@@ -1,3 +1,5 @@
+This document should grow and change with our code base. Please revise & add anything you think is relevant!
+
 # Things You Should Do Before Contributing:
 
 - Learn about object-oriented programming if you are unfamiliar (http://www.voidspace.org.uk/python/articles/OOP.shtml). 
@@ -20,6 +22,3 @@
     - modules = all lowercase 
     - Classes = named with first letter uppercase 
     - multi-word function names = lowercase with underscores
-    
-    
-This document should grow and change with our code base. Please revise & add anything you think is relevant!
