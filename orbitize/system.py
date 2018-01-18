@@ -24,7 +24,7 @@ class CelestialDuo(object):
             gets constructed in the correct order in the first plac.
 
     """
-    def __init__(self, data_table, priors, orbital_param_type=None)
+    def __init__(self, data_table, priors, orbital_param_type=None):
         # initialize self.priors (array?) that matches orbital params to their priors
         self.priors = []
         # order: semi-major axis, eccentricity, etc.
