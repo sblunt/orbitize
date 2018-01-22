@@ -1,7 +1,7 @@
 """
 This module solves for the orbit of the planet given Keplerian parameters
 """
-import numpy as np 
+import numpy as np
 import astropy.units as u
 import astropy.constants as consts
 
@@ -21,7 +21,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         lan (float): longitude of the ascending node [radians]
         inc (float): inclination [radians]
         plx (float): parallax [mas]
-        mtot (float): total mass [Solar masses]. Note that this is 
+        mtot (float): total mass [Solar masses]. Note that this is
         mass (float): mass of this body [Solar masses]. For planets mass ~ 0
 
     Return:
@@ -29,13 +29,13 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         deoff (np.array): array of Dec offsets from COM for each epoch
         vz (np.array): array of radial velocities of the body relative to COM for each epoch
     """
-                                       
+
     ndates = np.size(epochs)
 
     period = np.sqrt(sma**3/mtot)
     # compute mean anomoly
     mean_motion = 2*np.pi/(period * 365.25) # in rad/day
-    manom = mean_motion*epochs - 2*np.pi*tau 
+    manom = mean_motion*epochs - 2*np.pi*tau
 
     # compute eccentric anomalies
     eanom = _calc_ecc_anom(manom, ecc)
@@ -45,7 +45,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
     theta = tanom + argp
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
-    # math from James Graham to now get to delta RA/Dec. Lots of trig     
+    # math from James Graham to now get to delta RA/Dec. Lots of trig
     c2i2 = np.cos(0.5*inc)**2
     s2i2 = np.sin(0.5*inc)**2
 
@@ -61,7 +61,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
 
     sa0 = np.sin(arg0)
     sa3 = np.sin(arg3)
-    
+
     # updated sign convention for Green Eq. 19.4-19.7
     # return values in arcsecons
     plx_as = plx * 1e-3
@@ -70,11 +70,11 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
     deoff = radius * (c2i2*c1 + s2i2*c2) * plx_as
 
     # compute the RV of the body
-    # first comptue the RV semi-amplitude 
+    # first comptue the RV semi-amplitude
     if mass == 0:
         # basically treating this body as a test particle. we can calcualte a radial velocity for a test particle
         Kv =  mean_motion * (sma * np.sin(inc)) / np.sqrt(1 - ecc**2) * (u.au/u.day)
-        Kv = Kv.to(u.km/u.s) # converted to km/s    
+        Kv = Kv.to(u.km/u.s) # converted to km/s
     else:
         # we want to measure the mass of the influencing body on the system
         # we need units now
@@ -83,20 +83,22 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         Kv = Kv.to(u.km/u.s)
     # compute RV
     vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
-    
+
     return raoff, deoff, vz
 
 
-def _calc_ecc_anom(manom, ecc):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     """
-    Computes the eccentric anomaly from the mean anomlay. 
+    Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
 
     Args:
-        manom (np.array): array of mean anomalies 
+        manom (np.array): array of mean anomalies
         ecc (float): eccentricity
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
     Return:
-        eanom (np.array): array of eccentric anomalies 
+        eanom (np.array): array of eccentric anomalies
     """
 
     if ecc == 0.0:
@@ -111,16 +113,16 @@ def _calc_ecc_anom(manom, ecc):
 
             diff = (eanom - (ecc * np.sin(eanom)) - manom) / (1.0 - (ecc * np.cos(eanom)))
             abs_diff = np.abs(diff)
-            ind = np.where(abs_diff > 1e-9)
+            ind = np.where(abs_diff > tolerance)
             niter = 0
-            while ((ind[0].size > 0) and (niter <= 1e2)):
+            while ((ind[0].size > 0) and (niter <= max_iter)):
                 eanom[ind] -= diff[ind]
                 diff[ind] = (eanom[ind] - (ecc * np.sin(eanom[ind])) - manom[ind]) / (1.0 - (ecc * np.cos(eanom[ind])))
                 abs_diff[ind] = np.abs(diff[ind])
-                ind = np.where(abs_diff > 1e-9)
+                ind = np.where(abs_diff > tolerance)
                 niter += 1
-            if niter >= 1e2:
-                print(manom[ind], eanom[ind], ecc, '> 1e2 iter.')
+            if niter >= max_iter:
+                print(manom[ind], eanom[ind], ecc, '> {} iter.'.format(max_iter))
                 eanom = _mikkola_solver_wrapper(manom, ecc)
         else:
             eanom = _mikkola_solver_wrapper(manom, ecc) # Send it to the analytical version, this has not happened yet...
@@ -132,10 +134,10 @@ def _mikkola_solver_wrapper(manom, e):
     Analtyical Mikkola solver for the eccentric anomaly. Wrapper for the python implemenation of the IDL version. From Rob De Rosa
 
     Args:
-        manom (np.array): array of mean anomalies 
+        manom (np.array): array of mean anomalies
         ecc (float): eccentricity
     Return:
-        eccanom (np.array): array of eccentric anomalies 
+        eccanom (np.array): array of eccentric anomalies
     """
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
@@ -146,14 +148,14 @@ def _mikkola_solver_wrapper(manom, e):
 
 def _mikkola_solver(manom, e):
     """
-    Analtyical Mikkola solver for the eccentric anomaly. 
+    Analtyical Mikkola solver for the eccentric anomaly.
     Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
-    
+
     Args:
-        manom (np.array): array of mean anomalies 
+        manom (np.array): array of mean anomalies
         ecc (float): eccentricity
     Return:
-        eccanom (np.array): array of eccentric anomalies 
+        eccanom (np.array): array of eccentric anomalies
     """
 
     alpha = (1.0 - e) / ((4.0 * e) + 0.5)
