@@ -10,7 +10,7 @@ threshold = 1e-4
 
 def test_orbit_e03():
     """
-    Test orbitize.kerpler.calc_orbit() by comparing this code to the output of James Graham's code which has been used in 
+    Test orbitize.kepler.calc_orbit() by comparing this code to the output of James Graham's code which has been used in
     many published papers. Note that orbitize currently uses Rob De Rosa's eccentricity solver. The two are not guaranteed to be consistent
     below 100 microarcseconds
 
