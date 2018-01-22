@@ -8,6 +8,39 @@ import orbitize.kepler as kepler
 # need to calcualte to a 100 microarcsecs. Should improve this in the future.
 threshold = 1e-4
 
+def test_analytical_ecc_anom_solver():
+    """
+    Test orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
+    _calc_ecc_anom() output vs the input mean anomaly
+    """
+    mean_anoms=np.linspace(0,2.0*np.pi,1000)
+    eccs=np.linspace(0.95,0.999999,100) # Solver only works in elliptical orbit regime (e < 1)
+    mm, ee = np.meshgrid(mean_anoms,eccs) # vector for every mean_anom, ecc pair
+    # Meshgrid created a grid for every mean_anom, ecc pair
+    # We want a flattened vector
+    mm = mm.flatten()
+    ee = ee.flatten()
+    ecc_anoms = kepler._calc_ecc_anom(mm,ee,tolerance=1e-9)
+    # the solver changes the values of mm to be within 0 to pi
+    ind_change = np.where(ecc_anoms > np.pi)
+    ecc_anoms[ind_change] = (2.0 * np.pi) - ecc_anoms[ind_change]
+    calc_mm = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
+    for meas, truth in zip(calc_mm, mm):
+        assert truth == pytest.approx(meas, abs=1e-8) 
+
+def test_iterative_ecc_anom_solver():
+    """
+    Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
+    _calc_ecc_anom() output vs the input mean anomaly
+    """
+    mean_anoms=np.linspace(0,2.0*np.pi,100)
+    eccs=np.linspace(0,0.9499999,100)
+    for ee in eccs:
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
+        calc_ma = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
+        for meas, truth in zip(calc_ma, mean_anoms):
+            assert truth == pytest.approx(meas, abs=1e-8)
+
 def test_orbit_e03():
     """
     Test orbitize.kepler.calc_orbit() by comparing this code to the output of James Graham's code which has been used in
@@ -80,4 +113,5 @@ def test_orbit_with_mass():
         assert truth == pytest.approx(meas, abs=threshold)
 
 if __name__ == "__main__":
+    test_iterative_ecc_anom_solver()
     test_orbit_e03()
