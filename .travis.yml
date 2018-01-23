@@ -37,7 +37,7 @@ before_script:
 
 # run tests in Travis-CI virtual env
 script:
-     - coverage run --source=orbitize setup.py test
+     - coverage run --source=orbitize setup.py tests/*
 #    - py.test --cov tests/
 #    - nosetests orbitize --with-coverage --cover-package=orbitize
 
