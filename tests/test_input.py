@@ -8,4 +8,4 @@ def test_read_formatted_file():
     """
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    print(read_csv(input_file))
+    print(read_formatted_file(input_file))
