@@ -25,7 +25,7 @@ before_install:
 
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
-    - pip install coveralls
+    - pip install pytest pytest-cov coveralls
     - pip install . --upgrade
     - python setup.py build_ext -i
 
