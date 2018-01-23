@@ -82,7 +82,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         # we want to measure the mass of the influencing body on the system
         # we need units now
         m2 = mtot - mass
-        Kv = (mean_motion/u.day * consts.G)**(1/3) * (m2 * u.Msun * np.sin(inc) / (mtot * u.Msun)**(2./3.)) / np.sqrt(1 - ecc**2)
+        Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m2 * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
         Kv = Kv.to(u.km/u.s)
     # compute RV
     vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
@@ -186,4 +186,3 @@ def _mikkola_solver(manom, e):
     u4 = -f/(f1+0.5*f2*u3+0.16666666666667*f3*u3*u3+0.041666666666667*f4*(u3**3.0))
 
     return (e0 + u4)
-    
