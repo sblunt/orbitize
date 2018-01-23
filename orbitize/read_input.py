@@ -3,32 +3,44 @@ Module to read user input and create standardized input for orbitize
 """
 
 __author__ = 'Henry Ngo'
-__all__ = ['read_csv']
 
 import numpy as np
 from astropy.table import Table
 from astropy.io.ascii import read
 
-def read_csv(filename):
-    """Reads astrometric measurements for object from file in CSV format
+def read_formatted_file(filename):
+    """Reads astrometric measurements for object from file in any format
+    readable by ``astropy.io.ascii.read()``, including csv format.
+    See: `http://docs.astropy.org/en/stable/io/ascii/index.html#id1 <http://docs.astropy.org/en/stable/io/ascii/index.html#id1>`_
 
-    Input file can have columns (okay to omit columns with no data):
-    epoch,raoff,raoff_err,decoff,decoff_err,sep,sep_err,pa,pa_err,rv,rv_err
+    Input file could have headers (okay to omit columns with no data):
 
-    Generally expect to receive one of the following sets of valid measurements:
-        - RA and DEC offset, or
-        - Sep and PA, or
-        - RV measurement
-        
+    +-----------+-----------+---------------+------------+----------------+---------+-------------+--------+------------+--------+------------+
+    | ``epoch`` | ``raoff`` | ``raoff_err`` | ``decoff`` | ``decoff_err`` | ``sep`` | ``sep_err`` | ``pa`` | ``pa_err`` | ``rv`` | ``rv_err`` |
+    +-----------+-----------+---------------+------------+----------------+---------+-------------+--------+------------+--------+------------+
+
+    Each line must have ``epoch`` and at least one of the following sets of valid measurements:
+        - RA and DEC offsets (arcseconds), or
+        - Sep (arcseconds) and PA (degrees), or
+        - RV measurement (km/s)
+
     If more than one valid set given, will generate separate output row for each valid set
 
     Args:
         filename (str): Input file name
 
     Returns:
-        astropy.Table: table containing all astrometric measurements for given object. Columns returned are
-        [epoch,quant1,quant1_err,quant2,quant2_err,quant_type], 
-        where quant_type is one of "radec", "seppa", or "rv"
+        astropy.Table: table containing all astrometric measurements for given
+        object. Columns returned are
+
+        +-----------+------------+----------------+------------+----------------+----------------+
+        | ``epoch`` | ``quant1`` | ``quant1_err`` | ``quant2`` | ``quant2_err`` | ``quant_type`` |
+        +-----------+------------+----------------+------------+----------------+----------------+
+
+        where ``quant_type`` is one of "radec", "seppa", or "rv".
+
+        If ``quant_type`` is "radec" or "seppa", the units of quant are arcseconds and degrees,
+        if ``quant_type`` is "rv", the units of quant are km/s
 
     (written) Henry Ngo, 2018
     """
