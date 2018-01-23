@@ -25,7 +25,7 @@ before_install:
 
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
-    - pip install pytest pytest-cov coveralls
+    - pip install pytest python-coveralls
     - pip install . --upgrade
     - python setup.py build_ext -i
 
@@ -37,8 +37,8 @@ before_script:
 
 # run tests in Travis-CI virtual env
 script:
-     - coverage run --source=orbitize setup.py py.test
-#    - py.test --cov tests/
+     - py.test coveralls/tests.py --doctest-modules --pep8 coveralls -v --cov coveralls --cov-report term-missing
+#    - py.test --cov=orbitize tests/
 #    - nosetests orbitize --with-coverage --cover-package=orbitize
 
 after_success:
