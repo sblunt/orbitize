@@ -25,9 +25,9 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         mass (float): mass of this body [Solar masses]. For planets mass ~ 0
 
     Return:
-        raoff (np.array): array of RA offsets from COM for each epoch
-        deoff (np.array): array of Dec offsets from COM for each epoch
-        vz (np.array): array of radial velocities of the body relative to COM for each epoch
+        raoff (np.array): array of RA offsets between the bodies (origin is at the other body)
+        deoff (np.array): array of Dec offsets between the bodies
+        vz (np.array): array of radial velocity offset between the bodies
     """
 
     ndates = np.size(epochs)
