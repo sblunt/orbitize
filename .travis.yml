@@ -24,8 +24,8 @@ before_install:
     - sudo ln -s /run/shm /dev/shm
 
 install:
-    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy matplotlib cython pandas
-    - pip install nose coveralls nbformat nbconvert jupyter_client ipykernel
+    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
+    - pip install coveralls
     - pip install . --upgrade
     - python setup.py build_ext -i
 
@@ -37,7 +37,8 @@ before_script:
 
 # run tests in Travis-CI virtual env
 script:
-    - nosetests orbitize --with-coverage --cover-package=orbitize
+    - py.test
+#    - nosetests orbitize --with-coverage --cover-package=orbitize
 
 after_success:
     - coveralls
