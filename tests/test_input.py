@@ -1,5 +1,5 @@
 import os
-from orbitize.read_input import read_csv
+from orbitize.read_input import read_formatted_file
 
 
 def test_read_formatted_file():
