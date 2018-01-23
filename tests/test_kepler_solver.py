@@ -5,8 +5,7 @@ import pytest
 import numpy as np
 import orbitize.kepler as kepler
 
-# need to calcualte to a 100 microarcsecs. Should improve this in the future.
-threshold = 1e-4
+threshold = 1e-8
 
 def test_analytical_ecc_anom_solver():
     """
@@ -26,7 +25,7 @@ def test_analytical_ecc_anom_solver():
     ecc_anoms[ind_change] = (2.0 * np.pi) - ecc_anoms[ind_change]
     calc_mm = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
     for meas, truth in zip(calc_mm, mm):
-        assert truth == pytest.approx(meas, abs=1e-8) 
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_iterative_ecc_anom_solver():
     """

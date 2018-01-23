@@ -32,9 +32,12 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
 
     ndates = np.size(epochs)
 
-    period = np.sqrt(sma**3/mtot)
-    # compute mean anomoly
-    mean_motion = 2*np.pi/(period * 365.25) # in rad/day
+    # Compute period from Kepler's third law
+    period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
+    period = period.to(u.day).value
+
+    # compute mean anomaly
+    mean_motion = 2*np.pi/(period) # in rad/day
     manom = mean_motion*epochs - 2*np.pi*tau
 
     # compute eccentric anomalies
