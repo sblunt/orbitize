@@ -37,7 +37,8 @@ before_script:
 
 # run tests in Travis-CI virtual env
 script:
-     - coverage run pytest
+     - py.test --cov-report= --cov=orbitize tests/
+#     - coverage run pytest
 #     - py.test coveralls/tests.py --doctest-modules --pep8 coveralls -v --cov coveralls --cov-report term-missing
 #    - py.test --cov=orbitize tests/
 #    - nosetests orbitize --with-coverage --cover-package=orbitize
