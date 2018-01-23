@@ -39,8 +39,7 @@ def test_iterative_ecc_anom_solver():
 def test_orbit_e03():
     """
     Test orbitize.kepler.calc_orbit() by comparing this code to the output of James Graham's code which has been used in
-    many published papers. Note that orbitize currently uses Rob De Rosa's eccentricity solver. The two are not guaranteed to be consistent
-    below 100 microarcseconds
+    many published papers. Note that orbitize currently uses Rob De Rosa's eccentricity solver.
 
     Pretty standard orbit with ecc = 0.3
     """
@@ -87,7 +86,7 @@ def test_orbit_with_mass():
     """
     Test a orbit where we specify the mass of the body too. This will change the radial velocity, which normally assumes the body is a test particle
 
-    We will test two equal mass bodies, which will reduce the RV signal by 2, comapred to the RV signal of a massless particle in a system with the
+    We will test two equal mass bodies, which will reduce the RV signal by 2, compared to the RV signal of a massless particle in a system with the
     same total mass.
     """
     # sma, ecc, tau, argp, lan, inc, plx, mtot
