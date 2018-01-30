@@ -134,7 +134,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
 
 def _mikkola_solver_wrapper(manom, e):
     """
-    Analtyical Mikkola solver for the eccentric anomaly. Wrapper for the python implemenation of the IDL version. From Rob De Rosa
+    Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40 , 329-334.) for the eccentric anomaly. 
+    Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
 
     Args:
         manom (np.array): array of mean anomalies
