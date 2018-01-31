@@ -9,3 +9,8 @@ def test_read_formatted_file():
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
     print(read_formatted_file(input_file))
+
+def test_read_write_orbitize_input():
+    """
+    Test the read_orbitize_input and the write_orbitize_input functions
+    """
