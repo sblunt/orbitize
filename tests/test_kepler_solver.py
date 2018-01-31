@@ -44,7 +44,7 @@ def test_orbit_e03():
     Pretty standard orbit with ecc = 0.3
     """
     # sma, ecc, tau, argp, lan, inc, plx, mtot
-    orbital_params = (10, 0.3, 0.3, 0.5, 1.5, 3, 50, 1.5)
+    orbital_params = np.array([10, 0.3, 0.3, 0.5, 1.5, 3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7])
@@ -62,14 +62,14 @@ def test_orbit_e03():
 
 def test_orbit_e03_array():
     # sma, ecc, tau, argp, lan, inc, plx, mtot
-    sma = [10,10,10]
-    ecc = [0.3,0.3,0.3]
-    tau = [0.3,0.3,0.3]
-    argp = [0.5,0.5,0.5]
-    lan = [1.5,1.5,1.5]
-    inc = [3,3,3]
-    plx = [50,50,50]
-    mtot = [1.5,1.5,1.5]
+    sma = np.array([10,10,10])
+    ecc = np.array([0.3,0.3,0.3])
+    tau = np.array([0.3,0.3,0.3])
+    argp = np.array([0.5,0.5,0.5])
+    lan = np.array([1.5,1.5,1.5])
+    inc = np.array([3,3,3])
+    plx = np.array([50,50,50])
+    mtot = np.array([1.5,1.5,1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
 
@@ -90,7 +90,7 @@ def test_orbit_e99():
     Test a highly eccentric orbit (ecc=0.99). Again validate against James Graham's orbit code
     """
     # sma, ecc, tau, argp, lan, inc, plx, mtot
-    orbital_params = (10, 0.99, 0.3, 0.5, 1.5, 3, 50, 1.5)
+    orbital_params = np.array([10, 0.99, 0.3, 0.5, 1.5, 3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7])
@@ -114,7 +114,7 @@ def test_orbit_with_mass():
     same total mass.
     """
     # sma, ecc, tau, argp, lan, inc, plx, mtot
-    orbital_params = (10, 0.99, 0.3, 0.5, 1.5, 3, 50, 1.5)
+    orbital_params = np.array([10, 0.99, 0.3, 0.5, 1.5, 3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7], mass=orbital_params[7]/2)
@@ -131,9 +131,9 @@ def test_orbit_with_mass():
         assert truth == pytest.approx(meas, abs=threshold)
 
 if __name__ == "__main__":
-    test_analytical_ecc_anom_solver()
-    test_iterative_ecc_anom_solver()
-    test_orbit_e03()
+    #test_analytical_ecc_anom_solver()
+    #test_iterative_ecc_anom_solver()
+    #test_orbit_e03()
     test_orbit_e03_array()
-    test_orbit_e99()
-    test_orbit_with_mass()
+    #test_orbit_e99()
+    #est_orbit_with_mass()
