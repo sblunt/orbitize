@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import os
-from orbitize.read_input import read_formatted_file
+from orbitize.read_input import read_formatted_file, write_orbitize_input, read_orbitize_input
 
 
 def _compare_table(input_table):
@@ -59,10 +59,28 @@ def test_read_formatted_file():
     input_file = os.path.join(testdir, 'test_val.csv')
     _compare_table(read_formatted_file(input_file))
 
-def test_read_write_orbitize_input():
+def test_write_read_orbitize_input():
     """
-    Test the read_orbitize_input and the write_orbitize_input functions
+    Test the write_orbitize_input and the read_orbitize_input functions
     """
+    testdir = os.path.dirname(os.path.abspath(__file__))
+    input_file = os.path.join(testdir, 'test_val.csv')
+    test_table = read_formatted_file(input_file)
+    output_file = os.path.join(testdir, 'temp_test_orbitize_input.csv')
+    # If temp output file already exists, delete it
+    if os.path.isfile(output_file):
+        os.remove(output_file)
+    try:  # Catch these tests so that we remove temporary file
+        # Test that we were able to write the table
+        write_orbitize_input(test_table,output_file)
+        assert os.path.isfile(output_file)
+        # Test that we can read the table and check if it's correct
+        test_table_2 = read_orbitize_input(output_file)
+        _compare_table(test_table_2)
+    finally:
+        # Remove temporary file
+        os.remove(output_file)
 
 if __name__ == "__main__":
     test_read_formatted_file()
+    test_write_read_orbitize_input()
