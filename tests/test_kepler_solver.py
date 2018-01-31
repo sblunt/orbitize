@@ -60,6 +60,30 @@ def test_orbit_e03():
     for meas, truth in zip(vzs, true_vz):
         assert truth == pytest.approx(meas, abs=threshold)
 
+def test_orbit_e03_array():
+    # sma, ecc, tau, argp, lan, inc, plx, mtot
+    sma = [10,10,10]
+    ecc = [0.3,0.3,0.3]
+    tau = [0.3,0.3,0.3]
+    argp = [0.5,0.5,0.5]
+    lan = [1.5,1.5,1.5]
+    inc = [3,3,3]
+    plx = [50,50,50]
+    mtot = [1.5,1.5,1.5]
+    epochs = np.array([1000, 1101.4])
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
+
+    true_raoff = [0.15286786,  0.18039408]
+    true_deoff = [-0.46291038, -0.4420127]
+    true_vz = [0.86448656,  0.97591289]
+
+    # for meas, truth in zip(raoffs, true_raoff):
+    #     assert truth == pytest.approx(meas, abs=threshold)
+    # for meas, truth in zip(deoffs, true_deoff):
+    #     assert truth == pytest.approx(meas, abs=threshold)
+    # for meas, truth in zip(vzs, true_vz):
+    #     assert truth == pytest.approx(meas, abs=threshold)
+
 
 def test_orbit_e99():
     """
@@ -110,5 +134,6 @@ if __name__ == "__main__":
     test_analytical_ecc_anom_solver()
     test_iterative_ecc_anom_solver()
     test_orbit_e03()
+    test_orbit_e03_array()
     test_orbit_e99()
     test_orbit_with_mass()
