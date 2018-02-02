@@ -13,16 +13,19 @@ def read_formatted_file(filename):
     readable by ``astropy.io.ascii.read()``, including csv format.
     See: `http://docs.astropy.org/en/stable/io/ascii/index.html#id1 <http://docs.astropy.org/en/stable/io/ascii/index.html#id1>`_
 
-    Input file could have headers (okay to omit columns with no data):
+    The input file could have the headers in the CSV example below::
 
-    +-----------+-----------+---------------+------------+----------------+---------+-------------+--------+------------+--------+------------+
-    | ``epoch`` | ``raoff`` | ``raoff_err`` | ``decoff`` | ``decoff_err`` | ``sep`` | ``sep_err`` | ``pa`` | ``pa_err`` | ``rv`` | ``rv_err`` |
-    +-----------+-----------+---------------+------------+----------------+---------+-------------+--------+------------+--------+------------+
+        epoch,raoff,raoff_err,decoff,decoff_err,sep,sep_err,pa,pa_err,rv,rv_err
+        1234,0.010,0.005,0.50,0.05,,,,,,
+        1235,,,,,1.0,0.005,89.0,0.1,,
+        1236,,,,,1.0,0.005,89.3,0.3,10,0.1
 
-    Each line must have ``epoch`` and at least one of the following sets of valid measurements:
+    Each line must have ``epoch`` and at least one of the following sets of valid measurements
         - RA and DEC offsets (arcseconds), or
         - Sep (arcseconds) and PA (degrees), or
         - RV measurement (km/s)
+
+    Note: Columns with no data can be omitted (e.g. if only separation and PA are given, the raoff, deoff, and rv columns can be excluded).
 
     If more than one valid set given, will generate separate output row for each valid set
 
@@ -31,13 +34,17 @@ def read_formatted_file(filename):
 
     Returns:
         astropy.Table: Table containing orbitize-readable input for given
-        object. Columns returned are
+        object. Columns returned are shown in the example output below::
 
-        +-----------+------------+----------------+------------+----------------+----------------+
-        | ``epoch`` | ``quant1`` | ``quant1_err`` | ``quant2`` | ``quant2_err`` | ``quant_type`` |
-        +-----------+------------+----------------+------------+----------------+----------------+
+            epoch   quant1 quant1_err  quant2 quant2_err quant_type
+           float64 float64  float64   float64  float64      str5
+           ------- ------- ---------- ------- ---------- ----------
+           1234.0    0.01      0.005     0.5       0.05      radec
+           1235.0     1.0      0.005    89.0        0.1      seppa
+           1236.0     1.0      0.005    89.3        0.3      seppa
+           1236.0    10.0        0.1     nan        nan         rv
 
-        where ``quant_type`` is one of "radec", "seppa", or "rv".
+        where ``quant_type`` is one of "radec", "seppa", or "rv". This example output corresponds to the example input shown above.
 
         If ``quant_type`` is "radec" or "seppa", the units of quant are arcseconds and degrees,
         if ``quant_type`` is "rv", the units of quant are km/s
@@ -136,11 +143,9 @@ def read_orbitize_input(filename):
 
     Returns:
         astropy.Table: Table containing orbitize-readable input for given
-        object. Columns returned are
+        object. Columns returned are::
 
-        +-----------+------------+----------------+------------+----------------+----------------+
-        | ``epoch`` | ``quant1`` | ``quant1_err`` | ``quant2`` | ``quant2_err`` | ``quant_type`` |
-        +-----------+------------+----------------+------------+----------------+----------------+
+            epoch, quant1, quant1_err, quant2, quant2_err, quant_type
 
         where ``quant_type`` is one of "radec", "seppa", or "rv".
 
