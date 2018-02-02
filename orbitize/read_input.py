@@ -20,7 +20,7 @@ def read_formatted_file(filename):
         1235,,,,,1.0,0.005,89.0,0.1,,
         1236,,,,,1.0,0.005,89.3,0.3,10,0.1
 
-    Each line must have ``epoch`` and at least one of the following sets of valid measurements
+    Each line must have ``epoch`` and at least one of the following sets of valid measurements:
         - RA and DEC offsets (arcseconds), or
         - Sep (arcseconds) and PA (degrees), or
         - RV measurement (km/s)
