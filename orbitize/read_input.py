@@ -49,7 +49,7 @@ def read_formatted_file(filename):
         If ``quant_type`` is "radec" or "seppa", the units of quant are arcseconds and degrees,
         if ``quant_type`` is "rv", the units of quant are km/s
 
-    (written) Henry Ngo, 2018
+    Written: Henry Ngo, 2018
     """
 
     # Initialize output table
