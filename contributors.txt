@@ -1,8 +1,5 @@
 Sarah Blunt -- collaboratively designed basic API
 
-Jason Wang -- collaboratively designed basic API
+Jason Wang -- collaboratively designed basic API, wrote kepler.py
 
-Henry Ngo -- wrote code to read inputs
-
-
-
+Henry Ngo -- wrote code to read inputs, kepler.py

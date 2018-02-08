@@ -29,6 +29,8 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         raoff (np.array): 2-D array (n_orbs x n_dates) of RA offsets between the bodies (origin is at the other body)
         deoff (np.array): 2-D array (n_orbs x n_dates) of Dec offsets between the bodies
         vz (np.array): 2-D array (n_orbs x n_dates) of radial velocity offset between the bodies
+
+    Written: Jason Wang, Henry Ngo, 2018
     """
 
     n_orbs  = np.size(sma)  # num sets of input orbital parameters
@@ -125,6 +127,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
     Return:
         eanom (np.array): array of eccentric anomalies
+
+    Written: Jason Wang, 2018
     """
 
     if ecc == 0.0:
@@ -165,6 +169,8 @@ def _mikkola_solver_wrapper(manom, e):
         ecc (float): eccentricity
     Return:
         eccanom (np.array): array of eccentric anomalies
+
+    Written: Jason Wang, 2018
     """
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
@@ -183,6 +189,8 @@ def _mikkola_solver(manom, e):
         ecc (float): eccentricity
     Return:
         eccanom (np.array): array of eccentric anomalies
+
+    Written: Jason Wang, 2018
     """
 
     alpha = (1.0 - e) / ((4.0 * e) + 0.5)
