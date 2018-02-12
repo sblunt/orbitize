@@ -4,7 +4,6 @@ This module solves for the orbit of the planet given Keplerian parameters
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
-from astropy.io import fits
 
 
 def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
