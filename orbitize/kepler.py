@@ -122,7 +122,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     """
 
     eanom = np.full(np.shape(manom), np.nan)
-    ecc = np.array(ecc)
+    if np.isscalar(ecc): ecc = np.reshape(ecc, (1, ))
 
     # First deal with e == 0 elements
     ind_zero = np.where(ecc == 0.0)
@@ -135,7 +135,6 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     # Now high eccentricities
     ind_high = np.where(ecc >= 0.95)
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
-
 
     return eanom
 
