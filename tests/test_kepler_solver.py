@@ -16,9 +16,6 @@ def test_analytical_ecc_anom_solver():
     eccs=np.linspace(0.95,0.999999,100)
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
-        # the solver changes the values of mm to be within 0 to pi
-        ind_change = np.where(ecc_anoms > np.pi)
-        ecc_anoms[ind_change] = (2.0 * np.pi) - ecc_anoms[ind_change]
         calc_mm = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
             assert truth == pytest.approx(meas, abs=1e-8)

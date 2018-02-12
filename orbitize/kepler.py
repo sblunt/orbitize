@@ -110,8 +110,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
 
     Args:
-        manom (np.array): array of mean anomalies
-        ecc (float): eccentricity
+        manom (np.array): array of mean anomalies, shape (n_orbs) or (n_orbs, n_dates)
+        ecc (float/np.array): eccentricity, either a scalar or shape (n_orbs, n_dates)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
     Return:
@@ -120,8 +120,11 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     Written: Jason Wang, 2018
     """
 
+    # If ecc is a scalar, make it the same shape as manom
+    if np.isscalar(ecc):
+        ecc = np.full(np.shape(manom), ecc)
+
     eanom = np.full(np.shape(manom), np.nan)
-    if np.isscalar(ecc): ecc = np.reshape(ecc, (1, ))
 
     # First deal with e == 0 elements
     ind_zero = np.where(ecc == 0.0)
@@ -190,7 +193,7 @@ def _mikkola_solver_wrapper(manom, ecc):
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
     eanom = _mikkola_solver(manom, ecc)
     eanom[ind_change] = (2.0 * np.pi) - eanom[ind_change]
-
+    
     return eanom
 
 def _mikkola_solver(manom, ecc):
