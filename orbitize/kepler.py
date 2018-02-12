@@ -120,32 +120,20 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     Written: Jason Wang, 2018
     """
 
-    if hasattr(ecc, '__len__'):
-        # Initialize to nans
-        eanom = np.full(np.shape(manom), np.nan)
+    eanom = np.full(np.shape(manom), np.nan)
 
-        # First deal with e == 0 elements
-        ind_zero = np.where(ecc == 0.0)
-        eanom[ind_zero] = manom[ind_zero]
+    # First deal with e == 0 elements
+    ind_zero = np.where(ecc == 0.0)
+    if len(ind_zero[0]) > 0: eanom[ind_zero] = manom[ind_zero]
 
-        # Now low eccentricities
-        ind_low = np.where(ecc < 0.95)
-        if len(ind_low[0]) > 0:
-            eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+    # Now low eccentricities
+    ind_low = np.where(ecc < 0.95)
+    if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
-        # Now high eccentricities
-        ind_high = np.where(ecc >= 0.95)
-        if len(ind_high[0]) > 0:
-            eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
+    # Now high eccentricities
+    ind_high = np.where(ecc >= 0.95)
+    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
-    else:
-        if ecc == 0.0:
-            eanom = np.copy(manom)
-        else:
-            if ecc < 0.95:
-                eanom = _newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
-            else:
-                eanom = _mikkola_solver_wrapper(manom, ecc) 
 
     return eanom
 
