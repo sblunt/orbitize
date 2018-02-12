@@ -122,6 +122,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     """
 
     eanom = np.full(np.shape(manom), np.nan)
+    ecc = np.array(ecc)
 
     # First deal with e == 0 elements
     ind_zero = np.where(ecc == 0.0)
