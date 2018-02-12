@@ -1,4 +1,3 @@
-
 from orbitize import priors 
 
 class System(object):

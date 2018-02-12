@@ -11,7 +11,7 @@ from astropy.io.ascii import read, write
 def read_formatted_file(filename):
     """Reads astrometric measurements for object from file in any format
     readable by ``astropy.io.ascii.read()``, including csv format.
-    See `Astropy docs <http://docs.astropy.org/en/stable/io/ascii/index.html#id1>`_
+    See `Astropy docs <http://docs.astropy.org/en/stable/io/ascii/index.html#id1>`_.
 
     The input file could have the headers in the CSV example below::
 
