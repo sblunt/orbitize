@@ -4,6 +4,7 @@ This module solves for the orbit of the planet given Keplerian parameters
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
+from astropy.io import fits
 
 
 def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
@@ -52,8 +53,8 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
     mean_motion = 2*np.pi/(period) # in rad/day
 
     # compute mean anomaly (size: n_orbs x n_dates)
-    manom = (mean_motion*epochs - 2*np.pi*tau) #% 2*np.pi
-
+    manom = (mean_motion*epochs - 2*np.pi*tau) % (2.0*np.pi)
+    
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc)
     
