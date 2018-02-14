@@ -110,20 +110,30 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
 
     Args:
-        manom (np.array): array of mean anomalies, shape (n_orbs) or (n_orbs, n_dates)
-        ecc (float/np.array): eccentricity, either a scalar or shape (n_orbs, n_dates)
+        manom (float/np.array): mean anomaly, either a scalar or np.array or any shape
+        ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
     Return:
-        eanom (np.array): array of eccentric anomalies
+        eanom (float/np.array): eccentric anomalies, same shape as manom
 
     Written: Jason Wang, 2018
     """
+
+    if np.isscalar(ecc) or (np.shape(manom) == np.shape(ecc)):
+        pass
+    else:
+        raise ValueError("ecc must be a scalar, or ecc.shape == manom.shape")
+
+    # If manom is a scalar, make it into a one-element array
+    if np.isscalar(manom):
+        manom = np.array((manom, ))
 
     # If ecc is a scalar, make it the same shape as manom
     if np.isscalar(ecc):
         ecc = np.full(np.shape(manom), ecc)
 
+    # Initialize eanom array
     eanom = np.full(np.shape(manom), np.nan)
 
     # First deal with e == 0 elements
@@ -138,14 +148,15 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     ind_high = np.where(ecc >= 0.95)
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
-    return eanom
+    return np.squeeze(eanom)[()]
 
-def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100):
+def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
     Newton-Raphson solver for eccentric anomaly.
     Args:
         manom (np.array): array of mean anomalies
         ecc (np.array): array of eccentricities
+        eanom0 (np.array): array of first guess for eccentric anomaly, same shape as manom (optional)
     Return:
         eanom (np.array): array of eccentric anomalies
     
@@ -153,25 +164,31 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100):
 
     """
 
-    # Initialize at E = M. Probably could have a better choice of starting position
-    eanom = np.copy(manom)
-
-    # Let's do two iterations to start with
+    # Initialize at E=0, E=pi is better at very high eccentricities
+    if eanom0 is None:
+        eanom = np.full(np.shape(manom), 0.0)
+    else:
+        eanom = np.copy(eanom0)
+    
+    # Let's do one iteration to start with
     eanom -= (eanom - (ecc * np.sin(eanom)) - manom) / (1.0 - (ecc * np.cos(eanom)))
-    eanom -= (eanom - (ecc * np.sin(eanom)) - manom) / (1.0 - (ecc * np.cos(eanom)))
-
+    
     diff = (eanom - (ecc * np.sin(eanom)) - manom) / (1.0 - (ecc * np.cos(eanom)))
     abs_diff = np.abs(diff)
     ind = np.where(abs_diff > tolerance)
     niter = 0
     while ((ind[0].size > 0) and (niter <= max_iter)):
         eanom[ind] -= diff[ind]
+        # If it hasn't converged after half the iterations are done, try starting from pi
+        if niter == (max_iter//2):
+            eanom[ind] = np.pi
         diff[ind] = (eanom[ind] - (ecc[ind] * np.sin(eanom[ind])) - manom[ind]) / (1.0 - (ecc[ind] * np.cos(eanom[ind])))
         abs_diff[ind] = np.abs(diff[ind])
         ind = np.where(abs_diff > tolerance)
         niter += 1
+
     if niter >= max_iter:
-        print(manom[ind], eanom[ind], ecc[ind], '> {} iter.'.format(max_iter))
+        print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
         eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
@@ -182,13 +199,14 @@ def _mikkola_solver_wrapper(manom, ecc):
     Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
 
     Args:
-        manom (np.array): array of mean anomalies
-        ecc (float): eccentricity
+        manom (np.array): array of mean anomalies between 0 and 2pi
+        ecc (np.array): eccentricity
     Return:
         eanom (np.array): array of eccentric anomalies
 
     Written: Jason Wang, 2018
     """
+
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
     eanom = _mikkola_solver(manom, ecc)
@@ -202,8 +220,8 @@ def _mikkola_solver(manom, ecc):
     Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
 
     Args:
-        manom (np.array): array of mean anomalies
-        ecc (float): eccentricity
+        manom (float or np.array): mean anomaly, must be between 0 and pi.
+        ecc (float or np.array): eccentricity
     Return:
         eanom (np.array): array of eccentric anomalies
 
@@ -214,8 +232,7 @@ def _mikkola_solver(manom, ecc):
     beta = (0.5 * manom) / ((4.0 * ecc) + 0.5)
 
     aux = np.sqrt(beta**2.0 + alpha**3.0)
-    z = beta + aux
-    z = z**(1.0/3.0)
+    z = np.abs(beta + aux)**(1.0/3.0)
 
     s0 = z - (alpha/z)
     s1 = s0 - (0.078*(s0**5.0)) / (1.0 + ecc)

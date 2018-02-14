@@ -7,6 +7,10 @@ import orbitize.kepler as kepler
 
 threshold = 1e-8
 
+def angle_diff(ang1, ang2):
+    # Return the difference between two angles
+    return np.arctan2(np.sin(ang1 - ang2), np.cos(ang1 - ang2))
+
 def test_analytical_ecc_anom_solver():
     """
     Test orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
@@ -16,9 +20,9 @@ def test_analytical_ecc_anom_solver():
     eccs=np.linspace(0.95,0.999999,100)
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
-        calc_mm = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
+        calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
-            assert truth == pytest.approx(meas, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
 
 def test_iterative_ecc_anom_solver():
     """
@@ -29,9 +33,9 @@ def test_iterative_ecc_anom_solver():
     eccs=np.linspace(0,0.9499999,100)
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
-        calc_ma = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
+        calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
-            assert truth == pytest.approx(meas, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
 
 def test_orbit_e03():
     """
