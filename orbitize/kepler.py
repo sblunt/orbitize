@@ -136,16 +136,20 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     # Initialize eanom array
     eanom = np.full(np.shape(manom), np.nan)
 
-    # First deal with e == 0 elements
-    ind_zero = np.where(ecc == 0.0)
+    # Save some boolean arrays
+    ecc_zero = ecc == 0.0
+    ecc_low = ecc < 0.95
+
+    # First deal with e == 0 elements    
+    ind_zero = np.where(ecc_zero)
     if len(ind_zero[0]) > 0: eanom[ind_zero] = manom[ind_zero]
 
     # Now low eccentricities
-    ind_low = np.where(ecc < 0.95)
+    ind_low = np.where(~ecc_zero & ecc_low)
     if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
     # Now high eccentricities
-    ind_high = np.where(ecc >= 0.95)
+    ind_high = np.where(~ecc_zero & ~ecc_low)
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
     return np.squeeze(eanom)[()]
