@@ -22,8 +22,8 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
         lan (np.array): longitude of the ascending node [radians]
         inc (np.array): inclination [radians]
         plx (np.array): parallax [mas]
-        mtot (np.array): total mass [Solar masses]. Note that this is
-        mass (float): mass of this body [Solar masses]. For planets mass ~ 0
+        mtot (np.array): total mass [Solar masses]
+        mass (np.array): mass of the body [Solar masses]. For planets mass ~ 0 (default)
 
     Return:
         raoff (np.array): 2-D array (n_orbs x n_dates) of RA offsets between the bodies (origin is at the other body)
