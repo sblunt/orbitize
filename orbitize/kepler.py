@@ -98,9 +98,10 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
     vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
-    raoff = np.squeeze(raoff)
-    deoff = np.squeeze(deoff)
-    vz = np.squeeze(vz)
+    # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
+    raoff = np.squeeze(raoff)[()]
+    deoff = np.squeeze(deoff)[()]
+    vz = np.squeeze(vz)[()]
 
     return raoff, deoff, vz
 
