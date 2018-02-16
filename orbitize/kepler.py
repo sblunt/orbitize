@@ -87,8 +87,8 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
-    m2 = mtot - mass
-    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m2 * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+    m1 = mtot - mass # mass of the primary star
+    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m1 * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
     # Convert to km/s
     Kv = Kv.to(u.km/u.s)
     # compute the vz
