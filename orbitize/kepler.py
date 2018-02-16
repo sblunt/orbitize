@@ -86,18 +86,13 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
     deoff = radius * (c2i2*c1 + s2i2*c2) * plx_as
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
-    # first comptue the RV semi-amplitude (size: n_orbs)
-    # Treat entries where mass = 0 (test particle) and massive bodies separately
-    Kv = np.zeros((n_orbs,n_dates))
-    # Find indices of massless cases (mass==0)
-    m0_ind = mass==0
-    # Calculate radial velocity where mass is zero (test particle)
-    Kv[m0_ind] = (mean_motion[m0_ind] * (sma[m0_ind] * np.sin(inc[m0_ind])) / np.sqrt(1 - ecc[m0_ind]**2) * (u.au/u.day)).to(u.km/u.s)
-    # Calculate radial velocity when mass is non-zero
+    # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
     m2 = mtot - mass
-    Kv[~m0_ind] = (np.sqrt(consts.G / (1.0 - ecc[~m0_ind]**2)) * (m2[~m0_ind] * u.Msun * np.sin(inc[~m0_ind])) / np.sqrt(mtot[~m0_ind] * u.Msun) / np.sqrt(sma[~m0_ind] * u.au)).to(u.km/u.s)
+    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m2 * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+    # Convert to km/s
+    Kv = Kv.to(u.km/u.s)
     # compute the vz
-    vz =  Kv * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
+    vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
