@@ -110,7 +110,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
 
     Args:
-        manom (float/np.array): mean anomaly, either a scalar or np.array or any shape
+        manom (float/np.array): mean anomaly, either a scalar or np.array of any shape
         ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
