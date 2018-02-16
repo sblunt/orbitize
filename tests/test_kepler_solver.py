@@ -154,7 +154,8 @@ def test_orbit_with_mass_array():
     plx = np.array([50,50,50])
     mtot = np.array([1.5,1.5,1.5])
     epochs = np.array([1000, 1101.4])
-    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mtot[0]/2)
+    mass = mtot/2
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=mass)
 
     true_raoff = np.array([[ 0.15286786,  0.18039408],
                            [ 0.15286786,  0.18039408],

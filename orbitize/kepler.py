@@ -6,7 +6,7 @@ import astropy.units as u
 import astropy.constants as consts
 
 
-def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
+def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -44,6 +44,10 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
     tau = np.transpose(np.tile(tau, (n_dates, 1)))
     plx = np.transpose(np.tile(plx, (n_dates, 1)))
     mtot = np.transpose(np.tile(mtot, (n_dates, 1)))
+    if mass is None: # if mass is not given, assume all zeros
+        mass = np.zeros((n_orbs,n_dates))
+    else: # otherwise, convert 1D array into 2D array
+        mass = np.transpose(np.tile(mass, (n_dates, 1)))
     epochs = np.tile(epochs, (n_orbs, 1))
 
     # Compute period (from Kepler's third law) and mean motion
@@ -53,10 +57,10 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
 
     # compute mean anomaly (size: n_orbs x n_dates)
     manom = (mean_motion*epochs - 2*np.pi*tau) % (2.0*np.pi)
-    
+
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc)
-    
+
     # compute the true anomalies (size: n_orbs x n_dates)
     tanom = 2.*np.arctan(np.sqrt( (1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom) )
 
@@ -84,18 +88,16 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=0):
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs)
     # Treat entries where mass = 0 (test particle) and massive bodies separately
-    if mass == 0:
-        # basically treating this body as a test particle. we can calcualte a radial velocity for a test particle
-        Kv =  mean_motion * (sma * np.sin(inc)) / np.sqrt(1 - ecc**2) * (u.au/u.day)
-        Kv = Kv.to(u.km/u.s) # converted to km/s
-    else:
-        # we want to measure the mass of the influencing body on the system
-        # we need units now
-        m2 = mtot - mass
-        Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m2 * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
-        Kv = Kv.to(u.km/u.s)
+    Kv = np.zeros((n_orbs,n_dates))
+    # Find indices of massless cases (mass==0)
+    m0_ind = mass==0
+    # Calculate radial velocity where mass is zero (test particle)
+    Kv[m0_ind] = (mean_motion[m0_ind] * (sma[m0_ind] * np.sin(inc[m0_ind])) / np.sqrt(1 - ecc[m0_ind]**2) * (u.au/u.day)).to(u.km/u.s)
+    # Calculate radial velocity when mass is non-zero
+    m2 = mtot - mass
+    Kv[~m0_ind] = (np.sqrt(consts.G / (1.0 - ecc[~m0_ind]**2)) * (m2[~m0_ind] * u.Msun * np.sin(inc[~m0_ind])) / np.sqrt(mtot[~m0_ind] * u.Msun) / np.sqrt(sma[~m0_ind] * u.au)).to(u.km/u.s)
     # compute the vz
-    vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
+    vz =  Kv * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
@@ -141,7 +143,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     ecc_zero = ecc == 0.0
     ecc_low = ecc < 0.95
 
-    # First deal with e == 0 elements    
+    # First deal with e == 0 elements
     ind_zero = np.where(ecc_zero)
     if len(ind_zero[0]) > 0: eanom[ind_zero] = manom[ind_zero]
 
@@ -164,7 +166,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
         eanom0 (np.array): array of first guess for eccentric anomaly, same shape as manom (optional)
     Return:
         eanom (np.array): array of eccentric anomalies
-    
+
     Written: Rob De Rosa, 2018
 
     """
@@ -174,10 +176,10 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
         eanom = np.full(np.shape(manom), 0.0)
     else:
         eanom = np.copy(eanom0)
-    
+
     # Let's do one iteration to start with
     eanom -= (eanom - (ecc * np.sin(eanom)) - manom) / (1.0 - (ecc * np.cos(eanom)))
-    
+
     diff = (eanom - (ecc * np.sin(eanom)) - manom) / (1.0 - (ecc * np.cos(eanom)))
     abs_diff = np.abs(diff)
     ind = np.where(abs_diff > tolerance)
@@ -216,7 +218,7 @@ def _mikkola_solver_wrapper(manom, ecc):
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
     eanom = _mikkola_solver(manom, ecc)
     eanom[ind_change] = (2.0 * np.pi) - eanom[ind_change]
-    
+
     return eanom
 
 def _mikkola_solver(manom, ecc):
