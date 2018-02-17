@@ -86,6 +86,7 @@ def test_orbit_e03_array():
     true_vz    = np.array([[0.86448656,  0.97591289],
                            [0.86448656,  0.97591289],
                            [0.86448656,  0.97591289]])
+
     for ii in range(0,3):
         for meas, truth in zip(raoffs[ii,:], true_raoff[ii,:]):
             assert truth == pytest.approx(meas, abs=threshold)

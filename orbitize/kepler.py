@@ -36,34 +36,29 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
     n_orbs  = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs) # number of dates to compute offsets and vz
 
-    sma = np.transpose(np.tile(sma, (n_dates, 1)))
-    inc = np.transpose(np.tile(inc, (n_dates, 1)))
-    ecc = np.transpose(np.tile(ecc, (n_dates, 1)))
-    argp = np.transpose(np.tile(argp, (n_dates, 1)))
-    lan = np.transpose(np.tile(lan, (n_dates, 1)))
-    tau = np.transpose(np.tile(tau, (n_dates, 1)))
-    plx = np.transpose(np.tile(plx, (n_dates, 1)))
-    mtot = np.transpose(np.tile(mtot, (n_dates, 1)))
-    if mass is None: # if mass is not given, assume all zeros
-        mass = np.zeros((n_orbs,n_dates))
-    else: # otherwise, convert 1D array into 2D array
-        mass = np.transpose(np.tile(mass, (n_dates, 1)))
-    epochs = np.tile(epochs, (n_orbs, 1))
+    # Necessary for _calc_ecc_anom, for now
+    if np.isscalar(epochs): # just in case epochs is given as a scalar
+        epochs = np.array([epochs])
+    ecc_arr = np.tile(ecc, (n_dates, 1))
+
+    # If mass not given, assume test particle case
+    if mass is None:
+        mass = np.zeros(n_orbs)
 
     # Compute period (from Kepler's third law) and mean motion
     period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
     period = period.to(u.day).value
     mean_motion = 2*np.pi/(period) # in rad/day
 
-    # compute mean anomaly (size: n_orbs x n_dates)
-    manom = (mean_motion*epochs - 2*np.pi*tau) % (2.0*np.pi)
+    # # compute mean anomaly (size: n_orbs x n_dates)
+    manom = (mean_motion*epochs[:, None] - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc)
+    eanom = _calc_ecc_anom(manom, ecc_arr)
 
     # compute the true anomalies (size: n_orbs x n_dates)
+    # Note: matrix multiplication makes the shapes work out here and below
     tanom = 2.*np.arctan(np.sqrt( (1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom) )
-
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
@@ -96,9 +91,9 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
-    raoff = np.squeeze(raoff)[()]
-    deoff = np.squeeze(deoff)[()]
-    vz = np.squeeze(vz)[()]
+    raoff = np.transpose(np.squeeze(raoff)[()])
+    deoff = np.transpose(np.squeeze(deoff)[()])
+    vz = np.transpose(np.squeeze(vz)[()])
 
     return raoff, deoff, vz
 
