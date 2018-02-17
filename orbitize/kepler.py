@@ -163,7 +163,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     # Initialize at E=M, E=pi is better at very high eccentricities
     if eanom0 is None:
-        eanom = np.full(np.shape(manom), M)
+        eanom = np.copy(manom)
     else:
         eanom = np.copy(eanom0)
 
