@@ -175,6 +175,30 @@ def test_orbit_with_mass_array():
         for meas, truth in zip(vzs[ii,:], true_vz[ii,:]):
             assert truth == pytest.approx(meas, abs=threshold)
 
+def test_orbit_scalar():
+    """
+    Test orbitize.kepler.calc_orbit() with scalar values
+    """
+    sma = 10
+    ecc = 0.3
+    tau = 0.3
+    argp = 0.5
+    lan = 1.5
+    inc = 3
+    plx = 50
+    mtot = 1.5
+    epochs = 1000
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
+
+    true_raoff = 0.15286786
+    true_deoff = -0.46291038
+    true_vz    = 0.86448656
+
+    assert true_raoff == pytest.approx(raoffs, abs=threshold)
+    assert true_deoff == pytest.approx(deoffs, abs=threshold)
+    assert true_vz    == pytest.approx(vzs, abs=threshold)
+
+
 if __name__ == "__main__":
     test_analytical_ecc_anom_solver()
     test_iterative_ecc_anom_solver()
@@ -183,3 +207,4 @@ if __name__ == "__main__":
     test_orbit_e99()
     test_orbit_with_mass()
     test_orbit_with_mass_array()
+    test_orbit_scalar()
