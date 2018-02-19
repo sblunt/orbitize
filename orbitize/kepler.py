@@ -6,7 +6,7 @@ import astropy.units as u
 import astropy.constants as consts
 
 
-def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
+def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -23,7 +23,9 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
         inc (np.array): inclination [radians]
         plx (np.array): parallax [mas]
         mtot (np.array): total mass [Solar masses]
-        mass (np.array): mass of the body [Solar masses]. For planets mass ~ 0 (default)
+        mass (np.array, optional): mass of the body [Solar masses]. For planets mass ~ 0 (default)
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
 
     Return:
         raoff (np.array): 2-D array (n_orbs x n_dates) of RA offsets between the bodies (origin is at the other body)
@@ -54,7 +56,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None):
     manom = (mean_motion*epochs[:, None] - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
