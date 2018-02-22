@@ -7,6 +7,10 @@ import orbitize.kepler as kepler
 
 threshold = 1e-8
 
+def angle_diff(ang1, ang2):
+    # Return the difference between two angles
+    return np.arctan2(np.sin(ang1 - ang2), np.cos(ang1 - ang2))
+
 def test_analytical_ecc_anom_solver():
     """
     Test orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
@@ -16,12 +20,9 @@ def test_analytical_ecc_anom_solver():
     eccs=np.linspace(0.95,0.999999,100)
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
-        # the solver changes the values of mm to be within 0 to pi
-        ind_change = np.where(ecc_anoms > np.pi)
-        ecc_anoms[ind_change] = (2.0 * np.pi) - ecc_anoms[ind_change]
-        calc_mm = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
+        calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
-            assert truth == pytest.approx(meas, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
 
 def test_iterative_ecc_anom_solver():
     """
@@ -32,9 +33,9 @@ def test_iterative_ecc_anom_solver():
     eccs=np.linspace(0,0.9499999,100)
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
-        calc_ma = ecc_anoms - ee*np.sin(ecc_anoms) # plug solutions into Kepler's equation
+        calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
-            assert truth == pytest.approx(meas, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
 
 def test_orbit_e03():
     """
@@ -85,6 +86,7 @@ def test_orbit_e03_array():
     true_vz    = np.array([[0.86448656,  0.97591289],
                            [0.86448656,  0.97591289],
                            [0.86448656,  0.97591289]])
+
     for ii in range(0,3):
         for meas, truth in zip(raoffs[ii,:], true_raoff[ii,:]):
             assert truth == pytest.approx(meas, abs=threshold)
@@ -153,7 +155,8 @@ def test_orbit_with_mass_array():
     plx = np.array([50,50,50])
     mtot = np.array([1.5,1.5,1.5])
     epochs = np.array([1000, 1101.4])
-    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mtot[0]/2)
+    mass = mtot/2
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=mass)
 
     true_raoff = np.array([[ 0.15286786,  0.18039408],
                            [ 0.15286786,  0.18039408],
@@ -172,6 +175,30 @@ def test_orbit_with_mass_array():
         for meas, truth in zip(vzs[ii,:], true_vz[ii,:]):
             assert truth == pytest.approx(meas, abs=threshold)
 
+def test_orbit_scalar():
+    """
+    Test orbitize.kepler.calc_orbit() with scalar values
+    """
+    sma = 10
+    ecc = 0.3
+    tau = 0.3
+    argp = 0.5
+    lan = 1.5
+    inc = 3
+    plx = 50
+    mtot = 1.5
+    epochs = 1000
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
+
+    true_raoff = 0.15286786
+    true_deoff = -0.46291038
+    true_vz    = 0.86448656
+
+    assert true_raoff == pytest.approx(raoffs, abs=threshold)
+    assert true_deoff == pytest.approx(deoffs, abs=threshold)
+    assert true_vz    == pytest.approx(vzs, abs=threshold)
+
+
 if __name__ == "__main__":
     test_analytical_ecc_anom_solver()
     test_iterative_ecc_anom_solver()
@@ -180,3 +207,4 @@ if __name__ == "__main__":
     test_orbit_e99()
     test_orbit_with_mass()
     test_orbit_with_mass_array()
+    test_orbit_scalar()
