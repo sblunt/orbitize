@@ -1,4 +1,4 @@
-def chi2_likelihood(data, errors, model):
+def chi2_lnlike(data, errors, model):
     """Log of the Chi2 Likelihood Computation
 
     Args:
