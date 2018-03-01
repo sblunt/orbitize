@@ -1,6 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input
-
+from orbitize import priors, read_input, kepler
 
 class System(object):
     """
@@ -25,51 +24,142 @@ class System(object):
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        mass, parallax, semimajor axis b, eccentricity b, AOP b, PAN b, 
-        inclination b, EPP b, [semimajor axis c, eccentricity c, etc.]
+        semimajor axis b, eccentricity b, AOP b, PAN b, inclination b, EPP b, 
+        [semimajor axis c, eccentricity c, etc.], 
+        mass, parallax
 
     where `b` corresponds to the first orbiting object, `c` corresponds
-    to the second, etc.
-
-    TODO: remove DeltaPriors, communicate better to MCMC (and OFTI) 
-          not to fit mass or parallax if err=0
+    to the second, etc. 
 
     (written): Sarah Blunt, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass, 
                  plx, mass_err=0, plx_err=0):
 
-        self.data_table = data_table
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
-
-        # Set priors on system mass and parallax
-        if mass_error > 0:
-            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_error))
-        else:
-            self.sys_priors.append(priors.DeltaPrior(system_mass))
-        if plx_error > 0:
-            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-        else:
-            self.sys_priors.append(priors.DeltaPrior(plx))
 
         # Set priors for each orbital element
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.Jeffreys(0.1, 100.))
+            self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
 
             # Add eccentricity prior
-            self.sys_priors.append(priors.Uniform(0.,1.))
+            self.sys_priors.append(priors.UniformPrior(0.,1.))
 
             # Add argument of periastron prior
-            self.sys_priors.append(priors.Uniform(0.,2.*np.pi))
+            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
 
             # Add position angle of nodes prior
-            self.sys_priors.append(priors.Uniform(0.,2.*np.pi))
+            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
 
             # Add inclination angle prior
-            self.sys_priors.append(priors.Sine(0.,np.pi))
+            self.sys_priors.append(priors.CosPrior(0.,np.pi))
 
-            # Add epoch of periastron prior. Here, EPP is defined as the 
-            # time fraction of the orbit that elapsed between 2000.00 and periastron
-            self.sys_priors.append(priors.Uniform(0., 1.))
+            # Add epoch of periastron prior. 
+            self.sys_priors.append(priors.UniformPrior(0., 1.))
+
+        # Set priors on system mass and parallax
+        if mass_error > 0:
+            self.sys_priors.append(priors.GaussianPrior(
+                system_mass, mass_error)
+            )
+        else:
+            self.system_mass = system_mass
+        if plx_error > 0:
+            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
+        else:
+            self.plx = plx
+
+        # Group the data in some useful ways
+        self.data_table = data_table
+
+        self.body_indices = []
+        self.radec = []
+        self.seppa = []
+
+        radec_indices = np.where(self.data_table['quant_type']=='radec')
+        seppa_indices = np.where(self.data_table['quant_type']=='seppa')
+
+        for body_num in np.arange(self.num_secondary_bodies+1):
+
+            self.body_indices.append(
+                np.where(self.data_table['object']==body_num)
+            )
+
+            self.radec.append(
+                np.intersect1d(body_indices[body_num], radec_indices)
+            )
+            self.seppa.append(
+                np.intersect1d(body_indices[body_num], seppa_indices)
+            )
+
+
+    def compute_model(self, params_arr):
+    """
+    params_arr (2d numpy array: num_orbits x num_params)
+
+    # TODO: document this whole file better.
+    # TODO: write tests.
+    # TODO: upgrade lnlike to act on arrays.
+    # TODO: update orbitize team.
+    """
+
+        model = np.zeros(params_arr.shape[0], len(self.data_table), 2.)
+
+        if self.plx:
+            plx = self.plx
+        else:
+            plx = params_arr[:, -1]
+        if self.system_mass:
+            mtot = self.system_mass
+        else:
+            mtot = params_arr[:, 6*self.num_secondary_bodies]
+
+        for body_num in self.num_secondary_bodies:
+
+            epochs = self.data_table['epoch'][self.body_indices[body_num]]
+            sma = params_arr[:, body_num]
+            ecc = params_arr[:, body_num+1]
+            argp = params_arr[:, body_num+2]
+            lan = params_arr[:, body_num+3]
+            inc = params_arr[:, body_num+4]
+            tau = params_arr[:, body_num+5]
+
+            raoff, decoff, vz = kepler.calc_orbit(
+                epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
+            )
+
+            model[:, self.radec[body_num], 0] = raoff[self.radec[body_num]]
+            model[:, self.radec[body_num], 1] = decoff[self.radec[body_num]]
+
+            sep, pa = radec2seppa(
+                raoff[self.seppa[body_num]], 
+                decoff[self.seppa[body_num]]
+            )
+            model[:, self.seppa[body_num], 0] = sep
+            model[:, self.seppa[body_num], 1] = pa
+
+        return model
+
+
+def radec2seppa(ra, dec):
+"""
+
+ra, dec must be np arrays
+
+(written: Eric Nielsen, <2016)
+(ported to Python: Sarah Blunt, 2018)
+"""
+
+    deg2rad = 0.0174532925199433
+    sep = np.sqrt((ra**2) + (dec**2))
+    pa = np.arctan(ra/dec) / deg2rad
+
+    test1 = [i for i, dec in enumerate(dec) if dec<0]
+    test2 = [i for i, dec in enumerate(dec) if dec>=0 and ra[i]<0]
+
+    pa[test1] += 180.
+    pa[test2] += 360.
+
+    return sep, pa
