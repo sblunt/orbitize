@@ -28,6 +28,7 @@ class OFTI(object):
         # draw an array of num_samples smas, eccs, etc. from prior objects: prior = (some object inhertiting from priors.Prior); samples = prior.draw_samples(#)
         elements = system.priors.keys() # -> this step should be done in __init__ so it doesn't slow performance
 
+        #example creating array
         for element in elements:
             samples[i,j] = system.priors[element].draw_samples(num_samples)
 
