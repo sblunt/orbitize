@@ -1,6 +1,8 @@
 class OFTI(object):
     """
     OFTI Sampler
+    
+    TEST I am editing this file
 
     Args:
         lnlike: likelihood object (TBD)
