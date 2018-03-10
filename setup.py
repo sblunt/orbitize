@@ -1,8 +1,15 @@
 from setuptools import setup, find_packages
+import re
+
+# auto-updating version code stolen from RadVel
+def get_property(prop, project):
+    result = re.search(r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop),
+                       open(project + '/__init__.py').read())
+    return result.group(1)
 
 setup(
     name='orbitize',
-    version='0.1',
+    version=get_property('__version__', 'orbitize'),
     description='orbitize! Turns imaaging data into orbits',
     url='https://github.com/sblunt/orbitize',
     author='',
