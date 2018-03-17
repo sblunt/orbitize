@@ -64,12 +64,14 @@ class System(object):
             self.sys_priors.append(priors.GaussianPrior(
                 system_mass, mass_error)
             )
+            self.abs_system_mass = None
         else:
-            self.system_mass = system_mass
+            self.abs_system_mass = system_mass
         if plx_error > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
+            self.abs_system_mass = None
         else:
-            self.plx = plx
+            self.abs_plx = plx
 
         # Group the data in some useful ways
         self.data_table = data_table
@@ -100,7 +102,11 @@ class System(object):
     params_arr (2d numpy array: num_orbits x num_params)
 
     # TODO: document this whole file better.
-    # TODO: write tests.
+    # TODO: write tests:
+    # 1. test that __init__ produces correct list of priors (both err=0 and not cases)
+    # 2. self.seppa and self.radec are read in correctly for multi-planet data table
+    # 3. test that model produces correct output.
+    # 4. little unit tests for radec3seppa
     # TODO: upgrade lnlike to act on arrays.
     # TODO: update orbitize team.
     """
