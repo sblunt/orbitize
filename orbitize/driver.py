@@ -20,9 +20,9 @@ class Driver(object):
 
     (written): Sarah Blunt, 2018
     """
-    def __init__(self, filename, sampler, lnlike='chi2_lnlike', 
+    def __init__(self, filename, sampler,
                  num_secondary_bodies, system_mass, plx, 
-                 mass_err=0, plx_err=0):
+                 mass_err=0, plx_err=0, lnlike='chi2_lnlike'):
 
         # Read in data
         data_table = read_input.read_formatted_file(filename)
