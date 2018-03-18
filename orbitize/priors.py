@@ -74,6 +74,34 @@ class GaussianPrior(Prior):
         lnprob = (element_array - self.mu) / self.sigma
         return lnprob
 
+class JeffreysPrior(Prior):
+    def __init__(self, min, max):
+        pass
+    def draw_samples(self, num_samples):
+        pass
+    def compute_lnprob(self, element_array):
+        pass
+
+class UniformPrior(Prior):
+    def __init__(self, min, max):
+        pass
+    def draw_samples(self, num_samples):
+        pass
+    def compute_lnprob(self, element_array):
+        pass  
+
+
+class CosPrior(Prior):
+    def __init__(self, min, max):
+        pass
+    def draw_samples(self, num_samples):
+        pass
+    def compute_lnprob(self, element_array):
+        pass  
+
+
+
+
 
 
 
