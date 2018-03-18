@@ -5,6 +5,7 @@ import numpy as np
 import orbitize.lnlike as lnlike
 import orbitize.system as system
 import orbitize.read_input as read_input
+import os
 
 def test_compute_model():
     """
