@@ -1,11 +1,13 @@
 import numpy as np
 from orbitize import priors, read_input, kepler
 
+deg2rad = 0.0174532925199433
+
 class System(object):
     """
-    A class containing information about all data, system parameters 
-    (e.g. total mass, parallax), and priors relevant for a gravitationally-
-    bound system.
+    A class to store information about a system (data & priors) 
+    and calculate model predictions given a set of orbital 
+    parameters.
 
     Args:
         num_secondary_bodies (int): number of secondary bodies in the system. 
@@ -15,8 +17,8 @@ class System(object):
             ``orbitize.read_input.read_orbitize_input()``
         system_mass (float): mean total mass of the system, in M_sol
         plx (float): mean parallax of the system, in arcsec
-        mass_err (float): uncertainty on ``system_mass``, in M_sol
-        plx_err (float): uncertainty on ``plx``, in arcsec
+        mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
+        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
 
     Users should initialize an instance of this class, then overwrite 
     priors they wish to customize. 
@@ -25,7 +27,7 @@ class System(object):
     in the following order:
 
         semimajor axis b, eccentricity b, AOP b, PAN b, inclination b, EPP b, 
-        [semimajor axis c, eccentricity c, etc.], 
+        [semimajor axis c, eccentricity c, etc.]
         mass, parallax
 
     where `b` corresponds to the first orbiting object, `c` corresponds
@@ -60,24 +62,34 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0., 1.))
 
         # Set priors on system mass and parallax
-        if mass_error > 0:
+        if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(
-                system_mass, mass_error)
+                system_mass, mass_err)
             )
             self.abs_system_mass = None
+            self.abs_system_mass = np.nan
         else:
             self.abs_system_mass = system_mass
-        if plx_error > 0:
+        if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
             self.abs_system_mass = None
+            self.abs_plx = np.nan
         else:
             self.abs_plx = plx
 
+
+
         # Group the data in some useful ways
+
         self.data_table = data_table
 
+        # List of arrays of indices corresponding to each body
         self.body_indices = []
+
+        # List of arrays of indices corresponding to epochs in RA/Dec for each body
         self.radec = []
+
+        # List of arrays of indices corresponding to epochs in SEP/PA for each body
         self.seppa = []
 
         radec_indices = np.where(self.data_table['quant_type']=='radec')
@@ -90,82 +102,94 @@ class System(object):
             )
 
             self.radec.append(
-                np.intersect1d(body_indices[body_num], radec_indices)
+                np.intersect1d(self.body_indices[body_num], radec_indices)
             )
             self.seppa.append(
-                np.intersect1d(body_indices[body_num], seppa_indices)
+                np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
 
 
     def compute_model(self, params_arr):
-    """
-    params_arr (2d numpy array: num_orbits x num_params)
+        """
+        Compute model predictions for an array of fitting parameters.
 
-    # TODO: document this whole file better.
-    # TODO: write tests:
-    # 1. test that __init__ produces correct list of priors (both err=0 and not cases)
-    # 2. self.seppa and self.radec are read in correctly for multi-planet data table
-    # 3. test that model produces correct output.
-    # 4. little unit tests for radec3seppa
-    # TODO: upgrade lnlike to act on arrays.
-    # TODO: update orbitize team.
-    """
+        Args:
+            params_arr (np.array of float): MxR array 
+                of fitting parameters, where M is the number of orbits
+                we need model predictions for, and R is the number of 
+                parameters being fit. Must be in the same order
+                documented in System() above.
 
-        model = np.zeros(params_arr.shape[0], len(self.data_table), 2.)
+        Returns:
+            np.array of float: MxNobsx2 array model predictions
+        """
 
-        if self.plx:
-            plx = self.plx
+        model = np.zeros((params_arr.shape[0], len(self.data_table), 2))
+
+        if not np.isnan(self.abs_plx):
+            plx = self.abs_plx
         else:
             plx = params_arr[:, -1]
-        if self.system_mass:
-            mtot = self.system_mass
+        if not np.isnan(self.abs_system_mass):
+            mtot = self.abs_system_mass
         else:
             mtot = params_arr[:, 6*self.num_secondary_bodies]
 
-        for body_num in self.num_secondary_bodies:
+        for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
-            sma = params_arr[:, body_num]
-            ecc = params_arr[:, body_num+1]
-            argp = params_arr[:, body_num+2]
-            lan = params_arr[:, body_num+3]
-            inc = params_arr[:, body_num+4]
-            tau = params_arr[:, body_num+5]
+            sma = params_arr[:, body_num-1]
+            ecc = params_arr[:, body_num]
+            argp = params_arr[:, body_num+1]
+            lan = params_arr[:, body_num+2]
+            inc = params_arr[:, body_num+3]
+            tau = params_arr[:, body_num+4]
 
             raoff, decoff, vz = kepler.calc_orbit(
                 epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
             )
 
-            model[:, self.radec[body_num], 0] = raoff[self.radec[body_num]]
-            model[:, self.radec[body_num], 1] = decoff[self.radec[body_num]]
+            model[:, self.radec[body_num], 0] = raoff[:, self.radec[body_num]]
+            model[:, self.radec[body_num], 1] = decoff[:, self.radec[body_num]]
 
             sep, pa = radec2seppa(
-                raoff[self.seppa[body_num]], 
-                decoff[self.seppa[body_num]]
+                raoff[:, self.seppa[body_num]], 
+                decoff[:, self.seppa[body_num]]
             )
             model[:, self.seppa[body_num], 0] = sep
             model[:, self.seppa[body_num], 1] = pa
+
 
         return model
 
 
 def radec2seppa(ra, dec):
-"""
+    """
+    Convenience function for converting from 
+    right ascension/declination to separation/
+    position angle.
 
-ra, dec must be np arrays
+    Args:
+        ra (np.array of float): array of RA values
+        dec (np.array of float): array of Dec values
 
-(written: Eric Nielsen, <2016)
-(ported to Python: Sarah Blunt, 2018)
-"""
+    Returns:
+        tulple of float: (separation, position angle)
 
-    deg2rad = 0.0174532925199433
+    (written in IDL: Eric Nielsen, <2016)
+    (ported to Python: Sarah Blunt, 2018)
+    """
+
     sep = np.sqrt((ra**2) + (dec**2))
     pa = np.arctan(ra/dec) / deg2rad
 
-    test1 = [i for i, dec in enumerate(dec) if dec<0]
-    test2 = [i for i, dec in enumerate(dec) if dec>=0 and ra[i]<0]
-
+    test1 = np.where(dec<0)
     pa[test1] += 180.
+
+
+    test2a = np.where(dec>=0)
+    test2b = np.where(ra<0)
+    test2 = np.intersect1d(test2a, test2b)
     pa[test2] += 360.
 
     return sep, pa
