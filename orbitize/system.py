@@ -176,20 +176,9 @@ def radec2seppa(ra, dec):
     Returns:
         tulple of float: (separation, position angle)
 
-    (written in IDL: Eric Nielsen, <2016)
-    (ported to Python: Sarah Blunt, 2018)
     """
 
     sep = np.sqrt((ra**2) + (dec**2))
-    pa = np.arctan(ra/dec) / deg2rad
-
-    test1 = np.where(dec<0)
-    pa[test1] += 180.
-
-
-    test2a = np.where(dec>=0)
-    test2b = np.where(ra<0)
-    test2 = np.intersect1d(test2a, test2b)
-    pa[test2] += 360.
+    pa = (np.arctan2(ra, dec) / deg2rad) % 360.
 
     return sep, pa
