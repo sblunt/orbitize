@@ -56,7 +56,7 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
 
             # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior(0.,np.pi))
+            self.sys_priors.append(priors.SinPrior())
 
             # Add epoch of periastron prior. 
             self.sys_priors.append(priors.UniformPrior(0., 1.))
