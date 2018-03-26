@@ -1,45 +1,184 @@
-from orbitize import priors 
+import numpy as np
+from orbitize import priors, read_input, kepler
+
+deg2rad = 0.0174532925199433
 
 class System(object):
     """
-    A gravitationally bound system
+    A class to store information about a system (data & priors) 
+    and calculate model predictions given a set of orbital 
+    parameters.
 
     Args:
-        num_bodies (int): number of bodies in the system. Should be at least 2.
+        num_secondary_bodies (int): number of secondary bodies in the system. 
+            Should be at least 1.
+        data_table (astropy.table.Table): output from either
+            ``orbitize.read_input.read_formatted_file()`` or 
+            ``orbitize.read_input.read_orbitize_input()``
+        system_mass (float): mean total mass of the system, in M_sol
+        plx (float): mean parallax of the system, in arcsec
+        mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
+        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
+
+    Users should initialize an instance of this class, then overwrite 
+    priors they wish to customize. 
+
+    Priors are initialized as a list of orbitize.priors.Prior objects,
+    in the following order:
+
+        semimajor axis b, eccentricity b, AOP b, PAN b, inclination b, EPP b, 
+        [semimajor axis c, eccentricity c, etc.]
+        mass, parallax
+
+    where `b` corresponds to the first orbiting object, `c` corresponds
+    to the second, etc. 
+
+    (written): Sarah Blunt, 2018
     """
-    def __init__(self, num_bodies, system_mass, plx, mass_err=0, plx_err=0):
-        # create CelestialDuo attributes, one for each graviataionally interacting pair in the system
-        pass
+    def __init__(self, num_secondary_bodies, data_table, system_mass, 
+                 plx, mass_err=0, plx_err=0):
+
+        self.num_secondary_bodies = num_secondary_bodies
+        self.sys_priors = []
+
+        # Set priors for each orbital element
+        for body in np.arange(num_secondary_bodies):
+            # Add semimajor axis prior
+            self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
+
+            # Add eccentricity prior
+            self.sys_priors.append(priors.UniformPrior(0.,1.))
+
+            # Add argument of periastron prior
+            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
+
+            # Add position angle of nodes prior
+            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
+
+            # Add inclination angle prior
+            self.sys_priors.append(priors.SinPrior())
+
+            # Add epoch of periastron prior. 
+            self.sys_priors.append(priors.UniformPrior(0., 1.))
+
+        # Set priors on system mass and parallax
+        if mass_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(
+                system_mass, mass_err)
+            )
+            self.abs_system_mass = None
+            self.abs_system_mass = np.nan
+        else:
+            self.abs_system_mass = system_mass
+        if plx_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
+            self.abs_system_mass = None
+            self.abs_plx = np.nan
+        else:
+            self.abs_plx = plx
 
 
-class CelestialDuo(object):
-    """
-    A 2-body gravitational interaction
 
-    Args:
-        data_table (astropy.table.Table): table of data on the 2-body
-        priors (array of Prior objects) : an array of Prior objects. Each
-            object corresponds to a fitting parameters. TBD how this
-            gets constructed in the correct order in the first plac.
+        # Group the data in some useful ways
 
-    """
-    def __init__(self, data_table, priors, orbital_param_type=None):
-        # initialize self.priors (array?) that matches orbital params to their priors
-        self.priors = []
-        # order: semi-major axis, eccentricity, etc.
+        self.data_table = data_table
 
-    def compute_orbit(self, orbital_parameters):
+        # List of arrays of indices corresponding to each body
+        self.body_indices = []
+
+        # List of arrays of indices corresponding to epochs in RA/Dec for each body
+        self.radec = []
+
+        # List of arrays of indices corresponding to epochs in SEP/PA for each body
+        self.seppa = []
+
+        radec_indices = np.where(self.data_table['quant_type']=='radec')
+        seppa_indices = np.where(self.data_table['quant_type']=='seppa')
+
+        for body_num in np.arange(self.num_secondary_bodies+1):
+
+            self.body_indices.append(
+                np.where(self.data_table['object']==body_num)
+            )
+
+            self.radec.append(
+                np.intersect1d(self.body_indices[body_num], radec_indices)
+            )
+            self.seppa.append(
+                np.intersect1d(self.body_indices[body_num], seppa_indices)
+            )
+
+
+    def compute_model(self, params_arr):
         """
-        Compute the orbit at the requested times
+        Compute model predictions for an array of fitting parameters.
 
         Args:
-            orbital_parameters (np.array): 1-D or 2-D array of orbital paramters. 
-                The last dimension has the dimensions of 1 set of orbital parameters. 
-                Can pass in multiple sets
+            params_arr (np.array of float): MxR array 
+                of fitting parameters, where M is the number of orbits
+                we need model predictions for, and R is the number of 
+                parameters being fit. Must be in the same order
+                documented in System() above.
 
         Returns:
-            np.array: array of size (n, 6) where the first dimension 
-            only exists if orbital parameters is also 2-D
+            np.array of float: MxNobsx2 array model predictions
         """
-        pass
 
+        model = np.zeros((params_arr.shape[0], len(self.data_table), 2))
+
+        if not np.isnan(self.abs_plx):
+            plx = self.abs_plx
+        else:
+            plx = params_arr[:, -1]
+        if not np.isnan(self.abs_system_mass):
+            mtot = self.abs_system_mass
+        else:
+            mtot = params_arr[:, 6*self.num_secondary_bodies]
+
+        for body_num in np.arange(self.num_secondary_bodies)+1:
+
+            epochs = self.data_table['epoch'][self.body_indices[body_num]]
+            sma = params_arr[:, body_num-1]
+            ecc = params_arr[:, body_num]
+            argp = params_arr[:, body_num+1]
+            lan = params_arr[:, body_num+2]
+            inc = params_arr[:, body_num+3]
+            tau = params_arr[:, body_num+4]
+
+            raoff, decoff, vz = kepler.calc_orbit(
+                epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
+            )
+
+            model[:, self.radec[body_num], 0] = raoff[:, self.radec[body_num]]
+            model[:, self.radec[body_num], 1] = decoff[:, self.radec[body_num]]
+
+            sep, pa = radec2seppa(
+                raoff[:, self.seppa[body_num]], 
+                decoff[:, self.seppa[body_num]]
+            )
+            model[:, self.seppa[body_num], 0] = sep
+            model[:, self.seppa[body_num], 1] = pa
+
+
+        return model
+
+
+def radec2seppa(ra, dec):
+    """
+    Convenience function for converting from 
+    right ascension/declination to separation/
+    position angle.
+
+    Args:
+        ra (np.array of float): array of RA values
+        dec (np.array of float): array of Dec values
+
+    Returns:
+        tulple of float: (separation, position angle)
+
+    """
+
+    sep = np.sqrt((ra**2) + (dec**2))
+    pa = (np.arctan2(ra, dec) / deg2rad) % 360.
+
+    return sep, pa
