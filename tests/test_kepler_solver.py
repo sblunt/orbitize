@@ -208,3 +208,4 @@ if __name__ == "__main__":
     test_orbit_with_mass()
     test_orbit_with_mass_array()
     test_orbit_scalar()
+    print("Done!")
