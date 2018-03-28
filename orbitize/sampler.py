@@ -1,6 +1,8 @@
-from orbitize import lnlike
+import orbitize.lnlike
+import orbitize.priors
 import sys
 import abc
+import emcee
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -16,9 +18,9 @@ class Sampler(ABC):
     (written): Sarah Blunt, 2018
     """
 
-    def __init__(cls, system, like='chi2_lnlike'):
-        cls.system = system
-        cls.lnlike = getattr(lnlike, like)
+    def __init__(self, system, like='chi2_lnlike'):
+        self.system = system
+        self.lnlike = getattr(orbitize.lnlike, like)
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
@@ -95,10 +97,31 @@ class PTMCMC(Sampler):
         num_temps (int): number of temperatures to run the sampler at
         num_walkers (int): number of walkers at each temperature
     """
-    def __init__(self, like, system, num_temps, num_walkers):
-        super(OFTI, self).__init__(system, like=like)
+    def __init__(self, lnlike, system, num_temps, num_walkers):
+        super(PTMCMC, self).__init__(system, like=lnlike)
         self.num_temps = num_temps
         self.num_walkers = num_walkers
+
+        # get priors from the system class
+        self.priors = system.sys_priors
+
+        # initialize walkers initial postions
+        self.num_params = len(self.priors)
+        init_positions = [] 
+        for prior in self.priors:
+            # draw them uniformly becase we don't know any better right now
+            # todo: be smarter in the future
+            random_init = prior.draw_samples(num_walkers*num_temps).reshape([num_temps, num_walkers])
+
+            init_positions.append(random_init)
+
+        # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+        # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
+        # save this as the current position
+        self.curr_pos = np.dstack(init_positions)
+
+        self.sampler = emcee.PTSampler(num_temps, num_walkers, lnlike, orbitize.priors.all_lnpriors, logpargs=[self.priors,] )
+
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
