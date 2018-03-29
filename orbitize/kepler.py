@@ -192,12 +192,13 @@ def _mikkola_solver(manom, e):
 
     Written: Jason Wang, 2018
     """
-
+    print(manom, e)
     alpha = (1.0 - e) / ((4.0 * e) + 0.5)
     beta = (0.5 * manom) / ((4.0 * e) + 0.5)
 
     aux = np.sqrt(beta**2.0 + alpha**3.0)
     z = beta + aux
+    print(z)
     z = z**(1.0/3.0)
 
     s0 = z - (alpha/z)
