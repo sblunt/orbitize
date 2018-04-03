@@ -11,7 +11,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
 
-    Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang.
+    Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang and Henry Ngo.
 
     Args:
         epochs (np.array): MJD times for which we want the positions of the planet
@@ -194,7 +194,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
 def _mikkola_solver_wrapper(manom, ecc):
     """
-    Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40 , 329-334.) for the eccentric anomaly.
+    Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
     Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
 
     Args:

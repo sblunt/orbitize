@@ -5,6 +5,7 @@ import sys
 import abc
 import numpy as np
 
+
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
     ABC = abc.ABCMeta('ABC', (), {})
@@ -47,13 +48,6 @@ class OFTI(Sampler):
         Return:
             np.array: array of prepared samples. The first dimension has size of num_samples. This should be passed into ``reject()``
         """
-        pass
-        # draw an array of num_samples smas, eccs, etc. from prior objects: prior = (some object inhertiting from priors.Prior); samples = prior.draw_samples(#)
-      #  elements = system.priors # -> this step should be done in OFTI.__init__ so it doesn't slow performance
-
-    #    for element in elements:
-     #       samples[i,j] = system.priors[element].draw_samples(num_samples)
-
          
         # generate sample orbits from priors
         elements = system.priors #I don't see priors defined in system.py???
@@ -68,9 +62,6 @@ class OFTI(Sampler):
         #compute offsets and scale accordingly
         offsets = np.random.randn(separations.size)
         separations = separations/(separations + offsets)
-        
-        
-             
         
 
     def reject(self, orbit_configs):
@@ -125,3 +116,4 @@ class PTMCMC(Sampler):
                 by to remove correlations in the walker steps
         """
         pass
+
