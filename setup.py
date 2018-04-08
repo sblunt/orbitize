@@ -1,11 +1,26 @@
 from setuptools import setup, find_packages
 import re
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+import numpy
 
 # auto-updating version code stolen from RadVel
 def get_property(prop, project):
     result = re.search(r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop),
                        open(project + '/__init__.py').read())
     return result.group(1)
+
+ext_modules = [Extension(
+    name="kepler",
+    sources=["kepler.pyx", "_kepler.cc"],
+        # extra_objects=["fc.o"],  # if you compile fc.cpp separately
+    include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
+    language="c++",
+        # libraries=
+        # extra_compile_args = "...".split(),
+        # extra_link_args = "...".split()
+    )]
 
 setup(
     name='orbitize',
@@ -31,5 +46,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee']
+    install_requires=['numpy', 'scipy', 'astropy', 'emcee'],
+    comdclass = {'build_ext': build_ext},
+    ext_modules = ext_modules
     )

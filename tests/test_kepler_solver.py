@@ -4,6 +4,8 @@ Test the orbitize.kepler module which solves for the orbits of the planets
 import pytest
 import numpy as np
 import orbitize.kepler as kepler
+import sys
+import pstats, cProfile
 
 threshold = 1e-8
 
@@ -199,13 +201,31 @@ def test_orbit_scalar():
     assert true_vz    == pytest.approx(vzs, abs=threshold)
 
 
+def profile_iterative_ecc_anom_solver():
+    """
+    Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
+    _calc_ecc_anom() output vs the input mean anomaly
+    """
+    mean_anoms=np.linspace(0,2.0*np.pi,5000)
+    eccs=np.linspace(0,0.9499999,5000)
+    for ee in eccs:
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
+
+
 if __name__ == "__main__":
-    test_analytical_ecc_anom_solver()
-    test_iterative_ecc_anom_solver()
-    test_orbit_e03()
-    test_orbit_e03_array()
-    test_orbit_e99()
-    test_orbit_with_mass()
-    test_orbit_with_mass_array()
-    test_orbit_scalar()
-    print("Done!")
+    if len(sys.argv) > 1 and sys.argv[1] == '-profile':
+        print "Profiling"
+        cProfile.runctx("profile_iterative_ecc_anom_solver()", globals(), locals(), "Profile.prof")
+
+        s = pstats.Stats("Profile.prof")
+        s.strip_dirs().sort_stats("time").print_stats()
+    else:
+        test_analytical_ecc_anom_solver()
+        test_iterative_ecc_anom_solver()
+        test_orbit_e03()
+        test_orbit_e03_array()
+        test_orbit_e99()
+        test_orbit_with_mass()
+        test_orbit_with_mass_array()
+        test_orbit_scalar()
+        print("Done!")
