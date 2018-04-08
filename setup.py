@@ -11,21 +11,23 @@ def get_property(prop, project):
                        open(project + '/__init__.py').read())
     return result.group(1)
 
-ext_modules = [Extension(
-    name="kepler",
-    sources=["orbitize/kepler.pyx", "orbitize/_kepler.cc"],
-        # extra_objects=["fc.o"],  # if you compile fc.cpp separately
-    include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
-    language="c++",
-        # libraries=
-        # extra_compile_args = "...".split(),
-        # extra_link_args = "...".split()
-    )]
+def get_ext_modules():
+    return [Extension(
+        name="kepler",
+        sources=["orbitize/kepler.pyx", "orbitize/_kepler.cc"],
+            # extra_objects=["fc.o"],  # if you compile fc.cpp separately
+        include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
+        language="c++",
+        extra_compile_args=['-std=c++11'],
+            # libraries=
+            # extra_compile_args = "...".split(),
+            # extra_link_args = "...".split()
+        )]
 
 setup(
     name='orbitize',
     version=get_property('__version__', 'orbitize'),
-    description='orbitize! Turns imaaging data into orbits',
+    description='orbitize! Turns imaging data into orbits',
     url='https://github.com/sblunt/orbitize',
     author='',
     author_email='',
@@ -48,5 +50,5 @@ setup(
     keywords='Orbits Astronomy Astrometry',
     install_requires=['numpy', 'scipy', 'astropy', 'emcee'],
     cmdclass = {'build_ext': build_ext},
-    ext_modules = ext_modules
+    ext_modules = get_ext_modules()
     )

@@ -15,13 +15,12 @@ cdef extern from "_kepler.hh":
               const double ecc,
               const double tol, 
               const int max_iter, 
-              const double eanom0)
+              double eanom)
     int newton_array(const int N, 
                     const double manom[], 
                     const double ecc[], 
                     const double tol, 
                     const int max_iter, 
-                    const double eanom0[],
                     double eanom[])
 
 
@@ -228,7 +227,7 @@ def _cpp_newton_solver(np.ndarray[np.double_t,ndim=1] manom,
         eanom = np.copy(eanom0)
 
     # print "cpp before eanom : ", eanom
-    newton_array(len(manom), <double*> manom.data, <double*> ecc.data, tolerance, max_iter, <double*> eanom0.data, <double*> eanom.data)
+    newton_array(len(manom), <double*> manom.data, <double*> ecc.data, tolerance, max_iter, <double*> eanom.data)
     # print "cpp after eanom : ", eanom
     return eanom
 

@@ -1,7 +1,8 @@
 //test_kep.cc
 #include <iostream>
 #include <cmath>
-#include <vector>
+// #include <vector>
+// #include <future>
 
 #include "_kepler.hh"
 
@@ -26,7 +27,6 @@ double newton(const double manom,
 	
 	eanom -= (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
 	diff = (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
-	diff = std::abs(diff);
 
 	while ((std::abs(diff) > tol) && (niter <= max_iter)){
 		eanom -= diff;
@@ -50,7 +50,6 @@ int newton_array(const int N,
 					const double ecc[], 
 					const double tol, 
 					const int max_iter, 
-					const double eanom0[], // not necessary?
 					double eanom[])
 {
 	for (int i = 0; i < N; i ++){
@@ -68,11 +67,10 @@ int main(){
 	double ecc[] = {.25, .75, .83};
 	double tol = 1e-9;
 	int mi = 100;
-	double eanom0[] ={.5, 1, 1.5};
 	double eanom[] = {0, 0, 0};
 
 
-	newton_array(3, m, ecc, tol, mi, eanom0, eanom);
+	newton_array(3, m, ecc, tol, mi, eanom);
 	return 0;
 }
 

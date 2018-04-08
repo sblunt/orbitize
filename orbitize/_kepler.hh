@@ -13,6 +13,5 @@ int newton_array(const int N,
 					const double ecc[], 
 					const double tol, 
 					const int max_iter, 
-					const double eanom0[],
 					double eanom[]);
 
