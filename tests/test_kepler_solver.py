@@ -3,9 +3,10 @@ Test the orbitize.kepler module which solves for the orbits of the planets
 """
 import pytest
 import numpy as np
-import orbitize.kepler as kepler
+import kepler
 import sys
 import pstats, cProfile
+import os
 
 threshold = 1e-8
 
@@ -211,14 +212,23 @@ def profile_iterative_ecc_anom_solver():
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
 
+# def prof():
+#     mean_anoms=np.linspace(0,2.0*np.pi,5000)
+#     eccs=np.linspace(0,0.9499999,5000)
+#     for ee in eccs:
+#         kepler._cpp_newton_solver(mean_anoms,ee,tolerance=1e-9)
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '-profile':
         print "Profiling"
+        profile_name = "Profile.prof"
         cProfile.runctx("profile_iterative_ecc_anom_solver()", globals(), locals(), "Profile.prof")
+        # cProfile.runctx("prof()", globals(), locals(), "Profile.prof")
 
-        s = pstats.Stats("Profile.prof")
+        s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()
+        os.remove(profile_name)
     else:
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()

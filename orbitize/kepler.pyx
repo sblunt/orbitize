@@ -10,7 +10,7 @@ import astropy.units as u
 import astropy.constants as consts
 
 
-cdef extern from "test_kep.hh": 
+cdef extern from "_kepler.hh": 
     double newton(const double manom,
               const double ecc,
               const double tol, 
@@ -147,6 +147,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     if np.isscalar(ecc):
         ecc = np.full(np.shape(manom), ecc)
 
+
     # Initialize eanom array
     eanom = np.full(np.shape(manom), np.nan)
 
@@ -160,7 +161,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+    if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
     # Now high eccentricities
     ind_high = np.where(~ecc_zero & ~ecc_low)
@@ -168,7 +169,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
 
     return np.squeeze(eanom)[()]
 
-def _newton_solver(double [:] manom, double [:] ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
     Newton-Raphson solver for eccentric anomaly.
     Args:
@@ -181,6 +182,7 @@ def _newton_solver(double [:] manom, double [:] ecc, tolerance=1e-9, max_iter=10
     Written: Rob De Rosa, 2018
 
     """
+    # print("INSIDE NEWTON")
 
     # Initialize at E=M, E=pi is better at very high eccentricities
     if eanom0 is None:
@@ -196,6 +198,7 @@ def _newton_solver(double [:] manom, double [:] ecc, tolerance=1e-9, max_iter=10
     ind = np.where(abs_diff > tolerance)
     niter = 0
     while ((ind[0].size > 0) and (niter <= max_iter)):
+        # print ind
         eanom[ind] -= diff[ind]
         # If it hasn't converged after half the iterations are done, try starting from pi
         if niter == (max_iter//2):
@@ -224,9 +227,9 @@ def _cpp_newton_solver(np.ndarray[np.double_t,ndim=1] manom,
     else:
         eanom = np.copy(eanom0)
 
-    print "cpp before eanom : ", eanom
+    # print "cpp before eanom : ", eanom
     newton_array(len(manom), <double*> manom.data, <double*> ecc.data, tolerance, max_iter, <double*> eanom0.data, <double*> eanom.data)
-    print "cpp after eanom : ", eanom
+    # print "cpp after eanom : ", eanom
     return eanom
 
 def _mikkola_solver_wrapper(manom, ecc):

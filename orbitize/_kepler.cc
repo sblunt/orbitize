@@ -1,8 +1,10 @@
 //test_kep.cc
 #include <iostream>
 #include <cmath>
+#include <vector>
 
 #include "_kepler.hh"
+
 
 double newton(const double manom,
 		 	  const double ecc,
@@ -20,7 +22,7 @@ double newton(const double manom,
 //		eanom = eanom0;
 //	}
 
-	std::cout << "eanom is " << eanom << std::endl;
+	// std::cout << "eanom is " << eanom << std::endl;
 	
 	eanom -= (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
 	diff = (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
@@ -36,9 +38,9 @@ double newton(const double manom,
 		niter += 1;
 	}
 
-	std::cout << "eanom is " << eanom << std::endl;
-	std::cout << "diff is " << diff << std::endl;
-	std::cout << "niter is " << niter << std::endl;
+	// std::cout << "eanom is " << eanom << std::endl;
+	// std::cout << "diff is " << diff << std::endl;
+	// std::cout << "niter is " << niter << std::endl;
 
 	return eanom;
 }
@@ -52,9 +54,9 @@ int newton_array(const int N,
 					double eanom[])
 {
 	for (int i = 0; i < N; i ++){
-		std::cout << "i is " << i << std::endl;
+		// std::cout << "i is " << i << std::endl;
 		eanom[i] =  newton(manom[i], ecc[i], tol, max_iter, eanom[i]);
-		std::cout << "eanom[i] is " << eanom[i] << std::endl;
+		// std::cout << "eanom[i] is " << eanom[i] << std::endl;
 	}
 
 	return N;

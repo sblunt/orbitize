@@ -13,7 +13,7 @@ def get_property(prop, project):
 
 ext_modules = [Extension(
     name="kepler",
-    sources=["kepler.pyx", "_kepler.cc"],
+    sources=["orbitize/kepler.pyx", "orbitize/_kepler.cc"],
         # extra_objects=["fc.o"],  # if you compile fc.cpp separately
     include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
     language="c++",
@@ -47,6 +47,6 @@ setup(
         ],
     keywords='Orbits Astronomy Astrometry',
     install_requires=['numpy', 'scipy', 'astropy', 'emcee'],
-    comdclass = {'build_ext': build_ext},
+    cmdclass = {'build_ext': build_ext},
     ext_modules = ext_modules
     )
