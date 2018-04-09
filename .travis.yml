@@ -13,6 +13,14 @@ python:
   - "2.7"
   - "3.6"
 
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-4.8
+    - g++-4.8
+
 before_install:
     - export py="$(echo $TRAVIS_PYTHON_VERSION | head -c 1)"
     - wget http://repo.continuum.io/miniconda/Miniconda${py}-latest-Linux-x86_64.sh -O miniconda.sh
@@ -24,10 +32,10 @@ before_install:
     - sudo ln -s /run/shm /dev/shm
 
 install:
-    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython gcc
+    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
-    - CXX=g++ python setup.py build_ext -i
+    - CC=gcc-4.8 CXX=g++-4.8 python setup.py build_ext -i
 
 # configure a headless display using xvbf to test plot generation
 before_script:
