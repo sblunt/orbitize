@@ -15,12 +15,12 @@ python:
 
 # gcc-4.8 and g++4.8 needed for use of c++14 constructs in C++ kepler module
 addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
-    - gcc-4.8
-    - g++-4.8
+   apt:
+      sources:
+       - ubuntu-toolchain-r-test
+      packages:
+       - gcc-4.8
+       - g++-4.8
 
 before_install:
     - export py="$(echo $TRAVIS_PYTHON_VERSION | head -c 1)"
@@ -31,9 +31,12 @@ before_install:
     - conda update --yes conda
     - sudo rm -rf /dev/shm
     - sudo ln -s /run/shm /dev/shm
+    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    - sudo apt-get -qq update
 
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
+    - sudo apt-get -qq install g++-4.8
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
     - CC=gcc-4.8 CXX=g++-4.8 python setup.py build_ext -i
