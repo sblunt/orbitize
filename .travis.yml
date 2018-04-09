@@ -27,7 +27,6 @@ before_install:
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython gcc
     - pip install pytest pytest-cov coverage coveralls
-    - sudo apt-get install -qq g++-5
     - pip install . --upgrade
     - CC=gcc CXX=g++ python setup.py build_ext -i
 
