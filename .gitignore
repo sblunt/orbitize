@@ -7,6 +7,8 @@ __pycache__/
 *.so
 kepler.c
 kepler.cpp
+_kepler.c
+_kepler.cpp
 
 
 # Distribution / packaging

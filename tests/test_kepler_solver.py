@@ -207,16 +207,14 @@ def profile_iterative_ecc_anom_solver():
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
     """
-    mean_anoms=np.linspace(0,2.0*np.pi,5000)
-    eccs=np.linspace(0,0.9499999,5000)
-    for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
 
-# def prof():
-#     mean_anoms=np.linspace(0,2.0*np.pi,5000)
-#     eccs=np.linspace(0,0.9499999,5000)
-#     for ee in eccs:
-#         kepler._cpp_newton_solver(mean_anoms,ee,tolerance=1e-9)
+    n_orbits = 20000
+    n_threads = 6
+
+    mean_anoms=np.linspace(0,2.0*np.pi,n_orbits)
+    eccs=np.linspace(0,0.9499999,n_orbits)
+    for ee in eccs:
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9, n_threads = n_threads)
 
 
 if __name__ == "__main__":
@@ -225,7 +223,6 @@ if __name__ == "__main__":
         profile_name = "Profile.prof"
 
         cProfile.runctx("profile_iterative_ecc_anom_solver()", globals(), locals(), "Profile.prof")
-        # cProfile.runctx("prof()", globals(), locals(), "Profile.prof")
 
         s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()

@@ -13,12 +13,12 @@ def get_property(prop, project):
 
 def get_ext_modules():
     return [Extension(
-        name="kepler",
-        sources=["orbitize/kepler.pyx", "orbitize/_kepler.cc"],
+        name="orbitize._kepler",
+        sources=["orbitize/_kepler.pyx", "orbitize/kepler.cc"],
             # extra_objects=["fc.o"],  # if you compile fc.cpp separately
         include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
         language="c++",
-        extra_compile_args=['-std=c++11'],
+        extra_compile_args=['-std=c++14'],
             # libraries=
             # extra_compile_args = "...".split(),
             # extra_link_args = "...".split()

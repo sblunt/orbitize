@@ -4,24 +4,18 @@ This module solves for the orbit of the planet given Keplerian parameters
 """
 # cimport numpy as np
 import numpy as np
-cimport numpy as np
 
 import astropy.units as u
 import astropy.constants as consts
 
+try:
+    from _kepler import _cpp_newton_solver
+    cext = True
+except ImportError:
+    print("WARNING: KEPLER: Unable to import C-based Kepler's\
+equation solver. Falling back to the slower NumPy implementation.")
+    cext = False 
 
-cdef extern from "_kepler.hh": 
-    double newton(const double manom,
-              const double ecc,
-              const double tol, 
-              const int max_iter, 
-              double eanom)
-    int newton_array(const int N, 
-                    const double manom[], 
-                    const double ecc[], 
-                    const double tol, 
-                    const int max_iter, 
-                    double eanom[])
 
 
 def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tolerance=1e-9, max_iter=100):
@@ -117,7 +111,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
 
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, n_threads = 1):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -160,10 +154,19 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+
+    if cext:
+        if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter, threads = n_threads)
+        #Threads defined at top
+
+        # the C++ solver returns eanom = -1 if it doesnt converge after max_iter iterations
+        m_one = eanom == -1
+        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
+    else:
+        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    ind_high = np.where(~ecc_zero & ~ecc_low)
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
     return np.squeeze(eanom)[()]
@@ -181,7 +184,6 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     Written: Rob De Rosa, 2018
 
     """
-    # print("INSIDE NEWTON")
 
     # Initialize at E=M, E=pi is better at very high eccentricities
     if eanom0 is None:
@@ -211,24 +213,6 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
         eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
 
-    return eanom
-
-def _cpp_newton_solver(np.ndarray[np.double_t,ndim=1] manom,
-                    np.ndarray[np.double_t,ndim=1] ecc, 
-                    tolerance = 1e-9, 
-                    max_iter = 100, 
-                    np.ndarray[np.double_t,ndim=1] eanom0 = None):
-
-    
-    cdef np.ndarray eanom
-    if eanom0 is None:
-        eanom = np.copy(manom)
-    else:
-        eanom = np.copy(eanom0)
-
-    # print "cpp before eanom : ", eanom
-    newton_array(len(manom), <double*> manom.data, <double*> ecc.data, tolerance, max_iter, <double*> eanom.data)
-    # print "cpp after eanom : ", eanom
     return eanom
 
 def _mikkola_solver_wrapper(manom, ecc):
