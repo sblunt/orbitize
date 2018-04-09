@@ -9,7 +9,8 @@ kepler.c
 kepler.cpp
 _kepler.c
 _kepler.cpp
-
+test_kepler_solver.c
+test_kepler_solver.html
 
 # Distribution / packaging
 .Python

@@ -1,8 +1,7 @@
-# cython: profile=True
 """
 This module solves for the orbit of the planet given Keplerian parameters
 """
-# cimport numpy as np
+
 import numpy as np
 
 import astropy.units as u
@@ -199,7 +198,6 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     ind = np.where(abs_diff > tolerance)
     niter = 0
     while ((ind[0].size > 0) and (niter <= max_iter)):
-        # print ind
         eanom[ind] -= diff[ind]
         # If it hasn't converged after half the iterations are done, try starting from pi
         if niter == (max_iter//2):
