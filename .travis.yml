@@ -22,10 +22,12 @@ before_install:
     - conda update --yes conda
     - sudo rm -rf /dev/shm
     - sudo ln -s /run/shm /dev/shm
+    - sudo apt-get update -qq
 
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
     - pip install pytest pytest-cov coverage coveralls
+    - sudo apt-get install -qq g++-5
     - pip install . --upgrade
     - python setup.py build_ext -i
 
