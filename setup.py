@@ -48,7 +48,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee'],
+    install_requires=['numpy', 'scipy', 'astropy', 'emcee','Cython'],
     cmdclass = {'build_ext': build_ext},
     ext_modules = get_ext_modules()
     )
