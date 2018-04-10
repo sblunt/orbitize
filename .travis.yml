@@ -35,7 +35,7 @@ before_install:
     - sudo apt-get -qq update
 
 install:
-    - sudo apt-get -qq install g++-6 gcc-6
+    - sudo apt-get install g++-6 gcc-6 -qq -y
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
