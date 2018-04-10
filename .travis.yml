@@ -35,11 +35,11 @@ before_install:
     - sudo apt-get -qq update
 
 install:
-    - sudo apt-get -qq install g++-4.8 gcc-4.8
+    - sudo apt-get -qq install g++-6 gcc-6
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
-    - CC=gcc-6 CXX=g++-6 python setup.py build_ext -i
+    - CC="gcc-6" CXX="g++-6" python setup.py build_ext -i
 
 # configure a headless display using xvbf to test plot generation
 before_script:
