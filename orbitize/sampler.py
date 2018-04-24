@@ -2,6 +2,7 @@ import orbitize.lnlike
 import orbitize.priors
 import sys
 import abc
+import numpy as np
 import emcee
 
 # Python 2 & 3 handle ABCs differently
@@ -20,7 +21,12 @@ class Sampler(ABC):
 
     def __init__(self, system, like='chi2_lnlike'):
         self.system = system
-        self.lnlike = getattr(orbitize.lnlike, like)
+        
+        # check if likliehood fuction is a string of a function
+        if callable(like):
+            self.lnlike = like
+        else:
+            self.lnlike = getattr(orbitize.lnlike, like)
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
@@ -120,7 +126,7 @@ class PTMCMC(Sampler):
         # save this as the current position
         self.curr_pos = np.dstack(init_positions)
 
-        self.sampler = emcee.PTSampler(num_temps, num_walkers, lnlike, orbitize.priors.all_lnpriors, logpargs=[self.priors,] )
+        self.sampler = emcee.PTSampler(num_temps, num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, logpargs=[self.priors,] )
 
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
@@ -136,7 +142,31 @@ class PTMCMC(Sampler):
             thin (int): factor to thin the steps of each walker 
                 by to remove correlations in the walker steps
         """
-        pass
+        for pos, lnprob, lnlike in self.sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+            pass
+
+        self.sampler.reset()
+        self.curr_pos = pos
+        print('Burn in complete')
+
+        for pos, lnprob, lnlike in self.sampler.sample(pos, lnprob0=lnprob, lnlike0=lnlike,
+                                                        iterations=total_orbits, thin=thin):
+            pass
+        
+        self.curr_pos = pos
+
+    def _logl(self, params):
+        """
+        log likelihood function for emcee that interfaces with the orbitize objectts
+        """
+        model = self.system.compute_model(params.reshape(1, params.shape[0]))
+
+        data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
+        errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
+
+        lnlikes =  self.lnlike(data, errs, model)
+
+        return np.nansum(lnlikes)
 
 
 
