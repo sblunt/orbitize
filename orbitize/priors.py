@@ -86,12 +86,28 @@ class JeffreysPrior(Prior):
     Note: will need inverse transform sampling for this one.
 
     """
-    def __init__(self, min, max):
-        pass
+    def __init__(self, minval, maxval):
+        self.minval = minval
+        self.maxval = maxval
+
+        self.logmin = np.log(minval)
+        self.logmax = np.log(maxval)
+
     def draw_samples(self, num_samples):
-        pass
+        # sample it from a uniform distribution in log space
+        samples = np.random.uniform(self.logmin, self.logmax, num_samples)
+        # convert from log space to linear space
+        samples = np.exp(samples)
+
+        return samples
+
     def compute_lnprob(self, element_array):
-        pass
+        lnprob = np.zeros(np.size(element_array))
+        
+        outofbounds = np.where((element_array > self.maxval) | (element_array < self.minval))
+        lnprob[outofbounds] = -np.inf
+
+        return lnprob
 
 class UniformPrior(Prior):
     """
@@ -104,12 +120,23 @@ class UniformPrior(Prior):
     method.
 
     """
-    def __init__(self, min, max):
-        pass
+    def __init__(self, minval, maxval):
+        self.minval = minval
+        self.maxval = maxval
+
     def draw_samples(self, num_samples):
-        pass
+        # sample it from a uniform distribution in log space
+        samples = np.random.uniform(self.minval, self.maxval, num_samples)
+
+        return samples
+
     def compute_lnprob(self, element_array):
-        pass
+        lnprob = np.zeros(np.size(element_array))
+        
+        outofbounds = np.where((element_array > self.maxval) | (element_array < self.minval))
+        lnprob[outofbounds] = -np.inf
+
+        return lnprob
 
 class SinPrior(Prior):
     """
@@ -123,10 +150,15 @@ class SinPrior(Prior):
 
     def __init__(self):
         pass
+
     def draw_samples(self, num_samples):
-        pass
+        # draw uniform from -1 to 1
+        samples = np.random.uniform(-1, 1, num_samples)
+
+        return np.arccos(samples)
+
     def compute_lnprob(self, element_array):
-        pass
+        return np.sin(element_array)
 
 class LinearPrior(Prior):
     """
@@ -155,7 +187,7 @@ def all_lnpriors(params, priors):
     Returns:
         logp (float): prior probability of this set of parameters
     """
-    logp = 0
+    logp = 0.
     for param, prior in zip(params, priors):
         logp += prior.compute_lnprob(param)
     
