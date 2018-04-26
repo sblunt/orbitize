@@ -97,6 +97,8 @@ class PTMCMC(Sampler):
     """
     Parallel-Tempered MCMC Sampler using the emcee Affine-infariant sampler
 
+    NOTE: Does not currnetly support multithreading because orbitize classes are not yet pickleable. 
+
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
@@ -131,7 +133,10 @@ class PTMCMC(Sampler):
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
-        Runs PT MCMC sampler
+        Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
+
+        Can be run multiple times if you want to pause and insepct things. 
+        Each call will continue from the end state of the last execution
 
         Args:
             total_orbits (int): total number of accepted possible 
@@ -154,10 +159,20 @@ class PTMCMC(Sampler):
             pass
         
         self.curr_pos = pos
+        self.chain = self.sampler.chain
+        self.lnlikes = self.sampler.lnprobability
 
     def _logl(self, params):
         """
         log likelihood function for emcee that interfaces with the orbitize objectts
+        Comptues the sum of the log likelihoods of all the data given the input model
+
+        Args:
+            params (np.array): 1-D numpy array of size self.num_params
+
+        Returns:
+            lnlikes (float): sum of all log likelihoods of the data given input model
+
         """
         model = self.system.compute_model(params.reshape(1, params.shape[0]))
 
