@@ -85,31 +85,96 @@ class JeffreysPrior(Prior):
 
     Note: will need inverse transform sampling for this one.
 
+    Args:
+        minval (float): the lower bound of this distribution
+        maxval (float): the upper bound of this distribution
+
     """
-    def __init__(self, min, max):
-        pass
+    def __init__(self, minval, maxval):
+        self.minval = minval
+        self.maxval = maxval
+
+        self.logmin = np.log(minval)
+        self.logmax = np.log(maxval)
+
     def draw_samples(self, num_samples):
-        pass
+        """
+        Draw samples from this 1/x distribution.
+
+        Args:
+            num_samples (float): the number of samples to generate
+
+        Returns:
+            samples (np.array):  samples ranging from [0, pi) as floats.
+        """
+        # sample it from a uniform distribution in log space
+        samples = np.random.uniform(self.logmin, self.logmax, num_samples)
+        # convert from log space to linear space
+        samples = np.exp(samples)
+
+        return samples
+
     def compute_lnprob(self, element_array):
-        pass
+        """
+        Compute the prior probability of each element given that its drawn from a Jeffreys prior
+
+        Args:
+            element_array (np.array): array of paramters to compute the prior probability of
+
+        Returns:
+            lnprob (np.array): array of prior probabilities
+        """
+        lnprob = np.zeros(np.size(element_array))
+        
+        outofbounds = np.where((element_array > self.maxval) | (element_array < self.minval))
+        lnprob[outofbounds] = -np.inf
+
+        return lnprob
 
 class UniformPrior(Prior):
     """
     This is the probability distribution p(x) propto constant.
 
-    The __init__ method should take in a "min" and "max" value
-    of the distribution, which correspond to the domain of the prior. 
-    
-    Note: can use numpy.random.random for this prior's ``draw_samples()``
-    method.
+    Args:
+        minval (float): the lower bound of the uniform prior
+        maxval (float): the upper bound of the uniform prior
 
     """
-    def __init__(self, min, max):
-        pass
+    def __init__(self, minval, maxval):
+        self.minval = minval
+        self.maxval = maxval
+
     def draw_samples(self, num_samples):
-        pass
+        """
+        Draw samples from this uniform distribution.
+
+        Args:
+            num_samples (float): the number of samples to generate
+
+        Returns:
+            samples (np.array):  samples ranging from [0, pi) as floats.
+        """
+        # sample it from a uniform distribution in log space
+        samples = np.random.uniform(self.minval, self.maxval, num_samples)
+
+        return samples
+
     def compute_lnprob(self, element_array):
-        pass
+        """
+        Compute the prior probability of each element given that its drawn from this uniform prior
+
+        Args:
+            element_array (np.array): array of paramters to compute the prior probability of
+
+        Returns:
+            lnprob (np.array): array of prior probabilities
+        """
+        lnprob = np.zeros(np.size(element_array))
+        
+        outofbounds = np.where((element_array > self.maxval) | (element_array < self.minval))
+        lnprob[outofbounds] = -np.inf
+
+        return lnprob
 
 class SinPrior(Prior):
     """
@@ -119,14 +184,30 @@ class SinPrior(Prior):
 
     Note: will need inverse transform sampling for this one.
 
+    Args:
+        Nonw
     """
 
     def __init__(self):
         pass
+
     def draw_samples(self, num_samples):
-        pass
+        """
+        Draw samples from a Sine distribution.
+
+        Args:
+            num_samples (float): the number of samples to generate
+
+        Returns:
+            samples (np.array):  samples ranging from [0, pi) as floats.
+        """
+        # draw uniform from -1 to 1
+        samples = np.random.uniform(-1, 1, num_samples)
+
+        return np.arccos(samples)
+
     def compute_lnprob(self, element_array):
-        pass
+        return np.sin(element_array)
 
 class LinearPrior(Prior):
     """
@@ -143,6 +224,24 @@ class LinearPrior(Prior):
         pass
     def compute_lnprob(self, element_array):
         pass
+
+def all_lnpriors(params, priors):
+    """
+    Calculates log(prior probability) of a set of parameters and a list of priors
+
+    Args:
+        params (np.array): size of N parameters 
+        priors (list): list of N prior objects corresponding to each parameter
+
+    Returns:
+        logp (float): prior probability of this set of parameters
+    """
+    logp = 0.
+    for param, prior in zip(params, priors):
+        logp += prior.compute_lnprob(param)
+    
+    return logp
+
 
 
 if __name__ == '__main__':
