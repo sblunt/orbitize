@@ -47,6 +47,7 @@ class OFTI(Sampler):
                 rejection sampling on
         Return:
             np.array: array of prepared samples. The first dimension has size of num_samples. This should be passed into ``reject()``
+        (written):Isabel Angelo & Sarah Blunt (2018)
         """
         
         #store priors -> this step should be done in OFTI.__init__ so it doesn't slow performance
