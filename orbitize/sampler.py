@@ -48,20 +48,34 @@ class OFTI(Sampler):
         Return:
             np.array: array of prepared samples. The first dimension has size of num_samples. This should be passed into ``reject()``
         """
-         
-        # generate sample orbits from priors
-        elements = system.priors #I don't see priors defined in system.py???
-        samples = np.array([])
-            for element in elements:
-                np.append(samples, system.priors[element].draw_samples(num_samples))
-        samples.transpose()
-         
-        #compute separations    
-        separations = map(kepler.calc_orbit, samples)
         
-        #compute offsets and scale accordingly
-        offsets = np.random.randn(separations.size)
-        separations = separations/(separations + offsets)
+        #store priors -> this step should be done in OFTI.__init__ so it doesn't slow performance
+        pri = self.system.sys_priors
+        
+        
+        #generate sample orbits
+        samples = np.empty([len(pri), num_samples])
+        for i in range(len(pri)): 
+            samples[i, :] = pri[i].draw_samples(num_samples)
+        
+        #compute seppa of generated orbits   
+        ra, dec, vc = map(kepler.calc_orbit, samples)
+        sep, pa = self.system.radec2seppa(ra, dec)
+        
+        #compute observational uncertainties in seppa
+        seppa_row1 = self.system.seppa_indices[0][0] #find first epoch with seppa in data_table
+        
+        sep_uncertainty = self.system.data_table[seppa_indices[0][0]][3] #get sep uncertainty from table
+        sep_offsets = sep_uncertainty * np.random.randn(sep.size) #generate random offsets
+        
+        pa_uncertainty = self.system.data_table[seppa_indices[0][0]][5] #get pa uncertainty from table
+        pa_offsets = pa_uncertainty * np.random.randn(pa.size) #generate random offsets
+        
+        #perform scale-and-rotate
+        sep_scaled = sep * (sep/(sep + sep_offsets))
+        pa_scaled = pa + pa_offsets
+        
+        #modify samples with scaled and rotated data
         
 
     def reject(self, orbit_configs):
