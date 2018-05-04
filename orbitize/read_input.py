@@ -109,7 +109,7 @@ def read_formatted_file(filename):
         else:
             MJD = row['epoch']
         # Check that "object" is an integer (instead of ABC/bcd)
-        if not isinstance(row['object'], int):
+        if not isinstance(row['object'], np.int64):
             raise Exception("Invalid object ID. Object IDs must be integers.")
         # Determine input quantity type (RA/DEC, SEP/PA, or RV?)
         if have_ra[index] and have_dec[index]:
