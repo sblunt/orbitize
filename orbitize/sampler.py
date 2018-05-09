@@ -49,10 +49,10 @@ class OFTI(Sampler):
             np.array: array of prepared samples. The first dimension has size of num_samples. This should be passed into ``reject()``
         (written):Isabel Angelo & Sarah Blunt (2018)
         """
+        #to do: modify to work for multi-planet systems
         
         #store priors -> this step should be done in OFTI.__init__ so it doesn't slow performance
         pri = self.system.sys_priors
-        
         
         #generate sample orbits
         samples = np.empty([len(pri), num_samples])
@@ -64,19 +64,32 @@ class OFTI(Sampler):
         sep, pa = self.system.radec2seppa(ra, dec)
         
         #compute observational uncertainties in seppa
-        seppa_row1 = self.system.seppa_indices[0][0] #find first epoch with seppa in data_table
+        sep_err = 0
+        pa_err = 0
+
+        if len(self.system.seppa != 0): #check for seppa data
+            #extract from data table
+            seppa_index = self.system.seppa[0][0]
+            
+            sep_err = self.system.data_table[seppa_index][2]
+            pa_err = self.system.data_table[seppa_index][4]
+            
+        else: #for if there are only radec datatypes
+            #extract from data table and convert to seppa
+            radec_index = self.system.radec[0][0]
+            
+            ra_err = self.system.data_table[radec_index][2]
+            dec_err = self.system.data_table[radec_index][4]
+            
+            sep_err, pa_err = self.system.radec2seppa(ra_err, dec_err)    
         
-        sep_uncertainty = self.system.data_table[seppa_indices[0][0]][3] #get sep uncertainty from table
-        sep_offsets = sep_uncertainty * np.random.randn(sep.size) #generate random offsets
-        
-        pa_uncertainty = self.system.data_table[seppa_indices[0][0]][5] #get pa uncertainty from table
-        pa_offsets = pa_uncertainty * np.random.randn(pa.size) #generate random offsets
+        #generate offsets from observational uncertainties
+        sep_offsets = sep_err * np.random.randn(sep.size)
+        pa_offsets = pa_err * np.random.randn(pa.size)  
         
         #perform scale-and-rotate
-        sep_scaled = sep * (sep/(sep + sep_offsets))
-        pa_scaled = pa + pa_offsets
-        
-        #modify samples with scaled and rotated data
+        samples[0] = sep * (sep/(sep + sep_offsets))
+        samples[-1] = pa + pa_offsets
         
 
     def reject(self, orbit_configs):
