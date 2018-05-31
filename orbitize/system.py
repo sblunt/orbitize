@@ -19,6 +19,9 @@ class System(object):
         plx (float): mean parallax of the system, in arcsec
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
         plx_err (float [optional]): uncertainty on ``plx``, in arcsec
+        restrict_angle_ranges (bool [optional]): if True, restrict the ranges
+            of PAN and AOP to [0,180) to get rid of symmetric double-peaks for
+            imaging-only datasets.
 
     Users should initialize an instance of this class, then overwrite 
     priors they wish to customize. 
@@ -36,10 +39,15 @@ class System(object):
     (written): Sarah Blunt, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass, 
-                 plx, mass_err=0, plx_err=0):
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=False):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
+
+         if restrict_angle_ranges:
+            angle_upperlim = np.pi
+        else:
+            angle_upperlim = 2.*np.pi
 
         # Set priors for each orbital element
         for body in np.arange(num_secondary_bodies):
@@ -50,10 +58,10 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,1.))
 
             # Add argument of periastron prior
-            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
+            self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
 
             # Add position angle of nodes prior
-            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
+            self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
 
             # Add inclination angle prior
             self.sys_priors.append(priors.SinPrior())
