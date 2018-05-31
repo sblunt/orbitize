@@ -19,10 +19,13 @@ def test_compute_model():
         1, data_table, 10., 10.
     )
 
-    params_arr = np.array([[1.,0.,0.,0.,0.,245000.],[0.5,0.,0.,0.,0.,245000.]])
-
+    params_arr = np.array([[1.,0.5],[0.,0.],[0.,0.],[0.,0.],[0.,0.],[245000., 245000.]])
     model = testSystem_parsing.compute_model(params_arr)
-    assert model.shape == (2,4,2)
+    assert model.shape == (4,2,2)
+
+    params_arr = np.array([1.,0.,0.,0.,0.,245000.])
+    model = testSystem_parsing.compute_model(params_arr)
+    assert model.shape == (4,2)
 
 def test_systeminit():
     """
@@ -93,7 +96,8 @@ def test_radec2seppa():
     assert sep.all() == np.array([1.,1.,np.sqrt(2.),np.sqrt(2.)]).all()
     assert pa.all() == np.array([270.,180.,225.,45.]).all()
 
-
+if __name__ == '__main__':
+    test_compute_model()
 
 
 

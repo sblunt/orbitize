@@ -93,9 +93,9 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
-    raoff = np.transpose(np.squeeze(raoff)[()])
-    deoff = np.transpose(np.squeeze(deoff)[()])
-    vz = np.transpose(np.squeeze(vz)[()])
+    # raoff = np.transpose(np.squeeze(raoff)[()])
+    # deoff = np.transpose(np.squeeze(deoff)[()])
+    # vz = np.transpose(np.squeeze(vz)[()])
 
     return raoff, deoff, vz
 
