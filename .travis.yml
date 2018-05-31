@@ -41,7 +41,7 @@ install:
     - pip install . --upgrade
 #    - python setup.py build_ext -i
 #    - CC=gcc-6 CXX=g++-6 python setup.py build_ext -i
-    - CXX=g++-6 python setup.py build_ext -i
+    - CC=g++-6 python setup.py build_ext -i
 
 # configure a headless display using xvbf to test plot generation
 before_script:
