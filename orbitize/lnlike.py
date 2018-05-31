@@ -1,4 +1,6 @@
-def chi2_lnlike(data, errors, model):
+import numpy as np
+
+def chi2_lnlike(data, errors, model, seppa_indices):
     """Log of the Chi2 Likelihood Computation
 
     Args:
@@ -7,20 +9,28 @@ def chi2_lnlike(data, errors, model):
         	data[:,1] = corresponding pa/DEC/np.nan
         errors (np.array): Nobsx2 array of errors for each data point. Same
         	format as ``data``
-        model (np.array): MxNobsx2 array of model predictions, where M is the
-        	number of orbits being compared against the data. M can be 1.
+        model (np.array): Nobsx2xM array of model predictions, where M is the
+        	number of orbits being compared against the data. If M is 1, ``model``
+            can be 2 dimensional.
+        seppa_indices (list): list of epoch numbers whose observations are given in 
+            sep/PA. This list is located in System.seppa.
 
     Returns:
-    	(np.array): MxNobsx2 array of chi-squared values. 
+    	(np.array): Nobsx2xM array of chi-squared values. 
 
     Example:
     	We have 8 epochs of data for a system. OFTI returns an array of 
     	10,000 sets of orbital parameters. The ``model`` input for this
-    	function should be an array of dimension 10,000 x 8 x 2.
+    	function should be an array of dimension 8 x 2 x 10,000.
 
     """
 
     chi2 = (data - model)**2/errors**2
+
+    chi2[seppa_indices, 1] = np.arctan2(
+        np.sin(data[seppa_indices, 1] - model[seppa_indices, 1]), 
+        np.cos(data[seppa_indices, 1] - model[seppa_indices, 1])
+    )**2 / errors[seppa_indices, 1]**2
 
     return chi2
 
