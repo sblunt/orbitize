@@ -31,15 +31,16 @@ before_install:
     - conda update --yes conda
     - sudo rm -rf /dev/shm
     - sudo ln -s /run/shm /dev/shm
-    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-    - sudo apt-get -qq update
+#    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+#    - sudo apt-get -qq update
 
 install:
-    - sudo apt-get install g++-6 gcc-6 -qq -y
+#    - sudo apt-get install g++-6 gcc-6 -qq -y
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
-    - CC="gcc-6" CXX="g++-6" python setup.py build_ext -i
+    - python setup.py build_ext -i
+#    - CC="gcc-6" CXX="g++-6" python setup.py build_ext -i
 
 # configure a headless display using xvbf to test plot generation
 before_script:
