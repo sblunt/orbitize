@@ -19,7 +19,7 @@ addons:
       sources:
        - ubuntu-toolchain-r-test
       packages:
-#       - gcc-6
+       - gcc-6
        - g++-6
 
 before_install:
@@ -31,6 +31,11 @@ before_install:
     - conda update --yes conda
     - sudo rm -rf /dev/shm
     - sudo ln -s /run/shm /dev/shm
+    - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
+    - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
+    - export CC=/usr/bin/gcc-6
+    - export CXX=/usr/bin/g++-6
+    - gcc -v && g++ -v && cmake --version
 #    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 #    - sudo apt-get -qq update
 
