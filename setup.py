@@ -1,5 +1,9 @@
 from setuptools import setup, find_packages
 import re
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+import numpy
 
 # auto-updating version code stolen from RadVel
 def get_property(prop, project):
@@ -7,10 +11,23 @@ def get_property(prop, project):
                        open(project + '/__init__.py').read())
     return result.group(1)
 
+def get_ext_modules():
+    return [Extension(
+        name="orbitize._kepler",
+        sources=["orbitize/_kepler.pyx", "orbitize/kepler.cc"],
+            # extra_objects=["fc.o"],  # if you compile fc.cpp separately
+        include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
+        language="c++",
+        extra_compile_args=['-std=c++14'],
+            # libraries=
+            # extra_compile_args = "...".split(),
+            # extra_link_args = "...".split()
+        )]
+
 setup(
     name='orbitize',
     version=get_property('__version__', 'orbitize'),
-    description='orbitize! Turns imaaging data into orbits',
+    description='orbitize! Turns imaging data into orbits',
     url='https://github.com/sblunt/orbitize',
     author='',
     author_email='',
@@ -31,5 +48,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee']
+    install_requires=['numpy', 'scipy', 'astropy', 'emcee','Cython'],
+    cmdclass = {'build_ext': build_ext},
+    ext_modules = get_ext_modules()
     )

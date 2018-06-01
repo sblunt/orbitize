@@ -1,9 +1,20 @@
 """
 This module solves for the orbit of the planet given Keplerian parameters
 """
+
 import numpy as np
+
 import astropy.units as u
 import astropy.constants as consts
+
+try:
+    from _kepler import _cpp_newton_solver
+    cext = True
+except ImportError:
+    print("WARNING: KEPLER: Unable to import C-based Kepler's\
+equation solver. Falling back to the slower NumPy implementation.")
+    cext = False 
+
 
 
 def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tolerance=1e-9, max_iter=100):
@@ -99,7 +110,7 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
 
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, n_threads = 1):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -128,6 +139,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
     if np.isscalar(ecc):
         ecc = np.full(np.shape(manom), ecc)
 
+
     # Initialize eanom array
     eanom = np.full(np.shape(manom), np.nan)
 
@@ -141,10 +153,19 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+
+    if cext:
+        if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter, threads = n_threads)
+        #Threads defined at top
+
+        # the C++ solver returns eanom = -1 if it doesnt converge after max_iter iterations
+        m_one = eanom == -1
+        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
+    else:
+        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    ind_high = np.where(~ecc_zero & ~ecc_low)
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
     return np.squeeze(eanom)[()]
