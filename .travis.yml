@@ -31,11 +31,11 @@ before_install:
     - conda update --yes conda
     - sudo rm -rf /dev/shm
     - sudo ln -s /run/shm /dev/shm
-    - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
+#    - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
     - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
-    - export CC=/usr/bin/gcc-6
-    - export CXX=/usr/bin/g++-6
-    - gcc -v && g++ -v && cmake --version
+#    - export CC=/usr/bin/gcc-6
+#    - export CXX=/usr/bin/g++-6
+#    - gcc -v && g++ -v && cmake --version
 #    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 #    - sudo apt-get -qq update
 
@@ -45,7 +45,8 @@ install:
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
 #    - python setup.py build_ext -i
-    - CC=gcc-6 CXX=g++-6 python setup.py build_ext -i
+#    - CC=gcc-6 CXX=g++-6 python setup.py build_ext -i
+    - CXX=g++-6 python setup.py build_ext -i
 
 # configure a headless display using xvbf to test plot generation
 before_script:
