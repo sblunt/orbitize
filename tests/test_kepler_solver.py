@@ -3,7 +3,7 @@ Test the orbitize.kepler module which solves for the orbits of the planets
 """
 import pytest
 import numpy as np
-import kepler
+from orbitize import kepler
 import sys
 import pstats, cProfile
 import os
