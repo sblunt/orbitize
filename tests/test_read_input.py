@@ -7,16 +7,17 @@ from orbitize.read_input import read_formatted_file, write_orbitize_input, read_
 def _compare_table(input_table):
     """
     Tests input table to expected values, which are:
-      epoch   quant1 quant1_err  quant2 quant2_err quant_type
-     float64 float64  float64   float64  float64      str5
-     ------- ------- ---------- ------- ---------- ----------
-     1234.0    0.01      0.005     0.5       0.05      radec
-     1235.0     1.0      0.005    89.0        0.1      seppa
-     1236.0     1.0      0.005    89.3        0.3      seppa
-     1236.0    10.0        0.1     nan        nan         rv
+        epoch  object  quant1 quant1_err  quant2 quant2_err quant_type
+       float64  int   float64  float64   float64  float64      str5
+       ------- ------ ------- ---------- ------- ---------- ----------
+       1234.0      1    0.01      0.005     0.5       0.05      radec
+       1235.0      1     1.0      0.005    89.0        0.1      seppa
+       1236.0      1     1.0      0.005    89.3        0.3      seppa
+       1237.0      0    10.0        0.1     nan        nan         rv
     """
     rows_expected = 4
-    epoch_expected = [1234, 1235, 1236, 1236]
+    epoch_expected = [1234, 1235, 1236, 1237]
+    object_expected = [1,1,1,0]
     quant1_expected = [0.01, 1.0, 1.0, 10.0]
     quant1_err_expected = [0.005, 0.005, 0.005, 0.1]
     quant2_expected = [0.5, 89.0, 89.3, np.nan]
@@ -24,10 +25,9 @@ def _compare_table(input_table):
     quant_type_expected = ['radec', 'seppa', 'seppa', 'rv']
     assert len(input_table) == rows_expected
     for meas,truth in zip(input_table['epoch'],epoch_expected):
-        if np.isnan(truth):
-            assert np.isnan(meas)
-        else:
-            assert truth == pytest.approx(meas)
+        assert truth == pytest.approx(meas)
+    for meas,truth in zip(input_table['object'],object_expected):
+        assert truth == meas
     for meas,truth in zip(input_table['quant1'],quant1_expected):
         if np.isnan(truth):
             assert np.isnan(meas)

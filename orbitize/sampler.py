@@ -1,10 +1,9 @@
-from orbitize import lnlike
-from orbitize import system
-from orbitize import kepler
+import orbitize.lnlike
+import orbitize.priors
 import sys
 import abc
 import numpy as np
-
+import emcee
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -19,9 +18,14 @@ class Sampler(ABC):
     (written): Sarah Blunt, 2018
     """
 
-    def __init__(cls, system, like='chi2_lnlike'):
-        cls.system = system
-        cls.lnlike = getattr(lnlike, like)
+    def __init__(self, system, like='chi2_lnlike'):
+        self.system = system
+        
+        # check if likliehood fuction is a string of a function
+        if callable(like):
+            self.lnlike = like
+        else:
+            self.lnlike = getattr(orbitize.lnlike, like)
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
@@ -120,20 +124,48 @@ class OFTI(Sampler):
 class PTMCMC(Sampler):
     """
     Parallel-Tempered MCMC Sampler using the emcee Affine-infariant sampler
+
+    NOTE: Does not currnetly support multithreading because orbitize classes are not yet pickleable. 
+
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
         num_temps (int): number of temperatures to run the sampler at
         num_walkers (int): number of walkers at each temperature
     """
-    def __init__(self, like, system, num_temps, num_walkers):
-        super(OFTI, self).__init__(system, like=like)
+    def __init__(self, lnlike, system, num_temps, num_walkers):
+        super(PTMCMC, self).__init__(system, like=lnlike)
         self.num_temps = num_temps
         self.num_walkers = num_walkers
 
+        # get priors from the system class
+        self.priors = system.sys_priors
+
+        # initialize walkers initial postions
+        self.num_params = len(self.priors)
+        init_positions = [] 
+        for prior in self.priors:
+            # draw them uniformly becase we don't know any better right now
+            # todo: be smarter in the future
+            random_init = prior.draw_samples(num_walkers*num_temps).reshape([num_temps, num_walkers])
+
+            init_positions.append(random_init)
+
+        # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+        # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
+        # save this as the current position
+        self.curr_pos = np.dstack(init_positions)
+
+        self.sampler = emcee.PTSampler(num_temps, num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, logpargs=[self.priors,] )
+
+
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
-        Runs PT MCMC sampler
+        Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
+
+        Can be run multiple times if you want to pause and insepct things. 
+        Each call will continue from the end state of the last execution
+
         Args:
             total_orbits (int): total number of accepted possible 
                 orbits that are desired. This equals 
@@ -143,5 +175,39 @@ class PTMCMC(Sampler):
             thin (int): factor to thin the steps of each walker 
                 by to remove correlations in the walker steps
         """
-        pass
+        for pos, lnprob, lnlike in self.sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+            pass
+
+        self.sampler.reset()
+        self.curr_pos = pos
+        print('Burn in complete')
+
+        for pos, lnprob, lnlike in self.sampler.sample(pos, lnprob0=lnprob, lnlike0=lnlike,
+                                                        iterations=total_orbits, thin=thin):
+            pass
+        
+        self.curr_pos = pos
+        self.chain = self.sampler.chain
+        self.lnlikes = self.sampler.lnprobability
+
+    def _logl(self, params):
+        """
+        log likelihood function for emcee that interfaces with the orbitize objectts
+        Comptues the sum of the log likelihoods of all the data given the input model
+
+        Args:
+            params (np.array): 1-D numpy array of size self.num_params
+
+        Returns:
+            lnlikes (float): sum of all log likelihoods of the data given input model
+
+        """
+        model = self.system.compute_model(params.reshape(1, params.shape[0]))
+
+        data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
+        errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
+
+        lnlikes =  self.lnlike(data, errs, model)
+
+        return np.nansum(lnlikes)
 
