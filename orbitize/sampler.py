@@ -50,12 +50,12 @@ class OFTI(Sampler):
             num_samples (int): number of orbits to prepare for OFTI to run 
                 rejection sampling on
         Return:
-            np.array: array of prepared samples. The first dimension has size of num_samples. This should be passed into ``reject()``
+            np.array: array of prepared samples. The first dimension has size of num_samples. 
+            This should be passed into ``reject()``
         (written):Isabel Angelo & Sarah Blunt (2018)
         """
         #to do: modify to work for multi-planet systems
         
-        #store priors -> this step should be done in OFTI.__init__ so it doesn't slow performance
         pri = self.system.sys_priors
         
         #generate sample orbits
@@ -68,9 +68,11 @@ class OFTI(Sampler):
         sep, pa = self.system.radec2seppa(ra, dec)
         
         #compute observational uncertainties in seppa
+        # SARAHCOMMENT: shouldn't need next two lines
         sep_err = 0
         pa_err = 0
 
+        # SARAHCOMMENT: you should also extract the separation and PA values, not just the errors, from the data files
         if len(self.system.seppa != 0): #check for seppa data
             #extract from data table
             seppa_index = self.system.seppa[0][0]
@@ -91,6 +93,10 @@ class OFTI(Sampler):
         sep_offsets = sep_err * np.random.randn(sep.size)
         pa_offsets = pa_err * np.random.randn(pa.size)  
         
+        # SARAH COMMENT: the equation to generate the new semi-major 
+        #     axes should be: samples[0] *= (sep_observed + sep_err)/sep
+        #     For PANs, it should be: samples[3] += ((pa_observed - pa + pa_err) % 360)
+        #     (where _observed means it is read in from the data table)
         #perform scale-and-rotate
         samples[0] = sep * (sep/(sep + sep_offsets))
         samples[-1] = pa + pa_offsets
