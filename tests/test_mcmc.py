@@ -24,7 +24,7 @@ def test_ptmcmc_runs():
     # run it a little
     mcmc.run_sampler(10, 1)
 
-    print(mcmc.sampler.chain)
+    print(mcmc.sampler.chain[0, 0])
 
 if __name__ == "__main__":
     test_ptmcmc_runs()
