@@ -44,7 +44,7 @@ class System(object):
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
 
-         if restrict_angle_ranges:
+        if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
             angle_upperlim = 2.*np.pi

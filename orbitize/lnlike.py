@@ -27,10 +27,12 @@ def chi2_lnlike(data, errors, model, seppa_indices):
 
     chi2 = (data - model)**2/errors**2
 
-    chi2[seppa_indices, 1] = np.arctan2(
-        np.sin(data[seppa_indices, 1] - model[seppa_indices, 1]), 
-        np.cos(data[seppa_indices, 1] - model[seppa_indices, 1])
-    )**2 / errors[seppa_indices, 1]**2
+    # if there are PA values, we should take the difference modulo angle wrapping
+    if np.size(seppa_indices) > 0:
+        chi2[seppa_indices, 1] = np.arctan2(
+            np.sin(data[seppa_indices, 1] - model[seppa_indices, 1]), 
+            np.cos(data[seppa_indices, 1] - model[seppa_indices, 1])
+        )**2 / errors[seppa_indices, 1]**2
 
     return chi2
 
