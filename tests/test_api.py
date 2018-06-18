@@ -83,7 +83,9 @@ def test_chi2lnlike():
     data=np.ones((2,1))
     errors=np.ones((2,1))
 
-    chi2 = lnlike.chi2_lnlike(data, errors, model)
+    seppa_indices = [np.array([])]
+
+    chi2 = lnlike.chi2_lnlike(data, errors, model, seppa_indices)
     assert chi2.all() == np.ones((3,2,1)).all()
 
 def test_radec2seppa():
