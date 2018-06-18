@@ -174,16 +174,20 @@ class PTMCMC(Sampler):
             lnlikes (float): sum of all log likelihoods of the data given input model
 
         """
+        # compute the model based on system params
         model = self.system.compute_model(params)
 
+        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved 
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
         errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
 
         # todo: THIS ONLY WORKS FOR 1 PLANET. Could in the future make this a for loop to work for multiple planets.
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
 
+        # compute lnlike now
         lnlikes =  self.lnlike(data, errs, model, seppa_indices)
 
+        # return sum of lnlikes (aka product of likeliehoods)
         return np.nansum(lnlikes)
 
 
