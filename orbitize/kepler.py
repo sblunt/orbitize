@@ -28,9 +28,9 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
 
     Return:
-        raoff (np.array): 2-D array (n_orbs x n_dates) of RA offsets between the bodies (origin is at the other body)
-        deoff (np.array): 2-D array (n_orbs x n_dates) of Dec offsets between the bodies
-        vz (np.array): 2-D array (n_orbs x n_dates) of radial velocity offset between the bodies
+        raoff (np.array): 2-D array (n_dates x n_orbs) of RA offsets between the bodies (origin is at the other body)
+        deoff (np.array): 2-D array (n_dates x n_orbs) of Dec offsets between the bodies
+        vz (np.array): 2-D array (n_dates x n_orbs) of radial velocity offset between the bodies
 
     Written: Jason Wang, Henry Ngo, 2018
     """
