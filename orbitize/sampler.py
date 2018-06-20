@@ -68,38 +68,38 @@ class OFTI(Sampler):
         sep, pa = self.system.radec2seppa(ra, dec)
         
         #compute observational uncertainties in seppa
-        # SARAHCOMMENT: shouldn't need next two lines
-        sep_err = 0
-        pa_err = 0
-
-        # SARAHCOMMENT: you should also extract the separation and PA values, not just the errors, from the data files
+        
         if len(self.system.seppa != 0): #check for seppa data
             #extract from data table
             seppa_index = self.system.seppa[0][0]
             
+            sep_observed = self.system.data_table[seppa_index][1]
             sep_err = self.system.data_table[seppa_index][2]
+            pa_observed = self.system.data_table[seppa_index][3]
             pa_err = self.system.data_table[seppa_index][4]
             
         else: #for if there are only radec datatypes
             #extract from data table and convert to seppa
             radec_index = self.system.radec[0][0]
             
+            ra = self.system.data_table[radec_index][1]
             ra_err = self.system.data_table[radec_index][2]
+            dec = self.system.data_table[radec_index][3]
             dec_err = self.system.data_table[radec_index][4]
             
+            sep_observed, pa_observed = self.system.radec2seppa(ra, dec)
             sep_err, pa_err = self.system.radec2seppa(ra_err, dec_err)    
         
         #generate offsets from observational uncertainties
         sep_offsets = sep_err * np.random.randn(sep.size)
         pa_offsets = pa_err * np.random.randn(pa.size)  
         
-        # SARAH COMMENT: the equation to generate the new semi-major 
-        #     axes should be: samples[0] *= (sep_observed + sep_err)/sep
-        #     For PANs, it should be: samples[3] += ((pa_observed - pa + pa_err) % 360)
-        #     (where _observed means it is read in from the data table)
+
         #perform scale-and-rotate
-        samples[0] = sep * (sep/(sep + sep_offsets))
-        samples[-1] = pa + pa_offsets
+        samples[0] *= (sep_observed + sep_err)/sep
+        samples[3] += ((pa_observed - pa + pa_err) % 360)
+        
+        return samples
         
 
     def reject(self, orbit_configs):
@@ -112,37 +112,7 @@ class OFTI(Sampler):
             
         (written):Isabel Angelo (2018)    
         """
-        #generate sep/pa for all remaining epochs
-        sep_obs = []
-        pa_obs = []
-        
-        for row in self.system.seppa[0]:
-            sep_obs.append(self.system.data_table[row][1])
-            pa_obs.append(self.system.data_table[row][3])
-            
-        for row in self.system.radec[0]:
-            ra =  self.system.data_table[row][1]
-            dec = self.system.data_table[row][3]
-            
-            sep, pa = self.system.radec2seppa(ra, dec)
-            
-            sep_obs.append(sep)
-            pa_obs.append(pa)
-        #^^redo this
-        
-        #generate probabilities for each orbit (output = array of probabilities)
-        
-        #reject orbits with p < randomly generated number
-        max_orbits = 10000 #default, should be left to user
-        saved_orbits = [] #need to make this an array and not a list
-        
-        for prob in p:
-            if prob < np.random.random():
-                saved_orbits.append(samples[prob.index])
-            if len(saved_orbits) >= max_orbits:
-                break
-        
-        return saved_orbits
+        pass
 
     def run_sampler(self, total_orbits):
         """
