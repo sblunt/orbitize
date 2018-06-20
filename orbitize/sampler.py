@@ -109,8 +109,40 @@ class OFTI(Sampler):
             orbit_configs (np.array): array of prepared samples. The first dimension has size `num_samples`. This should be the output of ``prepare_samples()``
         Return:
             np.array: a subset of orbit_configs that are accepted based on the data.
+            
+        (written):Isabel Angelo (2018)    
         """
-        pass
+        #generate sep/pa for all remaining epochs
+        sep_obs = []
+        pa_obs = []
+        
+        for row in self.system.seppa[0]:
+            sep_obs.append(self.system.data_table[row][1])
+            pa_obs.append(self.system.data_table[row][3])
+            
+        for row in self.system.radec[0]:
+            ra =  self.system.data_table[row][1]
+            dec = self.system.data_table[row][3]
+            
+            sep, pa = self.system.radec2seppa(ra, dec)
+            
+            sep_obs.append(sep)
+            pa_obs.append(pa)
+        #^^redo this
+        
+        #generate probabilities for each orbit (output = array of probabilities)
+        
+        #reject orbits with p < randomly generated number
+        max_orbits = 10000 #default, should be left to user
+        saved_orbits = [] #need to make this an array and not a list
+        
+        for prob in p:
+            if prob < np.random.random():
+                saved_orbits.append(samples[prob.index])
+            if len(saved_orbits) >= max_orbits:
+                break
+        
+        return saved_orbits
 
     def run_sampler(self, total_orbits):
         """
