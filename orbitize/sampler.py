@@ -82,12 +82,12 @@ class OFTI(Sampler):
             #extract from data table and convert to seppa
             radec_index = self.system.radec[0][0]
             
-            ra = self.system.data_table[radec_index][1]
+            ra_observed = self.system.data_table[radec_index][1]
             ra_err = self.system.data_table[radec_index][2]
-            dec = self.system.data_table[radec_index][3]
+            dec_observed = self.system.data_table[radec_index][3]
             dec_err = self.system.data_table[radec_index][4]
             
-            sep_observed, pa_observed = self.system.radec2seppa(ra, dec)
+            sep_observed, pa_observed = self.system.radec2seppa(ra_observed, dec_observed)
             sep_err, pa_err = self.system.radec2seppa(ra_err, dec_err)    
         
         #generate offsets from observational uncertainties
@@ -112,7 +112,33 @@ class OFTI(Sampler):
             
         (written):Isabel Angelo (2018)    
         """
-        pass
+        #generate seppa for all remaining epochs
+        ra, dec, vc = kepler.calc_orbit(orbit_configs) #how to edit this to generate for all epoch?
+        sep, pa = self.system.radec2seppa(ra, dec)
+        
+        #compute probability for each orbit        
+        seppa_obs = np.column_stack((self.system.data_table[seppa_index][1],self.system.data_table[seppa_index][3]))
+        seppa_errs = np.column_stack((self.system.data_table[seppa_index][2],self.system.data_table[seppa_index][4]))
+
+        chi2 = [lnlike.chi2_lnlike(data, errors, orbit) for orbit in orbit_configs]
+        #CHECK: dimensions of chi2 should be n_orbits x n_epochs x 2
+        
+        #convert to probability
+        chi2_sum = np.sum(chi2, axis = 1) #sum over all epochs
+        p = np.e**(-chi2_sum/2.)
+        
+        #reject orbits with p<randomly generate number until desired orbits reached
+        max_orbits = 10000 #default, should be left to user
+        saved_orbits = ([])
+        
+        for prob in p:
+            if prob < np.random.random():
+                np.append(saved_orbits,samples[prob.index])
+            if len(saved_orbits) >= max_orbits:
+                break
+        
+        return saved_orbits
+                
 
     def run_sampler(self, total_orbits):
         """
