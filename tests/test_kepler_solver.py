@@ -3,7 +3,7 @@ Test the orbitize.kepler module which solves for the orbits of the planets
 """
 import pytest
 import numpy as np
-import kepler
+from orbitize import kepler
 import sys
 import pstats, cProfile
 import os
@@ -219,7 +219,7 @@ def profile_iterative_ecc_anom_solver():
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '-profile':
-        print "Profiling"
+        print("Profiling")
         profile_name = "Profile.prof"
 
         cProfile.runctx("profile_iterative_ecc_anom_solver()", globals(), locals(), "Profile.prof")
