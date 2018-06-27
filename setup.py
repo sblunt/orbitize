@@ -1,7 +1,5 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 import re
-from distutils.core import setup
-from distutils.extension import Extension
 from Cython.Build import build_ext
 import numpy
 import sys
@@ -19,7 +17,6 @@ def get_ext_modules():
     return [Extension(
         name="orbitize._kepler",
         sources=["orbitize/_kepler.pyx", "orbitize/kepler.cc"],
-            # extra_objects=["fc.o"],  # if you compile fc.cpp separately
         include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
         language="c++"
         )]

@@ -42,8 +42,8 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
         raoff (np.array): 2-D array (n_orbs x n_dates) of RA offsets between the bodies (origin is at the other body)
         deoff (np.array): 2-D array (n_orbs x n_dates) of Dec offsets between the bodies
         vz (np.array): 2-D array (n_orbs x n_dates) of radial velocity offset between the bodies
-
-    Written: Jason Wang, Henry Ngo, 2018
+sdfasdfasdfadfadf
+    Written: Jason Wang, Henry Ngo, 2018 dc
     """
 
     n_orbs  = np.size(sma)  # num sets of input orbital parameters
