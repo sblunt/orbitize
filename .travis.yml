@@ -13,15 +13,6 @@ python:
   - "2.7"
   - "3.6"
 
-# gcc-6 and g++6 needed for use of c++14 constructs in C++ kepler module
-addons:
-   apt:
-      sources:
-       - ubuntu-toolchain-r-test
-      packages:
-       - gcc-6
-       - g++-6
-
 before_install:
     - export py="$(echo $TRAVIS_PYTHON_VERSION | head -c 1)"
     - wget http://repo.continuum.io/miniconda/Miniconda${py}-latest-Linux-x86_64.sh -O miniconda.sh
@@ -31,14 +22,12 @@ before_install:
     - conda update --yes conda
     - sudo rm -rf /dev/shm
     - sudo ln -s /run/shm /dev/shm
-    - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
-    - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
 
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
-    - CXX=g++-6 python setup.py build_ext -i
+    - python setup.py build_ext -i
 
 # configure a headless display using xvbf to test plot generation
 before_script:
