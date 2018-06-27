@@ -35,7 +35,7 @@ before_install:
     - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
 
 install:
-    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
+    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
     - pip install pytest pytest-cov coverage coveralls
     - pip install . --upgrade
     - CXX=g++-6 python setup.py build_ext -i
