@@ -11,7 +11,7 @@ try:
     from _kepler import _cpp_newton_solver
     cext = True
 except ImportError:
-    print("WARNING: KEPLER: Unable to import C-based Kepler's\
+    print("WARNING: KEPLER: Unable to import C++-based Kepler's\
 equation solver. Falling back to the slower NumPy implementation.")
     cext = False 
 
@@ -155,7 +155,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, n_threads = 1):
     ind_low = np.where(~ecc_zero & ecc_low)
 
     if cext:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter, threads = n_threads)
+        if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
         #Threads defined at top
 
         # the C++ solver returns eanom = -1 if it doesnt converge after max_iter iterations

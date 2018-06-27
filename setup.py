@@ -2,8 +2,12 @@ from setuptools import setup, find_packages
 import re
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
+from Cython.Build import build_ext
 import numpy
+import sys
+
+
+
 
 # auto-updating version code stolen from RadVel
 def get_property(prop, project):
@@ -17,11 +21,7 @@ def get_ext_modules():
         sources=["orbitize/_kepler.pyx", "orbitize/kepler.cc"],
             # extra_objects=["fc.o"],  # if you compile fc.cpp separately
         include_dirs = [numpy.get_include()],  # .../site-packages/numpy/core/include
-        language="c++",
-        extra_compile_args=['-std=c++14'],
-            # libraries=
-            # extra_compile_args = "...".split(),
-            # extra_link_args = "...".split()
+        language="c++"
         )]
 
 setup(
@@ -48,7 +48,8 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee','Cython'],
-    cmdclass = {'build_ext': build_ext},
-    ext_modules = get_ext_modules()
+    install_requires=['numpy', 'scipy', 'astropy', 'emcee','cython'],
+    setup_requires=['cython>=0.x',],
+    ext_modules = get_ext_modules(),
+    cmdclass = {'build_ext': build_ext}
     )

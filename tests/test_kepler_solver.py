@@ -208,8 +208,8 @@ def profile_iterative_ecc_anom_solver():
     _calc_ecc_anom() output vs the input mean anomaly
     """
 
-    n_orbits = 20000
-    n_threads = 6
+    n_orbits = 2000
+    n_threads = 1
 
     mean_anoms=np.linspace(0,2.0*np.pi,n_orbits)
     eccs=np.linspace(0,0.9499999,n_orbits)

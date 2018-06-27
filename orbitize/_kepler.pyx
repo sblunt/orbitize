@@ -2,22 +2,19 @@ import numpy as np
 cimport numpy as np
 
 cdef extern from "kepler.hh": 
-    void newton_array(const int start,
-          const int end,
-          const int threads, 
-          const double manom[], 
-          const double ecc[], 
-          const double tol, 
-          const int max_iter, 
-          double eanom[])
+    void newton_array(const int n_elements,
+                      const double manom[], 
+                      const double ecc[], 
+                      const double tol, 
+                      const int max_iter, 
+                      double eanom[])
 
 
 def _cpp_newton_solver(np.ndarray[np.double_t,ndim=1] manom,
                     np.ndarray[np.double_t,ndim=1] ecc, 
                     tolerance = 1e-9, 
                     max_iter = 100, 
-                    np.ndarray[np.double_t,ndim=1] eanom0 = None,
-                    threads = 1):
+                    np.ndarray[np.double_t,ndim=1] eanom0 = None):
     """
     Wrapper function for C++ implementation of Newton-Raphson solver for eccentric anomaly.
     Args:
@@ -39,6 +36,6 @@ def _cpp_newton_solver(np.ndarray[np.double_t,ndim=1] manom,
         eanom = np.copy(eanom0)
 
 
-    newton_array(0, len(manom), threads, <double*> manom.data, <double*> ecc.data, tolerance, max_iter, <double*> eanom.data)
+    newton_array(len(manom), <double*> manom.data, <double*> ecc.data, tolerance, max_iter, <double*> eanom.data)
 
     return eanom

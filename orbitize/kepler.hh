@@ -1,5 +1,5 @@
-//test_kep.hh
-#include <vector>
+
+
 
 # define M_PI           3.14159265358979323846  /* pi */
 
@@ -10,9 +10,7 @@ void newton(const double manom,
 		 	  double &eanom);
 
 
-void newton_array(const int start,
-					const int end,
-					const int threads, 
+void newton_array(const int n_elements, 
 					const double manom[], 
 					const double ecc[], 
 					const double tol, 
