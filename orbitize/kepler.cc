@@ -67,33 +67,10 @@ void newton_array(const int n_elements,
     Written: Devin Cody, 2018
 	*/
 
-	// if (threads <= 1){
-		// base case, only one thread, execute immediately
 	for (int i = 0; i < n_elements; i ++){
 		newton(manom[i], ecc[i], tol, max_iter, eanom[i]);
 	}	
-	// } else {
-	// 	//More than one thread, recurse.
-	// 	// Declare Variables
-	// 	std::vector<std::thread> t;
-	// 	const int stride = (end - start)/threads;
-	// 	const int last_idx = threads-1;
 
-	// 	// Execute code on N-1 Threads
-	// 	for (int i = 0; i < last_idx; i++){
-	// 		t.push_back(std::thread(newton_array, start + stride*i, start + stride*(i+1)+1,1, manom, ecc, tol, max_iter, eanom));
-	// 	}
-
-	// 	// Execute Final part of the array on current thread
-	// 	for (int i = start + stride*last_idx; i < start + stride*(last_idx+1)+1; i ++){
-	// 		newton(manom[i], ecc[i], tol, max_iter, eanom[i]);
-	// 	}
-
-	// 	// Join with the other N-1 Threads
-	// 	for (int i = 0; i < last_idx; i++){
-	// 		t[i].join();
-	// 	}
-	// }
 }
 
 int main(){
