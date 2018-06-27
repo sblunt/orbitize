@@ -44,10 +44,46 @@ class System(object):
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
 
+        #
+        # Group the data in some useful ways
+        #
+
+        self.data_table = data_table
+
+        # List of arrays of indices corresponding to each body
+        self.body_indices = []
+
+        # List of arrays of indices corresponding to epochs in RA/Dec for each body
+        self.radec = []
+
+        # List of arrays of indices corresponding to epochs in SEP/PA for each body
+        self.seppa = []
+
+        radec_indices = np.where(self.data_table['quant_type']=='radec')
+        seppa_indices = np.where(self.data_table['quant_type']=='seppa')
+
+        for body_num in np.arange(self.num_secondary_bodies+1):
+
+            self.body_indices.append(
+                np.where(self.data_table['object']==body_num)
+            )
+
+            self.radec.append(
+                np.intersect1d(self.body_indices[body_num], radec_indices)
+            )
+            self.seppa.append(
+                np.intersect1d(self.body_indices[body_num], seppa_indices)
+            )
+
+
+        if len(radec_indices) + len(seppa_indices) == len(self.data_table):
+            restrict_angle_ranges = True
+
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
             angle_upperlim = 2.*np.pi
+
 
         # Set priors for each orbital element
         for body in np.arange(num_secondary_bodies):
@@ -84,37 +120,6 @@ class System(object):
             self.abs_plx = np.nan
         else:
             self.abs_plx = plx
-
-
-
-        # Group the data in some useful ways
-
-        self.data_table = data_table
-
-        # List of arrays of indices corresponding to each body
-        self.body_indices = []
-
-        # List of arrays of indices corresponding to epochs in RA/Dec for each body
-        self.radec = []
-
-        # List of arrays of indices corresponding to epochs in SEP/PA for each body
-        self.seppa = []
-
-        radec_indices = np.where(self.data_table['quant_type']=='radec')
-        seppa_indices = np.where(self.data_table['quant_type']=='seppa')
-
-        for body_num in np.arange(self.num_secondary_bodies+1):
-
-            self.body_indices.append(
-                np.where(self.data_table['object']==body_num)
-            )
-
-            self.radec.append(
-                np.intersect1d(self.body_indices[body_num], radec_indices)
-            )
-            self.seppa.append(
-                np.intersect1d(self.body_indices[body_num], seppa_indices)
-            )
 
 
     def compute_model(self, params_arr):
