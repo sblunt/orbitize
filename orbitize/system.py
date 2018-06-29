@@ -39,7 +39,7 @@ class System(object):
     (written): Sarah Blunt, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass, 
-                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=False):
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -76,7 +76,7 @@ class System(object):
             )
 
 
-        if len(radec_indices) + len(seppa_indices) == len(self.data_table):
+        if (len(radec_indices) + len(seppa_indices) == len(self.data_table)) and (restrict_angle_ranges is None):
             restrict_angle_ranges = True
 
         if restrict_angle_ranges:
@@ -84,8 +84,10 @@ class System(object):
         else:
             angle_upperlim = 2.*np.pi
 
-
+        #
         # Set priors for each orbital element
+        #
+
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
             self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
@@ -105,7 +107,10 @@ class System(object):
             # Add epoch of periastron prior. 
             self.sys_priors.append(priors.UniformPrior(0., 1.))
 
+        #
         # Set priors on system mass and parallax
+        #
+
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(
                 system_mass, mass_err)
