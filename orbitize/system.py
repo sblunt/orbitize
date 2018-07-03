@@ -22,6 +22,8 @@ class System(object):
         restrict_angle_ranges (bool [optional]): if True, restrict the ranges
             of PAN and AOP to [0,180) to get rid of symmetric double-peaks for
             imaging-only datasets.
+        results (list of orbitize.results.Results): results from an orbit-fit
+            will be appended to this list as a Results class
 
     Users should initialize an instance of this class, then overwrite 
     priors they wish to customize. 
@@ -29,20 +31,22 @@ class System(object):
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        semimajor axis b, eccentricity b, AOP b, PAN b, inclination b, EPP b, 
-        [semimajor axis c, eccentricity c, etc.]
-        mass, parallax
+        semimajor axis 1, eccentricity 1, AOP 1, PAN 1, inclination 1, EPP 1, 
+        [semimajor axis 2, eccentricity 2, etc.],
+        [total mass, parallax]
 
-    where `b` corresponds to the first orbiting object, `c` corresponds
+    where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. 
 
     (written): Sarah Blunt, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass, 
-                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None):
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 results=[]):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
+        self.labels = []
 
         #
         # Group the data in some useful ways
@@ -91,21 +95,27 @@ class System(object):
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
             self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
+            self.labels.append('a_{}'.format(body+1))
 
             # Add eccentricity prior
             self.sys_priors.append(priors.UniformPrior(0.,1.))
+            self.labels.append('e_{}'.format(body+1))
 
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
+            self.labels.append('aop_{}'.format(body+1))
 
             # Add position angle of nodes prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
+            self.labels.append('pan_{}'.format(body+1))
 
             # Add inclination angle prior
             self.sys_priors.append(priors.SinPrior())
+            self.labels.append('i_{}'.format(body+1))
 
             # Add epoch of periastron prior. 
             self.sys_priors.append(priors.UniformPrior(0., 1.))
+            self.labels.append('epp_{}'.format(body+1))
 
         #
         # Set priors on system mass and parallax
@@ -115,16 +125,16 @@ class System(object):
             self.sys_priors.append(priors.GaussianPrior(
                 system_mass, mass_err)
             )
-            self.abs_system_mass = None
             self.abs_system_mass = np.nan
         else:
             self.abs_system_mass = system_mass
+            self.labels.append('stellar_mass')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-            self.abs_system_mass = None
             self.abs_plx = np.nan
         else:
             self.abs_plx = plx
+            self.labels.append('parallax')
 
 
     def compute_model(self, params_arr):
