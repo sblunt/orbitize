@@ -66,39 +66,66 @@ def read_formatted_file(filename):
     num_measurements = len(input_table)
 
     # Validate input
-    if 'epoch' in input_table.columns:
-        have_epoch = ~input_table['epoch'].mask
-    else:
-        raise Exception("Input table MUST have epoch!")
-    if 'object' in input_table.columns:
-        have_object = ~input_table['object'].mask
-    else:
-        raise Exception("Input table MUST have object id!")
-    if 'raoff' in input_table.columns:
-        have_ra = ~input_table['raoff'].mask
-    else:
-        have_ra = np.zeros(num_measurements, dtype=bool) # Zeros are False
-    if 'decoff' in input_table.columns:
-        have_dec = ~input_table['decoff'].mask
-    else:
-        have_dec = np.zeros(num_measurements, dtype=bool) # Zeros are False
-    if 'sep' in input_table.columns:
-        have_sep = ~input_table['sep'].mask
-    else:
-        have_sep = np.zeros(num_measurements, dtype=bool) # Zeros are False
-    if 'pa' in input_table.columns:
-        have_pa = ~input_table['pa'].mask
-    else:
-        have_pa = np.zeros(num_measurements, dtype=bool) # Zeros are False
-    if 'rv' in input_table.columns:
-        have_rv = ~input_table['rv'].mask
-    else:
-        have_rv = np.zeros(num_measurements, dtype=bool) # Zeros are False
-
-    if not have_epoch.all():
-        raise Exception("Invalid input format: missing some epoch entries")
-    if not have_object.all():
-        raise Exception("Invalid input format: missing some object entries")
+    # If input_table is Masked, then figure out which entries are masked
+    # Otherwise, just check that we have the required columns
+    if input_table.masked:
+        if 'epoch' in input_table.columns:
+            have_epoch = ~input_table['epoch'].mask
+            if not have_epoch.all():
+                raise Exception("Invalid input format: missing some epoch entries")
+        else:
+            raise Exception("Input table MUST have epoch!")
+        if 'object' in input_table.columns:
+            have_object = ~input_table['object'].mask
+            if not have_object.all():
+                raise Exception("Invalid input format: missing some object entries")
+        else:
+            raise Exception("Input table MUST have object id!")
+        if 'raoff' in input_table.columns:
+            have_ra = ~input_table['raoff'].mask
+        else:
+            have_ra = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'decoff' in input_table.columns:
+            have_dec = ~input_table['decoff'].mask
+        else:
+            have_dec = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'sep' in input_table.columns:
+            have_sep = ~input_table['sep'].mask
+        else:
+            have_sep = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'pa' in input_table.columns:
+            have_pa = ~input_table['pa'].mask
+        else:
+            have_pa = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'rv' in input_table.columns:
+            have_rv = ~input_table['rv'].mask
+        else:
+            have_rv = np.zeros(num_measurements, dtype=bool) # Zeros are False
+    else: # no masked entries, just check for required columns
+        if 'epoch' not in input_table.columns:
+            raise Exception("Input table MUST have epoch!")
+        if 'object' not in input_table.columns:
+            raise Exception("Input table MUST have object id!")
+        if 'raoff' in input_table.columns:
+            have_ra = np.ones(num_measurements, dtype=bool) # Ones are False
+        else:
+            have_ra = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'decoff' in input_table.columns:
+            have_dec = np.ones(num_measurements, dtype=bool) # Ones are False
+        else:
+            have_dec = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'sep' in input_table.columns:
+            have_sep = np.ones(num_measurements, dtype=bool) # Ones are False
+        else:
+            have_sep = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'pa' in input_table.columns:
+            have_pa = np.ones(num_measurements, dtype=bool) # Ones are False
+        else:
+            have_pa = np.zeros(num_measurements, dtype=bool) # Zeros are False
+        if 'rv' in input_table.columns:
+            have_rv = np.ones(num_measurements, dtype=bool) # Ones are False
+        else:
+            have_rv = np.zeros(num_measurements, dtype=bool) # Zeros are False
 
     # Loop through each row and format table
     index=0
