@@ -4,7 +4,7 @@ import orbitize.system as system
 import orbitize.read_input as read_input
 from orbitize.lnlike import chi2_lnlike
 
-def test_pt_mcmc_runs():
+def test_pt_mcmc_runs(num_threads=1):
     """
     Tests the PTMCMC sampler by making sure it even runs
     """
@@ -19,14 +19,14 @@ def test_pt_mcmc_runs():
     orbit = system.System(1, data_table, 1, 0.01)
 
     # construct sampler
-    mcmc = sampler.PTMCMC(chi2_lnlike, orbit, 2, 100, num_threads=1)
+    mcmc = sampler.PTMCMC(chi2_lnlike, orbit, 2, 100, num_threads=num_threads)
 
     # run it a little
     mcmc.run_sampler(10, 1)
 
     print(mcmc.sampler.chain[0, 0])
 
-def test_ensemble_mcmc_runs():
+def test_ensemble_mcmc_runs(num_threads=1):
     """
     Tests the EnsembleMCMC sampler by making sure it even runs
     """
@@ -41,7 +41,7 @@ def test_ensemble_mcmc_runs():
     orbit = system.System(1, data_table, 1, 0.01)
 
     # construct sampler
-    mcmc = sampler.EnsembleMCMC(chi2_lnlike, orbit, 100, num_threads=1)
+    mcmc = sampler.EnsembleMCMC(chi2_lnlike, orbit, 100, num_threads=num_threads)
 
     # run it a little
     mcmc.run_sampler(10, 1)
@@ -49,5 +49,7 @@ def test_ensemble_mcmc_runs():
     print(mcmc.sampler.chain[0, 0])
 
 if __name__ == "__main__":
-    #test_pt_mcmc_runs()
-    test_ensemble_mcmc_runs()
+    test_pt_mcmc_runs(num_threads=1)
+    test_pt_mcmc_runs(num_threads=4)
+    test_ensemble_mcmc_runs(num_threads=1)
+    test_ensemble_mcmc_runs(num_threads=4)
