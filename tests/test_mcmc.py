@@ -6,9 +6,9 @@ from orbitize.lnlike import chi2_lnlike
 
 def test_ptmcmc_runs():
     """
-    Tests the PTMCMC sampler by making sure it even runs 
+    Tests the PTMCMC sampler by making sure it even runs
     """
-    # use the test_csv dir 
+    # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
     data_table = read_input.read_formatted_file(input_file)
@@ -19,7 +19,7 @@ def test_ptmcmc_runs():
     orbit = system.System(1, data_table, 1, 0.01)
 
     # construct sampler
-    mcmc = sampler.PTMCMC(chi2_lnlike, orbit, 2, 100)
+    mcmc = sampler.PTMCMC(chi2_lnlike, orbit, 2, 100, num_threads=1)
 
     # run it a little
     mcmc.run_sampler(10, 1)

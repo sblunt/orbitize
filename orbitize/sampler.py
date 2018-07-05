@@ -3,7 +3,7 @@ import orbitize.priors
 import sys
 import abc
 import numpy as np
-import emcee
+import ptemcee
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -21,7 +21,7 @@ class Sampler(ABC):
 
     def __init__(self, system, like='chi2_lnlike'):
         self.system = system
-        
+
         # check if likliehood fuction is a string of a function
         if callable(like):
             self.lnlike = like
@@ -46,11 +46,11 @@ class OFTI(Sampler):
 
     def prepare_samples(self, num_samples):
         """
-        Prepare some orbits for rejection sampling. This draws random orbits 
+        Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
 
         Args:
-            num_samples (int): number of orbits to prepare for OFTI to run 
+            num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
 
         Return:
@@ -78,10 +78,10 @@ class OFTI(Sampler):
 
     def run_sampler(self, total_orbits):
         """
-        Runs OFTI until we get the number of total accepted orbits we want. 
+        Runs OFTI until we get the number of total accepted orbits we want.
 
         Args:
-            total_orbits (int): total number of accepted possible orbits that 
+            total_orbits (int): total number of accepted possible orbits that
                 are desired
 
         Return:
@@ -95,17 +95,20 @@ class OFTI(Sampler):
 
 class PTMCMC(Sampler):
     """
-    Parallel-Tempered MCMC Sampler using the emcee Affine-infariant sampler
+    Parallel-Tempered MCMC Sampler using the ptemcee Affine-infariant sampler
 
-    NOTE: Does not currnetly support multithreading because orbitize classes are not yet pickleable. 
+    NOTE: Does not currnetly support multithreading because orbitize classes are not yet pickleable.
 
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
         num_temps (int): number of temperatures to run the sampler at
         num_walkers (int): number of walkers at each temperature
+        num_threads (int): number of threads to use for parallelization (default=1)
+
+    (written): Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, lnlike, system, num_temps, num_walkers):
+    def __init__(self, lnlike, system, num_temps, num_walkers, num_threads=1):
         super(PTMCMC, self).__init__(system, like=lnlike)
         self.num_temps = num_temps
         self.num_walkers = num_walkers
@@ -115,7 +118,7 @@ class PTMCMC(Sampler):
 
         # initialize walkers initial postions
         self.num_params = len(self.priors)
-        init_positions = [] 
+        init_positions = []
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
             # todo: be smarter in the future
@@ -128,23 +131,23 @@ class PTMCMC(Sampler):
         # save this as the current position
         self.curr_pos = np.dstack(init_positions)
 
-        self.sampler = emcee.PTSampler(num_temps, num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, logpargs=[self.priors,] )
-
+        #self.sampler = emcee.PTSampler(num_temps, num_walkers, self.num_params, self._logl,orbitize.priors.all_lnpriors, threads=num_threads, logpargs=[self.priors,] )
+        self.sampler = ptemcee.Sampler(num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, ntemps=num_temps, threads=num_threads, logpargs=[self.priors,] )
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
         Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
 
-        Can be run multiple times if you want to pause and insepct things. 
+        Can be run multiple times if you want to pause and insepct things.
         Each call will continue from the end state of the last execution
 
         Args:
-            total_orbits (int): total number of accepted possible 
-                orbits that are desired. This equals 
+            total_orbits (int): total number of accepted possible
+                orbits that are desired. This equals
                 ``num_steps_per_walker``x``num_walkers``
             burn_steps (int): optional paramter to tell sampler
                 to discard certain number of steps at the beginning
-            thin (int): factor to thin the steps of each walker 
+            thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
         """
         for pos, lnprob, lnlike in self.sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
@@ -157,14 +160,14 @@ class PTMCMC(Sampler):
         for pos, lnprob, lnlike in self.sampler.sample(pos, lnprob0=lnprob, lnlike0=lnlike,
                                                         iterations=total_orbits, thin=thin):
             pass
-        
+
         self.curr_pos = pos
         self.chain = self.sampler.chain
         self.lnlikes = self.sampler.lnprobability
 
     def _logl(self, params):
         """
-        log likelihood function for emcee that interfaces with the orbitize objectts
+        log likelihood function for ptemcee that interfaces with the orbitize objectts
         Comptues the sum of the log likelihoods of all the data given the input model
 
         Args:
@@ -177,7 +180,7 @@ class PTMCMC(Sampler):
         # compute the model based on system params
         model = self.system.compute_model(params)
 
-        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved 
+        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
         errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
 
@@ -189,7 +192,3 @@ class PTMCMC(Sampler):
 
         # return sum of lnlikes (aka product of likeliehoods)
         return np.nansum(lnlikes)
-
-
-
-
