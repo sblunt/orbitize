@@ -20,8 +20,8 @@ class System(object):
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
         plx_err (float [optional]): uncertainty on ``plx``, in arcsec
         restrict_angle_ranges (bool [optional]): if True, restrict the ranges
-            of PAN and AOP to [0,180) to get rid of symmetric double-peaks for
-            imaging-only datasets.
+            of the position angle of nodes and argument of periastron to [0,180) 
+            to get rid of symmetric double-peaks for imaging-only datasets.
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
@@ -31,7 +31,8 @@ class System(object):
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        semimajor axis 1, eccentricity 1, AOP 1, PAN 1, inclination 1, EPP 1, 
+        semimajor axis 1, eccentricity 1, argument of periastron 1, 
+        position angle of nodes 1, inclination 1, epoch of periastron passage 1, 
         [semimajor axis 2, eccentricity 2, etc.],
         [total mass, parallax]
 
@@ -42,11 +43,12 @@ class System(object):
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass, 
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 results=[]):
+                 results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
+        self.results = None
 
         #
         # Group the data in some useful ways
