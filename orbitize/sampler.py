@@ -113,6 +113,7 @@ class PTMCMC(Sampler):
         super(PTMCMC, self).__init__(system, like=lnlike)
         self.num_temps = num_temps
         self.num_walkers = num_walkers
+        self.num_threads = num_threads
 
         # get priors from the system class
         self.priors = system.sys_priors
@@ -132,8 +133,6 @@ class PTMCMC(Sampler):
         # save this as the current position
         self.curr_pos = np.dstack(init_positions)
 
-        self.sampler = emcee.PTSampler(num_temps, num_walkers, self.num_params, self._logl,orbitize.priors.all_lnpriors, threads=num_threads, logpargs=[self.priors,] )
-
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
         Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
@@ -149,21 +148,29 @@ class PTMCMC(Sampler):
                 to discard certain number of steps at the beginning
             thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
+
+        Returns:
+            emcee.sampler object
         """
-        for pos, lnprob, lnlike in self.sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+        sampler = emcee.PTSampler(self.num_temps, self.num_walkers, self.num_params, self._logl,orbitize.priors.all_lnpriors, threads=self.num_threads, logpargs=[self.priors,] )
+
+
+        for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
             pass
 
-        self.sampler.reset()
+        sampler.reset()
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in self.sampler.sample(pos, lnprob0=lnprob, lnlike0=lnlike,
+        for pos, lnprob, lnlike in sampler.sample(pos, lnprob0=lnprob, lnlike0=lnlike,
                                                         iterations=total_orbits, thin=thin):
             pass
 
         self.curr_pos = pos
-        self.chain = self.sampler.chain
-        self.lnlikes = self.sampler.lnprobability
+        self.chain = sampler.chain
+        self.lnlikes = sampler.lnprobability
+
+        return sampler
 
     def _logl(self, params):
         """
@@ -208,6 +215,7 @@ class EnsembleMCMC(Sampler):
     def __init__(self, lnlike, system, num_walkers, num_threads=1):
         super(EnsembleMCMC, self).__init__(system, like=lnlike)
         self.num_walkers = num_walkers
+        self.num_threads = num_threads
 
         # get priors from the system class
         self.priors = system.sys_priors
@@ -227,9 +235,6 @@ class EnsembleMCMC(Sampler):
         # We need to make nparams the second dimension, so we have to transpose the stacked array
         self.curr_pos = np.stack(init_positions).T
 
-        #self.sampler = emcee.EnsembleSampler(num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, threads=num_threads, logpargs=[self.priors,] )
-        self.sampler = emcee.EnsembleSampler(num_walkers, self.num_params, self._logl, threads=num_threads)
-
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
         Runs the Affine-Invariant MCMC sampler. Results are stored in self.chain, and self.lnlikes
@@ -245,20 +250,28 @@ class EnsembleMCMC(Sampler):
                 to discard certain number of steps at the beginning
             thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
+
+        Returns:
+            emcee.sampler object
         """
-        for pos, lnprob, lnlike in self.sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+        # sampler = emcee.EnsembleSampler(num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, threads=num_threads, logpargs=[self.priors,] )
+        sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._logl, threads=self.num_threads)
+
+        for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
             pass
 
-        self.sampler.reset()
+        sampler.reset()
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in self.sampler.sample(pos, lnprob0=lnprob, iterations=total_orbits, thin=thin):
+        for pos, lnprob, lnlike in sampler.sample(pos, lnprob0=lnprob, iterations=total_orbits, thin=thin):
             pass
 
         self.curr_pos = pos
-        self.chain = self.sampler.chain
-        self.lnlikes = self.sampler.lnprobability
+        self.chain = sampler.chain
+        self.lnlikes = sampler.lnprobability
+
+        return sampler
 
     def _logl(self, params):
         """

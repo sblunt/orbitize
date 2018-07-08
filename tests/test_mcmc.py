@@ -22,9 +22,9 @@ def test_pt_mcmc_runs(num_threads=1):
     mcmc = sampler.PTMCMC(chi2_lnlike, orbit, 2, 100, num_threads=num_threads)
 
     # run it a little
-    mcmc.run_sampler(10, 1)
+    emcee_sampler_obj = mcmc.run_sampler(10, 1)
 
-    print(mcmc.sampler.chain[0, 0])
+    print(emcee_sampler_obj.chain[0, 0])
 
 def test_ensemble_mcmc_runs(num_threads=1):
     """
@@ -44,12 +44,12 @@ def test_ensemble_mcmc_runs(num_threads=1):
     mcmc = sampler.EnsembleMCMC(chi2_lnlike, orbit, 100, num_threads=num_threads)
 
     # run it a little
-    mcmc.run_sampler(10, 1)
+    emcee_sampler_obj = mcmc.run_sampler(10, burn_steps=1)
 
-    print(mcmc.sampler.chain[0, 0])
+    print(emcee_sampler_obj.chain[0, 0])
 
 if __name__ == "__main__":
     test_pt_mcmc_runs(num_threads=1)
     test_pt_mcmc_runs(num_threads=4)
     test_ensemble_mcmc_runs(num_threads=1)
-    test_ensemble_mcmc_runs(num_threads=4)
+    test_ensemble_mcmc_runs(num_threads=8)
