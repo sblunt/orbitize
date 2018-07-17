@@ -97,8 +97,7 @@ class PTMCMC(Sampler):
     """
     Parallel-Tempered MCMC Sampler using the emcee Affine-infariant sampler
 
-    NOTE: Does not currnetly support multithreading because orbitize classes are not yet pickleable.
-    NOTE: emcee will no longer support PTSampler in emcee v3.0. Would need to use ptemcee instead
+    NOTE: emcee will no longer support PTSampler in emcee v3.0. Would need to use ptemcee instead (or use the EnsembleSampler)
 
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
