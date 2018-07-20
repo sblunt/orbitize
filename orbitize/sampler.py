@@ -199,7 +199,7 @@ class PTMCMC(Sampler):
 
 class EnsembleMCMC(Sampler):
     """
-    Affine-Invariant Ensemble MCMC Sampler using emcee
+    Affine-Invariant Ensemble MCMC Sampler using emcee. Warning: may not work well for multi-modal distributions
 
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
