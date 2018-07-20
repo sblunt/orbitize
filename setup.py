@@ -10,7 +10,7 @@ def get_property(prop, project):
 setup(
     name='orbitize',
     version=get_property('__version__', 'orbitize'),
-    description='orbitize! Turns imaaging data into orbits',
+    description='orbitize! Turns imaging data into orbits',
     url='https://github.com/sblunt/orbitize',
     author='',
     author_email='',
@@ -31,5 +31,5 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee']
+    install_requires=['numpy', 'scipy', 'astropy', 'emcee', 'pytest>=3.0.0']
     )
