@@ -53,11 +53,15 @@ def _compare_table(input_table):
 
 def test_read_formatted_file():
     """
-    Test the read_formatted_file function using the test_val.csv file
+    Test the read_formatted_file function using the test_val.csv file and test_val_radec.csv
     """
     testdir = os.path.dirname(os.path.abspath(__file__))
+    # Check that main test input is read in with correct values
     input_file = os.path.join(testdir, 'test_val.csv')
     _compare_table(read_formatted_file(input_file))
+    # Check that an input value with all valid entries and only ra/dec columns can be read
+    input_file_radec = os.path.join(testdir, 'test_val_radec.csv')
+    read_formatted_file(input_file_radec)
 
 def test_write_read_orbitize_input():
     """
