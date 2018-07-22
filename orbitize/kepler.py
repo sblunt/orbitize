@@ -110,7 +110,7 @@ sdfasdfasdfadfadf
 
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, n_threads = 1):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp = True):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -120,6 +120,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, n_threads = 1):
         ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        use_cpp (boolean, optional): Enables use of c++ solver if properly installed.
     Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
 
@@ -154,7 +155,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, n_threads = 1):
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
 
-    if cext:
+    if cext and use_cpp:
         if len(ind_low[0]) > 0: eanom[ind_low] = _cpp_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
         #Threads defined at top
 

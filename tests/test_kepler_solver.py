@@ -202,7 +202,7 @@ def test_orbit_scalar():
     assert true_vz    == pytest.approx(vzs, abs=threshold)
 
 
-def profile_iterative_ecc_anom_solver():
+def profile_iterative_ecc_anom_solver(use_cpp = True):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -213,18 +213,24 @@ def profile_iterative_ecc_anom_solver():
     mean_anoms=np.linspace(0,2.0*np.pi,n_orbits)
     eccs=np.linspace(0,0.9499999,n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9, use_cpp = use_cpp)
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '-profile':
-        print("Profiling")
         profile_name = "Profile.prof"
 
+        print("Profiling: C++")
         cProfile.runctx("profile_iterative_ecc_anom_solver()", globals(), locals(), "Profile.prof")
-
         s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()
+
+        print("Profiling: Python")
+        cProfile.runctx("profile_iterative_ecc_anom_solver(False)", globals(), locals(), "Profile.prof")
+        s = pstats.Stats(profile_name)
+        s.strip_dirs().sort_stats("time").print_stats()
+
+
         os.remove(profile_name)
     else:
         test_analytical_ecc_anom_solver()
