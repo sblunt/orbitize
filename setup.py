@@ -21,8 +21,6 @@ def get_ext_modules():
         language="c++"
         )]
 
-
-
 setup(
     name='orbitize',
     version=get_property('__version__', 'orbitize'),
