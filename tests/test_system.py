@@ -8,7 +8,7 @@ import orbitize.results as results
 
 def test_add_and_clear_results():
     num_secondary_bodies=1
-    data_table='dummy'
+    data_table=read_input.read_formatted_file('test_val.csv')
     system_mass=1.0
     plx=10.0
     mass_err=0.1
@@ -28,7 +28,7 @@ def test_add_and_clear_results():
     assert len(test_system.results)==2
     # Clears result objects
     test_system.clear_results()
-    assert test_system.results is None
+    assert len(test_system.results)==0
     # Add one more result object
     test_system.add_results(test_results)
     assert len(test_system.results)==1

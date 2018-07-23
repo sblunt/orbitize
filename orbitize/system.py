@@ -48,7 +48,7 @@ class System(object):
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
-        self.results = None
+        self.results = []
 
         #
         # Group the data in some useful ways
@@ -208,16 +208,13 @@ class System(object):
         Args:
             results (orbitize.results.Results object): add this object to list
         """
-        if self.results is None: # list doesn't exist, this will be first entry
-            self.results = results
-        else:
-            self.results.append(results)
+        self.results.append(results)
 
     def clear_results(self):
         """
         Removes all stored results
         """
-        self.results = None
+        self.results = []
 
 
 def radec2seppa(ra, dec):
