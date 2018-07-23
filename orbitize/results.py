@@ -39,7 +39,13 @@ class Results(object):
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
         """
-        pass
+        # If no exisiting results then it is easy
+        if self.post is None and self.lnlike is None:
+            self.post = orbital_params
+            self.lnlike = lnlikes
+        # Otherwise, need to append properly
+        else:
+            pass # TODO
 
     def save_results(self, filename):
         """
