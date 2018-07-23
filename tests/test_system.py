@@ -1,12 +1,12 @@
 """
-Tests functionality of methods that interact with orbitize.results.Results objects
+Tests functionality of methods in system.py
 """
 
 import orbitize.read_input as read_input
 import orbitize.system as system
 import orbitize.results as results
 
-def test_system_add_clear_results():
+def test_add_and_clear_results():
     num_secondary_bodies=1
     data_table='dummy'
     system_mass=1.0
@@ -34,4 +34,4 @@ def test_system_add_clear_results():
     assert len(test_system.results)==1
 
 if __name__ == '__main__':
-    test_system_add_clear_results
+    test_add_and_clear_results()
