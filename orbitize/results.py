@@ -31,12 +31,13 @@ class Results(object):
         self.mass_err = mass_err
         self.plx_err = plx_err
 
-    def add_orbits(self, orbital_parmas):
+    def add_orbits(self, orbital_parmas, lnlike=None):
         """
-        Add accepted orbits to the results
+        Add accepted orbits and their likelihoods to the results
 
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
+            lnlike (np.array): add corresponding lnlike values to results
         """
         pass
 
