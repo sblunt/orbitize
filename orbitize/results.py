@@ -31,7 +31,7 @@ class Results(object):
         self.mass_err = mass_err
         self.plx_err = plx_err
 
-    def add_orbits(self, orbital_parmas, lnlike=None):
+    def add_orbits(self, orbital_params, lnlikes):
         """
         Add accepted orbits and their likelihoods to the results
 

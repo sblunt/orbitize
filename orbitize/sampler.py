@@ -1,5 +1,6 @@
 import orbitize.lnlike
 import orbitize.priors
+import orbitize.results
 import sys
 import abc
 import numpy as np
@@ -112,6 +113,12 @@ class PTMCMC(Sampler):
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
+        # Create an empty results object
+        self.results = orbitize.results.Results(
+            sampler_name = self.__class__.__name__,
+            mass_err = system.mass_err,
+            plx_err = system.plx_err
+        )
 
         # get priors from the system class
         self.priors = system.sys_priors
@@ -134,8 +141,9 @@ class PTMCMC(Sampler):
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
         Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
+        Results also added to orbitize.results.Results object (self.results)
 
-        Can be run multiple times if you want to pause and insepct things.
+        Can be run multiple times if you want to pause and inspect things.
         Each call will continue from the end state of the last execution
 
         Args:
@@ -166,6 +174,7 @@ class PTMCMC(Sampler):
         self.curr_pos = pos
         self.chain = sampler.chain
         self.lnlikes = sampler.logprobability
+        self.results.add_orbits(self.chain,self.lnlikes)
 
         return sampler
 
@@ -213,6 +222,12 @@ class EnsembleMCMC(Sampler):
         super(EnsembleMCMC, self).__init__(system, like=lnlike)
         self.num_walkers = num_walkers
         self.num_threads = num_threads
+        # Create an empty results object
+        self.results = orbitize.results.Results(
+            sampler_name = self.__class__.__name__,
+            mass_err = system.mass_err,
+            plx_err = system.plx_err
+        )
 
         # get priors from the system class
         self.priors = system.sys_priors
@@ -235,6 +250,7 @@ class EnsembleMCMC(Sampler):
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
         Runs the Affine-Invariant MCMC sampler. Results are stored in self.chain, and self.lnlikes
+        Results also added to orbitize.results.Results object (self.results)
 
         Can be run multiple times if you want to pause and inspect things.
         Each call will continue from the end state of the last execution
@@ -267,6 +283,7 @@ class EnsembleMCMC(Sampler):
         self.curr_pos = pos
         self.chain = sampler.chain
         self.lnlikes = sampler.lnprobability
+        self.results.add_orbits(self.chain,self.lnlikes)
 
         return sampler
 
