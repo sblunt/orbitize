@@ -73,6 +73,11 @@ def test_systeminit():
     assert len(data_table[testSystem_parsing.radec[1]]) == 1
     assert len(data_table[testSystem_parsing.radec[2]]) == 0
 
+    assert testSystem_parsing.labels == [
+        'a_1', 'e_1', 'aop_1', 'pan_1', 'i_1', 'epp_1', 'a_2',
+        'e_2', 'aop_2', 'pan_2', 'i_2', 'epp_2'
+    ]
+
 
 def test_chi2lnlike():
     """
@@ -99,7 +104,7 @@ def test_radec2seppa():
     assert pa.all() == np.array([270.,180.,225.,45.]).all()
 
 if __name__ == '__main__':
-    test_compute_model()
+    test_systeminit()
 
 
 

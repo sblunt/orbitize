@@ -10,7 +10,6 @@ def _pickle_method(method):
     cls = method.im_class
     return _unpickle_method, (func_name, obj, cls)
 
-
 def _unpickle_method(func_name, obj, cls):
     for cls in cls.mro():
         try:
