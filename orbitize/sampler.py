@@ -116,8 +116,8 @@ class PTMCMC(Sampler):
         # Create an empty results object
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
-            #mass_err = system.mass_err,
-            #plx_err = system.plx_err
+            post = None,
+            lnlike = None
         )
 
         # get priors from the system class
@@ -225,8 +225,8 @@ class EnsembleMCMC(Sampler):
         # Create an empty results object
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
-            #mass_err = system.mass_err,
-            #plx_err = system.plx_err
+            post = None,
+            lnlike = None
         )
 
         # get priors from the system class
