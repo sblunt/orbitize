@@ -41,7 +41,8 @@ class Results(object):
             self.lnlike = lnlikes
         # Otherwise, need to append properly
         else:
-            pass # TODO
+            self.post = np.vstack((self.post,orbital_params))
+            self.lnlike = np.vstack((self.post,lnlikes))
 
     def save_results(self, filename):
         """
