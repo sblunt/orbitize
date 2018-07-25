@@ -10,8 +10,6 @@ class Results(object):
             and N is the number of orbits generated [None].
         lnlike (np.array of float): N array of ln-likelihoods corresponding to
             the orbits described in post [None].
-        mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
-        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
 
     The `post` array is in the following order:
 
@@ -24,12 +22,10 @@ class Results(object):
 
     (written): Sarah Blunt, Henry Ngo, 2018
     """
-    def __init__(self, sampler_name=None, post=None, lnlike=None, mass_err=0, plx_err=0,):
+    def __init__(self, sampler_name=None, post=None, lnlike=None):
         self.sampler_name = sampler_name
         self.post = post
         self.lnlike = lnlike
-        self.mass_err = mass_err
-        self.plx_err = plx_err
 
     def add_orbits(self, orbital_params, lnlikes):
         """
