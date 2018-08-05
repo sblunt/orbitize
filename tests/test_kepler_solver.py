@@ -158,15 +158,12 @@ def test_orbit_with_mass_array():
     mass = mtot/2
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=mass)
 
-    true_raoff = np.array([[ 0.15286786,  0.18039408],
-                           [ 0.15286786,  0.18039408],
-                           [ 0.15286786,  0.18039408]])
-    true_deoff = np.array([[-0.46291038, -0.4420127],
-                           [-0.46291038, -0.4420127],
-                           [-0.46291038, -0.4420127]])
-    true_vz    = np.array([[0.86448656/2,  0.97591289/2],
-                           [0.86448656/2,  0.97591289/2],
-                           [0.86448656/2,  0.97591289/2]])
+    true_raoff = np.array([[ 0.15286786, 0.15286786, 0.15286786],
+                           [ 0.18039408,  0.18039408, 0.18039408]])
+    true_deoff = np.array([[-0.46291038, -0.46291038, -0.46291038],
+                           [ -0.4420127, -0.4420127, -0.4420127]])
+    true_vz    = np.array([[0.86448656/2, 0.86448656/2, 0.86448656/2],
+                           [0.97591289/2,  0.97591289/2, 0.97591289/2]])
     for ii in range(0,3):
         for meas, truth in zip(raoffs[ii,:], true_raoff[ii,:]):
             assert truth == pytest.approx(meas, abs=threshold)
