@@ -24,15 +24,23 @@ def chi2_lnlike(data, errors, model, seppa_indices):
     	function should be an array of dimension 8 x 2 x 10,000.
 
     """
+    if np.ndim(model) == 3:
+        # move M dimension to the primary axis, so that numpy knows to iterate over it
+        model = np.rollaxis(model, 2, 0) # now MxNobsx2 in dimensions
 
     chi2 = (data - model)**2/errors**2
 
     # if there are PA values, we should take the difference modulo angle wrapping
     if np.size(seppa_indices) > 0:
-        chi2[seppa_indices, 1] = np.arctan2(
+        chi2[seppa_indices, 1] = (np.arctan2(
             np.sin(data[seppa_indices, 1] - model[seppa_indices, 1]), 
             np.cos(data[seppa_indices, 1] - model[seppa_indices, 1])
-        )**2 / errors[seppa_indices, 1]**2
+        )**2 / errors[seppa_indices, 1]**2)[:,:,None]
+
+    if np.ndim(model) == 3:
+        # move M dimension back to the last axis
+        model = np.rollaxis(model, 0, 3) # now MxNobsx2 in dimensions
+        chi2 = np.rollaxis(chi2, 0, 3) # same with chi2
 
     return chi2
 
