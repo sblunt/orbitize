@@ -1,9 +1,11 @@
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
+import numpy as np
+import astropy.units as u
+import astropy.constants as consts
 import sys
 import abc
-import numpy as np
 import emcee
 
 # Python 2 & 3 handle ABCs differently
@@ -42,6 +44,25 @@ class OFTI(Sampler):
     """
     def __init__(self, system, like='chi2_lnlike'):
         super(OFTI, self).__init__(system, like=like)
+        
+        self.tbl = self.system.data_table
+        self.radec_idx = self.system.radec[1]
+        self.seppa_idx = self.system.seppa[1]
+            
+        #these are in format astropy.table.column - change to list or array?
+        self.sep_observed = self.tbl[:]['quant1']
+        self.pa_observed = self.tbl[:]['quant2']
+        self.sep_err = self.tbl[:]['quant1_err']
+        self.pa_err = self.tbl[:]['quant2_err']
+    
+        #worth it to use np.where? or is it already fast enough?
+        for i in self.radec_idx:
+            self.sep_observed[i], self.pa_observed[i] = orbitize.system.radec2seppa(self.sep_observed[i], self.pa_observed[i])
+            self.sep_observed[i] *= 1000 
+            
+            self.sep_err[i], self.pa_err[i] = orbitize.system.radec2seppa(self.sep_err[i], self.pa_err[i])
+            self.sep_err[i] *= 1000
+
 
     def prepare_samples(self, num_samples):
         """
@@ -58,66 +79,50 @@ class OFTI(Sampler):
         #to do: modify to work for multi-planet systems
         
         pri = self.system.sys_priors
-        tbl = self.system.data_table
         
         #generate sample orbits
         samples = np.empty([len(pri), num_samples])
         for i in range(len(pri)): 
             samples[i, :] = pri[i].draw_samples(num_samples)
+        
+        samples[0][0:3] = 9.10812748e+00,  9.03372328e+00, 9.90227886e+00
+        samples[5][0:3] = 7.09880659e-03, -2.42354374e-01, -2.27531267e-01
+        samples[2][0:3] = -1.87270855e+00, -3.62485227e+00, 3.46368945e+00
+        samples[3][0:3] = 5.52997248e-01, 5.52071231e-01, 5.52940093e-01
+        samples[1][0:3] =  3.11670590e-02, 2.65838630e-03, 9.20449820e-02
+        samples[4][0:3] = 1.54706921e+00, 1.54728477e+00, 1.54988731e+00
+        samples[-2][0:3] = 1.74622216e+00, 1.80624161e+00, 1.80154866e+00
+        print(samples)
                
-        epochs = np.array([tbl[i][0] for i in range(len(tbl))])
+        epochs = np.array([self.tbl[i][0] for i in range(len(self.tbl))])
         #m_err and plx_err only if they exist
         sma,ecc,argp,lan,inc,tau,mtot,plx = [s for s in samples]
         
         #compute seppa of generated orbits 
         ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc,tau,argp,lan,inc,plx,mtot)
-        sep, pa = orbitize.system.radec2seppa(ra, dec)
-        
-        #compute observational uncertainties in seppa
-        if len(self.system.seppa[1] != 0): #check for seppa data
-            #extract from data table
-            seppa_idx = self.system.seppa[1]
-            seppa_plx = [plx[i]*1000 for i in seppa_idx]
-            
-            sep_observed = np.divide([tbl[i][2] for i in seppa_idx],seppa_plx)
-            sep_err = np.divide([tbl[i][3] for i in seppa_idx],seppa_plx)
-            pa_observed = [tbl[i][4] for i in seppa_idx]
-            pa_err = [tbl[i][5] for i in seppa_idx]
-            
-            
-        else: #for if there are only radec datatypes
-            #extract from data table and convert to seppa
-            radec_idx = self.system.radec[1]
-            radec_plx = [plx[i]*1000 for i in radec_idx]
-             
-            ra_observed = np.divide([tbl[i][2] for i in radec_idx],radec_plx)
-            ra_err = np.divide([tbl[i][3] for i in radec_idx],radec_plx)
-            dec_observed = [tbl[i][4] for i in radec_idx]
-            dec_err = [tbl[i][4] for i in radec_idx]
-             
-            sep_observed, pa_observed = self.system.radec2seppa(ra_observed, dec_observed)
-            sep_err, pa_err = self.system.radec2seppa(ra_err, dec_err)
-        
-        #store seppa data for reject (move this later?)
-        seppa_data = np.column_stack((sep_observed, pa_observed))
-        seppa_errs = np.column_stack((sep_err, pa_err))    
+        sep, pa = orbitize.system.radec2seppa(ra, dec) #sep["],pa[deg]   
         
         #determine scale-and-rotate epoch
-        epoch_idx = np.argmin(sep_err) #epoch with smallest error
+        epoch_idx = np.argmin(self.sep_err) #epoch with smallest error
          
         #generate offsets from observational uncertainties
-        #not sure if this part is correct with all the epochs etc.?
-        sep_offset = np.random.normal(sep_observed[epoch_idx], sep_err[epoch_idx])
-        pa_offset =  np.random.normal(pa_observed[epoch_idx], pa_err[epoch_idx])
-
+        sep_offset = np.random.normal(self.sep_observed[epoch_idx], self.sep_err[epoch_idx]) #sep [mas]
+        pa_offset =  np.random.normal(self.pa_observed[epoch_idx], self.pa_err[epoch_idx]) #pa [deg]
+        
+        #import pdb; pdb.set_trace()
         #perform scale-and-rotate
-        samples[0] *= sep_offset/sep[epoch_idx]
-        samples[3] += ((pa_observed[epoch_idx] + pa_offset - pa[epoch_idx]) % (2*np.pi))
-         
-        return samples, seppa_data, seppa_errs
+        samples[0] *= sep_offset/(sep[epoch_idx]*1000) #sma [AU]
+        samples[3] += np.radians((pa_offset - pa[epoch_idx]) % 360) #lan [rad] CONVERT PAs to DEGREES
+        
+        #scale tau with semi-major axis
+        period = np.sqrt(4*np.pi**2.0*(samples[0]*u.AU)**3/(consts.G*(mtot*u.Msun)))
+        period = period.to(u.day).value
+        samples[5] = ((epochs[epoch_idx] - samples[5]*period)/period) % 1
+        
+        return samples
         
 
-    def reject(self, orbit_configs, seppa_data, seppa_errs):
+    def reject(self, orbit_configs):
         """
         Runs rejection sampling on some prepared samples
         Args:
@@ -127,9 +132,9 @@ class OFTI(Sampler):
             
         (written):Isabel Angelo (2018)    
         """
+        
         #generate seppa for all remaining epochs
-        tbl = self.system.data_table
-        epochs = np.array([tbl[i][0] for i in range(len(tbl))])
+        epochs = np.array([self.tbl[i][0] for i in range(len(self.tbl))])
         sma,ecc,argp,lan,inc,tau,mtot,plx = [s for s in orbit_configs]
         
         #edit to calculate for all epochs
@@ -138,36 +143,35 @@ class OFTI(Sampler):
         
         seppa_model = []
         for i in range(len(orbit_configs[0])):
-            orbit_sep = [x[0] for x in sep] 
-            orbit_pa = [x[0] for x in pa] 
+            orbit_sep = [x[i] for x in sep] 
+            orbit_pa = [x[i] for x in pa] 
             seppa_model.append(np.column_stack((orbit_sep,orbit_pa)))
+        seppa_model = np.array(seppa_model)
+        seppa_model = np.rollaxis(seppa_model, 0, 3) 
         
-        #####fix THIS SECTION to put parts in __init__!!!#####
         #compute probability for each orbit
-        if len(self.system.seppa[1] != 0): #check for seppa data
-            #extract from data table
-            seppa_idx = self.system.seppa[1] 
-        
-        #first one runs, second one doesn't
-        #chi2 = [orbitize.lnlike.chi2_lnlike(seppa_data, seppa_errs, i, seppa_idx) for i in seppa_model]
-        chi2 = orbitize.lnlike.chi2_lnlike(seppa_data, seppa_errs, seppa_model, seppa_idx)
+        seppa_data = np.column_stack((self.sep_observed, self.pa_observed))
+        seppa_errs = np.column_stack((self.sep_err, self.pa_err))
+        #import pdb; pdb.set_trace()
+        chi2 = orbitize.lnlike.chi2_lnlike(seppa_data, seppa_errs, seppa_model, self.seppa_idx)
+        #why only for seppa_idx?
         
         #convert to probability
-        #returns 0 values for p in this step???
-        #chi2_sum = np.sum(chi2, axis = 1) #sum over all epochs
-        #p = np.e**(-chi2_sum/2.)
-#         
-#         #reject orbits with p<randomly generate number until desired orbits reached
-#         max_orbits = 10000 #default, should be left to user
-#         saved_orbits = ([])
-#         
-#         for prob in p:
-#             if prob < np.random.random():
-#                 np.append(saved_orbits,samples[prob.index])
-#             if len(saved_orbits) >= max_orbits:
-#                 break
-#         
-        return None #saved_orbits
+        chi2_sum = np.nansum(chi2, axis=(0,1))
+        p = np.e**(-chi2_sum/2.)
+                 
+        #reject orbits with p<randomly generate number until desired orbits reached
+        max_orbits = 10000 #default, should be left to user
+        saved_orbits = ([])
+        
+        #re-write using np.where
+        for i in range(len(p)):
+            if p[i] > np.random.random():
+                np.append(saved_orbits,orbit_configs[i])
+            if len(saved_orbits) >= max_orbits:
+                break
+#   
+        return None
                 
 
     def run_sampler(self, total_orbits):
