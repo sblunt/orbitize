@@ -16,9 +16,9 @@ class System(object):
             ``orbitize.read_input.read_formatted_file()`` or 
             ``orbitize.read_input.read_orbitize_input()``
         system_mass (float): mean total mass of the system, in M_sol
-        plx (float): mean parallax of the system, in arcsec
+        plx (float): mean parallax of the system, in mas
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
-        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
+        plx_err (float [optional]): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool [optional]): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180) 
             to get rid of symmetric double-peaks for imaging-only datasets.
