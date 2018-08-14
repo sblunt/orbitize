@@ -7,6 +7,7 @@ import astropy.constants as consts
 import sys
 import abc
 import emcee
+import ptemcee
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -192,9 +193,7 @@ class OFTI(Sampler):
 
 class PTMCMC(Sampler):
     """
-    Parallel-Tempered MCMC Sampler using the emcee Affine-infariant sampler
-
-    NOTE: emcee will no longer support PTSampler in emcee v3.0. Would need to use ptemcee instead (or use the EnsembleSampler)
+    Parallel-Tempered MCMC Sampler using ptemcee, a fork of the emcee Affine-infariant sampler
 
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
@@ -248,7 +247,7 @@ class PTMCMC(Sampler):
         Returns:
             emcee.sampler object
         """
-        sampler = emcee.PTSampler(self.num_temps, self.num_walkers, self.num_params, self._logl,orbitize.priors.all_lnpriors, threads=self.num_threads, logpargs=[self.priors,] )
+        sampler = ptemcee.Sampler(self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,] )
 
 
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
@@ -258,13 +257,12 @@ class PTMCMC(Sampler):
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in sampler.sample(pos, lnprob0=lnprob, lnlike0=lnlike,
-                                                        iterations=total_orbits, thin=thin):
+        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=total_orbits, thin=thin):
             pass
 
         self.curr_pos = pos
         self.chain = sampler.chain
-        self.lnlikes = sampler.lnprobability
+        self.lnlikes = sampler.logprobability
 
         return sampler
 
@@ -298,7 +296,7 @@ class PTMCMC(Sampler):
 
 class EnsembleMCMC(Sampler):
     """
-    Affine-Invariant Ensemble MCMC Sampler using emcee
+    Affine-Invariant Ensemble MCMC Sampler using emcee. Warning: may not work well for multi-modal distributions
 
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
