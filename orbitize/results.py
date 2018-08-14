@@ -8,7 +8,7 @@ class Results(object):
             is the number of varying orbital parameters in the fit, 
             and N is the number of orbits generated [None].
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
-        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
+        plx_err (float [optional]): uncertainty on ``plx``, in mas
 
 
     The `post` array is in the following order:
