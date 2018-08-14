@@ -200,7 +200,9 @@ class SinPrior(Prior):
         # draw uniform from -1 to 1
         samples = np.random.uniform(-1, 1, num_samples)
 
-        return np.arccos(samples)
+        samples = np.arccos(samples) % np.pi
+
+        return samples
 
     def compute_lnprob(self, element_array):
         lnprob = np.log(np.sin(element_array))
