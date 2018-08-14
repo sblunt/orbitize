@@ -83,8 +83,6 @@ class JeffreysPrior(Prior):
     (If this is not implemented, the prior has a singularity at 0 and infinite
     integrated probability).
 
-    Note: will need inverse transform sampling for this one.
-
     Args:
         minval (float): the lower bound of this distribution
         maxval (float): the upper bound of this distribution
@@ -107,7 +105,7 @@ class JeffreysPrior(Prior):
         Returns:
             samples (np.array):  samples ranging from [0, pi) as floats.
         """
-        # sample it from a uniform distribution in log space
+        # sample from a uniform distribution in log space
         samples = np.random.uniform(self.logmin, self.logmax, num_samples)
         # convert from log space to linear space
         samples = np.exp(samples)
@@ -154,7 +152,7 @@ class UniformPrior(Prior):
         Returns:
             samples (np.array):  samples ranging from [0, pi) as floats.
         """
-        # sample it from a uniform distribution in log space
+        # sample from a uniform distribution in log space
         samples = np.random.uniform(self.minval, self.maxval, num_samples)
 
         return samples
@@ -182,10 +180,8 @@ class SinPrior(Prior):
 
     The domain of this prior should be [0,pi].
 
-    Note: will need inverse transform sampling for this one.
-
     Args:
-        Nonw
+        None
     """
 
     def __init__(self):
@@ -216,19 +212,61 @@ class SinPrior(Prior):
 
 class LinearPrior(Prior):
     """
-    This is the probability distribution p(x) propto mx+b.
+    Draw samples from the probability distribution:
 
-    The __init__ method should take in "m" and "b" values.
+    .. math::
 
-    Note: will need inverse transform sampling for this one.
+        p(x) \\propto mx+b
+
+    where m is negative, b is positive, and the 
+    range is [0,-b/m].
+
+    Args:
+        m (float): slope of line. Must be negative.
+        b (float): y intercept of line. Must be positive.
 
     """
     def __init__(self, m, b):
-        pass
+        self.m = m
+        self.b = b
+
     def draw_samples(self, num_samples):
-        pass
+        """
+        Draw samples from a descending linear distribution.
+
+        Args:
+            num_samples (float): the number of samples to generate
+
+        Returns:
+            samples (np.array):  samples ranging from [0, -b/m) as floats.
+        """
+        norm = -0.5*self.b**2/self.m
+
+        # draw uniform from 0 to 1
+        samples = np.random.uniform(0, 1, num_samples)
+
+        # generate samples following a linear distribution
+        linear_samples = -np.sqrt(2.*norm*samples/self.m + (self.b/self.m)**2) - (self.b/self.m)
+
+        return linear_samples
+
+        
+
     def compute_lnprob(self, element_array):
-        pass
+
+        x_intercept = -self.b/self.m
+        normalizer = -0.5*self.b**2/self.m
+
+        prob = (self.m*element_array + self.b)/normalizer
+
+        print(prob)
+
+        prob[(element_array>x_intercept) | (element_array<0)] = 0.
+
+        return prob
+
+
+
 
 def all_lnpriors(params, priors):
     """
@@ -251,28 +289,18 @@ def all_lnpriors(params, priors):
 
 if __name__ == '__main__':
 
+    myPrior = LinearPrior(-1., 1.)
+    mySamples = myPrior.draw_samples(1000)
+    print(mySamples)
+    myProbs = myPrior.compute_lnprob(mySamples)
+    print(myProbs)
+
     myPrior = GaussianPrior(1.3, 0.2)
     mySamples = myPrior.draw_samples(1)
     print(mySamples)
 
     myProbs = myPrior.compute_lnprob(mySamples)
     print(myProbs)
-
-"""
-
-GENERAL TIPS: 
-
-- calculate the inverse transform sampling 
-stuff on paper before trying to code it all up.
-
-- make sure to normalize the
-probability distribution before performing 
-inverse transform sampling.
-
-- inverse transform sampling can be tricky. Let 
-Sarah know if you run into problems.
-
-"""
 
 
 
