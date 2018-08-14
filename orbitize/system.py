@@ -213,11 +213,11 @@ def radec2seppa(ra, dec):
         dec (np.array of float): array of Dec values
 
     Returns:
-        tulple of float: (separation, position angle)
+        tulple of float: (separation [mas], position angle [deg])
 
     """
 
-    sep = np.sqrt((ra**2) + (dec**2))
+    sep = np.sqrt((ra**2) + (dec**2)) * 1e3
     pa = (np.arctan2(ra, dec) / deg2rad) % 360.
 
     return sep, pa
