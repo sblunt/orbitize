@@ -281,6 +281,8 @@ def all_lnpriors(params, priors):
     """
     logp = 0.
     for param, prior in zip(params, priors):
+        param = np.array([param])
+        
         logp += prior.compute_lnprob(param)
     
     return logp
