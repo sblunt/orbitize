@@ -141,7 +141,7 @@ def read_formatted_file(filename):
         # Determine input quantity type (RA/DEC, SEP/PA, or RV?)
         if have_ra[index] and have_dec[index]:
             output_table.add_row([MJD, row['object'], row['raoff'], row['raoff_err'], row['decoff'], row['decoff_err'], "radec"])
-        if have_sep[index] and have_pa[index]:
+        elif have_sep[index] and have_pa[index]:
             output_table.add_row([MJD, row['object'], row['sep'], row['sep_err'], row['pa'], row['pa_err'], "seppa"])
         if have_rv[index]:
             output_table.add_row([MJD, row['object'], row['rv'], row['rv_err'], None, None, "rv"])
