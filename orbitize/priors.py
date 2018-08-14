@@ -71,7 +71,7 @@ class GaussianPrior(Prior):
             corresponding to the probability of drawing each of the numbers 
             in the input `element_array`.
         """
-        lnprob = (element_array - self.mu) / self.sigma
+        lnprob = -0.5 * ((element_array - self.mu) / self.sigma)**2
         return lnprob
 
 class JeffreysPrior(Prior):
@@ -124,7 +124,7 @@ class JeffreysPrior(Prior):
         Returns:
             lnprob (np.array): array of prior probabilities
         """
-        lnprob = np.zeros(np.size(element_array))
+        lnprob = -np.log(element_array)
         
         outofbounds = np.where((element_array > self.maxval) | (element_array < self.minval))
         lnprob[outofbounds] = -np.inf
@@ -207,7 +207,12 @@ class SinPrior(Prior):
         return np.arccos(samples)
 
     def compute_lnprob(self, element_array):
-        return np.sin(element_array)
+        lnprob = np.log(np.sin(element_array))
+
+        outofbounds = np.where((element_array > np.pi) | (element_array <= 0))
+        lnprob[outofbounds] = -np.inf
+
+        return lnprob
 
 class LinearPrior(Prior):
     """
