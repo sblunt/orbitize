@@ -180,7 +180,7 @@ class OFTI(Sampler):
         return saved_orbits
                 
 
-    def run_sampler(self, num_samples, total_orbits):
+    def run_sampler(self, total_orbits, num_samples=10000):
         """
         Runs OFTI until we get the number of total accepted orbits we want. 
 
