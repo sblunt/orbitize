@@ -42,6 +42,8 @@ class Results(object):
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
+
+        (written): Henry Ngo, 2018
         """
         # If no exisiting results then it is easy
         if self.post is None and self.lnlike is None:
@@ -69,8 +71,20 @@ class Results(object):
 
         (written): Henry Ngo, 2018
         """
+
         figure = corner.corner(self.post)
         return figure
 
-    def plot_orbit(self):
+    def plot_orbit(self, n_orbits=100):
+        """
+        Make plots of selected orbits
+
+        Args:
+            n_orbits (int): number of orbits to plot
+
+        Return:
+            matplotlib.pyplot Figure object of the orbit plot
+
+        (written): Henry Ngo, 2018
+        """
         pass
