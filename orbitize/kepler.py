@@ -84,11 +84,8 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
     s2 = np.sin(arg2)
 
     # updated sign convention for Green Eq. 19.4-19.7
-    # return values in arcsecons
-    plx_as = plx * 1e-3
-
-    raoff = radius * (c2i2*s1 - s2i2*s2) * plx_as
-    deoff = radius * (c2i2*c1 + s2i2*c2) * plx_as
+    raoff = radius * (c2i2*s1 - s2i2*s2) * plx
+    deoff = radius * (c2i2*c1 + s2i2*c2) * plx
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
