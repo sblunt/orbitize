@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Cython generated files
+_kepler.c
+
 # Distribution / packaging
 .Python
 env/
@@ -45,6 +48,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+Profile.prof
 
 # Translations
 *.mo
@@ -99,3 +103,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# utility scripts
+build.sh
