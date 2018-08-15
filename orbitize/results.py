@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+import corner
+
 class Results(object):
     """
     A class to store accepted orbital configurations from the sampler
@@ -57,7 +60,16 @@ class Results(object):
         pass
 
     def plot_corner(self):
-        pass
+        """
+        Make a corner plot of posterior on orbit fit from any sampler
+
+        Return:
+            matplotlib.pyplot Figure object of the corner plot
+
+        (written): Henry Ngo, 2018
+        """
+        figure = corner.corner(self.post)
+        return figure
 
     def plot_orbit(self):
         pass
