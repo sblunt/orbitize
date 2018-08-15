@@ -2,6 +2,7 @@
 Test the orbitize.kepler module which solves for the orbits of the planets
 """
 import pytest
+import sys, pstats, cProfile, os
 import numpy as np
 import orbitize.kepler as kepler
 
@@ -194,14 +195,42 @@ def test_orbit_scalar():
     assert true_deoff == pytest.approx(deoffs, abs=threshold)
     assert true_vz    == pytest.approx(vzs, abs=threshold)
 
+def profile_iterative_ecc_anom_solver(use_cpp = True):
+    """
+    Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
+    _calc_ecc_anom() output vs the input mean anomaly
+    """
+
+    n_orbits = 2000
+
+    mean_anoms=np.linspace(0,2.0*np.pi,n_orbits)
+    eccs=np.linspace(0,0.9499999,n_orbits)
+    for ee in eccs:
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9, use_cpp = use_cpp)
 
 if __name__ == "__main__":
-    test_analytical_ecc_anom_solver()
-    test_iterative_ecc_anom_solver()
-    test_orbit_e03()
-    test_orbit_e03_array()
-    test_orbit_e99()
-    test_orbit_with_mass()
-    test_orbit_with_mass_array()
-    test_orbit_scalar()
-    print("Done!")
+    if len(sys.argv) > 1 and sys.argv[1] == '-profile':
+        profile_name = "Profile.prof"
+
+        print("Profiling: C++")
+        cProfile.runctx("profile_iterative_ecc_anom_solver()", globals(), locals(), "Profile.prof")
+        s = pstats.Stats(profile_name)
+        s.strip_dirs().sort_stats("time").print_stats()
+
+        print("Profiling: Python")
+        cProfile.runctx("profile_iterative_ecc_anom_solver(False)", globals(), locals(), "Profile.prof")
+        s = pstats.Stats(profile_name)
+        s.strip_dirs().sort_stats("time").print_stats()
+
+
+        os.remove(profile_name)
+    else:
+        test_analytical_ecc_anom_solver()
+        test_iterative_ecc_anom_solver()
+        test_orbit_e03()
+        test_orbit_e03_array()
+        test_orbit_e99()
+        test_orbit_with_mass()
+        test_orbit_with_mass_array()
+        test_orbit_scalar()
+        print("Done!")
