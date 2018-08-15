@@ -11,7 +11,7 @@ class Results(object):
         lnlike (np.array of float): N array of ln-likelihoods corresponding to
             the orbits described in post [None].
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
-        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
+        plx_err (float [optional]): uncertainty on ``plx``, in mas
 
     The `post` array is in the following order:
 

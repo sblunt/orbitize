@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 import orbitize.kepler as kepler
 
-threshold = 1e-8
+threshold = 1e-5
 
 def angle_diff(ang1, ang2):
     # Return the difference between two angles
@@ -22,7 +22,7 @@ def test_analytical_ecc_anom_solver():
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
         calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
-            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
 def test_iterative_ecc_anom_solver():
     """
@@ -35,7 +35,7 @@ def test_iterative_ecc_anom_solver():
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
         calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
-            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
 def test_orbit_e03():
     """
@@ -50,16 +50,16 @@ def test_orbit_e03():
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7])
 
-    true_raoff = [0.15286786,  0.18039408]
-    true_deoff = [-0.46291038, -0.4420127]
-    true_vz = [0.86448656,  0.97591289]
+    true_raoff = [152.86786,  180.39408] #mas
+    true_deoff = [-462.91038, -442.0127]
+    true_vz = [.86448656,  .97591289]
 
     for meas, truth in zip(raoffs, true_raoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(deoffs, true_deoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_e03_array():
     """
@@ -77,12 +77,12 @@ def test_orbit_e03_array():
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
 
-    true_raoff = np.array([[ 0.15286786, 0.15286786, 0.15286786],
-                           [ 0.18039408,  0.18039408, 0.18039408]])
-    true_deoff = np.array([[-0.46291038, -0.46291038, -0.46291038],
-                           [ -0.4420127, -0.4420127, -0.4420127]])
-    true_vz    = np.array([[0.86448656, 0.86448656, 0.86448656],
-                           [0.97591289,  0.97591289,  0.97591289]])
+    true_raoff = np.array([[ 152.86786, 152.86786, 152.86786],
+                           [ 180.39408, 180.39408, 180.39408]])
+    true_deoff = np.array([[-462.91038,-462.91038,-462.91038],
+                           [-442.0127, -442.0127, -442.0127]])
+    true_vz    = np.array([[.86448656, .86448656, .86448656],
+                           [.97591289, .97591289, .97591289]])
 
     for ii in range(0,3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:,ii]):
@@ -90,7 +90,7 @@ def test_orbit_e03_array():
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
             assert truth == pytest.approx(meas, abs=threshold)
         for meas, truth in zip(vzs[:, ii], true_vz[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, abs=1e-8)
 
 
 def test_orbit_e99():
@@ -103,16 +103,16 @@ def test_orbit_e99():
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7])
 
-    true_raoff = [-0.58945575, -0.57148432]
-    true_deoff = [-0.44732217, -0.43768456]
-    true_vz = [0.39208876,  0.42041953]
+    true_raoff = [-589.45575, -571.48432]
+    true_deoff = [-447.32217, -437.68456]
+    true_vz = [.39208876,  .42041953]
 
     for meas, truth in zip(raoffs, true_raoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(deoffs, true_deoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_with_mass():
     """
@@ -127,16 +127,16 @@ def test_orbit_with_mass():
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7], mass=orbital_params[7]/2)
 
-    true_raoff = [-0.58945575, -0.57148432]
-    true_deoff = [-0.44732217, -0.43768456]
-    true_vz = [0.39208876/2,  0.42041953/2]
+    true_raoff = [-589.45575, -571.48432]
+    true_deoff = [-447.32217, -437.68456]
+    true_vz = [.39208876/2,  .42041953/2]
 
     for meas, truth in zip(raoffs, true_raoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(deoffs, true_deoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_with_mass_array():
     """
@@ -156,12 +156,12 @@ def test_orbit_with_mass_array():
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=mass)
 
 
-    true_raoff = np.array([[ 0.15286786, 0.15286786, 0.15286786],
-                           [ 0.18039408,  0.18039408, 0.18039408]])
-    true_deoff = np.array([[-0.46291038, -0.46291038, -0.46291038],
-                           [ -0.4420127, -0.4420127, -0.4420127]])
-    true_vz    = np.array([[0.86448656/2, 0.86448656/2, 0.86448656/2],
-                           [0.97591289/2,  0.97591289/2, 0.97591289/2]])
+    true_raoff = np.array([[ 152.86786, 152.86786, 152.86786],
+                           [ 180.39408, 180.39408, 180.39408]])
+    true_deoff = np.array([[-462.91038,-462.91038, -462.91038],
+                           [-442.0127, -442.0127, -442.0127]])
+    true_vz    = np.array([[ .86448656/2,.86448656/2, .86448656/2],
+                           [ .97591289/2,.97591289/2, .97591289/2]])
 
     for ii in range(0,3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
@@ -169,7 +169,7 @@ def test_orbit_with_mass_array():
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
             assert truth == pytest.approx(meas, abs=threshold)
         for meas, truth in zip(vzs[:, ii], true_vz[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_scalar():
     """
@@ -186,13 +186,13 @@ def test_orbit_scalar():
     epochs = 1000
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
 
-    true_raoff = 0.15286786
-    true_deoff = -0.46291038
-    true_vz    = 0.86448656
+    true_raoff = 152.86786
+    true_deoff = -462.91038
+    true_vz    = .86448656
 
     assert true_raoff == pytest.approx(raoffs, abs=threshold)
     assert true_deoff == pytest.approx(deoffs, abs=threshold)
-    assert true_vz    == pytest.approx(vzs, abs=threshold)
+    assert true_vz    == pytest.approx(vzs, abs=1e-8)
 
 
 if __name__ == "__main__":
