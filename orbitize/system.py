@@ -1,8 +1,6 @@
 import numpy as np
 from orbitize import priors, read_input, kepler
 
-deg2rad = 0.0174532925199433
-
 class System(object):
     """
     A class to store information about a system (data & priors) 
@@ -201,7 +199,6 @@ class System(object):
 
         return model
 
-
 def radec2seppa(ra, dec):
     """
     Convenience function for converting from 
@@ -209,15 +206,14 @@ def radec2seppa(ra, dec):
     position angle.
 
     Args:
-        ra (np.array of float): array of RA values
-        dec (np.array of float): array of Dec values
+        ra (np.array of float): array of RA values [mas]
+        dec (np.array of float): array of Dec values [mas]
 
     Returns:
         tulple of float: (separation [mas], position angle [deg])
 
     """
-
-    sep = np.sqrt((ra**2) + (dec**2)) * 1e3
-    pa = (np.arctan2(ra, dec) / deg2rad) % 360.
+    sep = np.sqrt((ra**2) + (dec**2))
+    pa = np.degrees(np.arctan2(ra, dec)) % 360.
 
     return sep, pa

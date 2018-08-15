@@ -81,39 +81,48 @@ class OFTI(Sampler):
         samples = np.empty([len(pri), num_samples])
         for i in range(len(pri)): 
             samples[i, :] = pri[i].draw_samples(num_samples)
-               
+
         epochs = np.array([self.tbl[i][0] for i in range(len(self.tbl))])
         
         #FIX this to work for scalar epochs (1 epoch obs)
         #determine scale-and-rotate epoch
         epoch_idx = np.argmin(self.sep_err) #epoch with smallest error
-    
+
         #m_err and plx_err only if they exist
         sma,ecc,argp,lan,inc,tau,mtot,plx = [s for s in samples]
 
+        period_prescale = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
+        period_prescale = period_prescale.to(u.day).value
+
+        # TODO: update docs, priors saying that we're sampling in uniform mean anomaly at time of periastron passage
+        meananno = np.random.uniform(size=num_samples)
+
+        tau = (epochs[epoch_idx]/period_prescale - meananno)
+
         #compute seppa of generated orbits 
-        ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc,tau,argp,lan,inc,plx,mtot)
-        sep, pa = orbitize.system.radec2seppa(ra, dec) #sep[mas],pa[deg]   
+        ra, dec, vc = orbitize.kepler.calc_orbit(epochs[epoch_idx], sma, ecc,tau,argp,lan,inc,plx,mtot)
+        sep, pa = orbitize.system.radec2seppa(ra, dec) #sep[mas],pa[deg]  
         
         #generate offsets from observational uncertainties
         sep_offset = np.random.normal(0, self.sep_err[epoch_idx]) #sep [mas]
         pa_offset =  np.random.normal(0, self.pa_err[epoch_idx]) #pa [deg]
         
         #calculate correction factors
-        sma_corr = (sep_offset + self.sep_observed[epoch_idx])/sep[epoch_idx]
-        lan_corr = (self.pa_observed[epoch_idx] - pa[epoch_idx] + pa_offset)
+        sma_corr = (sep_offset + self.sep_observed[epoch_idx])/sep
+        lan_corr = (pa_offset + self.pa_observed[epoch_idx] - pa)
         
         #perform scale-and-rotate
-        samples[0] *= sma_corr #sma [AU]
-        samples[3] += np.radians(lan_corr % 360) #lan [rad] 
-        samples[3] = samples[3] % (2*np.pi)
-        
-        #take these out, this is just to be able to plot it
-        sma,ecc,argp,lan,inc,tau,mtot,plx = [s for s in samples]
-        epochs_model = np.linspace(epochs.min(), epochs.min()+50000000, 10000)
-        ra, dec, vc = orbitize.kepler.calc_orbit(epochs_model, sma, ecc,tau,argp,lan,inc,plx,mtot)
-        #sep, pa = orbitize.system.radec2seppa(ra, dec)
-        import pdb; pdb.set_trace()
+        sma *= sma_corr #sma [AU]
+        lan += np.radians(lan_corr) #lan [rad] 
+        lan = lan % (2*np.pi)
+
+        period_new = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
+        period_new = period_new.to(u.day).value
+
+        tau = (epochs[epoch_idx]/period_new - meananno)
+
+        ra, dec, vc = orbitize.kepler.calc_orbit(epochs[epoch_idx], sma, ecc,tau,argp,lan,inc,plx,mtot)
+        sep, pa = orbitize.system.radec2seppa(ra, dec)
         
         return samples
         
