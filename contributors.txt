@@ -5,3 +5,5 @@ Jason Wang -- collaboratively designed basic API, collaboratively developed kepl
 Henry Ngo -- wrote code to read inputs, collaboratively developed kepler.py
 
 Rob De Rosa -- collaboratively developed kepler.py
+
+Devin Cody -- wrote c implementation of kepler module

@@ -6,7 +6,6 @@ import astropy.units as u
 import astropy.constants as consts
 
 try:
-    # from _kepler import _c_newton_solver
     from . import _kepler
     cext = True
 except ImportError:
@@ -159,7 +158,6 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
         ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    ind_high = np.where(~ecc_zero & ~ecc_low)
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
     return np.squeeze(eanom)[()]

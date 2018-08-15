@@ -16,7 +16,7 @@ def _c_newton_solver(np.ndarray[np.double_t,ndim=1] manom,
                     max_iter = 100, 
                     np.ndarray[np.double_t,ndim=1] eanom0 = None):
     """
-    Wrapper function for C++ implementation of Newton-Raphson solver for eccentric anomaly.
+    Wrapper function for C implementation of Newton-Raphson solver for eccentric anomaly.
     Args:
         manom (np.array): array of mean anomalies
         ecc (np.array): array of eccentricities
