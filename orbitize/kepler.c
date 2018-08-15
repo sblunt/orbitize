@@ -19,8 +19,8 @@ void newton_array(const int n_elements,
         None: eanom is changed by reference
     Written: Devin Cody, 2018
 	*/
-
-	for (int i = 0; i < n_elements; i ++){
+	register int i;
+	for (i = 0; i < n_elements; i ++){
 		double diff;
 		int niter = 0;
 		int half_max = max_iter/2.0; // divide max_iter by 2 using bit shift
