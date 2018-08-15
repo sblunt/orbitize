@@ -27,7 +27,7 @@ class Results(object):
         self.mass_err = mass_err
         self.plx_err = plx_err
 
-    def add_orbits(self, orbital_parmas):
+    def add_orbits(self, orbital_params):
         """
         Add accepted orbits to the results
 

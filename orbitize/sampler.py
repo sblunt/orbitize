@@ -123,6 +123,11 @@ class OFTI(Sampler):
 
         ra, dec, vc = orbitize.kepler.calc_orbit(epochs[epoch_idx], sma, ecc,tau,argp,lan,inc,plx,mtot)
         sep, pa = orbitize.system.radec2seppa(ra, dec)
+
+        # updates samples with new values of sma, pan, tau
+        samples[0,:] = sma
+        samples[3,:] = lan
+        samples[5,:] = tau
         
         return samples
         
