@@ -46,6 +46,7 @@ class OFTI(Sampler):
     def __init__(self, system, like='chi2_lnlike'):
         super(OFTI, self).__init__(system, like=like)
         
+        self.priors = self.system.sys_priors
         self.tbl = self.system.data_table
         self.radec_idx = self.system.radec[1]
         self.seppa_idx = self.system.seppa[1]
@@ -67,7 +68,7 @@ class OFTI(Sampler):
         from priors, and performs scale & rotate.
         Args:
             num_samples (int): number of orbits to prepare for OFTI to run
-                rejection sampling on
+            rejection sampling on
         Return:
             np.array: array of prepared samples. The first dimension has size of num_samples. 
             This should be passed into ``reject()``
@@ -75,16 +76,13 @@ class OFTI(Sampler):
         """
         #to do: modify to work for multi-planet systems
         
-        pri = self.system.sys_priors
-        
         #generate sample orbits
-        samples = np.empty([len(pri), num_samples])
-        for i in range(len(pri)): 
-            samples[i, :] = pri[i].draw_samples(num_samples)
+        samples = np.empty([len(self.priors), num_samples])
+        for i in range(len(self.priors)): 
+            samples[i, :] = self.priors[i].draw_samples(num_samples)
 
         epochs = np.array([self.tbl[i][0] for i in range(len(self.tbl))])
         
-        #FIX this to work for scalar epochs (1 epoch obs)
         #determine scale-and-rotate epoch
         epoch_idx = np.argmin(self.sep_err) #epoch with smallest error
 
@@ -132,7 +130,7 @@ class OFTI(Sampler):
         return samples
         
 
-    def reject(self, orbit_configs, total_orbits):
+    def reject(self, orbit_configs):
         """
         Runs rejection sampling on some prepared samples
         Args:
@@ -151,6 +149,12 @@ class OFTI(Sampler):
         ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc,tau,argp,lan,inc,plx,mtot)
         sep, pa = orbitize.system.radec2seppa(ra, dec)
         
+        #manipulate shape for num_samples=1
+        if np.ndim(sep)==1:
+            sep = [[x] for x in sep]
+            pa = [[x] for x in pa]
+        
+        #convert model into input format for chi2 calculation
         seppa_model = []
         for i in range(len(orbit_configs[0])):
             orbit_sep = [x[i] for x in sep] 
@@ -162,24 +166,17 @@ class OFTI(Sampler):
         #compute probability for each orbit
         seppa_data = np.column_stack((self.sep_observed, self.pa_observed))
         seppa_errs = np.column_stack((self.sep_err, self.pa_err))
-        #import pdb; pdb.set_trace()
         chi2 = orbitize.lnlike.chi2_lnlike(seppa_data, seppa_errs, seppa_model, self.seppa_idx)
-        import pdb; pdb.set_trace()
         
         #convert to probability
         chi2_sum = np.nansum(chi2, axis=(0,1))
         lnp = -chi2_sum/2.
-                
+               
         #reject orbits with p<randomly generate number until desired orbits reached
-        saved_orbits = ([])
+        random_samples = np.log(np.random.random(len(lnp)))
+        saved_orbit_idx = np.where(lnp > random_samples)[0]
+        saved_orbits = np.array([orbit_configs[:,i] for i in saved_orbit_idx])
         
-        #move this into run_sampler 
-        for i in range(len(lnp)):
-            if lnp[i] > np.log(np.random.random()):
-                np.append(saved_orbits,orbit_configs[i])
-            if len(saved_orbits) >= total_orbits:
-                break
-#   
         return saved_orbits
                 
 
@@ -188,15 +185,31 @@ class OFTI(Sampler):
         Runs OFTI until we get the number of total accepted orbits we want. 
 
         Args:
-            num_samples (int):
+            num_samples (int): number of orbits to prepare for OFTI to run
+                rejection sampling on
             total_orbits (int): total number of accepted possible orbits that
                 are desired
         Return:
-            np.array: array of accepted orbits. First dimension has size ``total_orbits``.
+            output_orbits (np.array): array of accepted orbits. First dimension has size 
+            ``total_orbits``.
         """
-        orbit_configs = self.prepare_samples(num_samples)
-        saved_orbits = self.reject(orbit_configs, total_orbits)
-        return saved_orbits
+        #intialize number of saved orbits and epmty array to store orbits
+        n_orbits_saved = 0
+        output_orbits = np.empty((total_orbits, len(self.priors)))
+        
+        #add orbits to outupt_orbits until desired total_orbits is reached
+        while n_orbits_saved < total_orbits:
+            orbit_configs = self.prepare_samples(num_samples)
+            new_orbits = self.reject(orbit_configs)
+            
+            if len(new_orbits)==0:
+                None
+            else:
+                for orbit in new_orbits:
+                    output_orbits[n_orbits_saved] = orbit
+                    n_orbits_saved += 1
+            
+        return np.array(output_orbits)
 
 
 class PTMCMC(Sampler):
