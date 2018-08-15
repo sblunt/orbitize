@@ -52,14 +52,14 @@ def test_orbit_e03():
 
     true_raoff = [152.86786,  180.39408] #mas
     true_deoff = [-462.91038, -442.0127]
-    true_vz = [864.48656,  975.91289]
+    true_vz = [.86448656,  .97591289]
 
     for meas, truth in zip(raoffs, true_raoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(deoffs, true_deoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_e03_array():
     """
@@ -81,8 +81,8 @@ def test_orbit_e03_array():
                            [ 180.39408, 180.39408, 180.39408]])
     true_deoff = np.array([[-462.91038,-462.91038,-462.91038],
                            [-442.0127, -442.0127, -442.0127]])
-    true_vz    = np.array([[864.48656, 864.48656, 864.48656],
-                           [975.91289, 975.91289, 975.91289]])
+    true_vz    = np.array([[.86448656, .86448656, .86448656],
+                           [.97591289, .97591289, .97591289]])
 
     for ii in range(0,3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:,ii]):
@@ -90,7 +90,7 @@ def test_orbit_e03_array():
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
             assert truth == pytest.approx(meas, abs=threshold)
         for meas, truth in zip(vzs[:, ii], true_vz[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, abs=1e-8)
 
 
 def test_orbit_e99():
@@ -105,14 +105,14 @@ def test_orbit_e99():
 
     true_raoff = [-589.45575, -571.48432]
     true_deoff = [-447.32217, -437.68456]
-    true_vz = [392.08876,  420.41953]
+    true_vz = [.39208876,  .42041953]
 
     for meas, truth in zip(raoffs, true_raoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(deoffs, true_deoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_with_mass():
     """
@@ -129,14 +129,14 @@ def test_orbit_with_mass():
 
     true_raoff = [-589.45575, -571.48432]
     true_deoff = [-447.32217, -437.68456]
-    true_vz = [392.08876/2,  420.41953/2]
+    true_vz = [.39208876/2,  .42041953/2]
 
     for meas, truth in zip(raoffs, true_raoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(deoffs, true_deoff):
         assert truth == pytest.approx(meas, abs=threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_with_mass_array():
     """
@@ -160,8 +160,8 @@ def test_orbit_with_mass_array():
                            [ 180.39408, 180.39408, 180.39408]])
     true_deoff = np.array([[-462.91038,-462.91038, -462.91038],
                            [-442.0127, -442.0127, -442.0127]])
-    true_vz    = np.array([[ 864.48656/2,864.48656/2, 864.48656/2],
-                           [ 975.91289/2,975.91289/2, 975.91289/2]])
+    true_vz    = np.array([[ .86448656/2,.86448656/2, .86448656/2],
+                           [ .97591289/2,.97591289/2, .97591289/2]])
 
     for ii in range(0,3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
@@ -169,7 +169,7 @@ def test_orbit_with_mass_array():
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
             assert truth == pytest.approx(meas, abs=threshold)
         for meas, truth in zip(vzs[:, ii], true_vz[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, abs=1e-8)
 
 def test_orbit_scalar():
     """
@@ -188,11 +188,11 @@ def test_orbit_scalar():
 
     true_raoff = 152.86786
     true_deoff = -462.91038
-    true_vz    = 864.48656
+    true_vz    = .86448656
 
     assert true_raoff == pytest.approx(raoffs, abs=threshold)
     assert true_deoff == pytest.approx(deoffs, abs=threshold)
-    assert true_vz    == pytest.approx(vzs, abs=threshold)
+    assert true_vz    == pytest.approx(vzs, abs=1e-8)
 
 
 if __name__ == "__main__":
