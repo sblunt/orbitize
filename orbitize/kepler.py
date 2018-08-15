@@ -9,7 +9,7 @@ try:
     from _kepler import _c_newton_solver
     cext = True
 except ImportError:
-    print("WARNING: KEPLER: Unable to import C-based Kepler's\
+    print("WARNING: KEPLER: Unable to import C-based Kepler's \
 equation solver. Falling back to the slower NumPy implementation.")
     cext = False 
 

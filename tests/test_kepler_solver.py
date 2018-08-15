@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
         profile_name = "Profile.prof"
 
-        print("Profiling: C++ with {} orbits".format(n_orbits))
+        print("Profiling: C with {} orbits".format(n_orbits))
         cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_cpp = True)", globals(), locals(), "Profile.prof")
         s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()
