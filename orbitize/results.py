@@ -62,15 +62,40 @@ class Results(object):
         """
         pass
 
-    def plot_corner(self):
+    def plot_corner(self, param_list=[]):
         """
         Make a corner plot of posterior on orbit fit from any sampler
+
+        Args:
+            param_list (list of strings): each entry is a name of a parameter to include
+                valid strings:
+                sma1: semimajor axis
+                ecc1: eccentricity
+                inc1: inclination
+                aop1: argument of periastron
+                pan1: position angle of nodes
+                epp1: epoch of periastron passage
+                [repeat for 2, 3, 4, etc if multiple objects]
+                mtot: total mass
+                plx:  parallax
+                e.g. Use param_list = ['sma1,ecc1,inc1,sma2,ecc2,inc2'] to only
+                     plot posteriors for semimajor axis, eccentricity and inclination
+                     of the first two companions
 
         Return:
             matplotlib.pyplot Figure object of the corner plot
 
         (written): Henry Ngo, 2018
         """
+        if len(param_list)>0: # user chose to plot specific parameters only
+            num_orb_param = self.post.shape[0] # number of orbital parameters (+ mass, parallax)
+            num_objects = np.trunc(num_orb_param / 6).astype(np.int)
+            
+
+        semimajor axis 1, eccentricity 1, argument of periastron 1,
+        position angle of nodes 1, inclination 1, epoch of periastron passage 1,
+        [semimajor axis 2, eccentricity 2, etc.],
+        [total mass, parallax]
 
         figure = corner.corner(self.post)
         return figure
