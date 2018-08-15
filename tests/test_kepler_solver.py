@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 import orbitize.kepler as kepler
 
-threshold = 1e-8
+threshold = 1e-5
 
 def angle_diff(ang1, ang2):
     # Return the difference between two angles
@@ -22,7 +22,7 @@ def test_analytical_ecc_anom_solver():
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
         calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
-            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
 def test_iterative_ecc_anom_solver():
     """
@@ -35,7 +35,7 @@ def test_iterative_ecc_anom_solver():
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9)
         calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
-            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=1e-8)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
 def test_orbit_e03():
     """
