@@ -51,7 +51,7 @@ void newton_array(const int n_elements,
 	}	
 }
 
-int main(){
+int main(void){
 	// Test functions with a small program
 
 	//Define variables for newton array method
