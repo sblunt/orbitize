@@ -6,7 +6,8 @@ import astropy.units as u
 import astropy.constants as consts
 
 try:
-    from _kepler import _c_newton_solver
+    # from _kepler import _c_newton_solver
+    from . import _kepler
     cext = True
 except ImportError:
     print("WARNING: KEPLER: Unable to import C-based Kepler's \
@@ -148,7 +149,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
     if cext and use_cpp:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
         # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
         m_one = eanom == -1
