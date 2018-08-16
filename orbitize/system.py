@@ -180,7 +180,7 @@ class System(object):
             raoff, decoff, vz = kepler.calc_orbit(
                 epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
             )
-            # todo: hack to get this working for mcmc
+            # TODO: hack to get this working for mcmc
             # if len(raoff.shape) == 1:
             #     raoff = raoff.reshape(1, raoff.shape[0])
             #     decoff = decoff.reshape(1, decoff.shape[0])

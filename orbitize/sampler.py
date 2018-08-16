@@ -91,7 +91,11 @@ class OFTI(Sampler):
 
         Return:
             np.array: array of prepared samples. The first dimension has size of 
+<<<<<<< HEAD
             num_samples. This should be passed into ``reject()``
+=======
+            num_samples. This should be passed into `reject()`
+>>>>>>> master
         """
 
         # TODO: modify to work for multi-planet systems
@@ -253,7 +257,7 @@ class PTMCMC(Sampler):
         init_positions = []
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
-            # todo: be smarter in the future
+            # TODO: be smarter in the future
             random_init = prior.draw_samples(num_walkers*num_temps).reshape([num_temps, num_walkers])
 
             init_positions.append(random_init)
