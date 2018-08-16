@@ -170,23 +170,10 @@ class OFTI(Sampler):
             self.epochs, sma, ecc,tau,argp,lan,inc,plx,mtot
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec)
-        
-        # manipulate shape for len(samples)=1
-        if np.ndim(sep)==1:
-            sep = np.array([[x] for x in sep])
-            pa = np.array([[x] for x in pa])
-        
-        # convert model into input format for chi2 calculation
-        seppa_model = []
 
-        # TODO: vectorize this more?
-        for i in range(len(sma)):
-            orbit_sep = [x[i] for x in sep] 
-            orbit_pa = [x[i] for x in pa] 
-            seppa_model.append(np.column_stack((orbit_sep,orbit_pa)))
-        seppa_model = np.array(seppa_model)
-        seppa_model = np.rollaxis(seppa_model, 0, 3) 
-        
+        seppa_model = np.vstack(zip(sep, pa))
+        seppa_model = seppa_model.reshape((len(self.epochs), 2, len(sma)))
+
         # compute chi2 for each orbit
         chi2 = orbitize.lnlike.chi2_lnlike(
             self.seppa_for_lnlike, self.seppa_errs_for_lnlike, 
