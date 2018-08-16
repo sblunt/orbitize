@@ -16,9 +16,9 @@ class System(object):
             ``orbitize.read_input.read_formatted_file()`` or
             ``orbitize.read_input.read_orbitize_input()``
         system_mass (float): mean total mass of the system, in M_sol
-        plx (float): mean parallax of the system, in arcsec
+        plx (float): mean parallax of the system, in mas
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
-        plx_err (float [optional]): uncertainty on ``plx``, in arcsec
+        plx_err (float [optional]): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool [optional]): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
@@ -228,11 +228,11 @@ def radec2seppa(ra, dec):
         dec (np.array of float): array of Dec values
 
     Returns:
-        tulple of float: (separation, position angle)
+        tulple of float: (separation [mas], position angle [deg])
 
     """
 
-    sep = np.sqrt((ra**2) + (dec**2))
+    sep = np.sqrt((ra**2) + (dec**2)) * 1e3
     pa = (np.arctan2(ra, dec) / deg2rad) % 360.
 
     return sep, pa

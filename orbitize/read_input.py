@@ -25,8 +25,8 @@ def read_formatted_file(filename):
     where the primary/central object is ``0``.
 
     Each line must also have at least one of the following sets of valid measurements:
-        - RA and DEC offsets (arcseconds), or
-        - Sep (arcseconds) and PA (degrees), or
+        - RA and DEC offsets (mas), or
+        - Sep (mas) and PA (degrees), or
         - RV measurement (km/s)
 
     Note: Columns with no data can be omitted (e.g. if only separation and PA
@@ -51,7 +51,7 @@ def read_formatted_file(filename):
 
         where ``quant_type`` is one of "radec", "seppa", or "rv". This example output corresponds to the example input shown above.
 
-        If ``quant_type`` is "radec" or "seppa", the units of quant are arcseconds and degrees,
+        If ``quant_type`` is "radec" or "seppa", the units of quant are mas and degrees,
         if ``quant_type`` is "rv", the units of quant are km/s
 
     Written: Henry Ngo, 2018
@@ -141,7 +141,7 @@ def read_formatted_file(filename):
         # Determine input quantity type (RA/DEC, SEP/PA, or RV?)
         if have_ra[index] and have_dec[index]:
             output_table.add_row([MJD, row['object'], row['raoff'], row['raoff_err'], row['decoff'], row['decoff_err'], "radec"])
-        if have_sep[index] and have_pa[index]:
+        elif have_sep[index] and have_pa[index]:
             output_table.add_row([MJD, row['object'], row['sep'], row['sep_err'], row['pa'], row['pa_err'], "seppa"])
         if have_rv[index]:
             output_table.add_row([MJD, row['object'], row['rv'], row['rv_err'], None, None, "rv"])
@@ -190,7 +190,7 @@ def read_orbitize_input(filename):
 
         where ``quant_type`` is one of "radec", "seppa", or "rv".
 
-        If ``quant_type`` is "radec" or "seppa", the units of quant are arcseconds and degrees,
+        If ``quant_type`` is "radec" or "seppa", the units of quant are mas and degrees,
         if ``quant_type`` is "rv", the units of quant are km/s
 
     (written) Henry Ngo, 2018

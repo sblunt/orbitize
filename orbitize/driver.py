@@ -14,9 +14,9 @@ class Driver(object):
         num_secondary_bodies (int): number of secondary bodies in the system. 
             Should be at least 1.
         system_mass (float): mean total mass of the system, in M_sol
-        plx (float): mean parallax of the system, in arcsec
+        plx (float): mean parallax of the system, in mas
         mass_err (float): uncertainty on ``system_mass``, in M_sol
-        plx_err (float): uncertainty on ``plx``, in arcsec
+        plx_err (float): uncertainty on ``plx``, in mas
 
     (written): Sarah Blunt, 2018
     """
