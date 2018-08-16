@@ -55,7 +55,8 @@ class OFTI(Sampler):
                 rejection sampling on
 
         Return:
-            np.array: array of prepared samples. The first dimension has size of num_samples. This should be passed into ``reject()``
+            np.array: array of prepared samples. The first dimension has size of 
+            num_samples. This should be passed into `reject()`
         """
         pass
         # draw an array of num_samples smas, eccs, etc. from prior objects: prior = (some object inhertiting from priors.Prior); samples = prior.draw_samples(#)
@@ -121,7 +122,7 @@ class PTMCMC(Sampler):
         init_positions = []
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
-            # todo: be smarter in the future
+            # TODO: be smarter in the future
             random_init = prior.draw_samples(num_walkers*num_temps).reshape([num_temps, num_walkers])
 
             init_positions.append(random_init)
