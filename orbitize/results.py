@@ -1,4 +1,6 @@
 import numpy as np
+import astropy.units as u
+import astropy.constants as consts
 import matplotlib.pyplot as plt
 import corner
 
@@ -96,7 +98,7 @@ class Results(object):
             dict_of_indices = {
                 'sma': 0,
                 'ecc': 1,
-                'inc': 2, ## CHECK THAT ORDER IS CORRECT
+                'inc': 2,
                 'aop': 3,
                 'pan': 4,
                 'epp': 5
@@ -124,7 +126,7 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbits(self, parallax, total_mass, object_mass, object_to_plot=1, num_orbits2plot=100):
+    def plot_orbits(self, parallax, total_mass, object_mass, object_to_plot=1, start_date=2000, num_orbits2plot=100, num_epochs2plot=100):
         """
         Make plots of selected orbits
 
@@ -137,7 +139,9 @@ class Results(object):
                 posterior samples for mtot will be used instead
             object_mass (float): mass of the object, in solar masses
             object_to_plot (int): which object to plot [1]
+            start_date (float): year in which to start plotting orbits
             num_orbits2plot (int): number of orbits to plot [100]
+            num_epochs2plot (int): number of points to plot per orbit [100]
 
         Return:
             matplotlib.pyplot Figure object of the orbit plot if input valid, None otherwise
@@ -156,7 +160,6 @@ class Results(object):
         pan = self.post[first_index+4,:]
         epp = self.post[first_index+5,:]
         # Then, get the other parameters
-        # TODO: Get these from user input unless they exist in post array
         if remainder == 2: # have samples for parallax and mtot
             mtot = self.post[-2,:]
             plx = self.post[-1,:]
@@ -170,21 +173,25 @@ class Results(object):
             num_orbits2plot = len(sma)
         choose = np.random.randint(0, high=len(sma), size=num_orbits2plot)
 
-        raoff = np.zeros((num_orbits2plot, num_epochs))
-        deoff = np.zeros((num_orbits2plot, num_epochs))
-        epochs = np.zeros((num_orbits2plot, num_epochs))
+        raoff = np.zeros((num_orbits2plot, num_epochs2plot))
+        deoff = np.zeros((num_orbits2plot, num_epochs2plot))
+        epochs = np.zeros((num_orbits2plot, num_epochs2plot))
 
         orbit_figure = plt.figure()
         colormap = cm.inferno
 
-        # TODO: could probably remove this for loop, haven't checked calc_orbit in a while
-        # HN: calc_orbit can definitely take arrays as input and return arrays, however,
-        #       not sure what to do about epochs[] yet
+        # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
+        # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
         for i in np.arange(num_orbits2plot):
-            epochs[i,:] = np.linspace(start_date, float(start_date+per[choose[i]]), num_epochs)
+            orb_ind = choose[i]
+            # Compute period (from Kepler's third law)
+            period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
+            period = period.to(u.year).value
+            # Create an epochs array to plot num_epochs2plot points over one orbital period
+            epochs[i,:] = np.linspace(start_date, float(start_date+period), num_epochs2plot)
             raoff0, deoff0, _ = calc_orbit(
-                epochs[i,:], sma[choose[i]], ecc[choose[i]], epp[choose[i]], aop[choose[i]], pan[choose[i]],
-                inc[choose[i]], plx[choose[i]], mtot[choose[i]], mass=mplanet[choose[i]]
+                epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
+                inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
