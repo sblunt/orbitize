@@ -178,6 +178,8 @@ class Results(object):
         colormap = cm.inferno
 
         # TODO: could probably remove this for loop, haven't checked calc_orbit in a while
+        # HN: calc_orbit can definitely take arrays as input and return arrays, however,
+        #       not sure what to do about epochs[] yet
         for i in np.arange(num_orbits2plot):
             epochs[i,:] = np.linspace(start_date, float(start_date+per[choose[i]]), num_epochs)
             raoff0, deoff0, _ = calc_orbit(
@@ -204,5 +206,5 @@ class Results(object):
         ax.locator_params(axis='y', nbins=6)
 
         # TODO: add color bar
-        
+
         return orbit_figure
