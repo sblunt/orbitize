@@ -140,8 +140,8 @@ class Results(object):
             object_mass (float): mass of the object, in solar masses
             object_to_plot (int): which object to plot [1]
             start_date (float): year in which to start plotting orbits
-            num_orbits2plot (int): number of orbits to plot [100]
-            num_epochs2plot (int): number of points to plot per orbit [100]
+            num_orbits_to_plot (int): number of orbits to plot [100]
+            num_epochs_to_plot (int): number of points to plot per orbit [100]
 
         Return:
             matplotlib.pyplot Figure object of the orbit plot if input valid, None otherwise
@@ -189,6 +189,7 @@ class Results(object):
             period = period.to(u.year).value
             # Create an epochs array to plot num_epochs2plot points over one orbital period
             epochs[i,:] = np.linspace(start_date, float(start_date+period), num_epochs2plot)
+            # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
                 inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
