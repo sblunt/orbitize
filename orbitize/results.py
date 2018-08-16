@@ -123,7 +123,7 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbit(self, n_orbits=100):
+    def plot_orbits(self, n_orbits=100):
         """
         Make plots of selected orbits
 
@@ -133,6 +133,44 @@ class Results(object):
         Return:
             matplotlib.pyplot Figure object of the orbit plot
 
-        (written): Henry Ngo, 2018
+        (written): Henry Ngo, Sarah Blunt, 2018
         """
-        pass
+        # TODO: modify this line to work with actual orbitize outputs
+        sma, ecc, tp, w, pan, inc, prlx, mtot, mplanet = orbitize_outputs
+        ##
+
+        choose = np.random.randint(0, high=len(sma), size=num_orbits2plot)
+
+        raoff = np.zeros((num_orbits2plot, num_epochs))
+        deoff = np.zeros((num_orbits2plot, num_epochs))
+        epochs = np.zeros((num_orbits2plot, num_epochs))
+
+        _ = plt.figure()
+        colormap = cm.inferno
+
+        # TODO: could probably remove this for loop, haven't checked calc_orbit in a while
+        for i in np.arange(num_orbits2plot):
+            epochs[i,:] = np.linspace(start_date, float(start_date+per[choose[i]]), num_epochs)
+            raoff0, deoff0, _ = calc_orbit(
+                epochs[i,:], sma[choose[i]], ecc[choose[i]], tp[choose[i]], w[choose[i]], pan[choose[i]],
+                inc[choose[i]], prlx[choose[i]], mtot[choose[i]], mass=mplanet[choose[i]]
+            )
+            raoff[i,:] = raoff0
+            deoff[i,:] = deoff0
+
+        latest_time = np.max(epochs)
+        for i in np.arange(num_orbits2plot):
+            for j in np.arange(num_epochs-2):
+
+                plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=cm.inferno(epochs[i,j]/latest_time))
+
+            plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]/latest_time))
+
+        ax = plt.gca()
+        ax.set_aspect('equal', 'box')
+        ax.set_xlabel('$\Delta$RA (mas)')
+        ax.set_ylabel('$\Delta$Dec (mas)')
+        ax.locator_params(axis='x', nbins=6)
+        ax.locator_params(axis='y', nbins=6)
+
+        # TODO: add color bar

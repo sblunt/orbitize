@@ -128,7 +128,7 @@ class PTMCMC(Sampler):
         init_positions = []
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
-            # todo: be smarter in the future
+            # TODO: be smarter in the future
             random_init = prior.draw_samples(num_walkers*num_temps).reshape([num_temps, num_walkers])
 
             init_positions.append(random_init)
@@ -174,6 +174,7 @@ class PTMCMC(Sampler):
         self.curr_pos = pos
         self.chain = sampler.chain
         self.lnlikes = sampler.logprobability
+        # TODO: Need something here to pick out temperatures
         self.results.add_orbits(self.chain,self.lnlikes)
 
         return sampler
