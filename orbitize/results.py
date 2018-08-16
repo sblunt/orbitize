@@ -126,9 +126,9 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbits(self, parallax, total_mass, object_mass, object_to_plot=1, start_date=2000, num_orbits2plot=100, num_epochs2plot=100):
+    def plot_orbits(self, parallax, total_mass, object_mass, object_to_plot=1, start_date=2000, num_orbits_to_plot=100, num_epochs_to_plot=100):
         """
-        Make plots of selected orbits
+        Plots one orbital period for a select number of fitted orbits for a given object
 
         Args:
             parallax (float): parallax in mas, however, if plx_err was passed
@@ -169,26 +169,23 @@ class Results(object):
         mplanet = np.ones(len(sma))*object_mass
 
         # Select random indices for plotted orbit
-        if num_orbits2plot > len(sma):
-            num_orbits2plot = len(sma)
-        choose = np.random.randint(0, high=len(sma), size=num_orbits2plot)
+        if num_orbits_to_plot > len(sma):
+            num_orbits_to_plot = len(sma)
+        choose = np.random.randint(0, high=len(sma), size=num_orbits_to_plot)
 
-        raoff = np.zeros((num_orbits2plot, num_epochs2plot))
-        deoff = np.zeros((num_orbits2plot, num_epochs2plot))
-        epochs = np.zeros((num_orbits2plot, num_epochs2plot))
-
-        orbit_figure = plt.figure()
-        colormap = cm.inferno
+        raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+        deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+        epochs = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
         # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
         # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
-        for i in np.arange(num_orbits2plot):
+        for i in np.arange(num_orbits_to_plot):
             orb_ind = choose[i]
             # Compute period (from Kepler's third law)
             period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
             period = period.to(u.year).value
-            # Create an epochs array to plot num_epochs2plot points over one orbital period
-            epochs[i,:] = np.linspace(start_date, float(start_date+period), num_epochs2plot)
+            # Create an epochs array to plot num_epochs_to_plot points over one orbital period
+            epochs[i,:] = np.linspace(start_date, float(start_date+period), num_epochs_to_plot)
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
@@ -198,14 +195,18 @@ class Results(object):
             deoff[i,:] = deoff0
 
         latest_time = np.max(epochs)
+
+        orbit_figure = plt.figure()
+        colormap = cm.inferno
         # Plot each orbit
-        for i in np.arange(num_orbits2plot):
+        for i in np.arange(num_orbits_to_plot):
             for j in np.arange(num_epochs-2):
 
                 plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=cm.inferno(epochs[i,j]/latest_time))
 
             plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]/latest_time))
 
+        # Modify the axes
         ax = plt.gca()
         ax.set_aspect('equal', 'box')
         ax.set_xlabel('$\Delta$RA (mas)')
@@ -213,6 +214,7 @@ class Results(object):
         ax.locator_params(axis='x', nbins=6)
         ax.locator_params(axis='y', nbins=6)
 
-        # TODO: add color bar
+        # Add colorbar
+        plt.colorbar(cax=ax)
 
         return orbit_figure
