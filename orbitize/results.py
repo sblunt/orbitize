@@ -60,7 +60,7 @@ class Results(object):
         """
         pass
 
-    def plot_corner(self, param_list=[]):
+    def plot_corner(self, param_list=[], **corner_kwargs):
         """
         Make a corner plot of posterior on orbit fit from any sampler
 
@@ -79,6 +79,8 @@ class Results(object):
                 e.g. Use param_list = ['sma1,ecc1,inc1,sma2,ecc2,inc2'] to only
                      plot posteriors for semimajor axis, eccentricity and inclination
                      of the first two companions
+            **corner_kwargs: any remaining keyword args are sent to corner.corner
+                             See: https://corner.readthedocs.io/
 
         Return:
             matplotlib.pyplot Figure object of the corner plot
@@ -87,15 +89,38 @@ class Results(object):
         """
         if len(param_list)>0: # user chose to plot specific parameters only
             num_orb_param = self.post.shape[0] # number of orbital parameters (+ mass, parallax)
-            num_objects = np.trunc(num_orb_param / 6).astype(np.int)
+            num_objects,remainder = np.divmod(num_orb_param,6)
+            have_mtot_and_plx = remainder == 2
+            # Define a dictionary to look up index of certain parameters
+            dict_of_indices = {
+                'sma' = 0
+                'ecc' = 1
+                'inc' = 2 ## CHECK THAT ORDER IS CORRECT
+                'aop' = 3
+                'pan' = 4
+                'epp' = 5
+            }
+            param_indices = []
+            for param in param_list:
+                if param=='mtot':
+                    if have_mtot_and_plx:
+                        param_indices.append(num_orb_param-2) # the 2nd last index
+                elif param=='plx':
+                    if have_mtot_and_plx:
+                        param_indices.append(num_orb_param-2) # the last index
+                elif len(param)==4: # to prevent invalid, short param names breaking
+                    if param[0:3] in dict_of_indices:
+                        object_id = np.int(param[3])
+                        index = dict_of_indices[param[0:3]] + 6*(object_id-1)
+                        param_indices.append(index)
+                else:
+                    pass # skip unrecognized parameter
+            samples = self.post[param_indices,:] # Keep only chains for selected parameters
 
+        else:
+            samples = self.post
 
-        semimajor axis 1, eccentricity 1, argument of periastron 1,
-        position angle of nodes 1, inclination 1, epoch of periastron passage 1,
-        [semimajor axis 2, eccentricity 2, etc.],
-        [total mass, parallax]
-
-        figure = corner.corner(self.post)
+        figure = corner.corner(samples, **corner_kwargs)
         return figure
 
     def plot_orbit(self, n_orbits=100):
