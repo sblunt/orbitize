@@ -94,11 +94,11 @@ class Results(object):
             have_mtot_and_plx = remainder == 2
             # Define a dictionary to look up index of certain parameters
             dict_of_indices = {
-                'sma' = 0
-                'ecc' = 1
-                'inc' = 2 ## CHECK THAT ORDER IS CORRECT
-                'aop' = 3
-                'pan' = 4
+                'sma' = 0,
+                'ecc' = 1,
+                'inc' = 2, ## CHECK THAT ORDER IS CORRECT
+                'aop' = 3,
+                'pan' = 4,
                 'epp' = 5
             }
             param_indices = []
