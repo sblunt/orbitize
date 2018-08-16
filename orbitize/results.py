@@ -124,42 +124,71 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbits(self, n_orbits=100):
+    def plot_orbits(self, parallax, total_mass, object_mass, object_to_plot=1, num_orbits2plot=100):
         """
         Make plots of selected orbits
 
         Args:
-            n_orbits (int): number of orbits to plot
+            parallax (float): parallax in mas, however, if plx_err was passed
+                to system, then this is ignored and the posterior samples for
+                plx will be used instead
+            total_mass (float): total mass of system in solar masses, however,
+                if mass_err was passed to system, then this is ignored and the
+                posterior samples for mtot will be used instead
+            object_mass (float): mass of the object, in solar masses
+            object_to_plot (int): which object to plot [1]
+            num_orbits2plot (int): number of orbits to plot [100]
 
         Return:
-            matplotlib.pyplot Figure object of the orbit plot
+            matplotlib.pyplot Figure object of the orbit plot if input valid, None otherwise
 
         (written): Henry Ngo, Sarah Blunt, 2018
         """
-        # TODO: modify this line to work with actual orbitize outputs
-        sma, ecc, tp, w, pan, inc, prlx, mtot, mplanet = orbitize_outputs
-        ##
+        # Split the 2-D post array into series of 1-D arrays for each orbital parameter
+        num_objects, remainder = np.divmod(self.post.shape[0],6)
+        if object_to_plot > num_objects:
+            return None
+        first_index = 0 + 6*(object_to_plot-1)
+        sma = self.post[first_index+0,:]
+        ecc = self.post[first_index+1,:]
+        inc = self.post[first_index+2,:]
+        aop = self.post[first_index+3,:]
+        pan = self.post[first_index+4,:]
+        epp = self.post[first_index+5,:]
+        # Then, get the other parameters
+        # TODO: Get these from user input unless they exist in post array
+        if remainder == 2: # have samples for parallax and mtot
+            mtot = self.post[-2,:]
+            plx = self.post[-1,:]
+        else: # otherwise make arrays out of user provided value
+            mtot = np.ones(len(sma))*total_mass
+            plx = np.ones(len(sma))*parallax
+        mplanet = np.ones(len(sma))*object_mass
 
+        # Select random indices for plotted orbit
+        if num_orbits2plot > len(sma):
+            num_orbits2plot = len(sma)
         choose = np.random.randint(0, high=len(sma), size=num_orbits2plot)
 
         raoff = np.zeros((num_orbits2plot, num_epochs))
         deoff = np.zeros((num_orbits2plot, num_epochs))
         epochs = np.zeros((num_orbits2plot, num_epochs))
 
-        _ = plt.figure()
+        orbit_figure = plt.figure()
         colormap = cm.inferno
 
         # TODO: could probably remove this for loop, haven't checked calc_orbit in a while
         for i in np.arange(num_orbits2plot):
             epochs[i,:] = np.linspace(start_date, float(start_date+per[choose[i]]), num_epochs)
             raoff0, deoff0, _ = calc_orbit(
-                epochs[i,:], sma[choose[i]], ecc[choose[i]], tp[choose[i]], w[choose[i]], pan[choose[i]],
-                inc[choose[i]], prlx[choose[i]], mtot[choose[i]], mass=mplanet[choose[i]]
+                epochs[i,:], sma[choose[i]], ecc[choose[i]], epp[choose[i]], aop[choose[i]], pan[choose[i]],
+                inc[choose[i]], plx[choose[i]], mtot[choose[i]], mass=mplanet[choose[i]]
             )
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
 
         latest_time = np.max(epochs)
+        # Plot each orbit
         for i in np.arange(num_orbits2plot):
             for j in np.arange(num_epochs-2):
 
@@ -175,3 +204,5 @@ class Results(object):
         ax.locator_params(axis='y', nbins=6)
 
         # TODO: add color bar
+        
+        return orbit_figure
