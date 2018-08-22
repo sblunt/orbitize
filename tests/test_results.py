@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 # Based on driver.py
 
-from orbitize import read_input, system, sampler
+from orbitize import read_input, system, sampler, priors, results
 
 def create_test_system_object():
     """
@@ -32,7 +32,7 @@ def create_test_system_object():
     return test_system
 
 
-def create_test_sampler_object(test_system):
+def create_and_run_test_sampler_object(test_system):
     """
     Returns a PTsampler object, based on beta pic, to test Results module.
     Uses system object as input
@@ -51,17 +51,23 @@ def create_test_sampler_object(test_system):
     test_sampler = sampler.PTMCMC(likelihood_func_name,test_system,n_temps,n_walkers,n_threads)
 
     # Run the sampler to compute some orbits, yeah!
-    # Results stored in bP_sampler.chain and bP_sampler.lnlikes
+    # This also creates and stores a Results object in test_sampler.Results
     test_sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=1)
 
     return test_sampler
 
-def
+
+def test_add_orbits():
+    """
+    Tests adding orbits to Results object
+    """
+    pass
 
 if __name__ == "__main__":
-    # Initialize objects required for tests
+    # Initialize system object
     system = create_test_system_object()
-    sampler = create_test_sampler_object(sampler)
-    # Run some tests
-
+    # Create and run sampler object (which creates Results object)
+    sampler = create_and_run_test_sampler_object(system)
+    # Run some tests results.Results object stored in sampler.results
+    
     import pdb; pdb.set_trace()
