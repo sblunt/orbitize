@@ -4,6 +4,7 @@ Test the routines in the orbitize.Results module
 # Based on driver.py
 
 from orbitize import read_input, system, sampler, priors, results
+import matplotlib.pyplot as plt
 
 def create_test_system_object():
     """
@@ -57,6 +58,11 @@ def create_and_run_test_sampler_object(test_system):
     return test_sampler
 
 
+def test_plot_corner(results):
+    Figure = results.plot_corner()
+    return Figure
+
+
 def test_add_orbits():
     """
     Tests adding orbits to Results object
@@ -68,6 +74,9 @@ if __name__ == "__main__":
     system = create_test_system_object()
     # Create and run sampler object (which creates Results object)
     sampler = create_and_run_test_sampler_object(system)
+    # Store results object in system.results
+    system.add_results(sampler.results)
     # Run some tests results.Results object stored in sampler.results
-    
+    corner_fig = test_plot_corner(system.results[0])
+    plt.show()
     import pdb; pdb.set_trace()
