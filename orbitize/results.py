@@ -226,15 +226,15 @@ class Results(object):
         cmap = mpl.cm.inferno
         norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs))
         colormap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap).to_rgba
-        #import pdb; pdb.set_trace()
 
         # Create figure for orbit plots
         orbit_figure = plt.figure()
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
+            # Plot line segments for each point to the next (except for the last point)
             for j in np.arange(num_epochs_to_plot-1):
                 plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
-            # Connect the final point with the first one
+            # Connect the final point with the first point
             plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
         # Modify the axes
         ax = plt.gca()
