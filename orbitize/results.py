@@ -173,16 +173,16 @@ class Results(object):
         if object_to_plot > num_objects:
             return None
         first_index = 0 + 6*(object_to_plot-1)
-        sma = self.post[first_index+0,:]
-        ecc = self.post[first_index+1,:]
-        inc = self.post[first_index+2,:]
-        aop = self.post[first_index+3,:]
-        pan = self.post[first_index+4,:]
-        epp = self.post[first_index+5,:]
+        sma = self.post[:,first_index+0]
+        ecc = self.post[:,first_index+1]
+        inc = self.post[:,first_index+2]
+        aop = self.post[:,first_index+3]
+        pan = self.post[:,first_index+4]
+        epp = self.post[:,first_index+5]
         # Then, get the other parameters
         if remainder == 2: # have samples for parallax and mtot
-            mtot = self.post[-2,:]
-            plx = self.post[-1,:]
+            mtot = self.post[:,-2]
+            plx = self.post[:,-1]
         else: # otherwise make arrays out of user provided value
             if total_mass is not None:
                 mtot = np.ones(len(sma))*total_mass
@@ -217,6 +217,7 @@ class Results(object):
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
                 inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
+            import pdb; pdb.set_trace()
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
 
