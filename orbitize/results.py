@@ -146,7 +146,7 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbits(self, parallax=None, total_mass=None, object_mass=0, object_to_plot=1, start_date=2000, num_orbits_to_plot=100, num_epochs_to_plot=100):
+    def plot_orbits(self, parallax=None, total_mass=None, object_mass=0, object_to_plot=1, start_year=2000, num_orbits_to_plot=100, num_epochs_to_plot=100):
         """
         Plots one orbital period for a select number of fitted orbits for a given object
 
@@ -159,7 +159,7 @@ class Results(object):
                 posterior samples for mtot will be used instead [None]
             object_mass (float): mass of the object, in solar masses [0]
             object_to_plot (int): which object to plot [1]
-            start_date (float): year in which to start plotting orbits
+            start_year (float): year in which to start plotting orbits
             num_orbits_to_plot (int): number of orbits to plot [100]
             num_epochs_to_plot (int): number of points to plot per orbit [100]
 
@@ -209,9 +209,11 @@ class Results(object):
             orb_ind = choose[i]
             # Compute period (from Kepler's third law)
             period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
-            period = period.to(u.year).value
+            period = period.to(u.day).value
+            start_date = (start_year*u.year).to(u.day).value
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i,:] = np.linspace(start_date, float(start_date+period[i]), num_epochs_to_plot)
+            #print('period = {}'.format(period))
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = kepler.calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
@@ -221,7 +223,6 @@ class Results(object):
             deoff[i,:] = deoff0
 
         latest_time = np.max(epochs)
-
         orbit_figure = plt.figure()
         colormap = cm.inferno
         # Plot each orbit
