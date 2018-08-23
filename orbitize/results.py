@@ -35,7 +35,7 @@ class Results(object):
         self.post = post
         self.lnlike = lnlike
 
-    def add_orbits(self, orbital_params, lnlikes):
+    def add_samples(self, orbital_params, lnlikes):
         """
         Add accepted orbits and their likelihoods to the results
 

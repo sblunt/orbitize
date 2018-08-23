@@ -50,9 +50,9 @@ def simulate_orbit_sampling(n_sim_orbits):
 
     return sim_post
 
-def test_add_orbits(results):
+def test_add_samples(results):
     """
-    Tests add_orbits() with some simulated posterior samples
+    Tests add_samples() with some simulated posterior samples
     Returns results.Results object
     """
     # Simulate some orbit draws, assign random likelihoods
@@ -84,5 +84,6 @@ if __name__ == "__main__":
     test_results = test_init()
     test_results = test_add_orbits(test_results)
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
+    test_plot_orbits(test_results)
     #test_corner_fig1.savefig('test_corner1.png')
     #test_corner_fig2.savefig('test_corner2.png')

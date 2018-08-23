@@ -173,9 +173,10 @@ class PTMCMC(Sampler):
 
         self.curr_pos = pos
         # TODO: Need something here to pick out temperatures, just using lowest one for now
+        self.chain = sampler.chain
         self.post = sampler.flatchain[0,:]
         self.lnlikes = sampler.logprobability
-        self.results.add_orbits(self.post,self.lnlikes)
+        self.results.add_samples(self.post,self.lnlikes)
 
         return sampler
 
@@ -283,8 +284,9 @@ class EnsembleMCMC(Sampler):
 
         self.curr_pos = pos
         self.chain = sampler.chain
+        self.post = sampler.flatchain
         self.lnlikes = sampler.lnprobability
-        self.results.add_orbits(self.chain,self.lnlikes)
+        self.results.add_samples(self.flatchain,self.lnlikes)
 
         return sampler
 
