@@ -209,7 +209,7 @@ class Results(object):
             period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
             period = period.to(u.year).value
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
-            epochs[i,:] = np.linspace(start_date, float(start_date+period), num_epochs_to_plot)
+            epochs[i,:] = np.linspace(start_date, float(start_date+period[i]), num_epochs_to_plot)
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
