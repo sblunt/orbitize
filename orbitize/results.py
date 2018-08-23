@@ -222,15 +222,20 @@ class Results(object):
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
 
-        latest_time = np.max(epochs)
-        orbit_figure = plt.figure()
-        colormap = cm.inferno
-        # Plot each orbit
-        for i in np.arange(num_orbits_to_plot):
-            for j in np.arange(num_epochs_to_plot-2):
-                plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]/latest_time))
-            plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]/latest_time))
+        # Create a linearly increasing colormap for our range of epochs
+        cmap = mpl.cm.inferno
+        norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs))
+        colormap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap).to_rgba
+        #import pdb; pdb.set_trace()
 
+        # Create figure for orbit plots
+        orbit_figure = plt.figure()
+        # Plot each orbit (each segment between two points coloured using colormap)
+        for i in np.arange(num_orbits_to_plot):
+            for j in np.arange(num_epochs_to_plot-1):
+                plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
+            # Connect the final point with the first one
+            plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
         # Modify the axes
         ax = plt.gca()
         ax.set_aspect('equal', 'box')
