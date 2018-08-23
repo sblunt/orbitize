@@ -144,18 +144,18 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbits(self, parallax, total_mass, object_mass, object_to_plot=1, start_date=2000, num_orbits_to_plot=100, num_epochs_to_plot=100):
+    def plot_orbits(self, parallax=None, total_mass=None, object_mass=0, object_to_plot=1, start_date=2000, num_orbits_to_plot=100, num_epochs_to_plot=100):
         """
         Plots one orbital period for a select number of fitted orbits for a given object
 
         Args:
             parallax (float): parallax in mas, however, if plx_err was passed
                 to system, then this is ignored and the posterior samples for
-                plx will be used instead
+                plx will be used instead [None]
             total_mass (float): total mass of system in solar masses, however,
                 if mass_err was passed to system, then this is ignored and the
-                posterior samples for mtot will be used instead
-            object_mass (float): mass of the object, in solar masses
+                posterior samples for mtot will be used instead [None]
+            object_mass (float): mass of the object, in solar masses [0]
             object_to_plot (int): which object to plot [1]
             start_date (float): year in which to start plotting orbits
             num_orbits_to_plot (int): number of orbits to plot [100]
@@ -167,7 +167,7 @@ class Results(object):
         (written): Henry Ngo, Sarah Blunt, 2018
         """
         # Split the 2-D post array into series of 1-D arrays for each orbital parameter
-        num_objects, remainder = np.divmod(self.post.shape[0],6)
+        num_objects, remainder = np.divmod(self.post.shape[1],6)
         if object_to_plot > num_objects:
             return None
         first_index = 0 + 6*(object_to_plot-1)
@@ -182,8 +182,14 @@ class Results(object):
             mtot = self.post[-2,:]
             plx = self.post[-1,:]
         else: # otherwise make arrays out of user provided value
-            mtot = np.ones(len(sma))*total_mass
-            plx = np.ones(len(sma))*parallax
+            if total_mass is not None:
+                mtot = np.ones(len(sma))*total_mass
+            else:
+                raise Exception('results.Results.plot_orbits(): total mass must be provided if not part of samples')
+            if parallax is not None:
+                plx = np.ones(len(sma))*parallax
+            else:
+                raise Exception('results.Results.plot_orbits(): parallax must be provided if not part of samples')
         mplanet = np.ones(len(sma))*object_mass
 
         # Select random indices for plotted orbit
