@@ -217,7 +217,6 @@ class Results(object):
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
                 inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
-            import pdb; pdb.set_trace()
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
 
@@ -228,9 +227,7 @@ class Results(object):
         # Plot each orbit
         for i in np.arange(num_orbits_to_plot):
             for j in np.arange(num_epochs_to_plot-2):
-
-                plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=cm.inferno(epochs[i,j]/latest_time))
-
+                plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]/latest_time))
             plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]/latest_time))
 
         # Modify the axes
