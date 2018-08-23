@@ -225,6 +225,7 @@ class Results(object):
         # Create a linearly increasing colormap for our range of epochs
         cmap = mpl.cm.inferno
         norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs))
+        norm_yr = mpl.colors.Normalize(vmin=np.min(epochs/365.25), vmax=np.max(epochs/365.25))
         colormap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap).to_rgba
 
         # Create figure for orbit plots
@@ -244,5 +245,6 @@ class Results(object):
         ax.locator_params(axis='y', nbins=6)
 
         # Add colorbar
-
+        cax = fig.add_axes([0.5, 0.5, 0.05, 0.2])
+        cbar = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_yr, orientation='vertical')
         return fig
