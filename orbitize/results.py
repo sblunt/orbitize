@@ -114,7 +114,7 @@ class Results(object):
             '$\pi$ [mas]'
         ]
         if len(param_list)>0: # user chose to plot specific parameters only
-            num_orb_param = self.post.shape[0] # number of orbital parameters (+ mass, parallax)
+            num_orb_param = self.post.shape[1] # number of orbital parameters (+ mass, parallax)
             num_objects,remainder = np.divmod(num_orb_param,6)
             have_mtot_and_plx = remainder == 2
             param_indices = []
@@ -169,7 +169,7 @@ class Results(object):
         (written): Henry Ngo, Sarah Blunt, 2018
         """
         # Split the 2-D post array into series of 1-D arrays for each orbital parameter
-        num_objects, remainder = np.divmod(self.post.shape[0],6)
+        num_objects, remainder = np.divmod(self.post.shape[1],6)
         if object_to_plot > num_objects:
             return None
         first_index = 0 + 6*(object_to_plot-1)
