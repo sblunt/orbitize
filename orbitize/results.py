@@ -2,6 +2,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as consts
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import corner
 import orbitize.kepler as kepler
 
