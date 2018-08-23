@@ -212,7 +212,7 @@ class Results(object):
             period = period.to(u.day).value
             start_date = (start_year*u.year).to(u.day).value
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
-            epochs[i,:] = np.linspace(start_date, float(start_date+period[i]), num_epochs_to_plot)
+            epochs[i,:] = np.linspace(start_date, float(start_date+period[orb_ind]), num_epochs_to_plot)
             #print('period = {}'.format(period))
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = kepler.calc_orbit(
