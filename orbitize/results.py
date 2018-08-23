@@ -228,16 +228,15 @@ class Results(object):
         colormap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap).to_rgba
 
         # Create figure for orbit plots
-        orbit_figure = plt.figure()
+        fig, ax = plt.subplots()
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
             # Plot line segments for each point to the next (except for the last point)
             for j in np.arange(num_epochs_to_plot-1):
-                plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
+                ax.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
             # Connect the final point with the first point
-            plt.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
+            ax.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
         # Modify the axes
-        ax = plt.gca()
         ax.set_aspect('equal', 'box')
         ax.set_xlabel('$\Delta$RA [mas]')
         ax.set_ylabel('$\Delta$Dec [mas]')
@@ -245,6 +244,5 @@ class Results(object):
         ax.locator_params(axis='y', nbins=6)
 
         # Add colorbar
-        #plt.colorbar(cax=ax)
 
-        return orbit_figure
+        return fig
