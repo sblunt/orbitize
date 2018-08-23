@@ -55,18 +55,18 @@ def test_add_samples(results):
     Tests add_samples() with some simulated posterior samples
     Returns results.Results object
     """
-    # Simulate some orbit draws, assign random likelihoods
+    # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
-    # Test adding orbits
-    results.add_orbits(sim_post,sim_lnlike)
-    # Simulate some more orbit draws
+    # Test adding samples
+    results.add_samples(sim_post,sim_lnlike)
+    # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
-    # Test adding more orbits
-    results.add_orbits(sim_post,sim_lnlike)
+    # Test adding more samples
+    results.add_samples(sim_post,sim_lnlike)
     # Check shape of results.post
     expected_length = n_orbit_draws1 + n_orbit_draws2
     assert results.post.shape == (expected_length,8)
