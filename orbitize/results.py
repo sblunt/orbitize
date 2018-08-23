@@ -13,10 +13,10 @@ class Results(object):
     Args:
         sampler_name (string): name of sampler class that generated these results [None].
         post (np.array of float): MxN array of orbital parameters
-            (posterior output from orbit-fitting process), where M
-            is the number of varying orbital parameters in the fit,
-            and N is the number of orbits generated [None].
-        lnlike (np.array of float): N array of ln-likelihoods corresponding to
+            (posterior output from orbit-fitting process), where M is the
+            number of orbits generated, and N is the number of varying orbital
+            parameters in the fit [None].
+        lnlike (np.array of float): M array of ln-likelihoods corresponding to
             the orbits described in post [None].
 
     The `post` array is in the following order:
@@ -114,7 +114,7 @@ class Results(object):
             '$\pi$ [mas]'
         ]
         if len(param_list)>0: # user chose to plot specific parameters only
-            num_orb_param = self.post.shape[1] # number of orbital parameters (+ mass, parallax)
+            num_orb_param = self.post.shape[0] # number of orbital parameters (+ mass, parallax)
             num_objects,remainder = np.divmod(num_orb_param,6)
             have_mtot_and_plx = remainder == 2
             param_indices = []
@@ -169,20 +169,20 @@ class Results(object):
         (written): Henry Ngo, Sarah Blunt, 2018
         """
         # Split the 2-D post array into series of 1-D arrays for each orbital parameter
-        num_objects, remainder = np.divmod(self.post.shape[1],6)
+        num_objects, remainder = np.divmod(self.post.shape[0],6)
         if object_to_plot > num_objects:
             return None
         first_index = 0 + 6*(object_to_plot-1)
-        sma = self.post[:,first_index+0]
-        ecc = self.post[:,first_index+1]
-        inc = self.post[:,first_index+2]
-        aop = self.post[:,first_index+3]
-        pan = self.post[:,first_index+4]
-        epp = self.post[:,first_index+5]
+        sma = self.post[first_index+0,:]
+        ecc = self.post[first_index+1,:]
+        inc = self.post[first_index+2,:]
+        aop = self.post[first_index+3,:]
+        pan = self.post[first_index+4,:]
+        epp = self.post[first_index+5,:]
         # Then, get the other parameters
         if remainder == 2: # have samples for parallax and mtot
-            mtot = self.post[:,-2]
-            plx = self.post[:,-1]
+            mtot = self.post[-2,:]
+            plx = self.post[-1,:]
         else: # otherwise make arrays out of user provided value
             if total_mass is not None:
                 mtot = np.ones(len(sma))*total_mass
