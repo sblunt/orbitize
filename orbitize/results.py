@@ -52,7 +52,7 @@ class Results(object):
         # Otherwise, need to append properly
         else:
             self.post = np.vstack((self.post,orbital_params))
-            self.lnlike = np.vstack((self.lnlike,lnlikes))
+            self.lnlike = np.append(self.lnlike,lnlikes)
 
     def save_results(self, filename):
         """
