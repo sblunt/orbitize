@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as consts
 import matplotlib.pyplot as plt
 import corner
+import orbitize.kepler as kepler
 
 class Results(object):
     """
@@ -211,7 +212,7 @@ class Results(object):
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i,:] = np.linspace(start_date, float(start_date+period[i]), num_epochs_to_plot)
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, _ = calc_orbit(
+            raoff0, deoff0, _ = kepler.calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
                 inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
