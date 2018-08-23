@@ -80,7 +80,9 @@ def test_plot_corner(results):
     for all 8 parameters and for just four selected parameters
     """
     Figure1 = results.plot_corner()
+    assert Figure1 is not None
     Figure2 = results.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
+    assert Figure2 is not None
     return Figure1, Figure2
 
 def test_plot_orbits(results):
@@ -88,6 +90,8 @@ def test_plot_orbits(results):
     Tests plot_orbits() with simulated posterior samples
     """
     Figure1 = results.plot_orbits()
+    assert Figure1 is not None
+    return Figure1
 
 if __name__ == "__main__":
     test_results = test_init()

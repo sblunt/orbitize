@@ -226,7 +226,7 @@ class Results(object):
         colormap = cm.inferno
         # Plot each orbit
         for i in np.arange(num_orbits_to_plot):
-            for j in np.arange(num_epochs-2):
+            for j in np.arange(num_epochs_to_plot-2):
 
                 plt.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=cm.inferno(epochs[i,j]/latest_time))
 
@@ -241,6 +241,6 @@ class Results(object):
         ax.locator_params(axis='y', nbins=6)
 
         # Add colorbar
-        plt.colorbar(cax=ax)
+        #plt.colorbar(cax=ax)
 
         return orbit_figure
