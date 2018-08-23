@@ -3,80 +3,83 @@ Test the routines in the orbitize.Results module
 """
 # Based on driver.py
 
-from orbitize import read_input, system, sampler, priors, results
+from orbitize import results
+import numpy as np
 import matplotlib.pyplot as plt
 
-def create_test_system_object():
+def test_init():
     """
-    Returns a system object, based on beta pic, to test Results module
+    Tests results.Results initialization.
+    Returns results.Results object
     """
-    # System parameters
-    datafile='test_bpic_val.csv'
-    num_secondary_bodies=1
-    system_mass=1.75 # Msol
+    return results.Results(sampler_name='testing')
+
+def simulate_orbit_sampling(n_sim_orbits):
+    """
+    Returns posterior array with n_sim_orbit samples for testing
+    """
+    # Parameters are based on beta Pic b from Wang+ 2016
+    # Orbit parameters
+    n_params = 8
+    sma = 9.660
+    sma_err = 1.1  # not real
+    ecc = 0.08
+    ecc_err = 0.03 # not real
+    inc = 88.81
+    inc_err = 0.12
+    aop = 205.8
+    aop_err = 20.0 # not real
+    pan = 31.76
+    pan_err = 0.09
+    epp = 0.73
+    epp_err = 0.20 # not real
+    system_mass = 1.80
+    system_mass_err = 0.04
     plx=51.44 #mas
-    mass_err=0.05 # Msol
     plx_err=0.12 #mas
+    # Create some simulated orbit draws
+    sim_post = np.zeros((n_sim_orbits,n_params))
+    sim_post[:,0]=np.random.normal(sma,sma_err,n_sim_orbits)
+    sim_post[:,1]=np.random.normal(ecc,ecc_err,n_sim_orbits)
+    sim_post[:,2]=np.random.normal(inc,inc_err,n_sim_orbits)
+    sim_post[:,3]=np.random.normal(aop,aop_err,n_sim_orbits)
+    sim_post[:,4]=np.random.normal(pan,pan_err,n_sim_orbits)
+    sim_post[:,5]=np.random.normal(epp,epp_err,n_sim_orbits)
+    sim_post[:,6]=np.random.normal(system_mass,system_mass_err,n_sim_orbits)
+    sim_post[:,7]=np.random.normal(plx,plx_err,n_sim_orbits)
 
-    # Read in data
-    data_table = read_input.read_formatted_file(datafile)
+    return sim_post
 
-    # Initialize System object which stores data & sets priors
-    test_system = system.System(
-        num_secondary_bodies, data_table, system_mass,
-        plx, mass_err=mass_err, plx_err=plx_err
-    )
-
-    # We could overwrite any priors we want to here.
-    # Using defaults for now.
-
-    return test_system
-
-
-def create_and_run_test_sampler_object(test_system):
+def test_add_orbits(results):
     """
-    Returns a PTsampler object, based on beta pic, to test Results module.
-    Uses system object as input
+    Tests add_orbits() with some simulated posterior samples
+    Returns results.Results object
     """
-    # Sampler parameters, just to test Results module
-    likelihood_func_name='chi2_lnlike'
-    n_temps=1
-    n_walkers=20
-    n_threads=2
-    total_orbits=100 # n_walkers x num_steps_per_walker
-    burn_steps=1
+    # Simulate some orbit draws, assign random likelihoods
+    n_orbit_draws1 = 1000
+    sim_post = simulate_orbit_sampling(n_orbit_draws1)
+    sim_lnlike = np.random.uniform(size=n_orbit_draws1)
+    # Test adding orbits
+    results.add_orbits(sim_post,sim_lnlike)
+    # Simulate some more orbit draws
+    n_orbit_draws2 = 2000
+    sim_post = simulate_orbit_sampling(n_orbit_draws2)
+    sim_lnlike = np.random.uniform(size=n_orbit_draws2)
+    # Test adding more orbits
+    results.add_orbits(sim_post,sim_lnlike)
+    # Check shape of results.post
+    expected_length = n_orbit_draws1 + n_orbit_draws2
+    assert results.post.shape == (expected_length,8)
+    assert results.lnlike.shape == (expected_length,)
 
-    # Initialize Sampler object, which stores information about
-    # the likelihood function & the algorithm used to generate
-    # orbits, and has System object as an attribute.
-    test_sampler = sampler.PTMCMC(likelihood_func_name,test_system,n_temps,n_walkers,n_threads)
-
-    # Run the sampler to compute some orbits, yeah!
-    # This also creates and stores a Results object in test_sampler.Results
-    test_sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=1)
-
-    return test_sampler
-
+    return results
 
 def test_plot_corner(results):
     Figure = results.plot_corner()
     return Figure
 
 
-def test_add_orbits():
-    """
-    Tests adding orbits to Results object
-    """
-    pass
-
 if __name__ == "__main__":
-    # Initialize system object
-    system = create_test_system_object()
-    # Create and run sampler object (which creates Results object)
-    sampler = create_and_run_test_sampler_object(system)
-    # Store results object in system.results
-    system.add_results(sampler.results)
-    # Run some tests results.Results object stored in sampler.results
-    corner_fig = test_plot_corner(system.results[0])
-    plt.show()
-    import pdb; pdb.set_trace()
+    test_results = test_init()
+    test_results = test_add_orbits(test_results)
+    test_corner_fig = test_plot_corner(test_results)
