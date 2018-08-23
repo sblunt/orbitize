@@ -173,16 +173,16 @@ class Results(object):
         if object_to_plot > num_objects:
             return None
         first_index = 0 + 6*(object_to_plot-1)
-        sma = self.post[first_index+0,:]
-        ecc = self.post[first_index+1,:]
-        inc = self.post[first_index+2,:]
-        aop = self.post[first_index+3,:]
-        pan = self.post[first_index+4,:]
-        epp = self.post[first_index+5,:]
+        sma = self.post[:,first_index+0]
+        ecc = self.post[:,first_index+1]
+        inc = self.post[:,first_index+2]
+        aop = self.post[:,first_index+3]
+        pan = self.post[:,first_index+4]
+        epp = self.post[:,first_index+5]
         # Then, get the other parameters
         if remainder == 2: # have samples for parallax and mtot
-            mtot = self.post[-2,:]
-            plx = self.post[-1,:]
+            mtot = self.post[:,-2]
+            plx = self.post[:,-1]
         else: # otherwise make arrays out of user provided value
             if total_mass is not None:
                 mtot = np.ones(len(sma))*total_mass
@@ -235,8 +235,8 @@ class Results(object):
         # Modify the axes
         ax = plt.gca()
         ax.set_aspect('equal', 'box')
-        ax.set_xlabel('$\Delta$RA (mas)')
-        ax.set_ylabel('$\Delta$Dec (mas)')
+        ax.set_xlabel('$\Delta$RA [mas]')
+        ax.set_ylabel('$\Delta$Dec [mas]')
         ax.locator_params(axis='x', nbins=6)
         ax.locator_params(axis='y', nbins=6)
 
