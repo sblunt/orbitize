@@ -84,25 +84,37 @@ class Results(object):
                      of the first two companions
             **corner_kwargs: any remaining keyword args are sent to corner.corner
                              See: https://corner.readthedocs.io/
+                             Note: default axis labels used unless overwritten by user input
 
         Return:
             matplotlib.pyplot Figure object of the corner plot
 
         (written): Henry Ngo, 2018
         """
+        # Define a dictionary to look up index of certain parameters
+        dict_of_indices = {
+            'sma': 0,
+            'ecc': 1,
+            'inc': 2,
+            'aop': 3,
+            'pan': 4,
+            'epp': 5
+        }
+        # Define array of default axis labels (overwritten if user specifies list)
+        default_labels = [
+            'a [au]',
+            'ecc',
+            'inc [deg]',
+            '$\omega$ [deg]',
+            '$\Omega$ [deg]',
+            '$\\tau$',
+            '$M_T$ [Msol]',
+            '$\pi$ [mas]'
+        ]
         if len(param_list)>0: # user chose to plot specific parameters only
-            num_orb_param = self.post.shape[0] # number of orbital parameters (+ mass, parallax)
+            num_orb_param = self.post.shape[1] # number of orbital parameters (+ mass, parallax)
             num_objects,remainder = np.divmod(num_orb_param,6)
             have_mtot_and_plx = remainder == 2
-            # Define a dictionary to look up index of certain parameters
-            dict_of_indices = {
-                'sma': 0,
-                'ecc': 1,
-                'inc': 2,
-                'aop': 3,
-                'pan': 4,
-                'epp': 5
-            }
             param_indices = []
             for param in param_list:
                 if param=='mtot':
@@ -118,10 +130,16 @@ class Results(object):
                         param_indices.append(index)
                 else:
                     pass # skip unrecognized parameter
-            samples = self.post[param_indices,:] # Keep only chains for selected parameters
 
+            samples = self.post[:,param_indices] # Keep only chains for selected parameters
+            if 'labels' not in corner_kwargs: # Use default labels if user didn't already supply them
+                # Necessary to index a list with another list
+                reduced_labels_list = [default_labels[i] for i in param_indices]
+                corner_kwargs['labels'] = reduced_labels_list
         else:
             samples = self.post
+            if 'labels' not in corner_kwargs: # Use default labels if user didn't already supply them
+                corner_kwargs['labels'] = default_labels
 
         figure = corner.corner(samples, **corner_kwargs)
         return figure

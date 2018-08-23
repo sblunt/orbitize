@@ -75,11 +75,14 @@ def test_add_orbits(results):
     return results
 
 def test_plot_corner(results):
-    Figure = results.plot_corner()
-    return Figure
+    Figure1 = results.plot_corner()
+    Figure2 = results.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
+    return Figure1, Figure2
 
 
 if __name__ == "__main__":
     test_results = test_init()
     test_results = test_add_orbits(test_results)
-    test_corner_fig = test_plot_corner(test_results)
+    test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
+    #test_corner_fig1.savefig('test_corner1.png')
+    #test_corner_fig2.savefig('test_corner2.png')
