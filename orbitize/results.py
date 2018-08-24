@@ -243,7 +243,7 @@ class Results(object):
             ax.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
 
         # Modify the axes
-        ax.set_aspect('equal', adjustable='datalim', anchor='SW')
+        ax.set_aspect('equal', adjustable='datalim')
         ax.set_xlabel('$\Delta$RA [mas]')
         ax.set_ylabel('$\Delta$Dec [mas]')
         ax.locator_params(axis='x', nbins=6)
@@ -252,14 +252,16 @@ class Results(object):
         # Add colorbar
         if timeline_pos!='none':
             if timeline_pos=='right':
-                fig.subplots_adjust(right=0.8)
-                cbar_ax = fig.add_axes([0.825, 0.15, 0.05, 0.7])
-                cbar_orientation = 'vertical'
+                sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
+                sm._A = [] # magic?
+                cbar = fig.colorbar(sm)
             elif timeline_pos=='top':
-                fig.subplots_adjust(top=0.8)
-                cbar_ax = fig.add_axes([0.15, 0.875, 0.7, 0.05])
-                cbar_orientation = 'horizontal'
-            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation=cbar_orientation)
-
+                # fig.subplots_adjust(top=0.8)
+                # cbar_ax = fig.add_axes([0.15, 0.875, 0.7, 0.05])
+                # cbar_orientation = 'horizontal'
+                # cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation=cbar_orientation)
+                sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
+                sm._A = [] # magic?
+                cbar = fig.colorbar(sm)
 
         return fig
