@@ -251,17 +251,12 @@ class Results(object):
 
         # Add colorbar
         if timeline_pos!='none':
-            if timeline_pos=='right':
-                sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
-                sm._A = [] # magic?
-                cbar = fig.colorbar(sm)
-            elif timeline_pos=='top':
-                # fig.subplots_adjust(top=0.8)
-                # cbar_ax = fig.add_axes([0.15, 0.875, 0.7, 0.05])
-                # cbar_orientation = 'horizontal'
-                # cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation=cbar_orientation)
-                sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
-                sm._A = [] # magic?
-                cbar = fig.colorbar(sm)
+            sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
+            sm._A = [] # magic? (just needs to *not* be None)
+            cbar = fig.colorbar(sm)
+        # Alternative implementation example for right-hand colorbar
+        # fig.subplots_adjust(right=0.8)
+        # cbar_ax = fig.add_axes([0.825, 0.15, 0.05, 0.7]) # xpos, ypos, width, height, in fraction of figure size
+        # cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
 
         return fig
