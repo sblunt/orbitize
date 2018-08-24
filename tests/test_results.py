@@ -6,13 +6,7 @@ Test the routines in the orbitize.Results module
 from orbitize import results
 import numpy as np
 import matplotlib.pyplot as plt
-
-def test_init():
-    """
-    Tests results.Results initialization.
-    Returns results.Results object
-    """
-    return results.Results(sampler_name='testing')
+import pytest
 
 def simulate_orbit_sampling(n_sim_orbits):
     """
@@ -50,58 +44,77 @@ def simulate_orbit_sampling(n_sim_orbits):
 
     return sim_post
 
-def test_add_samples(results):
+def test_init_and_add_samples():
     """
-    Tests add_samples() with some simulated posterior samples
+    Tests object creation and add_samples() with some simulated posterior samples
     Returns results.Results object
     """
+    # Create object
+    results_obj = results.Results(sampler_name='testing')
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results.add_samples(sim_post,sim_lnlike)
+    results_obj.add_samples(sim_post,sim_lnlike)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results.add_samples(sim_post,sim_lnlike)
+    results_obj.add_samples(sim_post,sim_lnlike)
     # Check shape of results.post
     expected_length = n_orbit_draws1 + n_orbit_draws2
-    assert results.post.shape == (expected_length,8)
-    assert results.lnlike.shape == (expected_length,)
+    assert results_obj.post.shape == (expected_length,8)
+    assert results_obj.lnlike.shape == (expected_length,)
 
-    return results
+    return results_obj
 
-def test_plot_corner(results):
+@pytest.fixture()
+def results_to_plot():
+    results_obj = results.Results(sampler_name='testing')
+    # Simulate some sample draws, assign random likelihoods
+    n_orbit_draws1 = 1000
+    sim_post = simulate_orbit_sampling(n_orbit_draws1)
+    sim_lnlike = np.random.uniform(size=n_orbit_draws1)
+    # Test adding samples
+    results_obj.add_samples(sim_post,sim_lnlike)
+    # Simulate some more sample draws
+    n_orbit_draws2 = 2000
+    sim_post = simulate_orbit_sampling(n_orbit_draws2)
+    sim_lnlike = np.random.uniform(size=n_orbit_draws2)
+    # Test adding more samples
+    results_obj.add_samples(sim_post,sim_lnlike)
+    # Return object for testing
+    return results_obj
+
+def test_plot_corner(results_to_plot):
     """
     Tests plot_corner() with plotting simulated posterior samples
     for all 8 parameters and for just four selected parameters
     """
-    Figure1 = results.plot_corner()
+    Figure1 = results_to_plot.plot_corner()
     assert Figure1 is not None
-    Figure2 = results.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
+    Figure2 = results_to_plot.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
     assert Figure2 is not None
     return Figure1, Figure2
 
-def test_plot_orbits(results):
+def test_plot_orbits(results_to_plot):
     """
     Tests plot_orbits() with simulated posterior samples
     """
-    Figure1 = results.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=True)
+    Figure1 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=True)
     assert Figure1 is not None
-    Figure2 = results.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=False)
+    Figure2 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=False)
     assert Figure2 is not None
-    Figure3 = results.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=True)
+    Figure3 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=True)
     assert Figure3 is not None
-    Figure4 = results.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=False)
+    Figure4 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=False)
     assert Figure4 is not None
     return (Figure1, Figure2, Figure3, Figure4)
 
 if __name__ == "__main__":
-    test_results = test_init()
-    test_results = test_add_samples(test_results)
+    test_results = test_init_and_add_samples()
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     # test_corner_fig1.savefig('test_corner1.png')
