@@ -252,7 +252,7 @@ class Results(object):
         # Add colorbar
         if timeline_pos!='none':
             sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
-            sm._A = [] # magic? (just needs to *not* be None)
+            sm.set_array([]) # magic? (just needs to *not* be None)
             cbar = fig.colorbar(sm)
         # Alternative implementation example for right-hand colorbar
         # fig.subplots_adjust(right=0.8)
