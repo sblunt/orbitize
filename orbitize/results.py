@@ -261,7 +261,7 @@ class Results(object):
         if show_colorbar:
             sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
             sm.set_array([]) # magic? (just needs to *not* be None)
-            cbar = fig.colorbar(sm)
+            cbar = fig.colorbar(sm, format='%g')
         # Alternative implementation example for right-hand colorbar
         # fig.subplots_adjust(right=0.8)
         # cbar_ax = fig.add_axes([0.825, 0.15, 0.05, 0.7]) # xpos, ypos, width, height, in fraction of figure size
