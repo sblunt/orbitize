@@ -50,7 +50,7 @@ def simulate_orbit_sampling(n_sim_orbits):
 
     return sim_post
 
-def test_add_samples(results):
+def test_add_samples(results_obj):
     """
     Tests add_samples() with some simulated posterior samples
     Returns results.Results object
@@ -60,40 +60,40 @@ def test_add_samples(results):
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results.add_samples(sim_post,sim_lnlike)
+    results_obj.add_samples(sim_post,sim_lnlike)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results.add_samples(sim_post,sim_lnlike)
+    results_obj.add_samples(sim_post,sim_lnlike)
     # Check shape of results.post
     expected_length = n_orbit_draws1 + n_orbit_draws2
-    assert results.post.shape == (expected_length,8)
-    assert results.lnlike.shape == (expected_length,)
+    assert results_obj.post.shape == (expected_length,8)
+    assert results_obj.lnlike.shape == (expected_length,)
 
     return results
 
-def test_plot_corner(results):
+def test_plot_corner(results_obj):
     """
     Tests plot_corner() with plotting simulated posterior samples
     for all 8 parameters and for just four selected parameters
     """
-    Figure1 = results.plot_corner()
+    Figure1 = results_obj.plot_corner()
     assert Figure1 is not None
-    Figure2 = results.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
+    Figure2 = results_obj.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
     assert Figure2 is not None
     return Figure1, Figure2
 
-def test_plot_orbits(results):
+def test_plot_orbits(results_obj):
     """
     Tests plot_orbits() with simulated posterior samples
     """
-    Figure1 = results.plot_orbits(num_orbits_to_plot=1,timeline_pos='right')
+    Figure1 = results_obj.plot_orbits(num_orbits_to_plot=1,timeline_pos='right')
     assert Figure1 is not None
-    Figure2 = results.plot_orbits(num_orbits_to_plot=1,timeline_pos='top')
+    Figure2 = results_obj.plot_orbits(num_orbits_to_plot=1,timeline_pos='top')
     assert Figure2 is not None
-    Figure3 = results.plot_orbits(num_orbits_to_plot=1,timeline_pos='none')
+    Figure3 = results_obj.plot_orbits(num_orbits_to_plot=1,timeline_pos='none')
     return Figure1, Figure2, Figure3
 
 if __name__ == "__main__":
