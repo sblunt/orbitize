@@ -89,20 +89,24 @@ def test_plot_orbits(results):
     """
     Tests plot_orbits() with simulated posterior samples
     """
-    Figure1 = results.plot_orbits(num_orbits_to_plot=1,timeline_pos='right')
+    Figure1 = results.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=True)
     assert Figure1 is not None
-    Figure2 = results.plot_orbits(num_orbits_to_plot=1,timeline_pos='top')
+    Figure2 = results.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=False)
     assert Figure2 is not None
-    Figure3 = results.plot_orbits(num_orbits_to_plot=1,timeline_pos='none')
-    return Figure1, Figure2, Figure3
+    Figure3 = results.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=True)
+    assert Figure3 is not None
+    Figure4 = results.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=False)
+    assert Figure4 is not None
+    return (Figure1, Figure2, Figure3, Figure4)
 
 if __name__ == "__main__":
     test_results = test_init()
     test_results = test_add_samples(test_results)
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
-    test_orbit_fig1, test_orbit_fig2, test_orbit_fig3 =test_plot_orbits(test_results)
-    #test_corner_fig1.savefig('test_corner1.png')
-    #test_corner_fig2.savefig('test_corner2.png')
-    #test_orbit_fig1.savefig('test_orbit1.png')
-    #test_orbit_fig2.savefig('test_orbit2.png')
-    #test_orbit_fig3.savefig('test_orbit3.png')
+    test_orbit_figs = test_plot_orbits(test_results)
+    test_corner_fig1.savefig('test_corner1.png')
+    test_corner_fig2.savefig('test_corner2.png')
+    test_orbit_figs[0].savefig('test_orbit1.png')
+    test_orbit_figs[1].savefig('test_orbit2.png')
+    test_orbit_figs[2].savefig('test_orbit3.png')
+    test_orbit_figs[3].savefig('test_orbit4.png')

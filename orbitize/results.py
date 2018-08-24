@@ -147,10 +147,12 @@ class Results(object):
         return figure
 
     def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
-                    object_to_plot=1, start_year=2000, num_orbits_to_plot=100,
-                    num_epochs_to_plot=100, timeline_pos='right'):
+                    object_to_plot=1, start_year=2000,
+                    num_orbits_to_plot=100, num_epochs_to_plot=100,
+                    square_plot=True, show_colorbar=True):
         """
-        Plots one orbital period for a select number of fitted orbits for a given object
+        Plots one orbital period for a select number of fitted orbits
+        for a given object, with line segments colored according to time
 
         Args:
             parallax (float): parallax in mas, however, if plx_err was passed
@@ -164,8 +166,10 @@ class Results(object):
             start_year (float): year in which to start plotting orbits
             num_orbits_to_plot (int): number of orbits to plot [100]
             num_epochs_to_plot (int): number of points to plot per orbit [100]
-            timeline_pos (str): position of colorbar indicating time. Must be:
-                                'right' (default), 'top', or 'none'
+            square_plot (Boolean): Aspect ratio is always equal, but if
+                square_plot is True (default), then the axes will be square,
+                otherwise, white space padding is used
+            show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
 
         Return:
             matplotlib.pyplot Figure object of the orbit plot if input valid, None otherwise
@@ -243,14 +247,18 @@ class Results(object):
             ax.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
 
         # Modify the axes
-        ax.set_aspect('equal', adjustable='datalim')
+        if square_plot:
+            adjustable_param='datalim'
+        else:
+            adjustable_param='box'
+        ax.set_aspect('equal', adjustable=adjustable_param)
         ax.set_xlabel('$\Delta$RA [mas]')
         ax.set_ylabel('$\Delta$Dec [mas]')
         ax.locator_params(axis='x', nbins=6)
         ax.locator_params(axis='y', nbins=6)
 
         # Add colorbar
-        if timeline_pos!='none':
+        if show_colorbar:
             sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
             sm.set_array([]) # magic? (just needs to *not* be None)
             cbar = fig.colorbar(sm)
