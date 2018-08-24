@@ -286,7 +286,7 @@ class EnsembleMCMC(Sampler):
         self.chain = sampler.chain
         self.post = sampler.flatchain
         self.lnlikes = sampler.lnprobability
-        self.results.add_samples(self.flatchain,self.lnlikes)
+        self.results.add_samples(self.post,self.lnlikes)
 
         return sampler
 
