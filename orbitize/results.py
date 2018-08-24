@@ -30,7 +30,7 @@ class Results(object):
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. If stellar mass
 
-    (written): Sarah Blunt, Henry Ngo, 2018
+    (written): Henry Ngo, Sarah Blunt, 2018
     """
     def __init__(self, sampler_name=None, post=None, lnlike=None):
         self.sampler_name = sampler_name
@@ -146,7 +146,9 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
-    def plot_orbits(self, parallax=None, total_mass=None, object_mass=0, object_to_plot=1, start_year=2000, num_orbits_to_plot=100, num_epochs_to_plot=100):
+    def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
+                    object_to_plot=1, start_year=2000, num_orbits_to_plot=100,
+                    num_epochs_to_plot=100, timeline_pos='right'):
         """
         Plots one orbital period for a select number of fitted orbits for a given object
 
@@ -162,6 +164,8 @@ class Results(object):
             start_year (float): year in which to start plotting orbits
             num_orbits_to_plot (int): number of orbits to plot [100]
             num_epochs_to_plot (int): number of points to plot per orbit [100]
+            timeline_pos (str): position of colorbar indicating time. Must be:
+                                'right' (default), 'top', or 'none'
 
         Return:
             matplotlib.pyplot Figure object of the orbit plot if input valid, None otherwise
@@ -237,14 +241,25 @@ class Results(object):
                 ax.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
             # Connect the final point with the first point
             ax.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
+
         # Modify the axes
-        ax.set_aspect('equal', 'box')
+        ax.set_aspect('equal', adjustable='datalim', anchor='SW')
         ax.set_xlabel('$\Delta$RA [mas]')
         ax.set_ylabel('$\Delta$Dec [mas]')
         ax.locator_params(axis='x', nbins=6)
         ax.locator_params(axis='y', nbins=6)
 
         # Add colorbar
-        cax = fig.add_axes([0.5, 0.5, 0.05, 0.2])
-        cbar = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_yr, orientation='vertical')
+        if timeline_pos!='none':
+            if timeline_pos=='right':
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.825, 0.15, 0.05, 0.7])
+                cbar_orientation = 'vertical'
+            elif timeline_pos=='top':
+                fig.subplots_adjust(top=0.8)
+                cbar_ax = fig.add_axes([0.15, 0.875, 0.7, 0.05])
+                cbar_orientation = 'horizontal'
+            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation=cbar_orientation)
+
+
         return fig
