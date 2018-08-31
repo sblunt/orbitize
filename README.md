@@ -6,6 +6,9 @@ Orbit-fitting for directly imaged objects. Documentation is available [here](htt
 [![Documentation Status](https://readthedocs.org/projects/orbitize/badge/?version=latest)](http://orbitize.readthedocs.io/en/latest/?badge=latest)
 [![Requirements Status](https://requires.io/github/sblunt/orbitize/requirements.svg?branch=master)](https://requires.io/github/sblunt/orbitize/requirements/?branch=master)
 
+## Expected Release: September 2018
+Check back soon!
+
 ## Installation For Developers
 
 This method for installing orbitize will allow you to use it and make changes to it. After cloning this git repo, run the setup file that resides on the top level of this repo:
