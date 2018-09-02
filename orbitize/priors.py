@@ -254,8 +254,6 @@ class LinearPrior(Prior):
 
         prob = (self.m*element_array + self.b)/normalizer
 
-        print(prob)
-
         prob[(element_array>x_intercept) | (element_array<0)] = 0.
 
         return prob
