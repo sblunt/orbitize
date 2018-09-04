@@ -8,8 +8,6 @@ import orbitize.driver
 
 def test_scale_and_rotate():
     
-#     myDriver = orbitize.driver.Driver('gsc6214_astrometry.csv', 'OFTI',
-#     1, 0.8, 9.19,mass_err=0.1, plx_err=0.043)
     myDriver = orbitize.driver.Driver('GJ504.csv', 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
@@ -30,8 +28,6 @@ def test_scale_and_rotate():
     
 def test_run_sampler():
 
-#     myDriver = orbitize.driver.Driver('gsc6214_astrometry.csv', 'OFTI',
-#     1, 0.8, 9.19,mass_err=0.1, plx_err=0.043)
     myDriver = orbitize.driver.Driver('GJ504.csv', 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
@@ -41,13 +37,20 @@ def test_run_sampler():
     s.run_sampler(0,num_samples=1)
     
     #test to make sure outputs are reasonable
-    #look at posteriors in paper, hard code expected values , within 20%?
-    #test which uncertainty seems reasonable
-    orbits = s.run_sampler(100)
-    sma = np.median([x[0] for x in orbits]) # should we use s.system.labels for idx??
+    orbits = s.run_sampler(1000)
+    # should we use s.system.labels for idx??
+    sma = np.median([x[0] for x in orbits])
     ecc = np.median([x[1] for x in orbits])
     inc = np.median([x[4] for x in orbits])
     
+    sma_exp = 48
+    ecc_exp = 0.19
+    inc_exp = np.radians(140)
+    
+    assert sma == pytest.approx(sma_exp, 0.2*sma_exp)
+    #this line below raises an error, almost always generates ecc that is slightly high
+    assert ecc == pytest.approx(ecc_exp, 0.2*ecc_exp)
+    assert inc == pytest.approx(inc_exp, 0.2*inc_exp)
         
     #test with only one epoch
     myDriver = orbitize.driver.Driver('gsc6214_1epoch.csv', 'OFTI',
