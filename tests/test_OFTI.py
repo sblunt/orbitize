@@ -1,16 +1,21 @@
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
-import pytest
 import numpy as np
+import os
+import pytest
 
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
 
+testdir = os.path.dirname(os.path.abspath(__file__))
+input_file = os.path.join(testdir, 'GJ504.csv')
+input_file_1epoch = os.path.join(testdir, 'GJ504_1epoch.csv')
+
 def test_scale_and_rotate():
     
-    myDriver = orbitize.driver.Driver('GJ504.csv', 'OFTI',
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
     s = myDriver.sampler
@@ -30,7 +35,7 @@ def test_scale_and_rotate():
     
 def test_run_sampler():
 
-    myDriver = orbitize.driver.Driver('GJ504.csv', 'OFTI',
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
     s = myDriver.sampler
@@ -57,7 +62,7 @@ def test_run_sampler():
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
         
     #test with only one epoch
-    myDriver = orbitize.driver.Driver('GJ504_1epoch.csv', 'OFTI',
+    myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     s = myDriver.sampler
     s.run_sampler(1)
