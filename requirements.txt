@@ -3,3 +3,5 @@ numpy
 scipy
 emcee
 ptemcee
+matplotlib
+corner

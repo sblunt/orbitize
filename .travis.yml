@@ -24,8 +24,8 @@ before_install:
     - sudo ln -s /run/shm /dev/shm
 
 install:
-    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython
-    - pip install pytest pytest-cov coverage coveralls
+    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython matplotlib
+    - pip install pytest pytest-cov coverage coveralls corner
     - pip install . --upgrade
     - python setup.py build_ext -i
 
