@@ -121,7 +121,12 @@ class System(object):
         #
         # Set priors on system mass and parallax
         #
-
+        if plx_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
+            self.abs_plx = np.nan
+        else:
+            self.abs_plx = plx
+            self.labels.append('parallax')
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(
                 system_mass, mass_err)
@@ -130,12 +135,6 @@ class System(object):
         else:
             self.abs_system_mass = system_mass
             self.labels.append('stellar_mass')
-        if plx_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-            self.abs_plx = np.nan
-        else:
-            self.abs_plx = plx
-            self.labels.append('parallax')
 
 
     def compute_model(self, params_arr):
@@ -162,11 +161,11 @@ class System(object):
         if not np.isnan(self.abs_plx):
             plx = self.abs_plx
         else:
-            plx = params_arr[-1]
+            plx = params_arr[6*self.num_secondary_bodies]
         if not np.isnan(self.abs_system_mass):
             mtot = self.abs_system_mass
         else:
-            mtot = params_arr[6*self.num_secondary_bodies]
+            mtot = params_arr[-1]
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 

@@ -23,13 +23,14 @@ def test_scale_and_rotate():
     
     #these have been moved to init
     epochs = np.array(s.tbl['epoch']) # may move to init
-    sma,ecc,argp,lan,inc,tau,mtot,plx = [samp for samp in samples]
+    sma,ecc,argp,lan,inc,tau,plx,mtot = [samp for samp in samples]
     epoch_idx = np.argmin(s.sep_err) # may move to init
     
-    ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc,tau,argp,lan,inc,plx,mtot)
+    ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[epoch_idx]), np.median(pa[epoch_idx])
-    
+
+    import pdb; pdb.set_trace()    
     assert sep_sar == pytest.approx(s.tbl[epoch_idx]['quant1'], abs=s.tbl[epoch_idx]['quant1_err'])
     assert pa_sar == pytest.approx(s.tbl[epoch_idx]['quant2'], abs=s.tbl[epoch_idx]['quant2_err'])
     

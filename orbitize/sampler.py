@@ -105,7 +105,7 @@ class OFTI(Sampler):
             samples[i, :] = self.priors[i].draw_samples(num_samples)
 
         # TODO: fix for the case where m_err and plx_err are nan
-        sma, ecc, argp, lan, inc, tau, mtot, plx = [s for s in samples]
+        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
 
         period_prescale = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
@@ -115,7 +115,7 @@ class OFTI(Sampler):
 
         # compute sep/PA of generated orbits 
         ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs[self.epoch_idx], sma, ecc, tau, argp, lan, inc, plx, mtot
+            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]  
         
@@ -145,7 +145,7 @@ class OFTI(Sampler):
 
         # updates samples with new values of sma, pan, tau
         samples[0,:] = sma
-        samples[3,:] = lan
+        samples[4,:] = lan
         samples[5,:] = tau
         
         return samples
@@ -167,10 +167,10 @@ class OFTI(Sampler):
         """
         
         # generate seppa for all remaining epochs
-        sma, ecc, argp, lan, inc, tau, mtot, plx = [s for s in samples]
+        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
         
         ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs, sma, ecc,tau,argp,lan,inc,plx,mtot
+            self.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec)
 
