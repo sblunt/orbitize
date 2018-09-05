@@ -31,8 +31,9 @@ class System(object):
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        semimajor axis 1, eccentricity 1, argument of periastron 1,
-        position angle of nodes 1, inclination 1, epoch of periastron passage 1,
+        semimajor axis 1, eccentricity 1, inclination 1,
+        argument of periastron 1, position angle of nodes 1,
+        epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
         [total mass, parallax]
 
