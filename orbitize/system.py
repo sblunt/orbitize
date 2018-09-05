@@ -104,6 +104,10 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,1.))
             self.labels.append('e_{}'.format(body+1))
 
+            # Add inclination angle prior
+            self.sys_priors.append(priors.SinPrior())
+            self.labels.append('i_{}'.format(body+1))
+
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('aop_{}'.format(body+1))
@@ -111,10 +115,6 @@ class System(object):
             # Add position angle of nodes prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('pan_{}'.format(body+1))
-
-            # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior())
-            self.labels.append('i_{}'.format(body+1))
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
