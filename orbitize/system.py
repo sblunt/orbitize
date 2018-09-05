@@ -31,8 +31,9 @@ class System(object):
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        semimajor axis 1, eccentricity 1, argument of periastron 1,
-        position angle of nodes 1, inclination 1, epoch of periastron passage 1,
+        semimajor axis 1, eccentricity 1, inclination 1,
+        argument of periastron 1, position angle of nodes 1,
+        epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
         [total mass, parallax]
 
@@ -103,6 +104,10 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,1.))
             self.labels.append('e_{}'.format(body+1))
 
+            # Add inclination angle prior
+            self.sys_priors.append(priors.SinPrior())
+            self.labels.append('i_{}'.format(body+1))
+
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('aop_{}'.format(body+1))
@@ -110,10 +115,6 @@ class System(object):
             # Add position angle of nodes prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('pan_{}'.format(body+1))
-
-            # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior())
-            self.labels.append('i_{}'.format(body+1))
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
@@ -174,13 +175,13 @@ class System(object):
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
             sma = params_arr[body_num-1]
             ecc = params_arr[body_num]
-            argp = params_arr[body_num+1]
-            lan = params_arr[body_num+2]
-            inc = params_arr[body_num+3]
+            inc = params_arr[body_num+1]
+            argp = params_arr[body_num+2]
+            lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
             )
             # TODO: hack to get this working for mcmc
             # if len(raoff.shape) == 1:

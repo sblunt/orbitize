@@ -224,8 +224,8 @@ class Results(object):
             #print('period = {}'.format(period))
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = kepler.calc_orbit(
-                epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
-                inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
+                epochs[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
+                epp[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
