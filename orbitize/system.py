@@ -175,9 +175,9 @@ class System(object):
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
             sma = params_arr[body_num-1]
             ecc = params_arr[body_num]
-            argp = params_arr[body_num+1]
-            lan = params_arr[body_num+2]
-            inc = params_arr[body_num+3]
+            inc = params_arr[body_num+1]
+            argp = params_arr[body_num+2]
+            lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
 
             raoff, decoff, vz = kepler.calc_orbit(
