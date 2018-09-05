@@ -57,13 +57,21 @@ class Results(object):
             self.lnlike = np.append(self.lnlike,lnlikes)
 
     def save_results(self, filename):
-        """
-        Save results to file
+    """
+    Save results.Results object to a file
 
-        Args:
-            filename (string): filepath to save to
-        """
+    Args:
+        filename (string): filepath to save to
+        format (string): either 'hdf5' [default], 'fits', or 'pickle'
+    """
+    if format.lower()=='hdf5':
         pass
+    elif format.lower()=='fits':
+        pass
+    elif format.lower()=='pickle':
+        pass
+    else:
+        raise Exception('Invalid format {} for Results.save_results()'.format(format))
 
     def plot_corner(self, param_list=[], **corner_kwargs):
         """
