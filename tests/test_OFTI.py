@@ -23,7 +23,7 @@ def test_scale_and_rotate():
     
     #these have been moved to init
     epochs = np.array(s.tbl['epoch']) # may move to init
-    sma,ecc,argp,lan,inc,tau,mtot,plx = [s for s in samples]
+    sma,ecc,argp,lan,inc,tau,mtot,plx = [samp for samp in samples]
     epoch_idx = np.argmin(s.sep_err) # may move to init
     
     ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc,tau,argp,lan,inc,plx,mtot)
@@ -61,7 +61,7 @@ def test_run_sampler():
     assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
         
-    #test with only one epoch
+    # test with only one epoch
     myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     s = myDriver.sampler
