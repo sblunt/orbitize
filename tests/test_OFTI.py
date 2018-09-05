@@ -3,8 +3,10 @@ Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
 import pytest
 import numpy as np
+
 import orbitize.sampler as sampler
 import orbitize.driver
+import orbitize.priors as priors
 
 def test_scale_and_rotate():
     
@@ -32,29 +34,31 @@ def test_run_sampler():
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
     s = myDriver.sampler
+
+    # change eccentricity prior
+    myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
     
-    #test num_samples=1
+    # test num_samples=1
     s.run_sampler(0,num_samples=1)
     
-    #test to make sure outputs are reasonable
+    # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
     # should we use s.system.labels for idx??
     sma = np.median([x[0] for x in orbits])
     ecc = np.median([x[1] for x in orbits])
     inc = np.median([x[4] for x in orbits])
     
-    sma_exp = 48
+    sma_exp = 48.
     ecc_exp = 0.19
     inc_exp = np.radians(140)
     
-    assert sma == pytest.approx(sma_exp, 0.2*sma_exp)
-    #this line below raises an error, almost always generates ecc that is slightly high
-    assert ecc == pytest.approx(ecc_exp, 0.2*ecc_exp)
-    assert inc == pytest.approx(inc_exp, 0.2*inc_exp)
+    assert sma == pytest.approx(sma_exp, abs=0.2*sma_exp)
+    assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
+    assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
         
     #test with only one epoch
-    myDriver = orbitize.driver.Driver('gsc6214_1epoch.csv', 'OFTI',
-    1, 0.8, 9.19,mass_err=0.1, plx_err=0.043)
+    myDriver = orbitize.driver.Driver('GJ504_1epoch.csv', 'OFTI',
+    1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     s = myDriver.sampler
     s.run_sampler(1)
     
