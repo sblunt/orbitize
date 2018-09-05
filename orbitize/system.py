@@ -181,7 +181,7 @@ class System(object):
             tau = params_arr[body_num+4]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
             )
             # TODO: hack to get this working for mcmc
             # if len(raoff.shape) == 1:
