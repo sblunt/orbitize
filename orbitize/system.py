@@ -3,50 +3,51 @@ from orbitize import priors, read_input, kepler
 
 class System(object):
     """
-    A class to store information about a system (data & priors) 
-    and calculate model predictions given a set of orbital 
+    A class to store information about a system (data & priors)
+    and calculate model predictions given a set of orbital
     parameters.
 
     Args:
-        num_secondary_bodies (int): number of secondary bodies in the system. 
+        num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
         data_table (astropy.table.Table): output from either
-            ``orbitize.read_input.read_formatted_file()`` or 
+            ``orbitize.read_input.read_formatted_file()`` or
             ``orbitize.read_input.read_orbitize_input()``
         system_mass (float): mean total mass of the system, in M_sol
         plx (float): mean parallax of the system, in mas
         mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
         plx_err (float [optional]): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool [optional]): if True, restrict the ranges
-            of the position angle of nodes and argument of periastron to [0,180) 
+            of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
-    Users should initialize an instance of this class, then overwrite 
-    priors they wish to customize. 
+    Users should initialize an instance of this class, then overwrite
+    priors they wish to customize.
 
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        semimajor axis 1, eccentricity 1, argument of periastron 1, 
-        position angle of nodes 1, inclination 1, epoch of periastron passage 1, 
+        semimajor axis 1, eccentricity 1, inclination 1,
+        argument of periastron 1, position angle of nodes 1,
+        epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
         [total mass, parallax]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc. 
+    to the second, etc.
 
     (written): Sarah Blunt, 2018
     """
-    def __init__(self, num_secondary_bodies, data_table, system_mass, 
+    def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
-        self.results = None
+        self.results = []
 
         #
         # Group the data in some useful ways
@@ -101,6 +102,10 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,1.))
             self.labels.append('e_{}'.format(body+1))
 
+            # Add inclination angle prior
+            self.sys_priors.append(priors.SinPrior())
+            self.labels.append('i_{}'.format(body+1))
+
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('aop_{}'.format(body+1))
@@ -109,11 +114,7 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('pan_{}'.format(body+1))
 
-            # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior())
-            self.labels.append('i_{}'.format(body+1))
-
-            # Add epoch of periastron prior. 
+            # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
             self.labels.append('epp_{}'.format(body+1))
 
@@ -142,19 +143,19 @@ class System(object):
         Compute model predictions for an array of fitting parameters.
 
         Args:
-            params_arr (np.array of float): RxM array 
-                of fitting parameters, where R is the number of 
+            params_arr (np.array of float): RxM array
+                of fitting parameters, where R is the number of
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
 
         Returns:
-            np.array of float: Nobsx2xM array model predictions. If M=1, this is 
+            np.array of float: Nobsx2xM array model predictions. If M=1, this is
                 a 2d array, otherwise it is a 3d array.
         """
 
         if len(params_arr.shape) == 1:
-            model = np.zeros((len(self.data_table), 2))        
+            model = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
 
@@ -172,13 +173,13 @@ class System(object):
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
             sma = params_arr[body_num-1]
             ecc = params_arr[body_num]
-            argp = params_arr[body_num+1]
-            lan = params_arr[body_num+2]
-            inc = params_arr[body_num+3]
+            inc = params_arr[body_num+1]
+            argp = params_arr[body_num+2]
+            lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
             )
             # TODO: hack to get this working for mcmc
             # if len(raoff.shape) == 1:
@@ -190,7 +191,7 @@ class System(object):
             model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
 
             sep, pa = radec2seppa(
-                raoff[self.seppa[body_num]], 
+                raoff[self.seppa[body_num]],
                 decoff[self.seppa[body_num]]
             )
 
@@ -199,9 +200,24 @@ class System(object):
 
         return model
 
+    def add_results(self, results):
+        """
+        Adds an orbitize.results.Results object to the list in system.results
+
+        Args:
+            results (orbitize.results.Results object): add this object to list
+        """
+        self.results.append(results)
+
+    def clear_results(self):
+        """
+        Removes all stored results
+        """
+        self.results = []
+
 def radec2seppa(ra, dec):
     """
-    Convenience function for converting from 
+    Convenience function for converting from
     right ascension/declination to separation/
     position angle.
 

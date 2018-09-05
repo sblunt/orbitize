@@ -11,10 +11,10 @@ try:
 except ImportError:
     print("WARNING: KEPLER: Unable to import C-based Kepler's \
 equation solver. Falling back to the slower NumPy implementation.")
-    cext = False 
+    cext = False
 
 
-def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -25,10 +25,10 @@ def calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=None, tole
         epochs (np.array): MJD times for which we want the positions of the planet
         sma (np.array): semi-major axis of orbit [au]
         ecc (np.array): eccentricity of the orbit [0,1]
-        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        inc (np.array): inclination [radians]
         argp (np.array): argument of periastron [radians]
         lan (np.array): longitude of the ascending node [radians]
-        inc (np.array): inclination [radians]
+        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]        
         plx (np.array): parallax [mas]
         mtot (np.array): total mass [Solar masses]
         mass (np.array, optional): mass of the body [Solar masses]. For planets mass ~ 0 (default)
