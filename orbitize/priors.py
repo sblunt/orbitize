@@ -62,7 +62,7 @@ class GaussianPrior(Prior):
         Compute log(probability) of an array of numbers wrt a Gaussian distibution.
 
         Args:
-            element_array (numpy array of float): array of numbers. We want the 
+            element_array (float or np.array of float): array of numbers. We want the 
                 probability of drawing each of these from the appopriate Gaussian 
                 distribution
 
@@ -119,7 +119,7 @@ class JeffreysPrior(Prior):
         Compute the prior probability of each element given that its drawn from a Jeffreys prior
 
         Args:
-            element_array (np.array): array of paramters to compute the prior probability of
+            element_array (float or np.array of float): array of paramters to compute the prior probability of
 
         Returns:
             lnprob (np.array): array of prior probabilities
@@ -127,8 +127,13 @@ class JeffreysPrior(Prior):
         normalizer = self.logmax - self.logmin
 
         lnprob = np.log((element_array*normalizer)**(-1))
-        
-        lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
+
+        # account for scalar inputs
+        if np.shape(lnprob) == ():
+            if (element_array > self.maxval) or (element_array < self.minval):
+                lnprob = -np.inf
+        else: 
+            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
 
@@ -165,15 +170,19 @@ class UniformPrior(Prior):
         Compute the prior probability of each element given that its drawn from this uniform prior
 
         Args:
-            element_array (np.array): array of paramters to compute the prior probability of
+            element_array (float or np.array of float): array of paramters to compute the prior probability of
 
         Returns:
             lnprob (np.array): array of prior probabilities
         """
-        lnprob = np.zeros(np.size(element_array))
-        
-        outofbounds = np.where((element_array > self.maxval) | (element_array < self.minval))
-        lnprob[outofbounds] = -np.inf
+        lnprob = np.log(np.ones(np.size(element_array))/(self.maxval - self.minval))
+
+        # account for scalar inputs
+        if np.shape(lnprob) == ():
+            if (element_array > self.maxval) or (element_array < self.minval):
+                lnprob = -np.inf
+        else:
+            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
 
@@ -212,7 +221,12 @@ class SinPrior(Prior):
 
         lnprob = np.log(np.sin(element_array)/normalization)
 
-        lnprob[(element_array>=np.pi) | (element_array<=0)] = -np.inf
+        # account for scalar inputs
+        if np.shape(lnprob) == ():
+            if (element_array>=np.pi) or (element_array<=0):
+                lnprob = -np.inf
+        else:
+            lnprob[(element_array>=np.pi) | (element_array<=0)] = -np.inf
 
         return lnprob
 
@@ -265,7 +279,12 @@ class LinearPrior(Prior):
 
         lnprob = np.log((self.m*element_array + self.b)/normalizer)
 
-        lnprob[(element_array>=x_intercept) | (element_array<0)] = -np.inf
+        # account for scalar inputs
+        if np.shape(lnprob) == ():
+            if (element_array>=x_intercept) or (element_array<0):
+                lnprob = -np.inf
+        else:        
+            lnprob[(element_array>=x_intercept) | (element_array<0)] = -np.inf
 
         return lnprob
 
