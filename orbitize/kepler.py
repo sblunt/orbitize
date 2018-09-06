@@ -28,7 +28,7 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tole
         inc (np.array): inclination [radians]
         argp (np.array): argument of periastron [radians]
         lan (np.array): longitude of the ascending node [radians]
-        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]        
+        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
         plx (np.array): parallax [mas]
         mtot (np.array): total mass [Solar masses]
         mass (np.array, optional): mass of the body [Solar masses]. For planets mass ~ 0 (default)
@@ -175,6 +175,9 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     Written: Rob De Rosa, 2018
 
     """
+    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
+    manom = np.array(manom)
+    ecc = np.array(ecc)
 
     # Initialize at E=M, E=pi is better at very high eccentricities
     if eanom0 is None:
