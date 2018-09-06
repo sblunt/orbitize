@@ -57,14 +57,20 @@ class Results(object):
             self.post = np.vstack((self.post,orbital_params))
             self.lnlike = np.append(self.lnlike,lnlikes)
 
-    def save_results(self, filename):
-    """
-    Save results.Results object to a file
+    def _set_sampler_name(self, sampler_name):
+        """
+        internal method to set object's sampler_name attribute
+        """
+        self.sampler_name = sampler_name
 
-    Args:
-        filename (string): filepath to save to
-        format (string): either 'hdf5' [default], 'fits', or 'pickle'
-    """
+    def save_results(self, filename, format='hdf5'):
+        """
+        Save results.Results object to a file
+
+        Args:
+            filename (string): filepath to save to
+            format (string): either 'hdf5' [default], 'fits', or 'pickle'
+        """
     if format.lower()=='hdf5':
         hf = h5py.File(filename,'w') # Creates h5py file object
         # Now add each attribute of the results object as a dataset
@@ -78,7 +84,49 @@ class Results(object):
         pass
     else:
         raise Exception('Invalid format {} for Results.save_results()'.format(format))
-        
+
+    def load_results(self, filename, format='hdf5', append=False):
+        """
+        Populate the results.Results object with data from a datafile
+
+        Args:
+            filename (string): filepath where data is saved
+            format (string): either 'hdf5' [default], 'fits', or 'pickle'
+            append (boolean): if True, then new data is added to existing object,
+                              if False [default], new data overwrites existing object
+
+        """
+        if format.lower()=='hdf5':
+            hf = h5py.File(filename,'r') # Opens file for reading
+            # Load up each dataset from hdf5 file
+            sampler_name = np.str(hf.get('sampler_name'))
+            post = np.array(hf.get('post'))
+            lnlike = np.array(hf.get('lnlike'))
+            hf.close() # Closes file object
+            # Adds data to object as per append keyword
+            if append:
+                # if no sampler_name set, use the input file's value
+                if self.sampler_name is None:
+                    self._set_sampler_name(sampler_name)
+                # otherwise only proceed if the sampler_names match
+                elif self.sampler_name != sampler_name:
+                    raise Exception('Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+                # Now append post and lnlike
+                self.add_samples(post,lnlike)
+            else:
+                # Only proceed if object is completely empty
+                if self.sampler_name is None and self.post is None and self.lnlike is None:
+                    self._set_sampler_name(sampler_name)
+                    self.add_samples(post,lnlike)
+                else:
+                    raise Exception('Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
+        elif format.lower()=='fits':
+            pass
+        elif format.lower()=='pickle':
+            pass
+        else:
+            raise Exception('Invalid format {} for Results.load_results()'.format(format))
+
     def plot_corner(self, param_list=[], **corner_kwargs):
         """
         Make a corner plot of posterior on orbit fit from any sampler
