@@ -5,6 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import corner
 import orbitize.kepler as kepler
+import h5py
 
 class Results(object):
     """
@@ -65,14 +66,19 @@ class Results(object):
         format (string): either 'hdf5' [default], 'fits', or 'pickle'
     """
     if format.lower()=='hdf5':
-        pass
+        hf = h5py.File(filename,'w') # Creates h5py file object
+        # Now add each attribute of the results object as a dataset
+        hf.create_dataset('sampler_name', data=self.sampler_name)
+        hf.create_dataset('post', data=self.post)
+        hf.create_dataset('lnlike', data=self.lnlike)
+        hf.close() # Closes file object, which writes file to disk
     elif format.lower()=='fits':
         pass
     elif format.lower()=='pickle':
         pass
     else:
         raise Exception('Invalid format {} for Results.save_results()'.format(format))
-
+        
     def plot_corner(self, param_list=[], **corner_kwargs):
         """
         Make a corner plot of posterior on orbit fit from any sampler
