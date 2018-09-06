@@ -25,7 +25,7 @@ class Results(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [total mass, parallax]
+        [parallax, total mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. If stellar mass
@@ -232,8 +232,8 @@ class Results(object):
             #print('period = {}'.format(period))
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = kepler.calc_orbit(
-                epochs[i,:], sma[orb_ind], ecc[orb_ind], epp[orb_ind], aop[orb_ind], pan[orb_ind],
-                inc[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
+                epochs[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
+                epp[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0

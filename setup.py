@@ -37,5 +37,5 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee', 'ptemcee', 'cython', 'pytest>=3.0.0']
+    install_requires=['numpy', 'scipy', 'astropy', 'emcee', 'ptemcee', 'cython', 'corner','pytest>=3.0.0']
     )

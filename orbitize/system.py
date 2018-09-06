@@ -1,8 +1,6 @@
 import numpy as np
 from orbitize import priors, read_input, kepler
 
-deg2rad = 0.0174532925199433
-
 class System(object):
     """
     A class to store information about a system (data & priors)
@@ -31,8 +29,9 @@ class System(object):
     Priors are initialized as a list of orbitize.priors.Prior objects,
     in the following order:
 
-        semimajor axis 1, eccentricity 1, argument of periastron 1,
-        position angle of nodes 1, inclination 1, epoch of periastron passage 1,
+        semimajor axis 1, eccentricity 1, inclination 1,
+        argument of periastron 1, position angle of nodes 1,
+        epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
         [total mass, parallax]
 
@@ -103,6 +102,10 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,1.))
             self.labels.append('e_{}'.format(body+1))
 
+            # Add inclination angle prior
+            self.sys_priors.append(priors.SinPrior())
+            self.labels.append('i_{}'.format(body+1))
+
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('aop_{}'.format(body+1))
@@ -111,10 +114,6 @@ class System(object):
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
             self.labels.append('pan_{}'.format(body+1))
 
-            # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior())
-            self.labels.append('i_{}'.format(body+1))
-
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
             self.labels.append('epp_{}'.format(body+1))
@@ -122,7 +121,12 @@ class System(object):
         #
         # Set priors on system mass and parallax
         #
-
+        if plx_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
+            self.abs_plx = np.nan
+        else:
+            self.abs_plx = plx
+            self.labels.append('parallax')
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(
                 system_mass, mass_err)
@@ -131,12 +135,6 @@ class System(object):
         else:
             self.abs_system_mass = system_mass
             self.labels.append('stellar_mass')
-        if plx_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-            self.abs_plx = np.nan
-        else:
-            self.abs_plx = plx
-            self.labels.append('parallax')
 
 
     def compute_model(self, params_arr):
@@ -163,24 +161,24 @@ class System(object):
         if not np.isnan(self.abs_plx):
             plx = self.abs_plx
         else:
-            plx = params_arr[-1]
+            plx = params_arr[6*self.num_secondary_bodies]
         if not np.isnan(self.abs_system_mass):
             mtot = self.abs_system_mass
         else:
-            mtot = params_arr[6*self.num_secondary_bodies]
+            mtot = params_arr[-1]
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
             sma = params_arr[body_num-1]
             ecc = params_arr[body_num]
-            argp = params_arr[body_num+1]
-            lan = params_arr[body_num+2]
-            inc = params_arr[body_num+3]
+            inc = params_arr[body_num+1]
+            argp = params_arr[body_num+2]
+            lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, tau, argp, lan, inc, plx, mtot
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
             )
             # TODO: hack to get this working for mcmc
             # if len(raoff.shape) == 1:
@@ -216,7 +214,6 @@ class System(object):
         """
         self.results = []
 
-
 def radec2seppa(ra, dec):
     """
     Convenience function for converting from
@@ -224,15 +221,14 @@ def radec2seppa(ra, dec):
     position angle.
 
     Args:
-        ra (np.array of float): array of RA values
-        dec (np.array of float): array of Dec values
+        ra (np.array of float): array of RA values [mas]
+        dec (np.array of float): array of Dec values [mas]
 
     Returns:
         tulple of float: (separation [mas], position angle [deg])
 
     """
-
-    sep = np.sqrt((ra**2) + (dec**2)) * 1e3
-    pa = (np.arctan2(ra, dec) / deg2rad) % 360.
+    sep = np.sqrt((ra**2) + (dec**2))
+    pa = np.degrees(np.arctan2(ra, dec)) % 360.
 
     return sep, pa

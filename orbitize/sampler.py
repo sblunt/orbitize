@@ -1,11 +1,17 @@
-import orbitize.lnlike
-import orbitize.priors
-import orbitize.results
+import numpy as np
+import astropy.units as u
+import astropy.constants as consts
 import sys
 import abc
-import numpy as np
+
 import emcee
 import ptemcee
+
+import orbitize.lnlike
+import orbitize.priors
+import orbitize.kepler
+from orbitize.system import radec2seppa
+import orbitize.results
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -17,7 +23,6 @@ class Sampler(ABC):
     """
     Abstract base class for sampler objects.
     All sampler objects should inherit from this class.
-
     (written): Sarah Blunt, 2018
     """
 
@@ -42,9 +47,41 @@ class OFTI(Sampler):
     Args:
         lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
+
+    (written): Isabel Angelo, Logan Pearce, Sarah Blunt 2018
     """
     def __init__(self, system, like='chi2_lnlike'):
+
         super(OFTI, self).__init__(system, like=like)
+        
+        self.priors = self.system.sys_priors
+        self.tbl = self.system.data_table
+        self.radec_idx = self.system.radec[1]
+        self.seppa_idx = self.system.seppa[1]
+            
+        # these are of type astropy.table.column
+        self.sep_observed = self.tbl[:]['quant1']
+        self.pa_observed = self.tbl[:]['quant2']
+        self.sep_err = self.tbl[:]['quant1_err']
+        self.pa_err = self.tbl[:]['quant2_err']
+    
+        # convert RA/Dec rows to sep/PA
+        for i in self.radec_idx:
+            self.sep_observed[i], self.pa_observed[i] = radec2seppa(
+                self.sep_observed[i], self.pa_observed[i]
+            )
+            self.sep_err[i], self.pa_err[i] = radec2seppa(
+                self.sep_err[i], self.pa_err[i]
+            )
+
+        self.epochs = np.array(self.tbl['epoch'])
+        
+        # choose scale-and-rotate epoch
+        self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
+
+        # format sep/PA observations for use with the lnlike code
+        self.seppa_for_lnlike = np.column_stack((self.sep_observed, self.pa_observed))
+        self.seppa_errs_for_lnlike = np.column_stack((self.sep_err, self.pa_err))
 
     def prepare_samples(self, num_samples):
         """
@@ -52,48 +89,144 @@ class OFTI(Sampler):
         from priors, and performs scale & rotate.
 
         Args:
-            num_samples (int): number of orbits to prepare for OFTI to run
-                rejection sampling on
+            num_samples (int): number of orbits to draw and scale & rotate for 
+            OFTI to run rejection sampling on
 
         Return:
             np.array: array of prepared samples. The first dimension has size of 
-            num_samples. This should be passed into `reject()`
+            num_samples. This should be passed into ``reject()``
         """
-        pass
-        # draw an array of num_samples smas, eccs, etc. from prior objects: prior = (some object inhertiting from priors.Prior); samples = prior.draw_samples(#)
-      #  elements = system.priors # -> this step should be done in OFTI.__init__ so it doesn't slow performance
 
-    #    for element in elements:
-     #       samples[i,j] = system.priors[element].draw_samples(num_samples)
+        # TODO: modify to work for multi-planet systems
+        
+        # generate sample orbits
+        samples = np.empty([len(self.priors), num_samples])
+        for i in range(len(self.priors)): 
+            samples[i, :] = self.priors[i].draw_samples(num_samples)
 
-    def reject(self, orbit_configs):
+        # TODO: fix for the case where m_err and plx_err are nan
+        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+
+        period_prescale = np.sqrt(
+            4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
+        )
+        period_prescale = period_prescale.to(u.day).value
+        meananno = self.epochs[self.epoch_idx]/period_prescale - tau
+
+        # compute sep/PA of generated orbits 
+        ra, dec, vc = orbitize.kepler.calc_orbit(
+            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot
+        )
+        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]  
+        
+        # generate Gaussian offsets from observational uncertainties
+        sep_offset = np.random.normal(
+            0, self.sep_err[self.epoch_idx], size=num_samples
+        )
+        pa_offset =  np.random.normal(
+            0, self.pa_err[self.epoch_idx], size=num_samples
+        )
+        
+        # calculate correction factors
+        sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
+        lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
+        
+        # perform scale-and-rotate
+        sma *= sma_corr # [AU]
+        lan += np.radians(lan_corr) # [rad] 
+        lan = lan % (2*np.pi)
+
+        period_new = np.sqrt(
+            4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
+        )
+        period_new = period_new.to(u.day).value
+
+        tau = (self.epochs[self.epoch_idx]/period_new - meananno)
+
+        # updates samples with new values of sma, pan, tau
+        samples[0,:] = sma
+        samples[4,:] = lan
+        samples[5,:] = tau
+        
+        return samples
+        
+
+    def reject(self, samples):
         """
-        Runs rejection sampling on some prepared samples
+        Runs rejection sampling on some prepared samples.
 
         Args:
-            orbit_configs (np.array): array of prepared samples. The first dimension has size `num_samples`. This should be the output of ``prepare_samples()``
+            samples (np.array): array of prepared samples. The first dimension 
+            has size `num_samples`. This should be the output of 
+            `prepare_samples()`.
 
         Return:
-            np.array: a subset of orbit_configs that are accepted based on the data.
-
+            np.array: a subset of `samples` that are accepted based on the 
+                data.
+            
         """
-        pass
+        
+        # generate seppa for all remaining epochs
+        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+        
+        ra, dec, vc = orbitize.kepler.calc_orbit(
+            self.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
+        )
+        sep, pa = orbitize.system.radec2seppa(ra, dec)
 
-    def run_sampler(self, total_orbits):
+        seppa_model = np.vstack(zip(sep, pa))
+        seppa_model = seppa_model.reshape((len(self.epochs), 2, len(sma)))
+
+        # compute chi2 for each orbit
+        chi2 = orbitize.lnlike.chi2_lnlike(
+            self.seppa_for_lnlike, self.seppa_errs_for_lnlike, 
+            seppa_model, self.seppa_idx
+        )
+        
+        # convert to log(probability)
+        chi2_sum = np.nansum(chi2, axis=(0,1))
+        lnp = -chi2_sum/2.
+               
+        # reject orbits with probability less than a uniform random number
+        random_samples = np.log(np.random.random(len(lnp)))
+        saved_orbit_idx = np.where(lnp > random_samples)[0]
+        saved_orbits = np.array([samples[:,i] for i in saved_orbit_idx])
+        
+        return saved_orbits
+                
+
+    def run_sampler(self, total_orbits, num_samples=10000):
         """
-        Runs OFTI until we get the number of total accepted orbits we want.
+        Runs OFTI until we get the number of total accepted orbits we want. 
 
         Args:
-            total_orbits (int): total number of accepted possible orbits that
-                are desired
+            total_orbits (int): total number of accepted orbits desired by user
+            num_samples (int): number of orbits to prepare for OFTI to run
+            rejection sampling on
 
         Return:
-            np.array: array of accepted orbits. First dimension has size ``total_orbits``.
+            output_orbits (np.array): array of accepted orbits. First dimension 
+            has size `total_orbits`.
         """
-        # this function shold first check if we have reached enough orbits, and break when we do
 
-        # put outputs of calc_orbit into format specified by mask passed from System object. Feed these arrays of data, model, and errors into lnlike.py
-        pass
+        n_orbits_saved = 0
+        output_orbits = np.empty((total_orbits, len(self.priors)))
+        
+        # add orbits to `output_orbits` until `total_orbits` are saved
+        while n_orbits_saved < total_orbits:
+            samples = self.prepare_samples(num_samples)
+            accepted_orbits = self.reject(samples)
+            
+            if len(accepted_orbits)==0:
+                pass
+            else:
+                n_accepted = len(accepted_orbits)
+                maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
+
+                output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+                n_orbits_saved += maxindex2save
+                
+        return np.array(output_orbits)
 
 
 class PTMCMC(Sampler):

@@ -48,9 +48,9 @@ def test_systeminit():
     data_table['object'][1] = 2
 
     plx_mass_errs2lens = {
-        (0.,0.): 12, 
-        (1.,1.): 14, 
-        (0.,1.): 13, 
+        (0.,0.): 12,
+        (1.,1.): 14,
+        (0.,1.): 13,
         (1.,0.): 13
     }
 
@@ -63,7 +63,7 @@ def test_systeminit():
             plx_mass_errs2lens[(plx_e, mass_e)]
 
     testSystem_parsing = system.System(
-        2, data_table, 10., 10., 
+        2, data_table, 10., 10.,
         plx_err=0.5, mass_err=0.5
     )
     assert len(data_table[testSystem_parsing.seppa[0]]) == 0
@@ -74,24 +74,37 @@ def test_systeminit():
     assert len(data_table[testSystem_parsing.radec[2]]) == 0
 
     assert testSystem_parsing.labels == [
-        'a_1', 'e_1', 'aop_1', 'pan_1', 'i_1', 'epp_1', 'a_2',
-        'e_2', 'aop_2', 'pan_2', 'i_2', 'epp_2'
+        'a_1', 'e_1', 'i_1', 'aop_1', 'pan_1', 'epp_1', 'a_2',
+        'e_2', 'i_2', 'aop_2', 'pan_2', 'epp_2'
     ]
 
 
 def test_chi2lnlike():
     """
-    Test the ability of ``orbitize.lnlike.chi2_lnlike()`` 
+    Test the ability of ``orbitize.lnlike.chi2_lnlike()``
     to work properly on arrays.
     """
-    model = np.zeros((3,2,1))
-    data=np.ones((2,1))
-    errors=np.ones((2,1))
+    # test with a single model
+    model = np.zeros((3,2))
+    data=np.ones((3,2))
+    errors=np.ones((3,2))
 
-    seppa_indices = [np.array([])]
+    seppa_indices = [np.array([1])]
 
     chi2 = lnlike.chi2_lnlike(data, errors, model, seppa_indices)
-    assert chi2.all() == np.ones((3,2,1)).all()
+    assert chi2.shape == (3,2)
+    assert chi2.all() == np.ones((3,2)).all()
+
+    # test with multiple models
+    model = np.zeros((3,2,5))
+    data=np.ones((3,2))
+    errors=np.ones((3,2))
+
+    seppa_indices = [np.array([1])]
+
+    chi2 = lnlike.chi2_lnlike(data, errors, model, seppa_indices)
+    assert chi2.shape == (3,2,5)
+    assert chi2.all() == np.ones((3,2,5)).all()
 
 def test_radec2seppa():
     """
@@ -102,32 +115,3 @@ def test_radec2seppa():
     sep, pa = system.radec2seppa(ra, dec)
     assert sep.all() == np.array([1.,1.,np.sqrt(2.),np.sqrt(2.)]).all()
     assert pa.all() == np.array([270.,180.,225.,45.]).all()
-
-if __name__ == '__main__':
-    test_systeminit()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
