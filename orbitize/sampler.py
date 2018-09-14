@@ -226,6 +226,10 @@ class OFTI(Sampler):
                 output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
                 n_orbits_saved += maxindex2save
                 
+                #print progress statement
+                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+        
+        print('\n')       
         return np.array(output_orbits)
 
 
