@@ -15,26 +15,27 @@ input_file_1epoch = os.path.join(testdir, 'GJ504_1epoch.csv')
 
 def test_scale_and_rotate():
     
+    # perform scale-and-rotate
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
     s = myDriver.sampler
     samples = s.prepare_samples(100)
-    
-    #these have been moved to init
-    epochs = np.array(s.tbl['epoch']) # may move to init
-    sma,ecc,inc,argp,lan,tau,plx,mtot = [samp for samp in samples]
-    epoch_idx = np.argmin(s.sep_err) # may move to init
-    
-    ra, dec, vc = orbitize.kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
-    sep, pa = orbitize.system.radec2seppa(ra, dec)
-    sep_sar, pa_sar = np.median(sep[epoch_idx]), np.median(pa[epoch_idx])
 
-    assert sep_sar == pytest.approx(s.tbl[epoch_idx]['quant1'], abs=s.tbl[epoch_idx]['quant1_err'])
-    assert pa_sar == pytest.approx(s.tbl[epoch_idx]['quant2'], abs=s.tbl[epoch_idx]['quant2_err'])
+    sma,ecc,inc,argp,lan,tau,plx,mtot = [samp for samp in samples]
+    
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    sep, pa = orbitize.system.radec2seppa(ra, dec)
+    sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
+    
+    # test to make sure sep and pa scaled to scale-and-rotate epoch
+    sar_epoch = s.tbl[s.epoch_idx]
+    assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
+    assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
     
 def test_run_sampler():
-
+    
+    #initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
@@ -48,15 +49,17 @@ def test_run_sampler():
     
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
-    # should we use s.system.labels for idx??
-    sma = np.median([x[0] for x in orbits])
-    ecc = np.median([x[1] for x in orbits])
-    inc = np.median([x[2] for x in orbits])
+    idx = s.system.param_idx
+    sma = np.median([x[idx['a_1']] for x in orbits])
+    ecc = np.median([x[idx['e_1']] for x in orbits])
+    inc = np.median([x[idx['i_1']] for x in orbits])
     
+    # expected values from Blunt et al. (2017)
     sma_exp = 48.
     ecc_exp = 0.19
     inc_exp = np.radians(140)
     
+    # test to make sure OFTI values are within 20% of expectations
     assert sma == pytest.approx(sma_exp, abs=0.2*sma_exp)
     assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
