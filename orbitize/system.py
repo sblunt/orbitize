@@ -135,6 +135,9 @@ class System(object):
         else:
             self.abs_system_mass = system_mass
             self.labels.append('stellar_mass')
+        
+        #add labels dictionary for parameter indexing
+        self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
 
     def compute_model(self, params_arr):
