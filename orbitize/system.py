@@ -96,27 +96,27 @@ class System(object):
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
             self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
-            self.labels.append('a_{}'.format(body+1))
+            self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
             self.sys_priors.append(priors.UniformPrior(0.,1.))
-            self.labels.append('e_{}'.format(body+1))
+            self.labels.append('ecc{}'.format(body+1))
 
             # Add inclination angle prior
             self.sys_priors.append(priors.SinPrior())
-            self.labels.append('i_{}'.format(body+1))
+            self.labels.append('inc{}'.format(body+1))
 
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
-            self.labels.append('aop_{}'.format(body+1))
+            self.labels.append('aop{}'.format(body+1))
 
             # Add position angle of nodes prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
-            self.labels.append('pan_{}'.format(body+1))
+            self.labels.append('pan{}'.format(body+1))
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('epp_{}'.format(body+1))
+            self.labels.append('epp{}'.format(body+1))
 
         #
         # Set priors on system mass and parallax
@@ -126,7 +126,7 @@ class System(object):
             self.abs_plx = np.nan
         else:
             self.abs_plx = plx
-            self.labels.append('parallax')
+            self.labels.append('plx')
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(
                 system_mass, mass_err)
@@ -134,7 +134,7 @@ class System(object):
             self.abs_system_mass = np.nan
         else:
             self.abs_system_mass = system_mass
-            self.labels.append('stellar_mass')
+            self.labels.append('mtot')
         
         #add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
