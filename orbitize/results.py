@@ -73,8 +73,9 @@ class Results(object):
         """
         if format.lower()=='hdf5':
             hf = h5py.File(filename,'w') # Creates h5py file object
-            # Now add each attribute of the results object as a dataset
-            hf.create_dataset('sampler_name', data=self.sampler_name)
+            # Add sampler_name as attribute of the root group
+            hf.attrs['sampler_name']=self.sampler_name
+            # Now add post and lnlike from the results object as datasets
             hf.create_dataset('post', data=self.post)
             hf.create_dataset('lnlike', data=self.lnlike)
             hf.close() # Closes file object, which writes file to disk
@@ -99,7 +100,7 @@ class Results(object):
         if format.lower()=='hdf5':
             hf = h5py.File(filename,'r') # Opens file for reading
             # Load up each dataset from hdf5 file
-            sampler_name = np.str(hf.get('sampler_name'))
+            sampler_name = np.str(hf.attrs['sampler_name'])
             post = np.array(hf.get('post'))
             lnlike = np.array(hf.get('lnlike'))
             hf.close() # Closes file object

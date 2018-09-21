@@ -7,6 +7,7 @@ from orbitize import results
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
+import os
 
 def simulate_orbit_sampling(n_sim_orbits):
     """
@@ -115,6 +116,8 @@ def test_save_and_load_results(results_to_test, format='hdf5'):
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
     assert loaded_results.lnlike.shape == (expected_length,)
+    # Clean up: Remove save file
+    os.remove(save_filename)
 
 def test_plot_corner(results_to_test):
     """
