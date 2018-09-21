@@ -146,7 +146,9 @@ def test_plot_orbits(results_to_test):
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
-    test_save_and_load_results(test_results)
+    test_save_and_load_results(test_results, format='hdf5')
+    #test_save_and_load_results(test_results, format='fits')
+    #test_save_and_load_results(test_results, format='pickle')
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     # test_corner_fig1.savefig('test_corner1.png')
