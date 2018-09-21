@@ -71,7 +71,7 @@ def test_init_and_add_samples():
     return results_obj
 
 @pytest.fixture()
-def results_to_plot():
+def results_to_test():
     results_obj = results.Results(sampler_name='testing')
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -88,33 +88,62 @@ def results_to_plot():
     # Return object for testing
     return results_obj
 
-def test_plot_corner(results_to_plot):
+def test_save_and_load_results(results_to_test, format='hdf5'):
+    """
+    Tests saving and reloading of a results object
+    """
+    results_to_save = results_to_test
+    file_ext_dict={
+        'hdf5': '.h5',
+        'fits': '.fits',
+        'pickle': '.pkl'
+        }
+    save_filename='test_results'+file_ext_dict[format]
+    # Save to file
+    results_to_save.save_results(save_filename, format=format)
+    # Create new blank results object and load from file
+    loaded_results = results.Results()
+    loaded_results.load_results(save_filename, format=format, append=False)
+    # Check if loaded results equal saved results
+    assert results_to_save.sampler_name == loaded_results.sampler_name
+    assert np.array_equal(results_to_save.post, loaded_results.post)
+    assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
+    # Try to load the saved results again, this time appending
+    loaded_results.load_results(save_filename, format=format, append=True)
+    # Now check that the loaded results object has the expected size
+    original_length = results_to_save.post.shape[0]
+    expected_length = original_length * 2
+    assert loaded_results.post.shape == (expected_length, 8)
+    assert loaded_results.lnlike.shape == (expected_length,)
+
+def test_plot_corner(results_to_test):
     """
     Tests plot_corner() with plotting simulated posterior samples
     for all 8 parameters and for just four selected parameters
     """
-    Figure1 = results_to_plot.plot_corner()
+    Figure1 = results_to_test.plot_corner()
     assert Figure1 is not None
-    Figure2 = results_to_plot.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
+    Figure2 = results_to_test.plot_corner(param_list=['sma1','ecc1','inc1','mtot'])
     assert Figure2 is not None
     return Figure1, Figure2
 
-def test_plot_orbits(results_to_plot):
+def test_plot_orbits(results_to_test):
     """
     Tests plot_orbits() with simulated posterior samples
     """
-    Figure1 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=True)
+    Figure1 = results_to_test.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=True)
     assert Figure1 is not None
-    Figure2 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=False)
+    Figure2 = results_to_test.plot_orbits(num_orbits_to_plot=1,square_plot=True,show_colorbar=False)
     assert Figure2 is not None
-    Figure3 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=True)
+    Figure3 = results_to_test.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=True)
     assert Figure3 is not None
-    Figure4 = results_to_plot.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=False)
+    Figure4 = results_to_test.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=False)
     assert Figure4 is not None
     return (Figure1, Figure2, Figure3, Figure4)
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
+    test_save_and_load_results(test_results)
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     # test_corner_fig1.savefig('test_corner1.png')
