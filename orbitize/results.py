@@ -70,6 +70,10 @@ class Results(object):
         Args:
             filename (string): filepath to save to
             format (string): either 'hdf5' [default], 'fits', or 'pickle'
+
+        Note: The hdf5 format is strongly recommended!
+
+        (written): Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
             hf = h5py.File(filename,'w') # Creates h5py file object
@@ -96,6 +100,7 @@ class Results(object):
             append (boolean): if True, then new data is added to existing object,
                               if False [default], new data overwrites existing object
 
+        (written): Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
             hf = h5py.File(filename,'r') # Opens file for reading
