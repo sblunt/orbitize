@@ -69,7 +69,7 @@ class Results(object):
 
         Args:
             filename (string): filepath to save to
-            format (string): either 'hdf5' [default], 'fits', or 'pickle'
+            format (string): either 'hdf5' [default], or 'fits'
 
         Note: The hdf5 format is strongly recommended!
 
@@ -85,8 +85,6 @@ class Results(object):
             hf.close() # Closes file object, which writes file to disk
         elif format.lower()=='fits':
             pass
-        elif format.lower()=='pickle':
-            pass
         else:
             raise Exception('Invalid format {} for Results.save_results()'.format(format))
 
@@ -96,7 +94,7 @@ class Results(object):
 
         Args:
             filename (string): filepath where data is saved
-            format (string): either 'hdf5' [default], 'fits', or 'pickle'
+            format (string): either 'hdf5' [default], 'fits'
             append (boolean): if True, then new data is added to existing object,
                               if False [default], new data overwrites existing object
 
@@ -127,8 +125,6 @@ class Results(object):
                 else:
                     raise Exception('Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
         elif format.lower()=='fits':
-            pass
-        elif format.lower()=='pickle':
             pass
         else:
             raise Exception('Invalid format {} for Results.load_results()'.format(format))
