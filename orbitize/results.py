@@ -119,6 +119,9 @@ class Results(object):
             append (boolean): if True, then new data is added to existing object,
                               if False [default], new data overwrites existing object
 
+        See the save_results() method in this module for information on how the
+        data is structured.
+
         (written): Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
@@ -128,27 +131,37 @@ class Results(object):
             post = np.array(hf.get('post'))
             lnlike = np.array(hf.get('lnlike'))
             hf.close() # Closes file object
-            # Adds data to object as per append keyword
-            if append:
-                # if no sampler_name set, use the input file's value
-                if self.sampler_name is None:
-                    self._set_sampler_name(sampler_name)
-                # otherwise only proceed if the sampler_names match
-                elif self.sampler_name != sampler_name:
-                    raise Exception('Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
-                # Now append post and lnlike
-                self.add_samples(post,lnlike)
-            else:
-                # Only proceed if object is completely empty
-                if self.sampler_name is None and self.post is None and self.lnlike is None:
-                    self._set_sampler_name(sampler_name)
-                    self.add_samples(post,lnlike)
-                else:
-                    raise Exception('Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
         elif format.lower()=='fits':
-            pass
+            hdu_list = fits.open(filename) # Opens file as HDUList object
+            table_hdu = hdu_list[1] # Table data is in first extension
+            # Get sampler_name from header
+            sampler_name = table_hdu.header['SAMPNAME']
+            # Get post and lnlike arrays from column names
+            post = table_hdu.data.field('post')
+            lnlike = table_hdu.data.field('lnlike')
+            # Closes HDUList object
+            hdu_list.close()
         else:
             raise Exception('Invalid format {} for Results.load_results()'.format(format))
+
+        # Adds loaded data to object as per append keyword
+        if append:
+            # if no sampler_name set, use the input file's value
+            if self.sampler_name is None:
+                self._set_sampler_name(sampler_name)
+            # otherwise only proceed if the sampler_names match
+            elif self.sampler_name != sampler_name:
+                raise Exception('Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+            # Now append post and lnlike
+            self.add_samples(post,lnlike)
+        else:
+            # Only proceed if object is completely empty
+            if self.sampler_name is None and self.post is None and self.lnlike is None:
+                self._set_sampler_name(sampler_name)
+                self.add_samples(post,lnlike)
+            else:
+                raise Exception('Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
+
 
     def plot_corner(self, param_list=[], **corner_kwargs):
         """
