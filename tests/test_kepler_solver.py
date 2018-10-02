@@ -45,8 +45,8 @@ def test_orbit_e03():
 
     Pretty standard orbit with ecc = 0.3
     """
-    # sma, ecc, tau, argp, lan, inc, plx, mtot
-    orbital_params = np.array([10, 0.3, 0.3, 0.5, 1.5, 3, 50, 1.5])
+    # sma, ecc, inc, argp, lan, tau, plx, mtot
+    orbital_params = np.array([10, 0.3, 3, 0.5, 1.5, 0.3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7])
@@ -66,17 +66,17 @@ def test_orbit_e03_array():
     """
     Test orbitize.kepler.calc_orbit() with a standard orbit with ecc = 0.3 and an array of keplerian input
     """
-    # sma, ecc, tau, argp, lan, inc, plx, mtot
+    # sma, ecc, inc, argp, lan, tau, plx, mtot
     sma = np.array([10,10,10])
     ecc = np.array([0.3,0.3,0.3])
-    tau = np.array([0.3,0.3,0.3])
+    inc = np.array([3,3,3])
     argp = np.array([0.5,0.5,0.5])
     lan = np.array([1.5,1.5,1.5])
-    inc = np.array([3,3,3])
+    tau = np.array([0.3,0.3,0.3])
     plx = np.array([50,50,50])
     mtot = np.array([1.5,1.5,1.5])
     epochs = np.array([1000, 1101.4])
-    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
 
     true_raoff = np.array([[ 152.86786, 152.86786, 152.86786],
                            [ 180.39408, 180.39408, 180.39408]])
@@ -98,8 +98,8 @@ def test_orbit_e99():
     """
     Test a highly eccentric orbit (ecc=0.99). Again validate against James Graham's orbit code
     """
-    # sma, ecc, tau, argp, lan, inc, plx, mtot
-    orbital_params = np.array([10, 0.99, 0.3, 0.5, 1.5, 3, 50, 1.5])
+    # sma, ecc, inc, argp, lan, tau, plx, mtot
+    orbital_params = np.array([10, 0.99, 3, 0.5, 1.5, 0.3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7])
@@ -122,8 +122,8 @@ def test_orbit_with_mass():
     We will test two equal mass bodies, which will reduce the RV signal by 2, compared to the RV signal of a massless particle in a system with the
     same total mass.
     """
-    # sma, ecc, tau, argp, lan, inc, plx, mtot
-    orbital_params = np.array([10, 0.99, 0.3, 0.5, 1.5, 3, 50, 1.5])
+    # sma, ecc, inc, argp, lan, tau, plx, mtot
+    orbital_params = np.array([10, 0.99, 3, 0.5, 1.5, 0.3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
                                         orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7], mass=orbital_params[7]/2)
@@ -143,18 +143,18 @@ def test_orbit_with_mass_array():
     """
     Test orbitize.kepler.calc_orbit() with massive particle on a standard orbit with ecc = 0.3 and an array of keplerian input
     """
-    # sma, ecc, tau, argp, lan, inc, plx, mtot
+    # sma, ecc, inc, argp, lan, tau, plx, mtot
     sma = np.array([10,10,10])
     ecc = np.array([0.3,0.3,0.3])
-    tau = np.array([0.3,0.3,0.3])
+    inc = np.array([3,3,3])
     argp = np.array([0.5,0.5,0.5])
     lan = np.array([1.5,1.5,1.5])
-    inc = np.array([3,3,3])
+    tau = np.array([0.3,0.3,0.3])
     plx = np.array([50,50,50])
     mtot = np.array([1.5,1.5,1.5])
     epochs = np.array([1000, 1101.4])
     mass = mtot/2
-    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot, mass=mass)
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass)
 
 
     true_raoff = np.array([[ 152.86786, 152.86786, 152.86786],
@@ -178,14 +178,14 @@ def test_orbit_scalar():
     """
     sma = 10
     ecc = 0.3
-    tau = 0.3
+    inc = 3
     argp = 0.5
     lan = 1.5
-    inc = 3
+    tau = 0.3
     plx = 50
     mtot = 1.5
     epochs = 1000
-    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, tau, argp, lan, inc, plx, mtot)
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
 
     true_raoff = 152.86786
     true_deoff = -462.91038

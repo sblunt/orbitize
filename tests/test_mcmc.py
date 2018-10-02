@@ -19,12 +19,14 @@ def test_pt_mcmc_runs(num_threads=1):
     orbit = system.System(1, data_table, 1, 0.01)
 
     # construct sampler
-    mcmc = sampler.PTMCMC(chi2_lnlike, orbit, 2, 100, num_threads=num_threads)
+    n_temps=2
+    n_walkers=100
+    mcmc = sampler.PTMCMC(chi2_lnlike, orbit, n_temps, n_walkers, num_threads=num_threads)
 
     # run it a little
-    emcee_sampler_obj = mcmc.run_sampler(10, 1)
-
-    print(emcee_sampler_obj.chain[0, 0])
+    mcmc.run_sampler(10, 1)
+    # run it a little more (tests adding to results object
+    mcmc.run_sampler(10, 1)
 
 def test_ensemble_mcmc_runs(num_threads=1):
     """
@@ -41,12 +43,13 @@ def test_ensemble_mcmc_runs(num_threads=1):
     orbit = system.System(1, data_table, 1, 0.01)
 
     # construct sampler
-    mcmc = sampler.EnsembleMCMC(chi2_lnlike, orbit, 100, num_threads=num_threads)
+    n_walkers=100
+    mcmc = sampler.EnsembleMCMC(chi2_lnlike, orbit, n_walkers, num_threads=num_threads)
 
     # run it a little
-    emcee_sampler_obj = mcmc.run_sampler(10, burn_steps=1)
-
-    print(emcee_sampler_obj.chain[0, 0])
+    mcmc.run_sampler(10, burn_steps=1)
+    # run it a little more (tests adding to results object)
+    mcmc.run_sampler(10, burn_steps=1)
 
 if __name__ == "__main__":
     test_pt_mcmc_runs(num_threads=1)
