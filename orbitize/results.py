@@ -76,7 +76,12 @@ class Results(object):
         attributes from the results.Results object.
         HDF5: `sampler_name` is an attribute of the root group. `post` and `lnlike`
         are datasets that are members of the root group.
-        FITS:
+        FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
+            After reading with something like `hdu = astropy.io.fits.open(file)`,
+            hdu[1].header['SAMPNAME'] returns the `sampler_name`
+            hdu[1].data returns a Table with two columns.
+                The first column contains the post array
+                The second column contains the lnlike array
 
         (written): Henry Ngo, 2018
         """
@@ -89,8 +94,18 @@ class Results(object):
             hf.create_dataset('lnlike', data=self.lnlike)
             hf.close() # Closes file object, which writes file to disk
         elif format.lower()=='fits':
-            col_post = fits.Column(name='post', format='D', array=self.post)
+            n_params = self.post.shape[1]
+            # Create column from post array. Each cell is a 1-d array of n_params length
+            post_format_string = '{}D'.format(n_params) # e.g. would read '8D' for 8 parameter fit
+            col_post = fits.Column(name='post', format=post_format_string, array=self.post)
+            # Create lnlike column
             col_lnlike = fits.Column(name='lnlike', format='D', array=self.lnlike)
+            # Create the Binary Table HDU
+            hdu = fits.BinTableHDU.from_columns([col_post,col_lnlike])
+            # Add sampler_name to the hdu's header
+            hdu.header['SAMPNAME'] = self.sampler_name
+            # Write to fits file
+            hdu.writeto(filename)
         else:
             raise Exception('Invalid format {} for Results.save_results()'.format(format))
 
