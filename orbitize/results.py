@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import corner
 import orbitize.kepler as kepler
 import h5py
+from astropy.io import fits
 
 class Results(object):
     """
@@ -88,7 +89,8 @@ class Results(object):
             hf.create_dataset('lnlike', data=self.lnlike)
             hf.close() # Closes file object, which writes file to disk
         elif format.lower()=='fits':
-            pass
+            col_post = fits.Column(name='post', format='D', array=self.post)
+            col_lnlike = fits.Column(name='lnlike', format='D', array=self.lnlike)
         else:
             raise Exception('Invalid format {} for Results.save_results()'.format(format))
 
