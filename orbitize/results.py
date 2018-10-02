@@ -71,7 +71,11 @@ class Results(object):
             filename (string): filepath to save to
             format (string): either 'hdf5' [default], or 'fits'
 
-        Note: The hdf5 format is strongly recommended!
+        Both formats (HDF5 and FITS) save the `sampler_name`, `post`, and `lnlike`
+        attributes from the results.Results object.
+        HDF5: `sampler_name` is an attribute of the root group. `post` and `lnlike`
+        are datasets that are members of the root group.
+        FITS:
 
         (written): Henry Ngo, 2018
         """
