@@ -228,7 +228,6 @@ class OFTI(Sampler):
                 
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
-               
         return np.array(output_orbits)
 
 
