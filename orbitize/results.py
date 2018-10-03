@@ -5,6 +5,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import corner
 import orbitize.kepler as kepler
+import h5py
+from astropy.io import fits
 
 class Results(object):
     """
@@ -56,14 +58,110 @@ class Results(object):
             self.post = np.vstack((self.post,orbital_params))
             self.lnlike = np.append(self.lnlike,lnlikes)
 
-    def save_results(self, filename):
+    def _set_sampler_name(self, sampler_name):
         """
-        Save results to file
+        internal method to set object's sampler_name attribute
+        """
+        self.sampler_name = sampler_name
+
+    def save_results(self, filename, format='hdf5'):
+        """
+        Save results.Results object to a file
 
         Args:
             filename (string): filepath to save to
+            format (string): either 'hdf5' [default], or 'fits'
+
+        Both formats (HDF5 and FITS) save the `sampler_name`, `post`, and `lnlike`
+        attributes from the results.Results object.
+        HDF5: `sampler_name` is an attribute of the root group. `post` and `lnlike`
+        are datasets that are members of the root group.
+        FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
+            After reading with something like `hdu = astropy.io.fits.open(file)`,
+            hdu[1].header['SAMPNAME'] returns the `sampler_name`
+            hdu[1].data returns a Table with two columns.
+                The first column contains the post array
+                The second column contains the lnlike array
+
+        (written): Henry Ngo, 2018
         """
-        pass
+        if format.lower()=='hdf5':
+            hf = h5py.File(filename,'w') # Creates h5py file object
+            # Add sampler_name as attribute of the root group
+            hf.attrs['sampler_name']=self.sampler_name
+            # Now add post and lnlike from the results object as datasets
+            hf.create_dataset('post', data=self.post)
+            hf.create_dataset('lnlike', data=self.lnlike)
+            hf.close() # Closes file object, which writes file to disk
+        elif format.lower()=='fits':
+            n_params = self.post.shape[1]
+            # Create column from post array. Each cell is a 1-d array of n_params length
+            post_format_string = '{}D'.format(n_params) # e.g. would read '8D' for 8 parameter fit
+            col_post = fits.Column(name='post', format=post_format_string, array=self.post)
+            # Create lnlike column
+            col_lnlike = fits.Column(name='lnlike', format='D', array=self.lnlike)
+            # Create the Binary Table HDU
+            hdu = fits.BinTableHDU.from_columns([col_post,col_lnlike])
+            # Add sampler_name to the hdu's header
+            hdu.header['SAMPNAME'] = self.sampler_name
+            # Write to fits file
+            hdu.writeto(filename)
+        else:
+            raise Exception('Invalid format {} for Results.save_results()'.format(format))
+
+    def load_results(self, filename, format='hdf5', append=False):
+        """
+        Populate the results.Results object with data from a datafile
+
+        Args:
+            filename (string): filepath where data is saved
+            format (string): either 'hdf5' [default], 'fits'
+            append (boolean): if True, then new data is added to existing object,
+                              if False [default], new data overwrites existing object
+
+        See the save_results() method in this module for information on how the
+        data is structured.
+
+        (written): Henry Ngo, 2018
+        """
+        if format.lower()=='hdf5':
+            hf = h5py.File(filename,'r') # Opens file for reading
+            # Load up each dataset from hdf5 file
+            sampler_name = np.str(hf.attrs['sampler_name'])
+            post = np.array(hf.get('post'))
+            lnlike = np.array(hf.get('lnlike'))
+            hf.close() # Closes file object
+        elif format.lower()=='fits':
+            hdu_list = fits.open(filename) # Opens file as HDUList object
+            table_hdu = hdu_list[1] # Table data is in first extension
+            # Get sampler_name from header
+            sampler_name = table_hdu.header['SAMPNAME']
+            # Get post and lnlike arrays from column names
+            post = table_hdu.data.field('post')
+            lnlike = table_hdu.data.field('lnlike')
+            # Closes HDUList object
+            hdu_list.close()
+        else:
+            raise Exception('Invalid format {} for Results.load_results()'.format(format))
+
+        # Adds loaded data to object as per append keyword
+        if append:
+            # if no sampler_name set, use the input file's value
+            if self.sampler_name is None:
+                self._set_sampler_name(sampler_name)
+            # otherwise only proceed if the sampler_names match
+            elif self.sampler_name != sampler_name:
+                raise Exception('Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+            # Now append post and lnlike
+            self.add_samples(post,lnlike)
+        else:
+            # Only proceed if object is completely empty
+            if self.sampler_name is None and self.post is None and self.lnlike is None:
+                self._set_sampler_name(sampler_name)
+                self.add_samples(post,lnlike)
+            else:
+                raise Exception('Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
+
 
     def plot_corner(self, param_list=[], **corner_kwargs):
         """
