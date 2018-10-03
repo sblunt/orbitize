@@ -50,9 +50,9 @@ def test_run_sampler():
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
     idx = s.system.param_idx
-    sma = np.median([x[idx['a_1']] for x in orbits])
-    ecc = np.median([x[idx['e_1']] for x in orbits])
-    inc = np.median([x[idx['i_1']] for x in orbits])
+    sma = np.median([x[idx['sma1']] for x in orbits])
+    ecc = np.median([x[idx['ecc1']] for x in orbits])
+    inc = np.median([x[idx['inc1']] for x in orbits])
     
     # expected values from Blunt et al. (2017)
     sma_exp = 48.
