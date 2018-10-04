@@ -184,8 +184,7 @@ class OFTI(Sampler):
         )
         
         # convert to log(probability)
-        chi2_sum = np.nansum(chi2, axis=(0,1))
-        lnp = -chi2_sum/2.
+        lnp = np.nansum(chi2, axis=(0,1))
                
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
