@@ -301,7 +301,9 @@ class PTMCMC(Sampler):
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=total_orbits, thin=thin):
+        nsteps = int(np.ceil(total_orbits / self.num_walkers))
+
+        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=nsteps, thin=thin):
             pass
 
         self.curr_pos = pos
@@ -412,7 +414,9 @@ class EnsembleMCMC(Sampler):
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in sampler.sample(pos, lnprob0=lnprob, iterations=total_orbits, thin=thin):
+        nsteps = int(np.ceil(total_orbits / self.num_walkers))
+
+        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=nsteps, thin=thin):
             pass
 
         self.curr_pos = pos
