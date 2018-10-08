@@ -126,7 +126,7 @@ class JeffreysPrior(Prior):
         """
         normalizer = self.logmax - self.logmin
 
-        lnprob = np.log((element_array*normalizer)**(-1))
+        lnprob = -np.log((element_array*normalizer))
 
         # account for scalar inputs
         if np.shape(lnprob) == ():
@@ -213,7 +213,9 @@ class SinPrior(Prior):
         # draw uniform from -1 to 1
         samples = np.random.uniform(-1, 1, num_samples)
 
-        return np.arccos(samples)
+        samples = np.arccos(samples) % np.pi
+
+        return samples
 
     def compute_lnprob(self, element_array):
 
@@ -304,7 +306,9 @@ def all_lnpriors(params, priors):
     """
     logp = 0.
     for param, prior in zip(params, priors):
-        logp += prior.compute_lnprob(param)
+        param = np.array([param])
+        
+        logp += prior.compute_lnprob(param) # retrun a float
     
     return logp
 
