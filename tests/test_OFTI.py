@@ -49,6 +49,7 @@ def test_run_sampler():
     
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
+    print()
     idx = s.system.param_idx
     sma = np.median([x[idx['sma1']] for x in orbits])
     ecc = np.median([x[idx['ecc1']] for x in orbits])
@@ -69,6 +70,7 @@ def test_run_sampler():
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     s = myDriver.sampler
     s.run_sampler(1)
+    print()
     
 
 if __name__ == "__main__":
