@@ -123,6 +123,34 @@ a new blank results object.
 
     from orbitize import results
     loaded_results = results.Results() # Create blank results object for loading
-    loaded_results.load_results("my_posterior.hdf5", format="hdf5", append=False)
+    loaded_results.load_results("my_posterior.hdf5")
 
-  
+
+Instead of loading results into an orbitize.results.Results object, we can also directly access the saved data using
+the `'h5py'` python module
+
+.. code-block: python
+
+      import h5py
+      filename = 'my_posterior.hdf5'
+      hf = h5py.File(filename,'r') # Opens file for reading
+      # Load up each dataset from hdf5 file
+      sampler_name = np.str(hf.attrs['sampler_name'])
+      post = np.array(hf.get('post'))
+      lnlike = np.array(hf.get('lnlike'))
+
+
+Although HDF5 is the recommend and default way to save results, we can also save and load as a Binary FITS table.
+
+.. code-block: python
+
+    # Saving results object
+    my_sampler.results.save_result("my_posterior.fits", format='fits')
+
+    # Loading results object
+    from orbitize import results
+    loaded_results = results.Results() # Create blank results object for loading
+    loaded_results.load_results("my_posterior.fits", format='fits')
+
+
+Test.
