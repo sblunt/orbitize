@@ -74,8 +74,38 @@ too much disk space, despite the fact many samples are unnecessary because they 
     my_sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
 
 
-Save Results
-------------
+After completing the samples, the `'run_sampler'` method also creates a `'Results'` object that can be accessed
+with `'my_sampler.results'`.
+
+Plotting Basics
+---------------
+We will make some basic plots to visualize the samples in `'my_sampler.results'`. orbitize currently has two basic
+plotting functions which returns matplotlib Figure objects. First, we can make a corner plot (also known as
+triangle plot, scatterplot matrix, pairs plot) to visualize correlations between pairs of orbit parameters:
+
+.. code-block: python
+
+    corner_plot_fig = my_sampler.results.plot_corner() # Creates a corner plot and returns Figure object
+    corner_plot_fig.savefig('my_corner_plot.png') # This is matplotlib.figure.Figure.savefig()
+
+
+Next, we can plot a visualization of a selection of orbits sampled by our sampler. By default, the first epoch
+plotted is the year 2000 and
+
+.. code-block: python
+    orbit_plot_fig = my_sampler.results.plot_orbits(
+                        object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
+                        num_orbits_to_plot= 100 # Will plot 100 randomly selected orbits of this companion
+                        )
+    orbit_plot_fig.savefig('my_orbit_plot.png') # This is matplotlib.figure.Figure.savefig()
+
+
+For more advanced plotting options and suggestions on what to do with the returned matplotlib Figure objects,
+see the dedicated Plotting tutorial (coming soon)
+
+
+Saving and Loading Results
+--------------------------
 We will save the results in the HDF5 format. It will save two fields: `'post'` which will contain the posterior
 (the chains of the lowest temperature walkers) and `'lnlike'` which has the corresponding probabilities.
 
