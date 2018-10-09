@@ -83,7 +83,7 @@ We will make some basic plots to visualize the samples in `'my_sampler.results'`
 plotting functions which returns matplotlib Figure objects. First, we can make a corner plot (also known as
 triangle plot, scatterplot matrix, pairs plot) to visualize correlations between pairs of orbit parameters:
 
-.. code-block: python
+.. code-block:: python
 
     corner_plot_fig = my_sampler.results.plot_corner() # Creates a corner plot and returns Figure object
     corner_plot_fig.savefig('my_corner_plot.png') # This is matplotlib.figure.Figure.savefig()
@@ -92,7 +92,7 @@ triangle plot, scatterplot matrix, pairs plot) to visualize correlations between
 Next, we can plot a visualization of a selection of orbits sampled by our sampler. By default, the first epoch
 plotted is the year 2000 and 100 sampled orbits are displayed.
 
-.. code-block: python
+.. code-block:: python
     orbit_plot_fig = my_sampler.results.plot_orbits(
                         object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
                         num_orbits_to_plot= 100 # Will plot 100 randomly selected orbits of this companion
@@ -119,7 +119,7 @@ Saving sampler results is a good idea when we want to analyze the results in a d
 save the output of a long MCMC run to avoid having to re-run it in the future. We can then load the saved results into
 a new blank results object.
 
-.. code-block: python
+.. code-block:: python
 
     from orbitize import results
     loaded_results = results.Results() # Create blank results object for loading
@@ -129,7 +129,7 @@ a new blank results object.
 Instead of loading results into an orbitize.results.Results object, we can also directly access the saved data using
 the `'h5py'` python module
 
-.. code-block: python
+.. code-block:: python
 
       import h5py
       filename = 'my_posterior.hdf5'
@@ -142,7 +142,7 @@ the `'h5py'` python module
 
 Although HDF5 is the recommend and default way to save results, we can also save and load as a Binary FITS table.
 
-.. code-block: python
+.. code-block:: python
 
     # Saving results object
     my_sampler.results.save_result("my_posterior.fits", format='fits')
@@ -151,6 +151,3 @@ Although HDF5 is the recommend and default way to save results, we can also save
     from orbitize import results
     loaded_results = results.Results() # Create blank results object for loading
     loaded_results.load_results("my_posterior.fits", format='fits')
-
-
-Test.
