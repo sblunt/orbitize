@@ -90,7 +90,7 @@ triangle plot, scatterplot matrix, pairs plot) to visualize correlations between
 
 
 Next, we can plot a visualization of a selection of orbits sampled by our sampler. By default, the first epoch
-plotted is the year 2000 and
+plotted is the year 2000 and 100 sampled orbits are displayed.
 
 .. code-block: python
     orbit_plot_fig = my_sampler.results.plot_orbits(
@@ -101,14 +101,28 @@ plotted is the year 2000 and
 
 
 For more advanced plotting options and suggestions on what to do with the returned matplotlib Figure objects,
-see the dedicated Plotting tutorial (coming soon)
+see the dedicated Plotting tutorial (coming soon).
 
 
 Saving and Loading Results
 --------------------------
-We will save the results in the HDF5 format. It will save two fields: `'post'` which will contain the posterior
-(the chains of the lowest temperature walkers) and `'lnlike'` which has the corresponding probabilities.
+We will save the results in the HDF5 format. It will save two datasets: `'post'` which will contain the posterior
+(the chains of the lowest temperature walkers) and `'lnlike'` which has the corresponding probabilities. In addition,
+it saves `'sampler_name'` as an attribute of the HDF5 root group.
 
 .. code-block:: python
 
     my_sampler.results.save_result("my_posterior.hdf5")
+
+
+Saving sampler results is a good idea when we want to analyze the results in a different script or when we you want to
+save the output of a long MCMC run to avoid having to re-run it in the future. We can then load the saved results into
+a new blank results object.
+
+.. code-block: python
+
+    from orbitize import results
+    loaded_results = results.Results() # Create blank results object for loading
+    loaded_results.load_results("my_posterior.hdf5", format="hdf5", append=False)
+
+  
