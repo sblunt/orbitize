@@ -63,8 +63,7 @@ Running the MCMC Sampler
 ------------------------
 We need to pick how many steps the MCMC sampler should sample. Additionally, because the samples are correalted,
 we often only save every nth sample. This helps when we run a lot of samples, and saving all the samples requires
-too much disk space, despite the fact many samples are unncessary because they are correlated. We recommend picking
-not too-large of a burn-in as one can always discard more steps if necessary.
+too much disk space, despite the fact many samples are unncessary because they are correlated. 
 
 .. code-block:: python
 
@@ -73,3 +72,13 @@ not too-large of a burn-in as one can always discard more steps if necessary.
     thin = 10 # only save every 10th steps
 
     my_sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+
+
+Save Results
+------------
+We will save the results in the HDF5 format. It will save two fields: `'post'` which will contain the posterior 
+(the chains of the lowest temperature walkers) and `'lnlike'` which has the corresponding probabilities.
+
+.. code-block:: python
+
+    my_sampler.results.save_result("my_posterior.hdf5")
