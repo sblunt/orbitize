@@ -5,7 +5,7 @@ MCMC Orbit Fitting
 Here, we will explain how to sample an orbit posterior using MCMC techniques. MCMC samplers take some time
 to fully converge on the complex posterior, but should be able to explore all posteriors in roughly the same
 amount of time (unlike OFTI). We will use the parallel-tempered version of the affine invariant sample from
-the emcee package, as the parallel tempering helps the walkers get out of local minima. 
+the emcee package, as the parallel tempering helps the walkers get out of local minima.
 
 Read in Data and Set up System
 -------------------------------
@@ -37,13 +37,13 @@ including marginalizing over the uncertainties in those parameters.
 
 Setting up the MCMC Sampler
 ---------------------------
-When setting up the sampler, we need to decide on how many temperatures and how many walkers per temperature 
+When setting up the sampler, we need to decide on how many temperatures and how many walkers per temperature
 to use. Increasing the number of temperatures further ensures your walkers will explore all of parameter space
 and will not get stuck in local minima. Increasing the number of walkers gives you more samples to use, and, for
 the affine-invariant sampler, a minimum amount is required for good convergence. Of course, the trade off is that
-more samplers means more computation time. Here, we recommend 20 temperatuers and 1000 walkers, as we find this 
+more samplers means more computation time. Here, we recommend 20 temperatures and 1000 walkers, as we find this
 to be reliable in always converging. Note that we will only use the samples from the lowest temperature walkers only.
-We also will assume that our astrometric measuremnts follow a Gaussian distribution. 
+We also will assume that our astrometric measurements follow a Gaussian distribution.
 
 .. code-block:: python
 
@@ -61,9 +61,9 @@ We also will assume that our astrometric measuremnts follow a Gaussian distribut
 
 Running the MCMC Sampler
 ------------------------
-We need to pick how many steps the MCMC sampler should sample. Additionally, because the samples are correalted,
+We need to pick how many steps the MCMC sampler should sample. Additionally, because the samples are correlated,
 we often only save every nth sample. This helps when we run a lot of samples, and saving all the samples requires
-too much disk space, despite the fact many samples are unncessary because they are correlated. 
+too much disk space, despite the fact many samples are unnecessary because they are correlated.
 
 .. code-block:: python
 
@@ -76,7 +76,7 @@ too much disk space, despite the fact many samples are unncessary because they a
 
 Save Results
 ------------
-We will save the results in the HDF5 format. It will save two fields: `'post'` which will contain the posterior 
+We will save the results in the HDF5 format. It will save two fields: `'post'` which will contain the posterior
 (the chains of the lowest temperature walkers) and `'lnlike'` which has the corresponding probabilities.
 
 .. code-block:: python
