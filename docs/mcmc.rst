@@ -138,6 +138,7 @@ the `'h5py'` python module
       sampler_name = np.str(hf.attrs['sampler_name'])
       post = np.array(hf.get('post'))
       lnlike = np.array(hf.get('lnlike'))
+      hf.close() # Don't forget to close the file
 
 
 Although HDF5 is the recommend and default way to save results, we can also save and load as a Binary FITS table.
@@ -151,3 +152,20 @@ Although HDF5 is the recommend and default way to save results, we can also save
     from orbitize import results
     loaded_results = results.Results() # Create blank results object for loading
     loaded_results.load_results("my_posterior.fits", format='fits')
+
+
+And, if we want to directly access the saved data, we should know that the data are saved as Binary FITS Table
+to the **first extension** HDU with information saved in the header and data attributes as below.
+
+.. code-block:: python
+
+    from astropy.io import fits
+    hdu_list = fits.open(filename) # Opens file as HDUList object
+    table_hdu = hdu_list[1] # Table data is in first extension
+    # Get sampler_name from header
+    sampler_name = table_hdu.header['SAMPNAME']
+    # Get post and lnlike arrays from column names
+    post = table_hdu.data.field('post')
+    lnlike = table_hdu.data.field('lnlike')
+    # Closes HDUList object
+    hdu_list.close()
