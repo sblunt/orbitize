@@ -1,9 +1,9 @@
+from __future__ import print_function
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
 import sys
 import abc
-from __future__ import print_function
 
 import emcee
 import ptemcee
