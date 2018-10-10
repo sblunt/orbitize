@@ -185,8 +185,7 @@ class OFTI(Sampler):
         )
         
         # convert to log(probability)
-        chi2_sum = np.nansum(chi2, axis=(0,1))
-        lnp = -chi2_sum/2.
+        lnp = np.nansum(chi2, axis=(0,1))
                
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -305,7 +304,9 @@ class PTMCMC(Sampler):
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=total_orbits, thin=thin):
+        nsteps = int(np.ceil(total_orbits / self.num_walkers))
+
+        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=nsteps, thin=thin):
             pass
 
         self.curr_pos = pos
@@ -416,7 +417,9 @@ class EnsembleMCMC(Sampler):
         self.curr_pos = pos
         print('Burn in complete')
 
-        for pos, lnprob, lnlike in sampler.sample(pos, lnprob0=lnprob, iterations=total_orbits, thin=thin):
+        nsteps = int(np.ceil(total_orbits / self.num_walkers))
+
+        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=nsteps, thin=thin):
             pass
 
         self.curr_pos = pos

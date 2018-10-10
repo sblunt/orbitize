@@ -93,7 +93,7 @@ def test_chi2lnlike():
 
     chi2 = lnlike.chi2_lnlike(data, errors, model, seppa_indices)
     assert chi2.shape == (3,2)
-    assert chi2.all() == np.ones((3,2)).all()
+    assert (chi2 == -0.5 * np.ones((3,2))).all()
 
     # test with multiple models
     model = np.zeros((3,2,5))
@@ -104,7 +104,7 @@ def test_chi2lnlike():
 
     chi2 = lnlike.chi2_lnlike(data, errors, model, seppa_indices)
     assert chi2.shape == (3,2,5)
-    assert chi2.all() == np.ones((3,2,5)).all()
+    assert (chi2 == -0.5 * np.ones((3,2,5))).all()
 
 def test_radec2seppa():
     """

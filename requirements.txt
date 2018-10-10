@@ -5,3 +5,4 @@ emcee
 ptemcee
 matplotlib
 corner
+h5py
