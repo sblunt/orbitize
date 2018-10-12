@@ -7,3 +7,5 @@ Henry Ngo -- wrote code to read inputs, collaboratively developed kepler.py, col
 Rob De Rosa -- collaboratively developed kepler.py
 
 Devin Cody -- wrote c implementation of kepler module
+
+Isabel Angelo -- collaboratively wrote OFTI sampler and tutorial
