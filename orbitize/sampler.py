@@ -40,6 +40,38 @@ class Sampler(ABC):
     def run_sampler(self, total_orbits):
         pass
 
+    def _logl(self, params):
+        """
+        log likelihood function that interfaces with the orbitize objects
+        Comptues the sum of the log likelihoods of the data given the input model
+
+        Args:
+            params (np.array of float): RxM array
+                of fitting parameters, where R is the number of
+                parameters being fit, and M is the number of orbits
+                we need model predictions for. Must be in the same order
+                documented in System() above. If M=1, this can be a 1d array.
+
+        Returns:
+            lnlikes (float): sum of all log likelihoods of the data given input model
+
+        """
+        # compute the model based on system params
+        model = self.system.compute_model(params)
+
+        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
+        data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
+        errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
+
+        # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
+        seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
+
+        # compute lnlike
+        lnlikes =  self.lnlike(data, errs, model, seppa_indices)
+
+        # return sum of lnlikes (aka product of likeliehoods)
+        return np.nansum(lnlikes, axis=(0,1))
+
 
 class OFTI(Sampler):
     """
@@ -49,7 +81,7 @@ class OFTI(Sampler):
         lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
 
-    (written): Isabel Angelo, Logan Pearce, Sarah Blunt 2018
+    (written): Isabel Angelo, Sarah Blunt, Logan Pearce 2018
     """
     def __init__(self, system, like='chi2_lnlike'):
 
@@ -105,7 +137,6 @@ class OFTI(Sampler):
         for i in range(len(self.priors)): 
             samples[i, :] = self.priors[i].draw_samples(num_samples)
 
-        # TODO: fix for the case where m_err and plx_err are nan
         sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
 
         period_prescale = np.sqrt(
@@ -166,26 +197,8 @@ class OFTI(Sampler):
                 data.
             
         """
-        
-        # generate seppa for all remaining epochs
-        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
-        
-        ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
-        )
-        sep, pa = orbitize.system.radec2seppa(ra, dec)
 
-        seppa_model = np.vstack(zip(sep, pa))
-        seppa_model = seppa_model.reshape((len(self.epochs), 2, len(sma)))
-
-        # compute chi2 for each orbit
-        chi2 = orbitize.lnlike.chi2_lnlike(
-            self.seppa_for_lnlike, self.seppa_errs_for_lnlike, 
-            seppa_model, self.seppa_idx
-        )
-        
-        # convert to log(probability)
-        lnp = np.nansum(chi2, axis=(0,1))
+        lnp = self._logl(samples)
                
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -318,34 +331,6 @@ class PTMCMC(Sampler):
 
         return sampler
 
-    def _logl(self, params):
-        """
-        log likelihood function for emcee that interfaces with the orbitize objectts
-        Comptues the sum of the log likelihoods of all the data given the input model
-
-        Args:
-            params (np.array): 1-D numpy array of size self.num_params
-
-        Returns:
-            lnlikes (float): sum of all log likelihoods of the data given input model
-
-        """
-        # compute the model based on system params
-        model = self.system.compute_model(params)
-
-        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
-        data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
-        errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
-
-        # todo: THIS ONLY WORKS FOR 1 PLANET. Could in the future make this a for loop to work for multiple planets.
-        seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
-
-        # compute lnlike now
-        lnlikes =  self.lnlike(data, errs, model, seppa_indices)
-
-        # return sum of lnlikes (aka product of likeliehoods)
-        return np.nansum(lnlikes)
-
 class EnsembleMCMC(Sampler):
     """
     Affine-Invariant Ensemble MCMC Sampler using emcee. Warning: may not work well for multi-modal distributions
@@ -429,31 +414,3 @@ class EnsembleMCMC(Sampler):
         self.results.add_samples(self.post,self.lnlikes)
 
         return sampler
-
-    def _logl(self, params):
-        """
-        log likelihood function for emcee that interfaces with the orbitize objectts
-        Comptues the sum of the log likelihoods of all the data given the input model
-
-        Args:
-            params (np.array): 1-D numpy array of size self.num_params
-
-        Returns:
-            lnlikes (float): sum of all log likelihoods of the data given input model
-
-        """
-        # compute the model based on system params
-        model = self.system.compute_model(params)
-
-        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
-        data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
-        errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
-
-        # todo: THIS ONLY WORKS FOR 1 PLANET. Could in the future make this a for loop to work for multiple planets.
-        seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
-
-        # compute lnlike now
-        lnlikes =  self.lnlike(data, errs, model, seppa_indices)
-
-        # return sum of lnlikes (aka product of likeliehoods)
-        return np.nansum(lnlikes)

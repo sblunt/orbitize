@@ -45,8 +45,8 @@ def test_run_sampler():
     myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
     
     # test num_samples=1
-    s.run_sampler(0,num_samples=1)
-    
+    s.run_sampler(0,num_samples=1)    
+
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
     print()

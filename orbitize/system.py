@@ -183,22 +183,19 @@ class System(object):
             raoff, decoff, vz = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
             )
-            # TODO: hack to get this working for mcmc
-            # if len(raoff.shape) == 1:
-            #     raoff = raoff.reshape(1, raoff.shape[0])
-            #     decoff = decoff.reshape(1, decoff.shape[0])
-            #     vz = vz.reshape(1, vz.shape[0])
 
-            model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
-            model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
+            if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)
+                model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
+                model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
 
-            sep, pa = radec2seppa(
-                raoff[self.seppa[body_num]],
-                decoff[self.seppa[body_num]]
-            )
+            if len(raoff[self.seppa[body_num]]) > 0:
+                sep, pa = radec2seppa(
+                    raoff[self.seppa[body_num]],
+                    decoff[self.seppa[body_num]]
+                )
 
-            model[self.seppa[body_num], 0] = sep
-            model[self.seppa[body_num], 1] = pa
+                model[self.seppa[body_num], 0] = sep
+                model[self.seppa[body_num], 1] = pa
 
         return model
 
