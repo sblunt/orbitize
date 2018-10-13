@@ -197,7 +197,6 @@ class OFTI(Sampler):
                 data.
             
         """
-
         lnp = self._logl(samples)
                
         # reject orbits with probability less than a uniform random number

@@ -9,6 +9,9 @@ __pycache__/
 # Cython generated files
 _kepler.c
 
+# Pytest cache
+.pytest_cache/
+
 # Distribution / packaging
 .Python
 env/
