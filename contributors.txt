@@ -9,3 +9,5 @@ Rob De Rosa -- collaboratively developed kepler.py
 Devin Cody -- wrote c implementation of kepler module
 
 Isabel Angelo -- collaboratively wrote OFTI sampler and tutorial
+
+Logan Pearce -- assisted with OFTI code and provided test data
