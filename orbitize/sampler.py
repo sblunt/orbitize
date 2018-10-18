@@ -503,7 +503,7 @@ class EnsembleMCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(PTMCMC, self)._logl(full_params) + logp
+        return super(EnsembleMCMC, self)._logl(full_params) + logp
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
