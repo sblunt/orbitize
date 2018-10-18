@@ -395,7 +395,7 @@ class MCMC(Sampler):
         if self.use_pt:
             sampler = ptemcee.Sampler(self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,] )
         else:
-            sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._logl, threads=self.num_threads)
+            sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._logl, threads=self.num_threads, kwargs={'include_logp' : True})
 
 
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
