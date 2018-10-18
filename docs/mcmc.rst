@@ -5,13 +5,9 @@ MCMC Orbit Fitting
 Here, we will explain how to sample an orbit posterior using MCMC techniques. MCMC samplers take some time
 to fully converge on the complex posterior, but should be able to explore all posteriors in roughly the same
 amount of time (unlike OFTI). We will use the parallel-tempered version of the affine invariant sample from
-<<<<<<< HEAD
 the emcee package, as the parallel tempering helps the walkers get out of local minima. Parallel-tempering can
 be disabled by setting the number of temperatures to 1, and will revert back to using the regular ensemble 
 sampler from emcee. 
-=======
-the emcee package, as the parallel tempering helps the walkers get out of local minima.
->>>>>>> 31f03f305473fbb2a46234ebfc8d9893f795cfbc
 
 Read in Data and Set up System
 -------------------------------
