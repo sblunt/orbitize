@@ -414,7 +414,8 @@ class MCMC(Sampler):
         # TODO: Need something here to pick out temperatures, just using lowest one for now
         self.chain = sampler.chain
         self.post = sampler.flatchain[0,:]
-        self.lnlikes = sampler.logprobability
+        self.lnlikes = sampler.logprobability[0:,] # shoudl also be picking out the lowest temperature logps
+        self.lnlikes_alltemps = sampler.logprobability
         self.results.add_samples(self.post,self.lnlikes)
 
         return sampler
