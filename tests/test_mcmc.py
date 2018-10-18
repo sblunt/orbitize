@@ -24,9 +24,9 @@ def test_pt_mcmc_runs(num_threads=1):
     mcmc = sampler.MCMC(chi2_lnlike, orbit, n_temps, n_walkers, num_threads=num_threads)
 
     # run it a little
-    mcmc.run_sampler(10, 1)
+    mcmc.run_sampler(1000, 1)
     # run it a little more (tests adding to results object
-    mcmc.run_sampler(10, 1)
+    mcmc.run_sampler(1000, 1)
 
 def test_ensemble_mcmc_runs(num_threads=1):
     """
@@ -47,9 +47,9 @@ def test_ensemble_mcmc_runs(num_threads=1):
     mcmc = sampler.MCMC(chi2_lnlike, orbit, 0, n_walkers, num_threads=num_threads)
 
     # run it a little
-    mcmc.run_sampler(10, burn_steps=1)
+    mcmc.run_sampler(1000, burn_steps=1)
     # run it a little more (tests adding to results object)
-    mcmc.run_sampler(10, burn_steps=1)
+    mcmc.run_sampler(1000, burn_steps=1)
 
 if __name__ == "__main__":
     test_pt_mcmc_runs(num_threads=1)

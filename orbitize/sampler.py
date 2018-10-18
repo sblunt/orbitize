@@ -273,6 +273,12 @@ class MCMC(Sampler):
             lnlike = None
         )
 
+        if self.num_temps > 1:
+            self.use_pt = True
+        else:
+            self.use_pt = False
+            self.num_temps = 1
+
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
         self.fixed_params = []
@@ -289,14 +295,23 @@ class MCMC(Sampler):
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
             # TODO: be smarter in the future
-            random_init = prior.draw_samples(num_walkers*num_temps).reshape([num_temps, num_walkers])
+            random_init = prior.draw_samples(num_walkers*num_temps)
+            if num_temps > 1:
+                random_init = random_init.reshape([num_temps, num_walkers])
 
             init_positions.append(random_init)
 
-        # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
-        # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
-        # save this as the current position
-        self.curr_pos = np.dstack(init_positions)
+        # save this as the current position for the walkers
+        if self.use_pt:
+            # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension    
+            self.curr_pos = np.dstack(init_positions)
+        else:
+            # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
+            # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
+            # We need to make nparams the second dimension, so we have to transpose the stacked array
+            self.curr_pos = np.stack(init_positions).T
+
 
     
     def _fill_in_fixed_params(self, sampled_params):
@@ -377,7 +392,7 @@ class MCMC(Sampler):
         Returns:
             emcee.sampler object
         """
-        if self.num_temps > 1:
+        if self.use_pt:
             sampler = ptemcee.Sampler(self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,] )
         else:
             sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._logl, threads=self.num_threads)
