@@ -2,8 +2,12 @@ Sarah Blunt -- collaboratively designed basic API, wrote basic API
 
 Jason Wang -- collaboratively designed basic API, collaboratively developed kepler.py, wrote MCMC sampler
 
-Henry Ngo -- wrote code to read inputs, collaboratively developed kepler.py, collaboratively developed results.py
+Henry Ngo -- wrote code to read inputs, save/load results, and make basic plots; collaboratively developed kepler.py and results.py
 
 Rob De Rosa -- collaboratively developed kepler.py
 
 Devin Cody -- wrote c implementation of kepler module
+
+Isabel Angelo -- collaboratively wrote OFTI sampler and tutorial
+
+Logan Pearce -- assisted with OFTI code and provided test data

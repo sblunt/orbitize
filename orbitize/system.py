@@ -96,45 +96,44 @@ class System(object):
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
             self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
-            self.labels.append('a_{}'.format(body+1))
+            self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
             self.sys_priors.append(priors.UniformPrior(0.,1.))
-            self.labels.append('e_{}'.format(body+1))
+            self.labels.append('ecc{}'.format(body+1))
 
             # Add inclination angle prior
             self.sys_priors.append(priors.SinPrior())
-            self.labels.append('i_{}'.format(body+1))
+            self.labels.append('inc{}'.format(body+1))
 
             # Add argument of periastron prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
-            self.labels.append('aop_{}'.format(body+1))
+            self.labels.append('aop{}'.format(body+1))
 
             # Add position angle of nodes prior
             self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
-            self.labels.append('pan_{}'.format(body+1))
+            self.labels.append('pan{}'.format(body+1))
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('epp_{}'.format(body+1))
+            self.labels.append('epp{}'.format(body+1))
 
         #
-        # Set priors on system mass and parallax
+        # Set priors on total mass and parallax
         #
+        self.labels.append('plx')
+        self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-            self.abs_plx = np.nan
         else:
-            self.abs_plx = plx
-            self.labels.append('parallax')
+            self.sys_priors.append(plx)
         if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(
-                system_mass, mass_err)
-            )
-            self.abs_system_mass = np.nan
+            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
-            self.abs_system_mass = system_mass
-            self.labels.append('stellar_mass')
+            self.sys_priors.append(system_mass)
+        
+        #add labels dictionary for parameter indexing
+        self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
 
     def compute_model(self, params_arr):
@@ -158,14 +157,6 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
 
-        if not np.isnan(self.abs_plx):
-            plx = self.abs_plx
-        else:
-            plx = params_arr[6*self.num_secondary_bodies]
-        if not np.isnan(self.abs_system_mass):
-            mtot = self.abs_system_mass
-        else:
-            mtot = params_arr[-1]
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
@@ -176,26 +167,25 @@ class System(object):
             argp = params_arr[body_num+2]
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
+            plx = params_arr[6*self.num_secondary_bodies]
+            mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
             )
-            # TODO: hack to get this working for mcmc
-            # if len(raoff.shape) == 1:
-            #     raoff = raoff.reshape(1, raoff.shape[0])
-            #     decoff = decoff.reshape(1, decoff.shape[0])
-            #     vz = vz.reshape(1, vz.shape[0])
 
-            model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
-            model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
+            if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)
+                model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
+                model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
 
-            sep, pa = radec2seppa(
-                raoff[self.seppa[body_num]],
-                decoff[self.seppa[body_num]]
-            )
+            if len(raoff[self.seppa[body_num]]) > 0:
+                sep, pa = radec2seppa(
+                    raoff[self.seppa[body_num]],
+                    decoff[self.seppa[body_num]]
+                )
 
-            model[self.seppa[body_num], 0] = sep
-            model[self.seppa[body_num], 1] = pa
+                model[self.seppa[body_num], 0] = sep
+                model[self.seppa[body_num], 1] = pa
 
         return model
 

@@ -19,11 +19,11 @@ def test_compute_model():
         1, data_table, 10., 10.
     )
 
-    params_arr = np.array([[1.,0.5],[0.,0.],[0.,0.],[0.,0.],[0.,0.],[245000., 245000.]])
+    params_arr = np.array([[1.,0.5],[0.,0.],[0.,0.],[0.,0.],[0.,0.],[245000., 245000.], [10, 10], [10, 10]])
     model = testSystem_parsing.compute_model(params_arr)
     assert model.shape == (4,2,2)
 
-    params_arr = np.array([1.,0.,0.,0.,0.,245000.])
+    params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 10])
     model = testSystem_parsing.compute_model(params_arr)
     assert model.shape == (4,2)
 
@@ -48,10 +48,10 @@ def test_systeminit():
     data_table['object'][1] = 2
 
     plx_mass_errs2lens = {
-        (0.,0.): 12,
+        (0.,0.): 14,
         (1.,1.): 14,
-        (0.,1.): 13,
-        (1.,0.): 13
+        (0.,1.): 14,
+        (1.,0.): 14
     }
 
     for plx_e, mass_e in plx_mass_errs2lens.keys():
@@ -74,8 +74,8 @@ def test_systeminit():
     assert len(data_table[testSystem_parsing.radec[2]]) == 0
 
     assert testSystem_parsing.labels == [
-        'a_1', 'e_1', 'i_1', 'aop_1', 'pan_1', 'epp_1', 'a_2',
-        'e_2', 'i_2', 'aop_2', 'pan_2', 'epp_2'
+        'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'epp1', 'sma2',
+        'ecc2', 'inc2', 'aop2', 'pan2', 'epp2','plx','mtot'
     ]
 
 
