@@ -295,9 +295,9 @@ class MCMC(Sampler):
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
             # TODO: be smarter in the future
-            random_init = prior.draw_samples(num_walkers*num_temps)
-            if num_temps > 1:
-                random_init = random_init.reshape([num_temps, num_walkers])
+            random_init = prior.draw_samples(num_walkers*self.num_temps)
+            if self.num_temps > 1:
+                random_init = random_init.reshape([self.num_temps, num_walkers])
 
             init_positions.append(random_init)
 
