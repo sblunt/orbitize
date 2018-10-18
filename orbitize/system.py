@@ -119,22 +119,18 @@ class System(object):
             self.labels.append('epp{}'.format(body+1))
 
         #
-        # Set priors on system mass and parallax
+        # Set priors on total mass and parallax
         #
+        self.labels.append('plx')
+        self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-            self.abs_plx = np.nan
         else:
-            self.abs_plx = plx
-            self.labels.append('plx')
+            self.sys_priors.append(plx)
         if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(
-                system_mass, mass_err)
-            )
-            self.abs_system_mass = np.nan
+            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
-            self.abs_system_mass = system_mass
-            self.labels.append('mtot')
+            self.sys_priors.append(system_mass)
         
         #add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
@@ -161,14 +157,6 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
 
-        if not np.isnan(self.abs_plx):
-            plx = self.abs_plx
-        else:
-            plx = params_arr[6*self.num_secondary_bodies]
-        if not np.isnan(self.abs_system_mass):
-            mtot = self.abs_system_mass
-        else:
-            mtot = params_arr[-1]
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
@@ -179,6 +167,8 @@ class System(object):
             argp = params_arr[body_num+2]
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
+            plx = params_arr[6*self.num_secondary_bodies]
+            mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
