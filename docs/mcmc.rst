@@ -5,7 +5,9 @@ MCMC Orbit Fitting
 Here, we will explain how to sample an orbit posterior using MCMC techniques. MCMC samplers take some time
 to fully converge on the complex posterior, but should be able to explore all posteriors in roughly the same
 amount of time (unlike OFTI). We will use the parallel-tempered version of the affine invariant sample from
-the emcee package, as the parallel tempering helps the walkers get out of local minima. 
+the emcee package, as the parallel tempering helps the walkers get out of local minima. Parallel-tempering can
+be disabled by setting the number of temperatures to 1, and will revert back to using the regular ensemble 
+sampler from emcee. 
 
 Read in Data and Set up System
 -------------------------------
@@ -56,7 +58,7 @@ We also will assume that our astrometric measuremnts follow a Gaussian distribut
     n_walkers = 1000
     n_threads = mp.cpu_count() # or a different number if you prefer
 
-    my_sampler = sampler.PTMCMC(likelihood_func_name, my_system, n_temps, n_walkers, n_threads)
+    my_sampler = sampler.MCMC(likelihood_func_name, my_system, n_temps, n_walkers, n_threads)
 
 
 Running the MCMC Sampler
