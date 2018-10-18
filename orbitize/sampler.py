@@ -276,7 +276,7 @@ class PTMCMC(Sampler):
         self.fixed_params = []
         for i, prior in enumerate(system.sys_priors):
             # check for pixed parameters
-            if hasattr(prior, "compute_lnprob"):
+            if not hasattr(prior, "draw_samples"):
                 self.fixed_params.append((i, prior))
             else:
                 self.priors.append(prior)
@@ -422,8 +422,15 @@ class EnsembleMCMC(Sampler):
             lnlike = None
         )
 
-        # get priors from the system class
-        self.priors = system.sys_priors
+        # get priors from the system class. need to remove and record fixed priors
+        self.priors = []
+        self.fixed_params = []
+        for i, prior in enumerate(system.sys_priors):
+            # check for pixed parameters
+            if not hasattr(prior, "draw_samples"):
+                self.fixed_params.append((i, prior))
+            else:
+                self.priors.append(prior)
 
         # initialize walkers initial postions
         self.num_params = len(self.priors)
