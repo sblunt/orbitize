@@ -119,22 +119,18 @@ class System(object):
             self.labels.append('epp{}'.format(body+1))
 
         #
-        # Set priors on system mass and parallax
+        # Set priors on total mass and parallax
         #
+        self.labels.append('plx')
+        self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-            self.abs_plx = np.nan
         else:
-            self.abs_plx = plx
-            self.labels.append('plx')
+            self.sys_priors.append(plx)
         if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(
-                system_mass, mass_err)
-            )
-            self.abs_system_mass = np.nan
+            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
-            self.abs_system_mass = system_mass
-            self.labels.append('mtot')
+            self.sys_priors.append(system_mass)
         
         #add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))

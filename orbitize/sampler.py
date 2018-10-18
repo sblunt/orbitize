@@ -135,7 +135,10 @@ class OFTI(Sampler):
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
         for i in range(len(self.priors)): 
-            samples[i, :] = self.priors[i].draw_samples(num_samples)
+            if hasattr(self.priors[i], "draw_samples"):
+                samples[i, :] = self.priors[i].draw_samples(num_samples)
+            else: # param is fixed & has no prior
+                samples[i, :] = self.priors[i] * np.ones(num_samples)
 
         sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
 
@@ -268,8 +271,15 @@ class PTMCMC(Sampler):
             lnlike = None
         )
 
-        # get priors from the system class
-        self.priors = system.sys_priors
+        # get priors from the system class. need to remove and record fixed priors
+        self.priors = []
+        self.fixed_params = []
+        for i, prior in enumerate(system.sys_priors):
+            # check for pixed parameters
+            if hasattr(prior, "compute_lnprob"):
+                self.fixed_params.append((i, prior))
+            else:
+                self.priors.append(prior)
 
         # initialize walkers initial postions
         self.num_params = len(self.priors)
@@ -285,6 +295,65 @@ class PTMCMC(Sampler):
         # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
         # save this as the current position
         self.curr_pos = np.dstack(init_positions)
+
+    
+    def _fill_in_fixed_params(self, sampled_params):
+        """
+        Fills in the missing parameters from the chain that aren't being sampeld
+
+        Args:
+            sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
+
+        Returns:
+            full_params (np.array): same number of dimensions as sampled_params, but with num_params including the fixed parameters
+        """
+        if len(self.fixed_params) == 0:
+            # nothing to add
+            return sampled_params
+
+        # check if 1-D or 2-D
+        twodim = np.ndim(sampled_params) == 2
+
+        # insert in params
+        for index, value in self.fixed_params:
+            if twodim:
+                sampled_params = np.insert(sampled_params, index, value, axis=1)
+            else:
+                sampled_params = np.insert(sampled_params, index, value)
+
+        return sampled_params
+
+    def _logl(self, params, include_logp=False):
+        """
+        log likelihood function that interfaces with the orbitize objects
+        Comptues the sum of the log likelihoods of the data given the input model
+
+        Args:
+            params (np.array of float): MxR array
+                of fitting parameters, where R is the number of
+                parameters being fit, and M is the number of orbits
+                we need model predictions for. Must be in the same order
+                documented in System() above. If M=1, this can be a 1d array.
+
+            include_logp (bool): if True, also includ elog prior in this function
+
+        Returns:
+            lnlikes (float): sum of all log likelihoods of the data given input model
+
+        """
+        if include_logp:
+            if np.ndim(params) == 1:
+                logp = orbitize.priors.all_lnpriors(params, self.priors)
+            else:
+                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors) for pset in params])
+        else:
+            logp = 0 # don't include prior
+
+        full_params = self._fill_in_fixed_params(params)
+        if np.ndim(full_params) == 2:
+            full_params = full_params.T
+
+        return super(PTMCMC, self)._logl(full_params) + logp
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
@@ -370,6 +439,64 @@ class EnsembleMCMC(Sampler):
         # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
         # We need to make nparams the second dimension, so we have to transpose the stacked array
         self.curr_pos = np.stack(init_positions).T
+    
+    def _fill_in_fixed_params(self, sampled_params):
+        """
+        Fills in the missing parameters from the chain that aren't being sampeld
+
+        Args:
+            sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
+
+        Returns:
+            full_params (np.array): same number of dimensions as sampled_params, but with num_params including the fixed parameters
+        """
+        if len(self.fixed_params) == 0:
+            # nothing to add
+            return sampled_params
+
+        # check if 1-D or 2-D
+        twodim = np.ndim(sampled_params) == 2
+
+        # insert in params
+        for index, value in self.fixed_params:
+            if twodim:
+                sampled_params = np.insert(sampled_params, index, value, axis=1)
+            else:
+                sampled_params = np.insert(sampled_params, index, value)
+
+        return sampled_params
+
+    def _logl(self, params, include_logp=False):
+        """
+        log likelihood function that interfaces with the orbitize objects
+        Comptues the sum of the log likelihoods of the data given the input model
+
+        Args:
+            params (np.array of float): MxR array
+                of fitting parameters, where R is the number of
+                parameters being fit, and M is the number of orbits
+                we need model predictions for. Must be in the same order
+                documented in System() above. If M=1, this can be a 1d array.
+
+            include_logp (bool): if True, also includ elog prior in this function
+
+        Returns:
+            lnlikes (float): sum of all log likelihoods of the data given input model
+
+        """
+        if include_logp:
+            if np.ndim(params) == 1:
+                logp = orbitize.priors.all_lnpriors(params, self.priors)
+            else:
+                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors) for pset in params])
+        else:
+            logp = 0 # don't include prior
+
+        full_params = self._fill_in_fixed_params(params)
+        if np.ndim(full_params) == 2:
+            full_params = full_params.T
+
+        return super(PTMCMC, self)._logl(full_params) + logp
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """

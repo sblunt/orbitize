@@ -73,6 +73,17 @@ def test_run_sampler():
     print()
     
 
+def test_fixed_sys_params_sampling():
+    # test in case of fixed mass and parallax
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+    1, 1.22, 56.95)
+    
+    s = myDriver.sampler
+    samples = s.prepare_samples(100)
+    assert np.all(samples[-1] == s.priors[-1])
+    assert isinstance(samples[-3], np.ndarray)
+
+
 if __name__ == "__main__":
     test_scale_and_rotate()
     test_run_sampler()
