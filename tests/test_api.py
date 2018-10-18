@@ -48,10 +48,10 @@ def test_systeminit():
     data_table['object'][1] = 2
 
     plx_mass_errs2lens = {
-        (0.,0.): 12,
+        (0.,0.): 14,
         (1.,1.): 14,
-        (0.,1.): 13,
-        (1.,0.): 13
+        (0.,1.): 14,
+        (1.,0.): 14
     }
 
     for plx_e, mass_e in plx_mass_errs2lens.keys():
