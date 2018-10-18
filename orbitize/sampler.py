@@ -420,6 +420,10 @@ class MCMC(Sampler):
         else:
             self.post = sampler.flatchain
             self.lnlikes = sampler.lnprobability
+
+        # include fixed parameters in posterior
+        self.post = self._fill_in_fixed_params(self.post)
+
         self.results.add_samples(self.post,self.lnlikes)
 
         return sampler
