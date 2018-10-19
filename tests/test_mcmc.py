@@ -23,7 +23,7 @@ def test_pt_mcmc_runs(num_threads=1):
     mcmc = sampler.MCMC(orbit, n_temps, n_walkers, num_threads=num_threads)
 
     # run it a little (tests 0 burn-in steps)
-    mcmc.run_sampler(10)
+    mcmc.run_sampler(100)
     # run it a little more
     mcmc.run_sampler(1000, 1)
     # run it a little more (tests adding to results object)
@@ -49,7 +49,7 @@ def test_ensemble_mcmc_runs(num_threads=1):
 
 
     # run it a little (tests 0 burn-in steps)
-    mcmc.run_sampler(10)
+    mcmc.run_sampler(100)
     # run it a little more
     mcmc.run_sampler(1000, burn_steps=1)
     # run it a little more (tests adding to results object)

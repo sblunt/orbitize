@@ -4,7 +4,7 @@ Tutorials
 =========
 
 The following tutorials walk you through performing orbit fits with
-``orbitize``. To get started, read through "Formatting Inputs," "OFTI
+``orbitize``. To get started, read through "Formatting Input," "OFTI
 Introduction," and "MCMC Introduction." To learn more about the 
 ``orbitize`` API (and to learn how to modify priors), check out "Modifying 
 Priors." For an advanced plotting demo, see "Advanced Plotting," and to learn 

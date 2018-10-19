@@ -276,7 +276,7 @@ class MCMC(Sampler):
 
     (written): Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', ):
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike'):
 
         super(MCMC, self).__init__(system, like=like)
 
@@ -434,6 +434,8 @@ class MCMC(Sampler):
         print('Burn in complete')
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
+
+        assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
         for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
             pass
