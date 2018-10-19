@@ -5,18 +5,21 @@
 orbitize!
 ==========
 
-Contents:
+Hello world! Welcome to the documentation for ``obitize``, the Python
+package for fitting orbits of directly imaged planets. 
+
+**Contents**:
 
 .. toctree::
    :maxdepth: 2
 
+   installation
+   tutorials
    api
 
 
 
-Indices and tables
-==================
+Methods Index
+=============
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

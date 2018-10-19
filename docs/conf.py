@@ -57,8 +57,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'orbitize'
-copyright = '2018, Sarah Blunt, Jason Wang, Henry Ngo, et al'
-author = 'Sarah Blunt, Jason Wang, Henry Ngo, et al'
+copyright = '2018, Sarah Blunt, Jason Wang, Isabel Angelo, Henry Ngo, et al'
+author = 'Sarah Blunt, Jason Wang, Isabel Angelo, Henry Ngo, et al'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
