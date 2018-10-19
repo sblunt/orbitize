@@ -268,14 +268,15 @@ class MCMC(Sampler):
 
     Args:
         system (system.System): system.System object
-        num_temps (int): number of temperatures to run the sampler at. Parallel tempering will be used if num_temps > 1
-        num_walkers (int): number of walkers at each temperature
-        lnlike (string): name of likelihood function in ``lnlike.py``
+        num_temps (int): number of temperatures to run the sampler at. Parallel tempering will be 
+            used if num_temps > 1 (default=20)
+        num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
+        like (string): name of likelihood function in ``lnlike.py``
 
     (written): Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, system, num_temps, num_walkers, like='chi2_lnlike', num_threads=1):
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', ):
 
         super(MCMC, self).__init__(system, like=like)
 
