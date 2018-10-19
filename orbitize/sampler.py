@@ -78,7 +78,7 @@ class OFTI(Sampler):
     OFTI Sampler
 
     Args:
-        lnlike (string): name of likelihood function in ``lnlike.py``
+        like (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
 
     (written): Isabel Angelo, Sarah Blunt, Logan Pearce 2018
@@ -267,16 +267,18 @@ class MCMC(Sampler):
     Affine-Invariant Ensemble MCMC Sampler using emcee. Warning: may not work well for multi-modal distributions
 
     Args:
-        lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
         num_temps (int): number of temperatures to run the sampler at. Parallel tempering will be used if num_temps > 1
         num_walkers (int): number of walkers at each temperature
+        lnlike (string): name of likelihood function in ``lnlike.py``
         num_threads (int): number of threads to use for parallelization (default=1)
 
     (written): Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, lnlike, system, num_temps, num_walkers, num_threads=1):
-        super(MCMC, self).__init__(system, like=lnlike)
+    def __init__(self, system, num_temps, num_walkers, like='chi2_lnlike', num_threads=1):
+
+        super(MCMC, self).__init__(system, like=like)
+
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
@@ -409,21 +411,30 @@ class MCMC(Sampler):
             emcee.sampler object
         """
         if self.use_pt:
-            sampler = ptemcee.Sampler(self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,] )
+            sampler = ptemcee.Sampler(
+                self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, 
+                ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,] 
+            )
         else:
-            sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._logl, threads=self.num_threads, kwargs={'include_logp' : True})
+            sampler = emcee.EnsembleSampler(
+                self.num_walkers, self.num_params, self._logl, 
+                threads=self.num_threads, kwargs={'include_logp' : True}
+            )
 
 
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
             pass
 
         sampler.reset()
-        self.curr_pos = pos
+        try:
+            self.curr_pos = pos
+        except UnboundLocalError: # 0 step burn-in (pos is not defined)
+            pass
         print('Burn in complete')
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
 
-        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=nsteps, thin=thin):
+        for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
             pass
 
         self.curr_pos = pos
@@ -442,4 +453,6 @@ class MCMC(Sampler):
 
         self.results.add_samples(self.post,self.lnlikes)
 
-        return self.results
+        print('Run complete')
+
+        return sampler

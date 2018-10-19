@@ -2,7 +2,6 @@ import os
 import orbitize.sampler as sampler
 import orbitize.system as system
 import orbitize.read_input as read_input
-from orbitize.lnlike import chi2_lnlike
 
 def test_pt_mcmc_runs(num_threads=1):
     """
@@ -21,11 +20,13 @@ def test_pt_mcmc_runs(num_threads=1):
     # construct sampler
     n_temps=2
     n_walkers=100
-    mcmc = sampler.MCMC(chi2_lnlike, orbit, n_temps, n_walkers, num_threads=num_threads)
+    mcmc = sampler.MCMC(orbit, n_temps, n_walkers, num_threads=num_threads)
 
-    # run it a little
+    # run it a little (tests 0 burn-in steps)
+    mcmc.run_sampler(10)
+    # run it a little more
     mcmc.run_sampler(1000, 1)
-    # run it a little more (tests adding to results object
+    # run it a little more (tests adding to results object)
     mcmc.run_sampler(1000, 1)
 
 def test_ensemble_mcmc_runs(num_threads=1):
@@ -44,9 +45,12 @@ def test_ensemble_mcmc_runs(num_threads=1):
 
     # construct sampler
     n_walkers=100
-    mcmc = sampler.MCMC(chi2_lnlike, orbit, 0, n_walkers, num_threads=num_threads)
+    mcmc = sampler.MCMC(orbit, 0, n_walkers, num_threads=num_threads)
 
-    # run it a little
+
+    # run it a little (tests 0 burn-in steps)
+    mcmc.run_sampler(10)
+    # run it a little more
     mcmc.run_sampler(1000, burn_steps=1)
     # run it a little more (tests adding to results object)
     mcmc.run_sampler(1000, burn_steps=1)
