@@ -41,6 +41,9 @@ class GaussianPrior(Prior):
         self.mu = mu
         self.sigma = sigma
 
+    def __repr__(self):
+        return "Gaussian"
+
     def draw_samples(self, num_samples):
         """
         Draw samples from a Gaussian distribution.
@@ -96,6 +99,9 @@ class JeffreysPrior(Prior):
         self.logmin = np.log(minval)
         self.logmax = np.log(maxval)
 
+    def __repr__(self):
+        return "Jeffreys"
+
     def draw_samples(self, num_samples):
         """
         Draw samples from this 1/x distribution.
@@ -150,6 +156,9 @@ class UniformPrior(Prior):
         self.minval = minval
         self.maxval = maxval
 
+    def __repr__(self):
+        return "Uniform"
+
     def draw_samples(self, num_samples):
         """
         Draw samples from this uniform distribution.
@@ -198,6 +207,9 @@ class SinPrior(Prior):
 
     def __init__(self):
         pass
+
+    def __repr__(self):
+        return "Sine"
 
     def draw_samples(self, num_samples):
         """
@@ -251,6 +263,9 @@ class LinearPrior(Prior):
     def __init__(self, m, b):
         self.m = m
         self.b = b
+
+    def __repr__(self):
+        return "Linear"
 
     def draw_samples(self, num_samples):
         """

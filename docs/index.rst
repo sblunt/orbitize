@@ -5,7 +5,7 @@
 orbitize!
 ==========
 
-Hello world! Welcome to the documentation for ``obitize``, the Python
+Hello world! Welcome to the documentation for ``obitize``, a Python
 package for fitting orbits of directly imaged planets. 
 
 **Contents**:

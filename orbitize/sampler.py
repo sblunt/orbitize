@@ -112,9 +112,12 @@ class OFTI(Sampler):
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
 
-        # format sep/PA observations for use with the lnlike code
-        self.seppa_for_lnlike = np.column_stack((self.sep_observed, self.pa_observed))
-        self.seppa_errs_for_lnlike = np.column_stack((self.sep_err, self.pa_err))
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            sampler_name = self.__class__.__name__,
+            post = None,
+            lnlike = None
+        )
 
     def prepare_samples(self, num_samples):
         """
@@ -196,8 +199,10 @@ class OFTI(Sampler):
             `prepare_samples()`.
 
         Return:
-            np.array: a subset of `samples` that are accepted based on the 
-                data.
+            tuple:
+                np.array: a subset of `samples` that are accepted based on the 
+                    data.
+                np.array: the log likelihood values of the accepted orbits.
             
         """
         lnp = self._logl(samples)
@@ -206,8 +211,9 @@ class OFTI(Sampler):
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
         saved_orbits = np.array([samples[:,i] for i in saved_orbit_idx])
-        
-        return saved_orbits
+        lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
+
+        return saved_orbits, lnlikes
                 
 
     def run_sampler(self, total_orbits, num_samples=10000):
@@ -226,11 +232,12 @@ class OFTI(Sampler):
 
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
+        output_lnlikes = np.empty(total_orbits)
         
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
             samples = self.prepare_samples(num_samples)
-            accepted_orbits = self.reject(samples)
+            accepted_orbits, lnlikes = self.reject(samples)
             
             if len(accepted_orbits)==0:
                 pass
@@ -239,10 +246,17 @@ class OFTI(Sampler):
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
                 output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                 n_orbits_saved += maxindex2save
                 
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+
+        self.results.add_samples(
+            np.array(output_orbits),
+            output_lnlikes
+        )
+
         return np.array(output_orbits)
 
 
@@ -266,7 +280,8 @@ class MCMC(Sampler):
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
-        # Create an empty results object
+
+        # create an empty results object
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
@@ -283,7 +298,8 @@ class MCMC(Sampler):
         self.priors = []
         self.fixed_params = []
         for i, prior in enumerate(system.sys_priors):
-            # check for pixed parameters
+
+            # check for fixed parameters
             if not hasattr(prior, "draw_samples"):
                 self.fixed_params.append((i, prior))
             else:
@@ -426,4 +442,4 @@ class MCMC(Sampler):
 
         self.results.add_samples(self.post,self.lnlikes)
 
-        return sampler
+        return self.results
