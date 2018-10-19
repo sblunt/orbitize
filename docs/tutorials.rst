@@ -28,7 +28,7 @@ us if you are still confused)!
 **Tutorials:**
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    formatting_inputs
    tutorials/OFTI_tutorial.ipynb
