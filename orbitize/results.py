@@ -13,15 +13,15 @@ class Results(object):
     A class to store accepted orbital configurations from the sampler
 
     Args:
-        sampler_name (string): name of sampler class that generated these results [None].
+        sampler_name (string): name of sampler class that generated these results (default: None).
         post (np.array of float): MxN array of orbital parameters
             (posterior output from orbit-fitting process), where M is the
             number of orbits generated, and N is the number of varying orbital
-            parameters in the fit [None].
-        lnlike (np.array of float): M array of ln-likelihoods corresponding to
-            the orbits described in post [None].
+            parameters in the fit (default: None).
+        lnlike (np.array of float): M array of log-likelihoods corresponding to
+            the orbits described in ``post`` (default: None).
 
-    The `post` array is in the following order:
+    The ``post`` array is in the following order::
 
         semimajor axis 1, eccentricity 1, inclination 1,
         argument of periastron 1, position angle of nodes 1,
@@ -32,7 +32,7 @@ class Results(object):
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. If stellar mass
 
-    (written): Henry Ngo, Sarah Blunt, 2018
+    Written: Henry Ngo, Sarah Blunt, 2018
     """
     def __init__(self, sampler_name=None, post=None, lnlike=None):
         self.sampler_name = sampler_name
@@ -47,7 +47,7 @@ class Results(object):
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
 
-        (written): Henry Ngo, 2018
+        Written: Henry Ngo, 2018
         """
         # If no exisiting results then it is easy
         if self.post is None and self.lnlike is None:
@@ -70,20 +70,21 @@ class Results(object):
 
         Args:
             filename (string): filepath to save to
-            format (string): either 'hdf5' [default], or 'fits'
+            format (string): either "hdf5" (default), or "fits"
 
-        Both formats (HDF5 and FITS) save the `sampler_name`, `post`, and `lnlike`
-        attributes from the results.Results object.
-        HDF5: `sampler_name` is an attribute of the root group. `post` and `lnlike`
+        Both formats (HDF5 and FITS) save the ``sampler_name``, ``post``, and ``lnlike``
+        attributes from the ``results.Results`` object.
+
+        HDF5: ``sampler_name`` is an attribute of the root group. ``post`` and ``lnlike``
         are datasets that are members of the root group.
-        FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
-            After reading with something like `hdu = astropy.io.fits.open(file)`,
-            hdu[1].header['SAMPNAME'] returns the `sampler_name`
-            hdu[1].data returns a Table with two columns.
-                The first column contains the post array
-                The second column contains the lnlike array
 
-        (written): Henry Ngo, 2018
+        FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
+        After reading with something like ``hdu = astropy.io.fits.open(file)``,
+        ``hdu[1].header['SAMPNAME']`` returns the ``sampler_name``.
+        ``hdu[1].data`` returns a ``Table`` with two columns. The first column 
+        contains the post array, and the second column contains the lnlike array
+
+        Written: Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
             hf = h5py.File(filename,'w') # Creates h5py file object
@@ -111,18 +112,18 @@ class Results(object):
 
     def load_results(self, filename, format='hdf5', append=False):
         """
-        Populate the results.Results object with data from a datafile
+        Populate the ``results.Results`` object with data from a datafile
 
         Args:
             filename (string): filepath where data is saved
-            format (string): either 'hdf5' [default], 'fits'
-            append (boolean): if True, then new data is added to existing object,
-                              if False [default], new data overwrites existing object
+            format (string): either "hdf5" (default), or "fits"
+            append (boolean): if True, then new data is added to existing object.
+                If False (default), new data overwrites existing object
 
-        See the save_results() method in this module for information on how the
+        See the ``save_results()`` method in this module for information on how the
         data is structured.
 
-        (written): Henry Ngo, 2018
+        Written: Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
             hf = h5py.File(filename,'r') # Opens file for reading
@@ -168,28 +169,31 @@ class Results(object):
         Make a corner plot of posterior on orbit fit from any sampler
 
         Args:
-            param_list (list of strings): each entry is a name of a parameter to include
-                valid strings:
-                sma1: semimajor axis
-                ecc1: eccentricity
-                inc1: inclination
-                aop1: argument of periastron
-                pan1: position angle of nodes
-                epp1: epoch of periastron passage
-                [repeat for 2, 3, 4, etc if multiple objects]
-                mtot: total mass
-                plx:  parallax
-                e.g. Use param_list = ['sma1,ecc1,inc1,sma2,ecc2,inc2'] to only
-                     plot posteriors for semimajor axis, eccentricity and inclination
-                     of the first two companions
-            **corner_kwargs: any remaining keyword args are sent to corner.corner
-                             See: https://corner.readthedocs.io/
-                             Note: default axis labels used unless overwritten by user input
+            param_list (list of strings): each entry is a name of a parameter to include.
+                Valid strings::
+
+                    sma1: semimajor axis
+                    ecc1: eccentricity
+                    inc1: inclination
+                    aop1: argument of periastron
+                    pan1: position angle of nodes
+                    epp1: epoch of periastron passage
+                    [repeat for 2, 3, 4, etc if multiple objects]
+                    mtot: total mass
+                    plx:  parallax
+
+            **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
+                             See `here <https://corner.readthedocs.io/>`_.
+                             Note: default axis labels used unless overwritten by user input.
 
         Return:
-            matplotlib.pyplot Figure object of the corner plot
+            ``matplotlib.pyplot.Figure``: corner plot
 
-        (written): Henry Ngo, 2018
+        .. Note:: **Example**: Use ``param_list = ['sma1,ecc1,inc1,sma2,ecc2,inc2']`` to only
+            plot posteriors for semimajor axis, eccentricity and inclination
+            of the first two companions
+
+        Written: Henry Ngo, 2018
         """
         # Define a dictionary to look up index of certain parameters
         dict_of_indices = {
@@ -253,24 +257,24 @@ class Results(object):
         for a given object, with line segments colored according to time
 
         Args:
-            parallax (float): parallax in mas, however, if plx_err was passed
+            parallax (float): parallax (in mas), however, if plx_err was passed
                 to system, then this is ignored and the posterior samples for
-                plx will be used instead [None]
+                plx will be used instead (default: None)
             total_mass (float): total mass of system in solar masses, however,
                 if mass_err was passed to system, then this is ignored and the
-                posterior samples for mtot will be used instead [None]
-            object_mass (float): mass of the object, in solar masses [0]
-            object_to_plot (int): which object to plot [1]
+                posterior samples for mtot will be used instead (default: None)
+            object_mass (float): mass of the object, in solar masses (default: 0)
+            object_to_plot (int): which object to plot (default: 1)
             start_year (float): year in which to start plotting orbits
-            num_orbits_to_plot (int): number of orbits to plot [100]
-            num_epochs_to_plot (int): number of points to plot per orbit [100]
+            num_orbits_to_plot (int): number of orbits to plot (default: 100)
+            num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
             square_plot (Boolean): Aspect ratio is always equal, but if
                 square_plot is True (default), then the axes will be square,
                 otherwise, white space padding is used
             show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
 
         Return:
-            matplotlib.pyplot Figure object of the orbit plot if input valid, None otherwise
+            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, None otherwise
 
         (written): Henry Ngo, Sarah Blunt, 2018
         """

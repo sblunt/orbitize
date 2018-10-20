@@ -19,11 +19,11 @@ on GitHub! We'd love any feedback on how to make ``orbitize`` more
 accessible.
 
 *A note about the tutorials*: There are many ways to interact with the
-`orbitize` code base, and each person on our team uses the code differently.
+``orbitize`` code base, and each person on our team uses the code differently.
 Each tutorial has a different author, and correspondingly a different 
 style of using and explaining the code. If you are confused by part of
 one tutorial, we suggest looking at some of the others (and then contacting
-us if you are still confused)! 
+us if you are still confused).
 
 **Tutorials:**
 

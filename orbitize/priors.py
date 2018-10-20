@@ -2,6 +2,10 @@ import numpy as np
 import sys
 import abc
 
+"""
+This module defines priors with methods to draw samples and compute log(probability)
+"""
+
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
     ABC = abc.ABCMeta('ABC', (), {})
@@ -13,7 +17,7 @@ class Prior(ABC):
     Abstract base class for prior objects.
     All prior objects should inherit from this class.
 
-    (written): Sarah Blunt, 2018
+    Written: Sarah Blunt, 2018
     """
 
     @abc.abstractmethod
@@ -80,7 +84,7 @@ class GaussianPrior(Prior):
 
 class JeffreysPrior(Prior):
     """
-    This is the probability distribution p(x) propto 1/x.
+    This is the probability distribution :math:`p(x) \\propto 1/x`
 
     The __init__ method should take in a "min" and "max" value
     of the distribution, which correspond to the domain of the prior. 
@@ -110,7 +114,7 @@ class JeffreysPrior(Prior):
             num_samples (float): the number of samples to generate
 
         Returns:
-            samples (np.array):  samples ranging from [0, pi) as floats.
+            np.array:  samples ranging from [0, pi) as floats.
         """
         # sample from a uniform distribution in log space
         samples = np.random.uniform(self.logmin, self.logmax, num_samples)
@@ -128,7 +132,7 @@ class JeffreysPrior(Prior):
             element_array (float or np.array of float): array of paramters to compute the prior probability of
 
         Returns:
-            lnprob (np.array): array of prior probabilities
+            np.array: array of prior probabilities
         """
         normalizer = self.logmax - self.logmin
 
@@ -167,7 +171,7 @@ class UniformPrior(Prior):
             num_samples (float): the number of samples to generate
 
         Returns:
-            samples (np.array):  samples ranging from [0, pi) as floats.
+            np.array:  samples ranging from [0, pi) as floats.
         """
         # sample from a uniform distribution in log space
         samples = np.random.uniform(self.minval, self.maxval, num_samples)
@@ -182,7 +186,7 @@ class UniformPrior(Prior):
             element_array (float or np.array of float): array of paramters to compute the prior probability of
 
         Returns:
-            lnprob (np.array): array of prior probabilities
+            np.array: array of prior probabilities
         """
         lnprob = np.log(np.ones(np.size(element_array))/(self.maxval - self.minval))
 
@@ -197,12 +201,9 @@ class UniformPrior(Prior):
 
 class SinPrior(Prior):
     """
-    This is the probability distribution p(x) propto sin(x).
+    This is the probability distribution :math:`p(x) \\propto sin(x)`
 
     The domain of this prior is [0,pi].
-
-    Args:
-        None
     """
 
     def __init__(self):
@@ -219,7 +220,7 @@ class SinPrior(Prior):
             num_samples (float): the number of samples to generate
 
         Returns:
-            samples (np.array):  samples ranging from [0, pi) as floats.
+            np.array:  samples ranging from [0, pi) as floats.
         """
 
         # draw uniform from -1 to 1
@@ -230,7 +231,15 @@ class SinPrior(Prior):
         return samples
 
     def compute_lnprob(self, element_array):
+        """
+        Compute the prior probability of each element given that its drawn from a sine prior
 
+        Args:
+            element_array (float or np.array of float): array of paramters to compute the prior probability of
+
+        Returns:
+            np.array: array of prior probabilities
+        """
         normalization = 2.
 
         lnprob = np.log(np.sin(element_array)/normalization)
@@ -317,7 +326,7 @@ def all_lnpriors(params, priors):
         priors (list): list of N prior objects corresponding to each parameter
 
     Returns:
-        logp (float): prior probability of this set of parameters
+        float: prior probability of this set of parameters
     """
     logp = 0.
     for param, prior in zip(params, priors):
