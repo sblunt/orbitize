@@ -73,7 +73,9 @@ class Results(object):
             format (string): either "hdf5" (default), or "fits"
 
         Both formats (HDF5 and FITS) save the ``sampler_name``, ``post``, and ``lnlike``
-        attributes from the ``results.Results`` object.
+        attributes from the ``results.Results`` object. Note that currently, only the
+        MCMC sampler has the ``lnlike`` attribute set. For OFTI, ``lnlike`` is None and
+        it is not saved.
 
         HDF5: ``sampler_name`` is an attribute of the root group. ``post`` and ``lnlike``
         are datasets that are members of the root group.
@@ -81,7 +83,7 @@ class Results(object):
         FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
         After reading with something like ``hdu = astropy.io.fits.open(file)``,
         ``hdu[1].header['SAMPNAME']`` returns the ``sampler_name``.
-        ``hdu[1].data`` returns a ``Table`` with two columns. The first column 
+        ``hdu[1].data`` returns a ``Table`` with two columns. The first column
         contains the post array, and the second column contains the lnlike array
 
         Written: Henry Ngo, 2018
@@ -92,17 +94,22 @@ class Results(object):
             hf.attrs['sampler_name']=self.sampler_name
             # Now add post and lnlike from the results object as datasets
             hf.create_dataset('post', data=self.post)
-            hf.create_dataset('lnlike', data=self.lnlike)
+            if self.lnlike is not None: # This property doesn't exist for OFTI
+                hf.create_dataset('lnlike', data=self.lnlike)
             hf.close() # Closes file object, which writes file to disk
         elif format.lower()=='fits':
             n_params = self.post.shape[1]
             # Create column from post array. Each cell is a 1-d array of n_params length
             post_format_string = '{}D'.format(n_params) # e.g. would read '8D' for 8 parameter fit
             col_post = fits.Column(name='post', format=post_format_string, array=self.post)
-            # Create lnlike column
-            col_lnlike = fits.Column(name='lnlike', format='D', array=self.lnlike)
-            # Create the Binary Table HDU
-            hdu = fits.BinTableHDU.from_columns([col_post,col_lnlike])
+            if self.lnlike is not None: # This property doesn't exist for OFTI
+                # Create lnlike column
+                col_lnlike = fits.Column(name='lnlike', format='D', array=self.lnlike)
+                # Create the Binary Table HDU
+                hdu = fits.BinTableHDU.from_columns([col_post,col_lnlike])
+            else:
+                # Create the Binary Table HDU
+                hdu = fits.BinTableHDU.from_columns([col_post])
             # Add sampler_name to the hdu's header
             hdu.header['SAMPNAME'] = self.sampler_name
             # Write to fits file
@@ -139,7 +146,11 @@ class Results(object):
             sampler_name = table_hdu.header['SAMPNAME']
             # Get post and lnlike arrays from column names
             post = table_hdu.data.field('post')
-            lnlike = table_hdu.data.field('lnlike')
+            # (Note: OFTI does not have lnlike so it won't be saved)
+            if 'lnlike' in table_hdu.data.columns.names:
+                lnlike = table_hdu.data.field('lnlike')
+            else:
+                lnlike = None
             # Closes HDUList object
             hdu_list.close()
         else:
