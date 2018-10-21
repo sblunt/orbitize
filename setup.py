@@ -1,7 +1,17 @@
 from setuptools import setup, find_packages, Extension
-from Cython.Build import cythonize
 import numpy, sys
 import re
+
+USE_C_KEPLER_MODULE = 1
+if ("--disable-cython" in sys.argv):
+    sys.argv.remove("--disable-cython")
+    USE_C_KEPLER_MODULE = 0
+else:
+    try:
+        from Cython.Build import cythonize
+    except:
+        USE_C_KEPLER_MODULE = 0
+
 
 # auto-updating version code stolen from RadVel
 def get_property(prop, project):
@@ -9,7 +19,15 @@ def get_property(prop, project):
                        open(project + '/__init__.py').read())
     return result.group(1)
 
-extensions = [Extension("orbitize._kepler", ["orbitize/_kepler.pyx"])]
+def get_requires():
+    requirements = ['numpy', 'scipy', 'astropy', 'emcee', 'ptemcee', 'corner', 'pytest>=3.0.0', 'h5py']
+    return requirements
+
+def get_extensions():
+    extensions = []
+    if(USE_C_KEPLER_MODULE):
+        extensions = cythonize([Extension("orbitize._kepler", ["orbitize/_kepler.pyx"])])
+    return extensions
 
 setup(
     name='orbitize',
@@ -20,7 +38,7 @@ setup(
     author_email='',
     license='BSD',
     packages=find_packages(),
-    ext_modules=cythonize(extensions),
+    ext_modules=get_extensions(),
     include_dirs=[numpy.get_include()],
     zip_safe=False,
     classifiers=[
@@ -37,5 +55,5 @@ setup(
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',
-    install_requires=['numpy', 'scipy', 'astropy', 'emcee', 'ptemcee', 'cython', 'corner', 'pytest>=3.0.0', 'h5py']
+    install_requires=get_requires()
     )
