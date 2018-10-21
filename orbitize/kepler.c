@@ -42,7 +42,7 @@ void newton_array(const int n_elements,
 		}
 
 		// If it has not converged, set eccentricity to -1 to signal that it needs to be
-		// solved using the analytical version. Note this behavior is a bit differnt from the 
+		// solved using the analytical version. Note this behavior is a bit different from the 
 		// numpy implementation
 		if (niter >= max_iter){
 			printf("%f %f %f %f >= %d iter\n", manom[i], eanom[i], diff, ecc[i], max_iter);
