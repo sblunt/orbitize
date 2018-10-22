@@ -209,7 +209,7 @@ def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_cpp = True):
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '-profile':
         try:
-            n_orbits = sys.argv[2]
+            n_orbits = int(sys.argv[2])
         except:
             n_orbits = 20000
 
