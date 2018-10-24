@@ -34,3 +34,4 @@ us if you are still confused).
    tutorials/OFTI_tutorial.ipynb
    tutorials/MCMC_tutorial.ipynb
    tutorials/Modifying_Priors.ipynb
+   tutorials/Plotting_tutorial.ipynb
