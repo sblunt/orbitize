@@ -24,7 +24,8 @@ class Sampler(ABC):
     """
     Abstract base class for sampler objects.
     All sampler objects should inherit from this class.
-    (written): Sarah Blunt, 2018
+
+    Written: Sarah Blunt, 2018
     """
 
     def __init__(self, system, like='chi2_lnlike'):
@@ -78,26 +79,26 @@ class OFTI(Sampler):
     OFTI Sampler
 
     Args:
-        lnlike (string): name of likelihood function in ``lnlike.py``
-        system (system.System): system.System object
+        like (string): name of likelihood function in ``lnlike.py``
+        system (system.System): ``system.System`` object
 
-    (written): Isabel Angelo, Sarah Blunt, Logan Pearce 2018
+    Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
     def __init__(self, system, like='chi2_lnlike'):
 
         super(OFTI, self).__init__(system, like=like)
-        
+
         self.priors = self.system.sys_priors
         self.tbl = self.system.data_table
         self.radec_idx = self.system.radec[1]
         self.seppa_idx = self.system.seppa[1]
-            
+
         # these are of type astropy.table.column
         self.sep_observed = self.tbl[:]['quant1']
         self.pa_observed = self.tbl[:]['quant2']
         self.sep_err = self.tbl[:]['quant1_err']
         self.pa_err = self.tbl[:]['quant2_err']
-    
+
         # convert RA/Dec rows to sep/PA
         for i in self.radec_idx:
             self.sep_observed[i], self.pa_observed[i] = radec2seppa(
@@ -108,13 +109,16 @@ class OFTI(Sampler):
             )
 
         self.epochs = np.array(self.tbl['epoch'])
-        
+
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
 
-        # format sep/PA observations for use with the lnlike code
-        self.seppa_for_lnlike = np.column_stack((self.sep_observed, self.pa_observed))
-        self.seppa_errs_for_lnlike = np.column_stack((self.sep_err, self.pa_err))
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            sampler_name = self.__class__.__name__,
+            post = None,
+            lnlike = None
+        )
 
     def prepare_samples(self, num_samples):
         """
@@ -122,19 +126,19 @@ class OFTI(Sampler):
         from priors, and performs scale & rotate.
 
         Args:
-            num_samples (int): number of orbits to draw and scale & rotate for 
-            OFTI to run rejection sampling on
+            num_samples (int): number of orbits to draw and scale & rotate for
+                OFTI to run rejection sampling on
 
         Return:
-            np.array: array of prepared samples. The first dimension has size of 
-            num_samples. This should be passed into ``reject()``
+            np.array: array of prepared samples. The first dimension has size of
+            num_samples. This should be passed into ``OFTI.reject()``
         """
 
         # TODO: modify to work for multi-planet systems
-        
+
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
-        for i in range(len(self.priors)): 
+        for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
             else: # param is fixed & has no prior
@@ -148,12 +152,12 @@ class OFTI(Sampler):
         period_prescale = period_prescale.to(u.day).value
         meananno = self.epochs[self.epoch_idx]/period_prescale - tau
 
-        # compute sep/PA of generated orbits 
+        # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot
         )
-        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]  
-        
+        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
+
         # generate Gaussian offsets from observational uncertainties
         sep_offset = np.random.normal(
             0, self.sep_err[self.epoch_idx], size=num_samples
@@ -161,14 +165,14 @@ class OFTI(Sampler):
         pa_offset =  np.random.normal(
             0, self.pa_err[self.epoch_idx], size=num_samples
         )
-        
+
         # calculate correction factors
         sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
         lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
-        
+
         # perform scale-and-rotate
         sma *= sma_corr # [AU]
-        lan += np.radians(lan_corr) # [rad] 
+        lan += np.radians(lan_corr) # [rad]
         lan = lan % (2*np.pi)
 
         period_new = np.sqrt(
@@ -176,62 +180,68 @@ class OFTI(Sampler):
         )
         period_new = period_new.to(u.day).value
 
-        tau = (self.epochs[self.epoch_idx]/period_new - meananno)
+        tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
         # updates samples with new values of sma, pan, tau
         samples[0,:] = sma
         samples[4,:] = lan
         samples[5,:] = tau
-        
+
         return samples
-        
+
 
     def reject(self, samples):
         """
         Runs rejection sampling on some prepared samples.
 
         Args:
-            samples (np.array): array of prepared samples. The first dimension 
-            has size `num_samples`. This should be the output of 
-            `prepare_samples()`.
+            samples (np.array): array of prepared samples. The first dimension \
+                has size ``num_samples``. This should be the output of \
+                ``prepare_samples()``.
 
         Return:
-            np.array: a subset of `samples` that are accepted based on the 
+            tuple:
+
+                np.array: a subset of ``samples`` that are accepted based on the
                 data.
-            
+
+                np.array: the log likelihood values of the accepted orbits.
+
         """
         lnp = self._logl(samples)
-               
+
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
         saved_orbits = np.array([samples[:,i] for i in saved_orbit_idx])
-        
-        return saved_orbits
-                
+        lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
+
+        return saved_orbits, lnlikes
+
 
     def run_sampler(self, total_orbits, num_samples=10000):
         """
-        Runs OFTI until we get the number of total accepted orbits we want. 
+        Runs OFTI until we get the number of total accepted orbits we want.
 
         Args:
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
-            rejection sampling on
+                rejection sampling on
 
         Return:
-            output_orbits (np.array): array of accepted orbits. First dimension 
-            has size `total_orbits`.
+            output_orbits (np.array): array of accepted orbits. First dimension
+            has size ``total_orbits``.
         """
 
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
-        
+        output_lnlikes = np.empty(total_orbits)
+
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
             samples = self.prepare_samples(num_samples)
-            accepted_orbits = self.reject(samples)
-            
+            accepted_orbits, lnlikes = self.reject(samples)
+
             if len(accepted_orbits)==0:
                 pass
             else:
@@ -239,34 +249,47 @@ class OFTI(Sampler):
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
                 output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                 n_orbits_saved += maxindex2save
-                
+
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+
+        self.results.add_samples(
+            np.array(output_orbits),
+            output_lnlikes
+        )
+
         return np.array(output_orbits)
 
 
 class MCMC(Sampler):
     """
-    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel temperuing will be run if num_temps > 1
-    Parallel-Tempered MCMC Sampler using ptemcee, a fork of the emcee Affine-infariant sampler
-    Affine-Invariant Ensemble MCMC Sampler using emcee. Warning: may not work well for multi-modal distributions
+    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if ``num_temps`` > 1
+    Parallel-Tempered MCMC Sampler uses ptemcee, a fork of the emcee Affine-infariant sampler
+    Affine-Invariant Ensemble MCMC Sampler uses emcee. 
+
+    .. Warning:: may not work well for multi-modal distributions
 
     Args:
-        lnlike (string): name of likelihood function in ``lnlike.py``
         system (system.System): system.System object
-        num_temps (int): number of temperatures to run the sampler at. Parallel tempering will be used if num_temps > 1
-        num_walkers (int): number of walkers at each temperature
+        num_temps (int): number of temperatures to run the sampler at. Parallel tempering will be
+            used if num_temps > 1 (default=20)
+        num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
+        like (str): name of likelihood function in ``lnlike.py``
 
-    (written): Jason Wang, Henry Ngo, 2018
+    Written: Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, lnlike, system, num_temps, num_walkers, num_threads=1):
-        super(MCMC, self).__init__(system, like=lnlike)
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike'):
+
+        super(MCMC, self).__init__(system, like=like)
+
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
-        # Create an empty results object
+
+        # create an empty results object
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
@@ -283,7 +306,8 @@ class MCMC(Sampler):
         self.priors = []
         self.fixed_params = []
         for i, prior in enumerate(system.sys_priors):
-            # check for pixed parameters
+
+            # check for fixed parameters
             if not hasattr(prior, "draw_samples"):
                 self.fixed_params.append((i, prior))
             else:
@@ -304,7 +328,7 @@ class MCMC(Sampler):
         # save this as the current position for the walkers
         if self.use_pt:
             # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
-            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension    
+            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
             self.curr_pos = np.dstack(init_positions)
         else:
             # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
@@ -313,7 +337,7 @@ class MCMC(Sampler):
             self.curr_pos = np.stack(init_positions).T
 
 
-    
+
     def _fill_in_fixed_params(self, sampled_params):
         """
         Fills in the missing parameters from the chain that aren't being sampeld
@@ -374,48 +398,59 @@ class MCMC(Sampler):
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
-        Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
-        Results also added to orbitize.results.Results object (self.results)
+        Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
+        Results also added to ``orbitize.results.Results`` object (``self.results``)
 
-        Can be run multiple times if you want to pause and inspect things.
-        Each call will continue from the end state of the last execution
+        .. Note:: Can be run multiple times if you want to pause and inspect things.
+            Each call will continue from the end state of the last execution.
 
         Args:
             total_orbits (int): total number of accepted possible
                 orbits that are desired. This equals
-                ``num_steps_per_walker``x``num_walkers``
+                ``num_steps_per_walker`` x ``num_walkers``
             burn_steps (int): optional paramter to tell sampler
                 to discard certain number of steps at the beginning
             thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
 
         Returns:
-            emcee.sampler object
+            ``emcee.sampler`` object: the sampler used to run the MCMC
         """
         if self.use_pt:
-            sampler = ptemcee.Sampler(self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors, ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,] )
+            sampler = ptemcee.Sampler(
+                self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
+                ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,]
+            )
         else:
-            sampler = emcee.EnsembleSampler(self.num_walkers, self.num_params, self._logl, threads=self.num_threads, kwargs={'include_logp' : True})
+            sampler = emcee.EnsembleSampler(
+                self.num_walkers, self.num_params, self._logl,
+                threads=self.num_threads, kwargs={'include_logp' : True}
+            )
 
 
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
             pass
 
         sampler.reset()
-        self.curr_pos = pos
+        try:
+            self.curr_pos = pos
+        except UnboundLocalError: # 0 step burn-in (pos is not defined)
+            pass
         print('Burn in complete')
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
 
-        for pos, lnprob, lnlike in sampler.sample(p0=pos, iterations=nsteps, thin=thin):
+        assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
+
+        for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
             pass
 
         self.curr_pos = pos
         # TODO: Need something here to pick out temperatures, just using lowest one for now
         self.chain = sampler.chain
         if self.use_pt:
-            self.post = sampler.flatchain[0,:]
-            self.lnlikes = sampler.logprobability[0:,] # shoudl also be picking out the lowest temperature logps
+            self.post = sampler.flatchain[0,:,:]
+            self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
@@ -425,5 +460,7 @@ class MCMC(Sampler):
         self.post = self._fill_in_fixed_params(self.post)
 
         self.results.add_samples(self.post,self.lnlikes)
+
+        print('Run complete')
 
         return sampler

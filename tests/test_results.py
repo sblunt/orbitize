@@ -89,11 +89,15 @@ def results_to_test():
     # Return object for testing
     return results_obj
 
-def test_save_and_load_results(results_to_test, format='hdf5'):
+def test_save_and_load_results(results_to_test, format='hdf5', has_lnlike=True):
     """
     Tests saving and reloading of a results object
+        has_lnlike: allows for tests with and without lnlike values
+            (e.g. OFTI doesn't output lnlike)
     """
     results_to_save = results_to_test
+    if not has_lnlike: # manipulate object to remove lnlike (as in OFTI)
+        results_to_save.lnlike=None
     file_ext_dict={
         'hdf5': '.h5',
         'fits': '.fits',
@@ -107,14 +111,16 @@ def test_save_and_load_results(results_to_test, format='hdf5'):
     # Check if loaded results equal saved results
     assert results_to_save.sampler_name == loaded_results.sampler_name
     assert np.array_equal(results_to_save.post, loaded_results.post)
-    assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
+    if has_lnlike:
+        assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
     # Try to load the saved results again, this time appending
     loaded_results.load_results(save_filename, format=format, append=True)
     # Now check that the loaded results object has the expected size
     original_length = results_to_save.post.shape[0]
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
-    assert loaded_results.lnlike.shape == (expected_length,)
+    if has_lnlike:
+        assert loaded_results.lnlike.shape == (expected_length,)
     # Clean up: Remove save file
     os.remove(save_filename)
 
@@ -145,8 +151,10 @@ def test_plot_orbits(results_to_test):
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
-    test_save_and_load_results(test_results, format='hdf5')
-    test_save_and_load_results(test_results, format='fits')
+    test_save_and_load_results(test_results, format='hdf5', has_lnlike=True)
+    test_save_and_load_results(test_results, format='fits', has_lnlike=True)
+    test_save_and_load_results(test_results, format='hdf5', has_lnlike=False)
+    test_save_and_load_results(test_results, format='fits', has_lnlike=False)
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     # test_corner_fig1.savefig('test_corner1.png')
