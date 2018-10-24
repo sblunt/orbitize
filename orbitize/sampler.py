@@ -24,7 +24,8 @@ class Sampler(ABC):
     """
     Abstract base class for sampler objects.
     All sampler objects should inherit from this class.
-    (written): Sarah Blunt, 2018
+
+    Written: Sarah Blunt, 2018
     """
 
     def __init__(self, system, like='chi2_lnlike'):
@@ -79,9 +80,9 @@ class OFTI(Sampler):
 
     Args:
         like (string): name of likelihood function in ``lnlike.py``
-        system (system.System): system.System object
+        system (system.System): ``system.System`` object
 
-    (written): Isabel Angelo, Sarah Blunt, Logan Pearce 2018
+    Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
     def __init__(self, system, like='chi2_lnlike'):
 
@@ -126,11 +127,11 @@ class OFTI(Sampler):
 
         Args:
             num_samples (int): number of orbits to draw and scale & rotate for
-            OFTI to run rejection sampling on
+                OFTI to run rejection sampling on
 
         Return:
             np.array: array of prepared samples. The first dimension has size of
-            num_samples. This should be passed into ``reject()``
+            num_samples. This should be passed into ``OFTI.reject()``
         """
 
         # TODO: modify to work for multi-planet systems
@@ -179,7 +180,7 @@ class OFTI(Sampler):
         )
         period_new = period_new.to(u.day).value
 
-        tau = (self.epochs[self.epoch_idx]/period_new - meananno)
+        tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
         # updates samples with new values of sma, pan, tau
         samples[0,:] = sma
@@ -194,14 +195,16 @@ class OFTI(Sampler):
         Runs rejection sampling on some prepared samples.
 
         Args:
-            samples (np.array): array of prepared samples. The first dimension
-            has size `num_samples`. This should be the output of
-            `prepare_samples()`.
+            samples (np.array): array of prepared samples. The first dimension \
+                has size ``num_samples``. This should be the output of \
+                ``prepare_samples()``.
 
         Return:
             tuple:
-                np.array: a subset of `samples` that are accepted based on the
-                    data.
+
+                np.array: a subset of ``samples`` that are accepted based on the
+                data.
+
                 np.array: the log likelihood values of the accepted orbits.
 
         """
@@ -223,11 +226,11 @@ class OFTI(Sampler):
         Args:
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
-            rejection sampling on
+                rejection sampling on
 
         Return:
             output_orbits (np.array): array of accepted orbits. First dimension
-            has size `total_orbits`.
+            has size ``total_orbits``.
         """
 
         n_orbits_saved = 0
@@ -262,9 +265,11 @@ class OFTI(Sampler):
 
 class MCMC(Sampler):
     """
-    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if num_temps > 1
-    Parallel-Tempered MCMC Sampler using ptemcee, a fork of the emcee Affine-infariant sampler
-    Affine-Invariant Ensemble MCMC Sampler using emcee. Warning: may not work well for multi-modal distributions
+    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if ``num_temps`` > 1
+    Parallel-Tempered MCMC Sampler uses ptemcee, a fork of the emcee Affine-infariant sampler
+    Affine-Invariant Ensemble MCMC Sampler uses emcee. 
+
+    .. Warning:: may not work well for multi-modal distributions
 
     Args:
         system (system.System): system.System object
@@ -272,9 +277,9 @@ class MCMC(Sampler):
             used if num_temps > 1 (default=20)
         num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
-        like (string): name of likelihood function in ``lnlike.py``
+        like (str): name of likelihood function in ``lnlike.py``
 
-    (written): Jason Wang, Henry Ngo, 2018
+    Written: Jason Wang, Henry Ngo, 2018
     """
     def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike'):
 
@@ -393,23 +398,23 @@ class MCMC(Sampler):
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1):
         """
-        Runs PT MCMC sampler. Results are stored in self.chain, and self.lnlikes
-        Results also added to orbitize.results.Results object (self.results)
+        Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
+        Results also added to ``orbitize.results.Results`` object (``self.results``)
 
-        Can be run multiple times if you want to pause and inspect things.
-        Each call will continue from the end state of the last execution
+        .. Note:: Can be run multiple times if you want to pause and inspect things.
+            Each call will continue from the end state of the last execution.
 
         Args:
             total_orbits (int): total number of accepted possible
                 orbits that are desired. This equals
-                ``num_steps_per_walker``x``num_walkers``
+                ``num_steps_per_walker`` x ``num_walkers``
             burn_steps (int): optional paramter to tell sampler
                 to discard certain number of steps at the beginning
             thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
 
         Returns:
-            emcee.sampler object
+            ``emcee.sampler`` object: the sampler used to run the MCMC
         """
         if self.use_pt:
             sampler = ptemcee.Sampler(

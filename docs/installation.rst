@@ -21,13 +21,6 @@ Next, install ``orbitize``:
 	
 	$ pip install orbitize
 
-If you are having difficulties installing orbitize with cython, you can
-disable compilation of the C Kepler module with the following command:
-
-.. code-block:: bash
-	
-	$ pip install orbitize --install-option="--disable-cython"
-
 We recommend installing and running ``orbitize`` in a ``conda`` virtual
 environment. Install ``anaconda`` or ``miniconda`` 
 `here <https://conda.io/miniconda.html>`_, then see instructions 
@@ -50,5 +43,13 @@ Issues?
 +++++++
 
 If you run into any issues installing ``orbitize``, please create an issue on GitHub.
+
+If you are specifically having difficulties using ``cython`` to install ``orbitize``, you can
+disable compilation of the C-based Kepler module with the following alternative 
+installation command:
+
+.. code-block:: bash
+	
+	$ pip install orbitize --install-option="--disable-cython"
 
 
