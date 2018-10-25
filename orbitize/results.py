@@ -275,6 +275,7 @@ class Results(object):
                 if mass_err was passed to system, then this is ignored and the
                 posterior samples for mtot will be used instead (default: None)
             object_mass (float): mass of the object, in solar masses (default: 0)
+                                 Note: this input has no effect at this time
             object_to_plot (int): which object to plot (default: 1)
             start_year (float): year in which to start plotting orbits
             num_orbits_to_plot (int): number of orbits to plot (default: 100)
