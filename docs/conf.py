@@ -44,6 +44,9 @@ extensions = [
     'nbsphinx'
     ]
 
+# Always evaluate Jupyter notebooks when building docs, even if there are stored outputs. 
+nbsphinx_execute = 'always'
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
