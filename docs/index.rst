@@ -17,9 +17,7 @@ package for fitting orbits of directly imaged planets.
    tutorials
    api
 
+**Changelog**:
 
-
-Methods Index
-=============
-
-* :ref:`genindex`
+1.0.0 (2018-10-29?)
+- Initial release.
