@@ -1,7 +1,11 @@
 import sys
 import types
+import os
 
 __version__ = '0.1.0'
+
+# set Python env variable to keep track of example data dir
+DATADIR = os.path.join(sys.prefix, 'orbitize_example_data')
 
 # define functions for pickling class methods
 def _pickle_method(method):

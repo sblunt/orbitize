@@ -17,9 +17,12 @@ package for fitting orbits of directly imaged planets.
    tutorials
    api
 
+**Attribution**:
 
+If you use ``orbitize`` in your work, please cite our forthcoming
+paper and the following DOI: 
 
-Methods Index
-=============
+**Changelog**:
 
-* :ref:`genindex`
+1.0.0 (2018-10-29?)
+- Initial release.
