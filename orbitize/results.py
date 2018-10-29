@@ -4,10 +4,18 @@ import astropy.constants as consts
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+import matplotlib.colors as colors
 import corner
 import orbitize.kepler as kepler
 import h5py
 from astropy.io import fits
+
+# define modified color map for default use in orbit plots
+cmap = mpl.cm.Purples_r
+cmap = colors.LinearSegmentedColormap.from_list(
+    'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=0.0, b=0.7),
+    cmap(np.linspace(0.0, 0.7, 1000.))
+)
 
 class Results(object):
     """
@@ -263,7 +271,7 @@ class Results(object):
     def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
                     object_to_plot=1, start_mjd=51544.,
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
-                    square_plot=True, show_colorbar=True):
+                    square_plot=True, show_colorbar=True, cmap=cmap):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -286,6 +294,8 @@ class Results(object):
                 square_plot is True (default), then the axes will be square,
                 otherwise, white space padding is used
             show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
+            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks 
+                (default: modified Purples_r)
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, None otherwise
@@ -348,9 +358,8 @@ class Results(object):
             deoff[i,:] = deoff0
 
         # Create a linearly increasing colormap for our range of epochs
-        cmap = mpl.cm.inferno_r
-        norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs))
-        norm_yr = mpl.colors.Normalize(vmin=np.min(epochs/365.25), vmax=np.max(epochs/365.25))
+        norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1,:]))
+        norm_yr = mpl.colors.Normalize(vmin=np.min(epochs/365.25), vmax=np.max(epochs[-1,:]/365.25))
 
         # Create figure for orbit plots
         fig, ax = plt.subplots()
@@ -360,7 +369,7 @@ class Results(object):
             points = np.array([raoff[i,:], deoff[i,:]]).T.reshape(-1,1,2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             lc = LineCollection(
-                segments, cmap=cmap, norm=norm
+                segments, cmap=cmap, norm=norm, linewidth=1.0
             )
             lc.set_array(epochs[i,:])
             ax.add_collection(lc)

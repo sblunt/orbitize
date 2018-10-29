@@ -4,6 +4,7 @@ Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 import numpy as np
 import os
 import pytest
+import matplotlib.pyplot as plt
 
 import orbitize.sampler as sampler
 import orbitize.driver
@@ -35,6 +36,10 @@ def test_scale_and_rotate():
 
     # test scale-and-rotate for orbits run all the way through OFTI
     s.run_sampler(100)
+
+    # test orbit plot generation
+    s.results.plot_orbits(start_mjd=s.epochs[0])
+    
     samples = s.results.post
     sma = samples[:,0]
     ecc = samples[:,1]
@@ -70,6 +75,7 @@ def test_run_sampler():
 
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
+
     print()
     idx = s.system.param_idx
     sma = np.median([x[idx['sma1']] for x in orbits])
