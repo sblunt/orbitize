@@ -8,7 +8,8 @@ orbitize!
 Hello world! Welcome to the documentation for ``orbitize``, a Python
 package for fitting orbits of directly imaged planets. 
 
-**Contents**:
+User Guide:
++++++++++++
 
 .. toctree::
    :maxdepth: 2
@@ -17,12 +18,15 @@ package for fitting orbits of directly imaged planets.
    tutorials
    api
 
-**Attribution**:
+Attribution:
++++++++++++
 
 If you use ``orbitize`` in your work, please cite our forthcoming
 paper and the following DOI: 
 
-**Changelog**:
+Changelog:
+++++++++++
 
-1.0.0 (2018-10-29?)
+**1.0.0 (2018-10-29?)**
+
 - Initial release.
