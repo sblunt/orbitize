@@ -44,9 +44,6 @@ extensions = [
     'nbsphinx'
     ]
 
-# Always evaluate Jupyter notebooks when building docs, even if there are stored outputs. 
-nbsphinx_execute = 'always'
-
 # Disable notebook timeout
 nbsphinx_timeout = -1
 

@@ -346,10 +346,9 @@ class Results(object):
             deoff[i,:] = deoff0
 
         # Create a linearly increasing colormap for our range of epochs
-        cmap = mpl.cm.inferno
+        cmap = mpl.cm.inferno_r
         norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs))
         norm_yr = mpl.colors.Normalize(vmin=np.min(epochs/365.25), vmax=np.max(epochs/365.25))
-        colormap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap).to_rgba
 
         # Create figure for orbit plots
         fig, ax = plt.subplots()
