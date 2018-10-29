@@ -1,5 +1,5 @@
 python:
-   pip_install: true
+  pip_install: true
 channels:
   - conda-forge
 dependencies:
