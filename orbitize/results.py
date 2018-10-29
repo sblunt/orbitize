@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as consts
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 import corner
 import orbitize.kepler as kepler
 import h5py
@@ -352,13 +353,16 @@ class Results(object):
 
         # Create figure for orbit plots
         fig, ax = plt.subplots()
+
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
-            # Plot line segments for each point to the next (except for the last point)
-            for j in np.arange(num_epochs_to_plot-1):
-                ax.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
-            # Connect the final point with the first point
-            ax.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
+            points = np.array([raoff[i,:], deoff[i,:]]).T.reshape(-1,1,2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(
+                segments, cmap=cmap, norm=norm
+            )
+            lc.set_array(epochs[i,:])
+            ax.add_collection(lc)
 
         # Modify the axes
         if square_plot:
