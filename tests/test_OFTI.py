@@ -32,10 +32,31 @@ def test_scale_and_rotate():
     sar_epoch = s.tbl[s.epoch_idx]
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
+    # test scale-and-rotate for orbits run all the way through OFTI
+    s.run_sampler(100)
+    samples = s.results.post
+    sma = samples[:,0]
+    ecc = samples[:,1]
+    inc = samples[:,2]
+    argp = samples[:,3]
+    lan = samples[:,4]
+    tau = samples[:,5]
+    plx = samples[:,6]
+    mtot = samples[:,7]
+
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    sep, pa = orbitize.system.radec2seppa(ra, dec)
+    sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
     
+    # test to make sure sep and pa scaled to scale-and-rotate epoch
+    assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
+    assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
+
 def test_run_sampler():
     
-    #initialize sampler
+    # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
@@ -72,7 +93,6 @@ def test_run_sampler():
     s.run_sampler(1)
     print()
     
-
 def test_fixed_sys_params_sampling():
     # test in case of fixed mass and parallax
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',

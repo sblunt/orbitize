@@ -51,8 +51,3 @@ class Driver(object):
 
         sampler_func = getattr(orbitize.sampler, sampler_str)
         self.sampler = sampler_func(self.system, like=lnlike, **kwargs)
-
-    def compute_posteriors(self, total_orbits):
-
-        accepted_orbits = self.sampler.run_sampler(total_orbits)
-        return accepted_orbits

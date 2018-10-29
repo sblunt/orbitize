@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as consts
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 import corner
 import orbitize.kepler as kepler
 import h5py
@@ -260,7 +261,7 @@ class Results(object):
         return figure
 
     def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
-                    object_to_plot=1, start_year=2000,
+                    object_to_plot=1, start_mjd=51544.,
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True):
         """
@@ -277,7 +278,8 @@ class Results(object):
             object_mass (float): mass of the object, in solar masses (default: 0)
                                  Note: this input has no effect at this time
             object_to_plot (int): which object to plot (default: 1)
-            start_year (float): year in which to start plotting orbits
+            start_mjd (float): year in which to start plotting orbits (default: 1544, 
+                the year 2000)
             num_orbits_to_plot (int): number of orbits to plot (default: 100)
             num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
             square_plot (Boolean): Aspect ratio is always equal, but if
@@ -290,6 +292,7 @@ class Results(object):
 
         (written): Henry Ngo, Sarah Blunt, 2018
         """
+
         # Split the 2-D post array into series of 1-D arrays for each orbital parameter
         num_objects, remainder = np.divmod(self.post.shape[1],6)
         if object_to_plot > num_objects:
@@ -300,11 +303,12 @@ class Results(object):
         inc = self.post[:,first_index+2]
         aop = self.post[:,first_index+3]
         pan = self.post[:,first_index+4]
-        epp = self.post[:,first_index+5]
+        tau = self.post[:,first_index+5]
+
         # Then, get the other parameters
         if remainder == 2: # have samples for parallax and mtot
-            mtot = self.post[:,-2]
-            plx = self.post[:,-1]
+            plx = self.post[:,-2]
+            mtot = self.post[:,-1]
         else: # otherwise make arrays out of user provided value
             if total_mass is not None:
                 mtot = np.ones(len(sma))*total_mass
@@ -332,33 +336,34 @@ class Results(object):
             # Compute period (from Kepler's third law)
             period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
             period = period.to(u.day).value
-            start_date = (start_year*u.year).to(u.day).value
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
-            epochs[i,:] = np.linspace(start_date, float(start_date+period[orb_ind]), num_epochs_to_plot)
-            #print('period = {}'.format(period))
+            epochs[i,:] = np.linspace(start_mjd, float(start_mjd+period[orb_ind]), num_epochs_to_plot)
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = kepler.calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                epp[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
+                tau[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
             )
+
             raoff[i,:] = raoff0
             deoff[i,:] = deoff0
 
         # Create a linearly increasing colormap for our range of epochs
-        cmap = mpl.cm.inferno
+        cmap = mpl.cm.inferno_r
         norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs))
         norm_yr = mpl.colors.Normalize(vmin=np.min(epochs/365.25), vmax=np.max(epochs/365.25))
-        colormap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap).to_rgba
 
         # Create figure for orbit plots
         fig, ax = plt.subplots()
+
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
-            # Plot line segments for each point to the next (except for the last point)
-            for j in np.arange(num_epochs_to_plot-1):
-                ax.plot(raoff[i, j:j+2], deoff[i, j:j+2], color=colormap(epochs[i,j]))
-            # Connect the final point with the first point
-            ax.plot([raoff[i,-1], raoff[i,0]], [deoff[i,-1], deoff[i,0]], color=colormap(epochs[i,-1]))
+            points = np.array([raoff[i,:], deoff[i,:]]).T.reshape(-1,1,2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(
+                segments, cmap=cmap, norm=norm
+            )
+            lc.set_array(epochs[i,:])
+            ax.add_collection(lc)
 
         # Modify the axes
         if square_plot:
