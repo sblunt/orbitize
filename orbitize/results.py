@@ -286,7 +286,7 @@ class Results(object):
             object_mass (float): mass of the object, in solar masses (default: 0)
                                  Note: this input has no effect at this time
             object_to_plot (int): which object to plot (default: 1)
-            start_mjd (float): year in which to start plotting orbits (default: 1544, 
+            start_mjd (float): MJD in which to start plotting orbits (default: 51544,
                 the year 2000)
             num_orbits_to_plot (int): number of orbits to plot (default: 100)
             num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
@@ -294,7 +294,7 @@ class Results(object):
                 square_plot is True (default), then the axes will be square,
                 otherwise, white space padding is used
             show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
-            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks 
+            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
                 (default: modified Purples_r)
 
         Return:
