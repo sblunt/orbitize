@@ -2,6 +2,12 @@
 
    <br />
 
+.. image:: orbitize_logo_500.png
+   :width: 150px
+   :height: 150px
+   :align: center
+
+
 orbitize!
 =========
 

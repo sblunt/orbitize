@@ -114,3 +114,4 @@ build.sh
 *.hdf5
 *.fits
 *.png
+!docs/orbitize_logo_500.png
