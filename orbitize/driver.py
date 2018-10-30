@@ -26,7 +26,7 @@ class Driver(object):
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads`` 
             kwargs for ``orbitize.sampler.MCMC``
 
-    (written): Sarah Blunt, 2018
+    Written: Sarah Blunt, 2018
     """
     def __init__(self, filename, sampler_str,
                  num_secondary_bodies, system_mass, plx, 
