@@ -9,7 +9,7 @@ Introduction," and "MCMC Introduction." To learn more about the
 ``orbitize`` API (and to learn how to modify priors), check out "Modifying 
 Priors." For an advanced plotting demo, see "Advanced Plotting," and to learn 
 about the differences between OFTI and MCMC algorithms,
-we suggest "OFTI vs MCMC."
+we suggest "MCMC vs OFTI Comparison."
 
 Many of these tutorials are also available as jupyter notebooks 
 `here <https://github.com/sblunt/orbitize/tree/master/docs>`_.
@@ -35,3 +35,4 @@ us if you are still confused).
    tutorials/MCMC_tutorial.ipynb
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
+   tutorials/MCMC_vs_OFTI.ipynb
