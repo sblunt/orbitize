@@ -1,4 +1,7 @@
+<p align="center"><img src="docs/orbitize_logo_500.png" alt="orbitize!" width="100"/></p>
+
 # orbitize!
+
 Orbit-fitting for directly imaged objects. For installation instructions, tutorials, and detailed documentation, start [here](http://orbitize.readthedocs.io/en/latest/).
 
 [![Build Status](https://travis-ci.org/sblunt/orbitize.svg?branch=master)](https://travis-ci.org/sblunt/orbitize/)
