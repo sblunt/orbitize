@@ -1,5 +1,4 @@
-
-<center><img src="docs/orbitize_logo_500.png" alt="orbitize!" width="150"/></center>
+<p align="center"><img src="docs/orbitize_logo_500.png" alt="orbitize!" width="100"/></p>
 
 # orbitize!
 
