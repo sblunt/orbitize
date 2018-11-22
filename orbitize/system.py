@@ -31,7 +31,7 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [total mass, parallax]
+        [parallax, total_mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc.
