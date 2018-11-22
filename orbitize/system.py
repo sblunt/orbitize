@@ -10,9 +10,7 @@ class System(object):
     Args:
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        data_table (astropy.table.Table): output from either
-            ``orbitize.read_input.read_formatted_file()`` or
-            ``orbitize.read_input.read_orbitize_input()``
+        data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
         system_mass (float): mean total mass of the system, in M_sol
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``system_mass``, in M_sol
@@ -131,7 +129,7 @@ class System(object):
             self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
             self.sys_priors.append(system_mass)
-        
+
         #add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
