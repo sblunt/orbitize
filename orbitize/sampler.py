@@ -376,7 +376,7 @@ class MCMC(Sampler):
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
 
-            include_logp (bool): if True, also includ elog prior in this function
+            include_logp (bool): if True, also include log prior in this function
 
         Returns:
             lnlikes (float): sum of all log likelihoods of the data given input model
