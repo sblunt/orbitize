@@ -19,7 +19,7 @@ def chi2_lnlike(data, errors, model, seppa_indices):
             given in sep/PA. This list is located in System.seppa.
 
     Returns:
-    	np.array: Nobsx2xM array of chi-squared values. 
+    	np.array: Nobsx2xM array of chi-squared values.  
     
     .. note::
 
@@ -40,9 +40,7 @@ def chi2_lnlike(data, errors, model, seppa_indices):
 
     # if there are PA values, we should take the difference modulo angle wrapping
     if np.size(seppa_indices) > 0:
-        residual[:, seppa_indices, 1] = np.arctan2(
-            np.sin(data[seppa_indices, 1] - model[:, seppa_indices, 1]), 
-            np.cos(data[seppa_indices, 1] - model[:, seppa_indices, 1]))
+        residual[:, seppa_indices, 1] = (residual[:, seppa_indices, 1] + 180.) % 360. - 180.
         
     chi2 = -0.5 * residual**2 / errors**2
 
