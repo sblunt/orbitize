@@ -12,7 +12,8 @@ class Driver(object):
     Runs through ``orbitize`` methods in a standardized way.
 
     Args:
-        filename (str): relative path to data file. See ``orbitize.read_input``
+        input_data: Either a relative path to data file or astropy.table.Table object
+            in the orbitize format. See ``orbitize.read_input``
         sampler_str (str): algorithm to use for orbit computation. "MCMC" for
             Markov Chain Monte Carlo, "OFTI" for Orbits for the Impatient
         num_secondary_bodies (int): number of secondary bodies in the system.
@@ -28,12 +29,22 @@ class Driver(object):
 
     Written: Sarah Blunt, 2018
     """
-    def __init__(self, filename, sampler_str,
+    def __init__(self, input_data, sampler_str,
                  num_secondary_bodies, system_mass, plx,
                  mass_err=0, plx_err=0, lnlike='chi2_lnlike', mcmc_kwargs=None):
 
         # Read in data
-        data_table = orbitize.read_input.read_file(filename)
+        # Try to interpret input as a filename first
+        try:
+            data_table = orbitize.read_input.read_file(input_data)
+        except:
+            try:
+                # Check if input might be an orbitize style astropy.table.Table
+                if 'quant_type' in input_data.columns:
+                    data_table = input_data
+            except:
+                raise Exception('Invalid value of input_data for Driver')
+
 
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
