@@ -41,10 +41,9 @@ class Driver(object):
             try:
                 # Check if input might be an orbitize style astropy.table.Table
                 if 'quant_type' in input_data.columns:
-                    data_table = input_data
+                    data_table = input_data.copy()
             except:
                 raise Exception('Invalid value of input_data for Driver')
-
 
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
