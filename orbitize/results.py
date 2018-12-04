@@ -9,6 +9,7 @@ import corner
 import orbitize.kepler as kepler
 import h5py
 from astropy.io import fits
+from astropy.time import Time
 
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
@@ -228,12 +229,12 @@ class Results(object):
         default_labels = [
             'a [au]',
             'ecc',
-            'inc [deg]',
-            '$\omega$ [deg]',
-            '$\Omega$ [deg]',
+            'inc [rad]',
+            '$\omega$ [rad]',
+            '$\Omega$ [rad]',
             '$\\tau$',
-            '$M_T$ [Msol]',
-            '$\pi$ [mas]'
+            '$\pi$ [mas]',
+            '$M_T$ [Msol]'
         ]
         if len(param_list)>0: # user chose to plot specific parameters only
             num_orb_param = self.post.shape[1] # number of orbital parameters (+ mass, parallax)
@@ -241,12 +242,12 @@ class Results(object):
             have_mtot_and_plx = remainder == 2
             param_indices = []
             for param in param_list:
-                if param=='mtot':
+                if param=='plx':
                     if have_mtot_and_plx:
                         param_indices.append(num_orb_param-2) # the 2nd last index
-                elif param=='plx':
+                elif param=='mtot':
                     if have_mtot_and_plx:
-                        param_indices.append(num_orb_param-2) # the last index
+                        param_indices.append(num_orb_param-1) # the last index
                 elif len(param)==4: # to prevent invalid, short param names breaking
                     if param[0:3] in dict_of_indices:
                         object_id = np.int(param[3])
@@ -359,7 +360,10 @@ class Results(object):
 
         # Create a linearly increasing colormap for our range of epochs
         norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1,:]))
-        norm_yr = mpl.colors.Normalize(vmin=np.min(epochs/365.25), vmax=np.max(epochs[-1,:]/365.25))
+        norm_yr = mpl.colors.Normalize(
+            vmin=np.min(Time(epochs,format='mjd').decimalyear), 
+            vmax=np.max(Time(epochs,format='mjd').decimalyear)
+        )
 
         # Create figure for orbit plots
         fig, ax = plt.subplots()
