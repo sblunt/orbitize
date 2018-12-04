@@ -10,7 +10,7 @@ def test_pt_mcmc_runs(num_threads=1):
     # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
 
@@ -36,7 +36,7 @@ def test_ensemble_mcmc_runs(num_threads=1):
     # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
 

@@ -13,7 +13,7 @@ def test_compute_model():
     """
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
     data_table['object'] = 1
     testSystem_parsing = system.System(
         1, data_table, 10., 10.
@@ -41,7 +41,7 @@ def test_systeminit():
     """
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
 
     # Manually set 'object' column of data table
     data_table['object'] = 1
