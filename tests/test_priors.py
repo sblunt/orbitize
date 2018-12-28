@@ -7,7 +7,7 @@ import orbitize.priors as priors
 threshold = 1e-1
 
 initialization_inputs = {
-	priors.GaussianPrior : [0., 1.], 
+	priors.GaussianPrior : [100., 1.], 
 	priors.JeffreysPrior : [1., 2.], 
 	priors.UniformPrior : [0., 1.], 
 	priors.SinPrior : [], 
@@ -15,7 +15,7 @@ initialization_inputs = {
 }
 
 expected_means_mins_maxes = {
-	priors.GaussianPrior : (0.,-np.inf,np.inf), 
+	priors.GaussianPrior : (100.,0.,np.inf), 
 	priors.JeffreysPrior : (1/np.log(2),1., 2.), 
 	priors.UniformPrior : (0.5, 0., 1.), 
 	priors.SinPrior : (np.pi/2., 0., np.pi), 
@@ -23,7 +23,7 @@ expected_means_mins_maxes = {
 }
 
 lnprob_inputs = {
-	priors.GaussianPrior : np.array([0., -np.inf, np.inf, 3., 3.]),
+	priors.GaussianPrior : np.array([-3.0, np.inf, 100., 99.]),
 	priors.JeffreysPrior : np.array([-1., 0., 1., 1.5, 2., 2.5]),
 	priors.UniformPrior : np.array([0., 0.5, 1., -1., 2.]),
 	priors.SinPrior : np.array([0., np.pi/2., np.pi, 10., -1.]),
@@ -31,7 +31,7 @@ lnprob_inputs = {
 }
 
 expected_probs = {
-	priors.GaussianPrior : np.array([nm(0,1).pdf(0), 0., 0., nm(0,1).pdf(3), nm(0,1).pdf(-3)]),
+	priors.GaussianPrior : np.array([0., 0., nm(100.,1.).pdf(100.), nm(100.,1.).pdf(99.)]),
 	priors.JeffreysPrior : np.array([0., 0., 1., 2./3., 0.5, 0.])/np.log(2),
 	priors.UniformPrior : np.array([1., 1., 1., 0., 0.]),
 	priors.SinPrior : np.array([0., 0.5, 0., 0., 0.]),
@@ -65,11 +65,13 @@ def test_compute_lnprob():
 		values2test = lnprob_inputs[Prior]
 
 		lnprobs = TestPrior.compute_lnprob(values2test)
+
 		assert np.log(expected_probs[Prior]) == pytest.approx(lnprobs, abs=threshold)
 
 
 if __name__=='__main__':
 	test_compute_lnprob()
 	test_draw_samples()
+
 
 
