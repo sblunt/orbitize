@@ -38,12 +38,15 @@ class GaussianPrior(Prior):
     Args:
         mu (float): mean of the distribution
         sigma (float): standard deviation of the distribution
+        no_negatives (bool): if True, only positive values will be drawn from
+            this prior, and the probability of negative values will be 0 (default:True).
 
     (written) Sarah Blunt, 2018
     """
-    def __init__(self, mu, sigma):
+    def __init__(self, mu, sigma, no_negatives=True):
         self.mu = mu
         self.sigma = sigma
+        self.no_negatives = no_negatives
 
     def __repr__(self):
         return "Gaussian"
@@ -66,14 +69,16 @@ class GaussianPrior(Prior):
         )        
         bad = np.inf
 
-        while bad != 0:
+        if self.no_negatives:
 
-            bad_samples = np.where(samples <= 0)[0]
-            bad = len(bad_samples)
+            while bad != 0:
 
-            samples[bad_samples] = np.random.normal(
-                loc=self.mu, scale=self.sigma, size=bad
-            )   
+                bad_samples = np.where(samples <= 0)[0]
+                bad = len(bad_samples)
+
+                samples[bad_samples] = np.random.normal(
+                    loc=self.mu, scale=self.sigma, size=bad
+                )   
 
         return samples
 
@@ -94,8 +99,10 @@ class GaussianPrior(Prior):
         """
         lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
 
-        bad_samples = np.where(samples <= 0)[0]
-        lnprob[bad_samples] = -np.inf
+        if self.no_negatives:
+
+            bad_samples = np.where(samples <= 0)[0]
+            lnprob[bad_samples] = -np.inf
 
         return lnprob
 
