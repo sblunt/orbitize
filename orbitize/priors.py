@@ -48,13 +48,15 @@ class GaussianPrior(Prior):
     def __repr__(self):
         return "Gaussian"
 
-    def draw_samples(self, num_samples):
+    def draw_samples(self, num_samples, no_negatives=True):
         """
         Draw positive samples from a Gaussian distribution.
         Negative samples will not be returned. 
 
         Args:
             num_samples (float): the number of samples to generate
+            no_negatives (bool): if True, only positive samples will
+                be drawn (default: False).
 
         Returns:
             numpy array of float: samples drawn from the appropriate
@@ -66,18 +68,20 @@ class GaussianPrior(Prior):
         )        
         bad = np.inf
 
-        while bad != 0:
+        if no_negatives:
 
-            bad_samples = np.where(samples <= 0)[0]
-            bad = len(bad_samples)
+            while bad != 0:
 
-            samples[bad_samples] = np.random.normal(
-                loc=self.mu, scale=self.sigma, size=bad
-            )   
+                bad_samples = np.where(samples <= 0)[0]
+                bad = len(bad_samples)
+
+                samples[bad_samples] = np.random.normal(
+                    loc=self.mu, scale=self.sigma, size=bad
+                )   
 
         return samples
 
-    def compute_lnprob(self, element_array):
+    def compute_lnprob(self, element_array, no_negatives=True):
         """
         Compute log(probability) of an array of numbers wrt a Gaussian distibution.
         Negative numbers return a probability of -inf.
@@ -86,6 +90,8 @@ class GaussianPrior(Prior):
             element_array (float or np.array of float): array of numbers. We want the 
                 probability of drawing each of these from the appopriate Gaussian 
                 distribution
+            no_negatives (bool): if True, the log(probability) of negative numbers
+                will be -inf (default:True).
 
         Returns:
             numpy array of float: array of log(probability) values, 
@@ -94,10 +100,12 @@ class GaussianPrior(Prior):
         """
         lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
 
-        bad_samples = np.where(element_array <= 0)[0]
-        lnprob[bad_samples] = -np.inf
+        if no_negatives:
 
-        return lnprob 
+            bad_samples = np.where(samples <= 0)[0]
+            lnprob[bad_samples] = -np.inf
+
+        return lnprob
 
 class JeffreysPrior(Prior):
     """
