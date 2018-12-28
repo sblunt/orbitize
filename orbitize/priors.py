@@ -38,25 +38,26 @@ class GaussianPrior(Prior):
     Args:
         mu (float): mean of the distribution
         sigma (float): standard deviation of the distribution
+        no_negatives (bool): if True, only positive values will be drawn from
+            this prior, and the probability of negative values will be 0 (default:True).
 
     (written) Sarah Blunt, 2018
     """
-    def __init__(self, mu, sigma):
+    def __init__(self, mu, sigma, no_negatives=True):
         self.mu = mu
         self.sigma = sigma
+        self.no_negatives = no_negatives
 
     def __repr__(self):
         return "Gaussian"
 
-    def draw_samples(self, num_samples, no_negatives=True):
+    def draw_samples(self, num_samples):
         """
         Draw positive samples from a Gaussian distribution.
         Negative samples will not be returned. 
 
         Args:
             num_samples (float): the number of samples to generate
-            no_negatives (bool): if True, only positive samples will
-                be drawn (default: False).
 
         Returns:
             numpy array of float: samples drawn from the appropriate
@@ -68,7 +69,7 @@ class GaussianPrior(Prior):
         )        
         bad = np.inf
 
-        if no_negatives:
+        if self.no_negatives:
 
             while bad != 0:
 
@@ -81,7 +82,7 @@ class GaussianPrior(Prior):
 
         return samples
 
-    def compute_lnprob(self, element_array, no_negatives=True):
+    def compute_lnprob(self, element_array):
         """
         Compute log(probability) of an array of numbers wrt a Gaussian distibution.
         Negative numbers return a probability of -inf.
@@ -90,8 +91,6 @@ class GaussianPrior(Prior):
             element_array (float or np.array of float): array of numbers. We want the 
                 probability of drawing each of these from the appopriate Gaussian 
                 distribution
-            no_negatives (bool): if True, the log(probability) of negative numbers
-                will be -inf (default:True).
 
         Returns:
             numpy array of float: array of log(probability) values, 
@@ -100,7 +99,7 @@ class GaussianPrior(Prior):
         """
         lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
 
-        if no_negatives:
+        if self.no_negatives:
 
             bad_samples = np.where(samples <= 0)[0]
             lnprob[bad_samples] = -np.inf
