@@ -101,7 +101,7 @@ class GaussianPrior(Prior):
 
         if self.no_negatives:
 
-            bad_samples = np.where(samples <= 0)[0]
+            bad_samples = np.where(element_array <= 0)[0]
             lnprob[bad_samples] = -np.inf
 
         return lnprob
