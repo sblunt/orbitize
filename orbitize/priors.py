@@ -50,7 +50,8 @@ class GaussianPrior(Prior):
 
     def draw_samples(self, num_samples):
         """
-        Draw samples from a Gaussian distribution.
+        Draw positive samples from a Gaussian distribution.
+        Negative samples will not be returned. 
 
         Args:
             num_samples (float): the number of samples to generate
@@ -59,14 +60,27 @@ class GaussianPrior(Prior):
             numpy array of float: samples drawn from the appropriate
             Gaussian distribution. Array has length `num_samples`. 
         """
+
         samples = np.random.normal(
             loc=self.mu, scale=self.sigma, size=num_samples
-            )
+        )        
+        bad = np.inf
+
+        while bad != 0:
+
+            bad_samples = np.where(samples <= 0)[0]
+            bad = len(bad_samples)
+
+            samples[bad_samples] = np.random.normal(
+                loc=self.mu, scale=self.sigma, size=bad
+            )   
+
         return samples
 
     def compute_lnprob(self, element_array):
         """
         Compute log(probability) of an array of numbers wrt a Gaussian distibution.
+        Negative numbers return a probability of -inf.
 
         Args:
             element_array (float or np.array of float): array of numbers. We want the 
@@ -79,6 +93,9 @@ class GaussianPrior(Prior):
             in the input `element_array`.
         """
         lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
+
+        bad_samples = np.where(samples <= 0)[0]
+        lnprob[bad_samples] = -np.inf
 
         return lnprob
 

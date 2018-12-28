@@ -360,6 +360,7 @@ class Results(object):
 
         # Create a linearly increasing colormap for our range of epochs
         norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1,:]))
+
         norm_yr = mpl.colors.Normalize(
             vmin=np.min(Time(epochs,format='mjd').decimalyear), 
             vmax=np.max(Time(epochs,format='mjd').decimalyear)
