@@ -7,6 +7,7 @@ from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
 import corner
 import orbitize.kepler as kepler
+import orbitize.system
 import h5py
 from astropy.io import fits
 from astropy.time import Time
@@ -40,7 +41,7 @@ class Results(object):
         [parallax, total mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc. If stellar mass
+    to the second, etc. 
 
     Written: Henry Ngo, Sarah Blunt, 2018
     """
@@ -269,6 +270,7 @@ class Results(object):
         figure = corner.corner(samples, **corner_kwargs)
         return figure
 
+
     def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
                     object_to_plot=1, start_mjd=51544.,
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
@@ -299,7 +301,13 @@ class Results(object):
                 (default: modified Purples_r)
 
         Return:
-            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, None otherwise
+            tuple:
+
+                ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
+
+                list of ``matplotlib.pyplot.Axes``: the Axes objects used to make the plot.
+
+
 
         (written): Henry Ngo, Sarah Blunt, 2018
         """
@@ -367,7 +375,9 @@ class Results(object):
         )
 
         # Create figure for orbit plots
-        fig, ax = plt.subplots()
+        fig = plt.figure(figsize=(13,6))
+
+        ax = plt.subplot2grid((2, 13), (0, 0), rowspan=2, colspan=6)
 
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
@@ -379,7 +389,7 @@ class Results(object):
             lc.set_array(epochs[i,:])
             ax.add_collection(lc)
 
-        # Modify the axes
+        # modify the axes
         if square_plot:
             adjustable_param='datalim'
         else:
@@ -390,14 +400,35 @@ class Results(object):
         ax.locator_params(axis='x', nbins=6)
         ax.locator_params(axis='y', nbins=6)
 
-        # Add colorbar
-        if show_colorbar:
-            sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm_yr)
-            sm.set_array([]) # magic? (just needs to *not* be None)
-            cbar = fig.colorbar(sm, format='%g')
-        # Alternative implementation example for right-hand colorbar
-        # fig.subplots_adjust(right=0.8)
-        # cbar_ax = fig.add_axes([0.825, 0.15, 0.05, 0.7]) # xpos, ypos, width, height, in fraction of figure size
-        # cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
 
-        return fig
+        # plot sep/PA zoom-in panels
+        ax1 = plt.subplot2grid((2, 13), (0, 7), colspan=6)
+        ax2 = plt.subplot2grid((2, 13), (1, 7), colspan=6)
+        ax2.set_ylabel('PA [$^{{\\circ}}$]')
+        ax1.set_ylabel('$\\rho$ [mas]')
+        ax2.set_xlabel('Epoch')
+
+        for i in np.arange(num_orbits_to_plot):
+
+            yr_epochs = Time(epochs[i,:],format='mjd').decimalyear
+
+            seps, pas = orbitize.system.radec2seppa(raoff[i,:], deoff[i,:])
+
+            plt.sca(ax1)
+            plt.plot(yr_epochs, seps, color='lightgrey')
+
+            plt.sca(ax2)
+            plt.plot(yr_epochs, pas, color='lightgrey')
+
+        ax1.locator_params(axis='x', nbins=6)
+        ax1.locator_params(axis='y', nbins=6)
+        ax2.locator_params(axis='x', nbins=6)
+        ax2.locator_params(axis='y', nbins=6)
+
+
+        # add colorbar
+        if show_colorbar:
+            cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) # xpos, ypos, width, height, in fraction of figure size
+            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
+
+        return fig, [ax, ax1, ax2]
