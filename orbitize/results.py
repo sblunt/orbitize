@@ -274,7 +274,8 @@ class Results(object):
     def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
                     object_to_plot=1, start_mjd=51544.,
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
-                    square_plot=True, show_colorbar=True, cmap=cmap):
+                    square_plot=True, show_colorbar=True, cmap=cmap, 
+                    sep_pa_color='lightgrey', sep_pa_end_year=2025.0):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -299,6 +300,11 @@ class Results(object):
             show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
             cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
                 (default: modified Purples_r)
+            sep_pa_color (string): any valid matplotlib color string, used to set the 
+                color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
+            sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
+                tracks in the Sep/PA panels (default: 2025.0).
+
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -352,6 +358,7 @@ class Results(object):
             period = period.to(u.day).value
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i,:] = np.linspace(start_mjd, float(start_mjd+period[orb_ind]), num_epochs_to_plot)
+
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, _ = kepler.calc_orbit(
                 epochs[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
@@ -370,9 +377,9 @@ class Results(object):
         )
 
         # Create figure for orbit plots
-        fig = plt.figure(figsize=(13,6))
+        fig = plt.figure(figsize=(14,6))
 
-        ax = plt.subplot2grid((2, 13), (0, 0), rowspan=2, colspan=6)
+        ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
 
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
@@ -395,35 +402,54 @@ class Results(object):
         ax.locator_params(axis='x', nbins=6)
         ax.locator_params(axis='y', nbins=6)
 
+        # add colorbar
+        if show_colorbar:
+            cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7]) # xpos, ypos, width, height, in fraction of figure size
+            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
 
         # plot sep/PA zoom-in panels
-        ax1 = plt.subplot2grid((2, 13), (0, 7), colspan=6)
-        ax2 = plt.subplot2grid((2, 13), (1, 7), colspan=6)
+        ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
+        ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
         ax2.set_ylabel('PA [$^{{\\circ}}$]')
         ax1.set_ylabel('$\\rho$ [mas]')
         ax2.set_xlabel('Epoch')
 
-        for i in np.arange(num_orbits_to_plot):
+        epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
-            yr_epochs = Time(epochs[i,:],format='mjd').decimalyear
+        for i in np.arange(num_orbits_to_plot):
+            
+            orb_ind = choose[i]
+
+            epochs_seppa[i,:] = np.linspace(
+                start_mjd, 
+                Time(sep_pa_end_year, format='decimalyear').mjd, 
+                num_epochs_to_plot
+            )
+
+            # Calculate ra/dec offsets for all epochs of this orbit
+            raoff0, deoff0, _ = kepler.calc_orbit(
+                epochs_seppa[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
+                tau[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
+            )
+
+            raoff[i,:] = raoff0
+            deoff[i,:] = deoff0
+
+            yr_epochs = Time(epochs_seppa[i,:],format='mjd').decimalyear
+            plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
+            yr_epochs = yr_epochs[plot_epochs]
 
             seps, pas = orbitize.system.radec2seppa(raoff[i,:], deoff[i,:])
 
             plt.sca(ax1)
-            plt.plot(yr_epochs, seps, color='lightgrey')
+            plt.plot(yr_epochs, seps, color=sep_pa_color)
 
             plt.sca(ax2)
-            plt.plot(yr_epochs, pas, color='lightgrey')
+            plt.plot(yr_epochs, pas, color=sep_pa_color)
 
         ax1.locator_params(axis='x', nbins=6)
         ax1.locator_params(axis='y', nbins=6)
         ax2.locator_params(axis='x', nbins=6)
         ax2.locator_params(axis='y', nbins=6)
-
-
-        # add colorbar
-        if show_colorbar:
-            cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) # xpos, ypos, width, height, in fraction of figure size
-            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
 
         return fig
