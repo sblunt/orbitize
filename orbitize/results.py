@@ -301,12 +301,7 @@ class Results(object):
                 (default: modified Purples_r)
 
         Return:
-            tuple:
-
-                ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
-
-                list of ``matplotlib.pyplot.Axes``: the Axes objects used to make the plot.
-
+            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
 
 
         (written): Henry Ngo, Sarah Blunt, 2018
@@ -431,4 +426,4 @@ class Results(object):
             cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) # xpos, ypos, width, height, in fraction of figure size
             cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
 
-        return fig, [ax, ax1, ax2]
+        return fig
