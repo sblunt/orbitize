@@ -73,7 +73,7 @@ class GaussianPrior(Prior):
 
             while bad != 0:
 
-                bad_samples = np.where(samples <= 0)[0]
+                bad_samples = np.where(samples < 0)[0]
                 bad = len(bad_samples)
 
                 samples[bad_samples] = np.random.normal(
@@ -100,8 +100,8 @@ class GaussianPrior(Prior):
         lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
 
         if self.no_negatives:
-
-            bad_samples = np.where(element_array <= 0)[0]
+            
+            bad_samples = np.where(element_array < 0)[0]
             lnprob[bad_samples] = -np.inf
 
         return lnprob
