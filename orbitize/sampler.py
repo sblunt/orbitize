@@ -31,7 +31,7 @@ class Sampler(ABC):
     def __init__(self, system, like='chi2_lnlike'):
         self.system = system
 
-        # check if likliehood fuction is a string of a function
+        # check if `like` is a string or a function
         if callable(like):
             self.lnlike = like
         else:
