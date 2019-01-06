@@ -25,7 +25,7 @@ before_install:
 
 install:
     - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy cython matplotlib
-    - pip install pytest pytest-cov coverage coveralls corner deprecation
+    - pip install pytest==3.6.2 pytest-cov coverage coveralls corner deprecation
     - pip install . --upgrade
     - python setup.py build_ext -i
 
