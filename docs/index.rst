@@ -65,6 +65,12 @@ Some major planned updates:
 
 Changelog:
 ++++++++++
+**1.1.0 (2019-1-6)**
+
+- Add sep/PA panels to orbit plot.
+- ``GaussianPrior`` now operates on only positive numbers by default.
+
+
 **1.0.2 (2018-12-4)**
 
 - Expand input reading functionality.
