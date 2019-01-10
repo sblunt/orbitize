@@ -28,7 +28,7 @@ class Sampler(ABC):
     Written: Sarah Blunt, 2018
     """
 
-    def __init__(self, system, like='chi2_lnlike'):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
         self.system = system
 
         # check if likliehood fuction is a string of a function
@@ -36,6 +36,8 @@ class Sampler(ABC):
             self.lnlike = like
         else:
             self.lnlike = getattr(orbitize.lnlike, like)
+
+        self.custom_lnlike = custom_lnlike
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
@@ -71,7 +73,12 @@ class Sampler(ABC):
         lnlikes =  self.lnlike(data, errs, model, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
-        return np.nansum(lnlikes, axis=(0,1))
+        lnlikes_sum = np.nansum(lnlikes, axis=(0,1))
+
+        if self.custom_lnlike is not None:
+            lnlikes_sum += self.custom_lnlike(params)
+
+        return lnlikes_sum
 
 
 class OFTI(Sampler):
@@ -81,12 +88,17 @@ class OFTI(Sampler):
     Args:
         like (string): name of likelihood function in ``lnlike.py``
         system (system.System): ``system.System`` object
+        custom_lnlike (func): ability to include an addition custom likelihood function in the fit. 
+            the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
+            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()), 
+            and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
+            length M, or it can be a single float if M = 1. 
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
-    def __init__(self, system, like='chi2_lnlike'):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
-        super(OFTI, self).__init__(system, like=like)
+        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
         self.priors = self.system.sys_priors
         self.tbl = self.system.data_table
@@ -278,12 +290,17 @@ class MCMC(Sampler):
         num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
         like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood function in the fit. 
+            the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
+            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()), 
+            and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
+            length M, or it can be a single float if M = 1. 
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike'):
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None):
 
-        super(MCMC, self).__init__(system, like=like)
+        super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
         self.num_temps = num_temps
         self.num_walkers = num_walkers
