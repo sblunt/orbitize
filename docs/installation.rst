@@ -44,9 +44,10 @@ Issues?
 
 If you run into any issues installing ``orbitize``, please create an issue on GitHub.
 
-If you are specifically having difficulties using ``cython`` to install ``orbitize``, you can
-disable compilation of the C-based Kepler module with the following alternative 
-installation command:
+If you are specifically having difficulties using ``cython`` to install ``orbitize``, we
+suggest first trying to install all of the ``orbitize`` dependencies (listed in 
+``requirements.txt``), then disabling compilation of the C-based Kepler module with 
+the following alternative installation command:
 
 .. code-block:: bash
 	
