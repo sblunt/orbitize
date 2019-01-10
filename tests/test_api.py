@@ -4,6 +4,7 @@ Test the functionality of the API
 import numpy as np
 import orbitize.lnlike as lnlike
 import orbitize.system as system
+import orbitize.sampler as sampler
 import orbitize.read_input as read_input
 import os
 
@@ -106,6 +107,37 @@ def test_chi2lnlike():
     assert chi2.shape == (3,2,5)
     assert (chi2 == -0.5 * np.ones((3,2,5))).all()
 
+def test_custom_likelihood():
+    """
+    Tests the inclusion of a custom likelihood function in the code
+    """
+    # use the test_csv dir
+    testdir = os.path.dirname(os.path.abspath(__file__))
+    input_file = os.path.join(testdir, 'GJ504.csv')
+    data_table = read_input.read_formatted_file(input_file)
+    # Manually set 'object' column of data table
+    data_table['object'] = 1
+
+    # construct the system
+    orbit = system.System(1, data_table, 1, 0.01)
+
+    # construct custom likelihood function
+    def my_likelihood(params):
+        return np.size(params.shape[1]) * -5
+
+    # construct sampler
+    n_walkers=100
+    mcmc1 = sampler.MCMC(orbit, 0, n_walkers, num_threads=1)
+    mcmc2 = sampler.MCMC(orbit, 0, n_walkers, num_threads=1, custom_lnlike=my_likelihood)
+
+    param = np.array([[2, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.01]])
+    print(param.shape)
+    logl1 = mcmc1._logl(param)[0]
+    logl2 = mcmc2._logl(param)[0]
+
+    assert logl1 == logl2 + 5
+ 
+
 def test_radec2seppa():
     """
     Basic test for convenience function converting RA/DEC to SEP/PA
@@ -115,3 +147,6 @@ def test_radec2seppa():
     sep, pa = system.radec2seppa(ra, dec)
     assert sep.all() == np.array([1.,1.,np.sqrt(2.),np.sqrt(2.)]).all()
     assert pa.all() == np.array([270.,180.,225.,45.]).all()
+
+if __name__ == "__main__":
+    test_custom_likelihood()
