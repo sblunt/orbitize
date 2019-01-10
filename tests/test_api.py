@@ -123,17 +123,17 @@ def test_custom_likelihood():
 
     # construct custom likelihood function
     def my_likelihood(params):
-        return np.size(params.shape[1]) * -5
+        return -5
 
     # construct sampler
     n_walkers=100
     mcmc1 = sampler.MCMC(orbit, 0, n_walkers, num_threads=1)
     mcmc2 = sampler.MCMC(orbit, 0, n_walkers, num_threads=1, custom_lnlike=my_likelihood)
 
-    param = np.array([[2, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.01]])
-    print(param.shape)
-    logl1 = mcmc1._logl(param)[0]
-    logl2 = mcmc2._logl(param)[0]
+    param = np.array([2, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.01])
+    
+    logl1 = mcmc1._logl(param)
+    logl2 = mcmc2._logl(param)
 
     assert logl1 == logl2 + 5
  
