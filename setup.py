@@ -20,8 +20,10 @@ def get_property(prop, project):
     return result.group(1)
 
 def get_requires():
-    requirements = ['numpy', 'scipy', 'astropy', 'emcee', 'ptemcee', 'corner', 'pytest>=3.0.0', 'h5py']
-    return requirements
+    reqs = []
+    for line in open('requirements.txt', 'r').readlines():
+        reqs.append(line)
+    return reqs
 
 def get_extensions():
     extensions = []
