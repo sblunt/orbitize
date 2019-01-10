@@ -31,7 +31,7 @@ class Sampler(ABC):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
         self.system = system
 
-        # check if likliehood fuction is a string of a function
+        # check if `like` is a string or a function
         if callable(like):
             self.lnlike = like
         else:
@@ -393,7 +393,7 @@ class MCMC(Sampler):
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
 
-            include_logp (bool): if True, also includ elog prior in this function
+            include_logp (bool): if True, also include log prior in this function
 
         Returns:
             lnlikes (float): sum of all log likelihoods of the data given input model

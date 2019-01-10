@@ -65,6 +65,20 @@ Some major planned updates:
 
 Changelog:
 ++++++++++
+**1.1.0 (2019-1-6)**
+
+- Add sep/PA panels to orbit plot.
+- ``GaussianPrior`` now operates on only positive numbers by default.
+
+
+**1.0.2 (2018-12-4)**
+
+- Expand input reading functionality.
+- Bugfixes for MCMC.
+
+**1.0.1 (2018-11-20)**
+
+- Bugfix for building on CentOS machines.
 
 **1.0.0 (2018-10-30)**
 
