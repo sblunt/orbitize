@@ -147,7 +147,9 @@ def test_plot_orbits(results_to_test):
     assert Figure3 is not None
     Figure4 = results_to_test.plot_orbits(num_orbits_to_plot=1,square_plot=False,show_colorbar=False)
     assert Figure4 is not None
-    return (Figure1, Figure2, Figure3, Figure4)
+    Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1,square_plot=False,cbar_param='ecc')
+    assert Figure5 is not None
+    return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
@@ -163,3 +165,4 @@ if __name__ == "__main__":
     # test_orbit_figs[1].savefig('test_orbit2.png')
     # test_orbit_figs[2].savefig('test_orbit3.png')
     # test_orbit_figs[3].savefig('test_orbit4.png')
+    # test_orbit_figs[4].savefig('test_orbit5.png')
