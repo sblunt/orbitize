@@ -330,7 +330,11 @@ class Results(object):
         if cbar_param == 'epochs':
             pass
         elif cbar_param[0:3] in dict_of_indices:
-            object_id = np.int(cbar_param[3:])
+            try:
+                object_id = np.int(cbar_param[3:])
+	        except ValueError:
+		        object_id = 1
+                
             index = dict_of_indices[cbar_param[0:3]] + 6*(object_id-1)
         else:
             raise Exception('Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
