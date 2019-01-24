@@ -275,7 +275,9 @@ class Results(object):
                     object_to_plot=1, start_mjd=51544.,
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap, 
-                    sep_pa_color='lightgrey', sep_pa_end_year=2025.0):
+                    sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
+                    cbar_param='epochs'):
+
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -304,26 +306,51 @@ class Results(object):
                 color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
             sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
                 tracks in the Sep/PA panels (default: 2025.0).
-
+            cbar_param (string): options are the following: epochs, sma1, ecc1, inc1, aop1, 
+                pan1, tau1. Number can be switched out. Default is epochs.
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
 
 
         (written): Henry Ngo, Sarah Blunt, 2018
+        Additions by Malena Rice, 2019
+
         """
+
+        dict_of_indices = {
+            'sma': 0,
+            'ecc': 1,
+            'inc': 2,
+            'aop': 3,
+            'pan': 4,
+            'tau': 5
+        }
+        
+        if cbar_param == 'epochs':
+            pass
+        elif cbar_param[0:3] in dict_of_indices:
+            try:
+                object_id = np.int(cbar_param[3:])
+            except ValueError:
+                object_id = 1
+
+            index = dict_of_indices[cbar_param[0:3]] + 6*(object_id-1)
+        else:
+            raise Exception('Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
+        
 
         # Split the 2-D post array into series of 1-D arrays for each orbital parameter
         num_objects, remainder = np.divmod(self.post.shape[1],6)
         if object_to_plot > num_objects:
             return None
-        first_index = 0 + 6*(object_to_plot-1)
-        sma = self.post[:,first_index+0]
-        ecc = self.post[:,first_index+1]
-        inc = self.post[:,first_index+2]
-        aop = self.post[:,first_index+3]
-        pan = self.post[:,first_index+4]
-        tau = self.post[:,first_index+5]
+        
+        sma = self.post[:,dict_of_indices['sma']]
+        ecc = self.post[:,dict_of_indices['ecc']]
+        inc = self.post[:,dict_of_indices['inc']]
+        aop = self.post[:,dict_of_indices['aop']]
+        pan = self.post[:,dict_of_indices['pan']]
+        tau = self.post[:,dict_of_indices['tau']]
 
         # Then, get the other parameters
         if remainder == 2: # have samples for parallax and mtot
@@ -369,12 +396,19 @@ class Results(object):
             deoff[i,:] = deoff0
 
         # Create a linearly increasing colormap for our range of epochs
-        norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1,:]))
+        if cbar_param != 'epochs':
+            cbar_param_arr = self.post[:,index]
+            norm = mpl.colors.Normalize(vmin=np.min(cbar_param_arr), vmax=np.max(cbar_param_arr))
+            norm_yr = mpl.colors.Normalize(vmin=np.min(cbar_param_arr), vmax=np.max(cbar_param_arr))
 
-        norm_yr = mpl.colors.Normalize(
-            vmin=np.min(Time(epochs,format='mjd').decimalyear), 
+        elif cbar_param == 'epochs':
+            norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1,:]))
+
+            norm_yr = mpl.colors.Normalize(
+            vmin=np.min(Time(epochs,format='mjd').decimalyear),
             vmax=np.max(Time(epochs,format='mjd').decimalyear)
-        )
+            )
+
 
         # Create figure for orbit plots
         fig = plt.figure(figsize=(14,6))
@@ -388,7 +422,10 @@ class Results(object):
             lc = LineCollection(
                 segments, cmap=cmap, norm=norm, linewidth=1.0
             )
-            lc.set_array(epochs[i,:])
+            if cbar_param != 'epochs':
+                lc.set_array(np.ones(len(epochs[0]))*cbar_param_arr[i])
+            elif cbar_param == 'epochs':
+                lc.set_array(epochs[i,:])
             ax.add_collection(lc)
 
         # modify the axes
@@ -405,7 +442,7 @@ class Results(object):
         # add colorbar
         if show_colorbar:
             cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7]) # xpos, ypos, width, height, in fraction of figure size
-            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical')
+            cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
 
         # plot sep/PA zoom-in panels
         ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
