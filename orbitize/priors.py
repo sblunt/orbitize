@@ -138,7 +138,7 @@ class JeffreysPrior(Prior):
             num_samples (float): the number of samples to generate
 
         Returns:
-            np.array:  samples ranging from [0, pi) as floats.
+            np.array:  samples ranging from [``minval``, ``maxval``) as floats.
         """
         # sample from a uniform distribution in log space
         samples = np.random.uniform(self.logmin, self.logmax, num_samples)
