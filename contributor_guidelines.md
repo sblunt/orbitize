@@ -16,6 +16,8 @@ This document should grow and change with our code base. Please revise & add any
 - Put your name on all functions you write in the doc strings. Update contributors.txt periodically so it accurately summarizes your role in the project.
 - Write unit tests for your code (see "Unit Testing Instructions" below).
 - Don’t edit the `master` branch directly. Create a new branch and put all of your code there. When you’re happy with your changes, create a pull request, and assign at least Sarah and Jason to review it. When everyone is happy with it, either Sarah or Jason will pull in your changes.
+- Each feature should get its own branch to keep things modular. (e.g., don't have a branch like 'Jason-changes' that is a bunch of things all at once). The person assigned to that feature is the lead of the branch.
+- Ask for permission from the lead of a branch before contributing to that branch. Helping with a branch is nice, but do ask for permission first since they probably have a picture of what they want to do already. 
 - Every time you make changes, include a descriptive commit message. The more detail, the better!
 
 # Unit Testing Instructions:
