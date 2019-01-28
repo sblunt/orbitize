@@ -10,14 +10,12 @@ class System(object):
     Args:
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        data_table (astropy.table.Table): output from either
-            ``orbitize.read_input.read_formatted_file()`` or
-            ``orbitize.read_input.read_orbitize_input()``
+        data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
         system_mass (float): mean total mass of the system, in M_sol
         plx (float): mean parallax of the system, in mas
-        mass_err (float [optional]): uncertainty on ``system_mass``, in M_sol
-        plx_err (float [optional]): uncertainty on ``plx``, in mas
-        restrict_angle_ranges (bool [optional]): if True, restrict the ranges
+        mass_err (float, optional): uncertainty on ``system_mass``, in M_sol
+        plx_err (float, optional): uncertainty on ``plx``, in mas
+        restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         results (list of orbitize.results.Results): results from an orbit-fit
@@ -26,19 +24,19 @@ class System(object):
     Users should initialize an instance of this class, then overwrite
     priors they wish to customize.
 
-    Priors are initialized as a list of orbitize.priors.Prior objects,
-    in the following order:
+    Priors are initialized as a list of ``orbitize.priors.Prior`` objects,
+    in the following order::
 
         semimajor axis 1, eccentricity 1, inclination 1,
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [total mass, parallax]
+        [parallax, total_mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc.
 
-    (written): Sarah Blunt, 2018
+    Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
@@ -131,7 +129,7 @@ class System(object):
             self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
             self.sys_priors.append(system_mass)
-        
+
         #add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
@@ -145,11 +143,11 @@ class System(object):
                 of fitting parameters, where R is the number of
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
-                documented in System() above. If M=1, this can be a 1d array.
+                documented in ``System()`` above. If M=1, this can be a 1d array.
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
-                a 2d array, otherwise it is a 3d array.
+            a 2d array, otherwise it is a 3d array.
         """
 
         if len(params_arr.shape) == 1:
@@ -211,8 +209,8 @@ def radec2seppa(ra, dec):
     position angle.
 
     Args:
-        ra (np.array of float): array of RA values [mas]
-        dec (np.array of float): array of Dec values [mas]
+        ra (np.array of float): array of RA values, in mas
+        dec (np.array of float): array of Dec values, in mas
 
     Returns:
         tulple of float: (separation [mas], position angle [deg])

@@ -4,6 +4,7 @@ Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 import numpy as np
 import os
 import pytest
+import matplotlib.pyplot as plt
 
 import orbitize.sampler as sampler
 import orbitize.driver
@@ -29,13 +30,38 @@ def test_scale_and_rotate():
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
     
     # test to make sure sep and pa scaled to scale-and-rotate epoch
-    sar_epoch = s.tbl[s.epoch_idx]
+    sar_epoch = s.data_table[s.epoch_idx]
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
+    # test scale-and-rotate for orbits run all the way through OFTI
+    s.run_sampler(100)
+
+    # test orbit plot generation
+    s.results.plot_orbits(start_mjd=s.epochs[0])
     
+    samples = s.results.post
+    sma = samples[:,0]
+    ecc = samples[:,1]
+    inc = samples[:,2]
+    argp = samples[:,3]
+    lan = samples[:,4]
+    tau = samples[:,5]
+    plx = samples[:,6]
+    mtot = samples[:,7]
+
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    sep, pa = orbitize.system.radec2seppa(ra, dec)
+    sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
+    
+    # test to make sure sep and pa scaled to scale-and-rotate epoch
+    assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
+    assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
+
 def test_run_sampler():
     
-    #initialize sampler
+    # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
     
@@ -49,6 +75,7 @@ def test_run_sampler():
 
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
+
     print()
     idx = s.system.param_idx
     sma = np.median([x[idx['sma1']] for x in orbits])
@@ -72,7 +99,6 @@ def test_run_sampler():
     s.run_sampler(1)
     print()
     
-
 def test_fixed_sys_params_sampling():
     # test in case of fixed mass and parallax
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',

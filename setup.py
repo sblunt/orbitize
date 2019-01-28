@@ -20,8 +20,10 @@ def get_property(prop, project):
     return result.group(1)
 
 def get_requires():
-    requirements = ['numpy', 'scipy', 'astropy', 'emcee', 'ptemcee', 'corner', 'pytest>=3.0.0', 'h5py']
-    return requirements
+    reqs = []
+    for line in open('requirements.txt', 'r').readlines():
+        reqs.append(line)
+    return reqs
 
 def get_extensions():
     extensions = []
@@ -40,6 +42,15 @@ setup(
     packages=find_packages(),
     ext_modules=get_extensions(),
     include_dirs=[numpy.get_include()],
+    data_files=[
+        (
+            'orbitize_example_data', 
+            [
+                'tests/GJ504.csv', 
+                'tests/GJ504_1epoch.csv'
+            ]
+        )
+    ],
     zip_safe=False,
     classifiers=[
         # Indicate who your project is intended for

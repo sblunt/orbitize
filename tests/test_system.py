@@ -11,7 +11,7 @@ def test_add_and_clear_results():
     num_secondary_bodies=1
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    data_table=read_input.read_formatted_file(input_file)
+    data_table=read_input.read_file(input_file)
     system_mass=1.0
     plx=10.0
     mass_err=0.1
