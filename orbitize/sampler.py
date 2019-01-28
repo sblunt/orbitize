@@ -97,13 +97,20 @@ class OFTI(Sampler):
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+<<<<<<< HEAD
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
         # compute priors and columns containing ra/dec and sep/pa
+=======
+
+        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+
+>>>>>>> f81bf6f1b3beb9ce669b875f8393f141aa276704
         self.priors = self.system.sys_priors
         self.radec_idx = self.system.radec[1]
         self.seppa_idx = self.system.seppa[1]
+<<<<<<< HEAD
         
         # store input table and table with values used by OFTI
         self.input_table = self.system.data_table
@@ -114,6 +121,14 @@ class OFTI(Sampler):
         self.pa_observed = self.data_table[:]['quant2'].copy()
         self.sep_err = self.data_table[:]['quant1_err'].copy()
         self.pa_err = self.data_table[:]['quant2_err'].copy()
+=======
+
+        # these are of type astropy.table.column
+        self.sep_observed = self.tbl[:]['quant1']
+        self.pa_observed = self.tbl[:]['quant2']
+        self.sep_err = self.tbl[:]['quant1_err']
+        self.pa_err = self.tbl[:]['quant2_err']
+>>>>>>> f81bf6f1b3beb9ce669b875f8393f141aa276704
 
         # convert RA/Dec rows to sep/PA
         if len(self.radec_idx) > 0:
@@ -128,7 +143,11 @@ class OFTI(Sampler):
                 self.sep_err[i], self.pa_err[i]
             )
 
+<<<<<<< HEAD
         self.epochs = np.array(self.data_table['epoch'])
+=======
+        self.epochs = np.array(self.tbl['epoch'])
+>>>>>>> f81bf6f1b3beb9ce669b875f8393f141aa276704
 
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
