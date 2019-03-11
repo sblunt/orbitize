@@ -270,7 +270,19 @@ class OFTI(Sampler):
         return (np.array(output_orbits),output_lnlikes)
     
     def run_sampler_mp(self, total_orbits,num_samples=10000,num_cores=8):
-    
+        """
+        Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
+
+        Args:
+            total_orbits (int): total number of accepted orbits desired by user
+            num_samples (int): number of orbits to prepare for OFTI to run
+                rejection sampling on
+            num_cores (int): the number of cores to run OFTI on
+
+        Return:
+            output_orbits (np.array): array of accepted orbits. First dimension
+            has size ``total_orbits``.
+        """
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)  
     
