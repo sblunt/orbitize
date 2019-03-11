@@ -267,12 +267,35 @@ class OFTI(Sampler):
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
 
+        return (np.array(output_orbits),output_lnlikes)
+    
+    def run_sampler_mp(self, total_orbits,num_samples=10000,num_cores=8):
+    
+        output_orbits = np.empty((total_orbits, len(self.priors)))
+        output_lnlikes = np.empty(total_orbits)  
+    
+        pool=mp.Pool (processes=num_cores)
+        results=[pool.apply_async (run_sampler , args= (self, total_orbits, num_samples=num_samples//num_cores ,) for x in range(num_cores)]
+        output=[p.get() for p in results]
+    
+        currentPos=0
+        for p in output:
+           num_to_fill=len(p[0])
+           if (len(output_orbits)-pos)>=num_to_fill:
+               output_orbits[pos:pos+num_to_fill]=p[0]
+               output_lnlikes[pos:pos+num_to_fill]=p[1]
+           else:
+               space_left=len(output_orbits)-pos
+               output_orbits[pos:]=p[0][:space_left]
+               output_lnlikes[pos:]=p[1][:space_left]
+    
         self.results.add_samples(
             np.array(output_orbits),
             output_lnlikes
         )
-
+   
         return np.array(output_orbits)
+
 
 
 class MCMC(Sampler):
