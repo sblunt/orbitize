@@ -8,6 +8,9 @@ import abc
 import emcee
 import ptemcee
 
+import pathos.multiprocessing as mp
+from pathos.multiprocessing import ProcessingPool as Pool
+
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
@@ -272,13 +275,11 @@ class OFTI(Sampler):
     def run_sampler_mp(self, total_orbits,num_samples=10000,num_cores=8):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
-
         Args:
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
             num_cores (int): the number of cores to run OFTI on
-
         Return:
             output_orbits (np.array): array of accepted orbits. First dimension
             has size ``total_orbits``.
@@ -286,12 +287,13 @@ class OFTI(Sampler):
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)  
     
-        pool=mp.Pool (processes=num_cores)
-        results=[pool.apply_async (run_sampler , args= (self, total_orbits, num_samples=num_samples//num_cores ,) for x in range(num_cores)]
-        output=[p.get() for p in results]
-    
-        currentPos=0
-        for p in output:
+        pool=Pool(num_cores)
+        
+        results=pool.map(self.run_sampler,[self, total_orbits//num_cores,num_samples//num_cores])
+        
+        pos=0
+        
+        for p in results:
            num_to_fill=len(p[0])
            if (len(output_orbits)-pos)>=num_to_fill:
                output_orbits[pos:pos+num_to_fill]=p[0]
