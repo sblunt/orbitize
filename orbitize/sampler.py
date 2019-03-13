@@ -283,13 +283,14 @@ class OFTI(Sampler):
         Return:
             output_orbits (np.array): array of accepted orbits. First dimension
             has size ``total_orbits``.
+        Written by: Vighnesh Nagpal(2019)
         """
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)  
     
         pool=Pool(num_cores)
         
-        results=pool.map(self.run_sampler,[self, total_orbits//num_cores,num_samples//num_cores])
+        results=pool.map(self.run_sampler,[total_orbits//num_cores,num_samples//num_cores])
         
         pos=0
         
