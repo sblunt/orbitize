@@ -117,8 +117,7 @@ class OFTI(Sampler):
 
         # convert RA/Dec rows to sep/PA
         if len(self.radec_idx) > 0:
-            print('Converting ra/dec data points in data_table to sep/pa. Original data \
-                are stored in input_table.')
+            print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
                 
         for i in self.radec_idx:
             self.sep_observed[i], self.pa_observed[i] = radec2seppa(
