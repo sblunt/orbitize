@@ -30,7 +30,7 @@ def test_scale_and_rotate():
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
     
     # test to make sure sep and pa scaled to scale-and-rotate epoch
-    sar_epoch = s.tbl[s.epoch_idx]
+    sar_epoch = s.data_table[s.epoch_idx]
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 

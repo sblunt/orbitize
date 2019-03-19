@@ -100,18 +100,25 @@ class OFTI(Sampler):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
+        # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
-        self.tbl = self.system.data_table
         self.radec_idx = self.system.radec[1]
         self.seppa_idx = self.system.seppa[1]
+        
+        # store input table and table with values used by OFTI
+        self.input_table = self.system.data_table
+        self.data_table = self.system.data_table.copy()
 
         # these are of type astropy.table.column
-        self.sep_observed = self.tbl[:]['quant1']
-        self.pa_observed = self.tbl[:]['quant2']
-        self.sep_err = self.tbl[:]['quant1_err']
-        self.pa_err = self.tbl[:]['quant2_err']
+        self.sep_observed = self.data_table[:]['quant1'].copy()
+        self.pa_observed = self.data_table[:]['quant2'].copy()
+        self.sep_err = self.data_table[:]['quant1_err'].copy()
+        self.pa_err = self.data_table[:]['quant2_err'].copy()
 
         # convert RA/Dec rows to sep/PA
+        if len(self.radec_idx) > 0:
+            print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                
         for i in self.radec_idx:
             self.sep_observed[i], self.pa_observed[i] = radec2seppa(
                 self.sep_observed[i], self.pa_observed[i]
@@ -120,7 +127,7 @@ class OFTI(Sampler):
                 self.sep_err[i], self.pa_err[i]
             )
 
-        self.epochs = np.array(self.tbl['epoch'])
+        self.epochs = np.array(self.data_table['epoch'])
 
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
