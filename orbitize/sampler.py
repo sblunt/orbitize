@@ -440,6 +440,7 @@ class MCMC(Sampler):
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
         """
+
         if self.use_pt:
             sampler = ptemcee.Sampler(
                 self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
@@ -451,7 +452,6 @@ class MCMC(Sampler):
                 threads=self.num_threads, kwargs={'include_logp' : True}
             )
 
-
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
             pass
 
@@ -461,17 +461,24 @@ class MCMC(Sampler):
         except UnboundLocalError: # 0 step burn-in (pos is not defined)
             pass
         print('Burn in complete')
-
+        
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
-
+        
         assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
+        i=0
         for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
-            pass
+            i+=1
+            # print progress statement
+            if i%5==0:
+                print(str(i)+'/'+str(nsteps)+' steps completed',end='\r')
+        print('')
 
         self.curr_pos = pos
+        
         # TODO: Need something here to pick out temperatures, just using lowest one for now
         self.chain = sampler.chain
+
         if self.use_pt:
             self.post = sampler.flatchain[0,:,:]
             self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
@@ -482,9 +489,9 @@ class MCMC(Sampler):
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
-
+        
         self.results.add_samples(self.post,self.lnlikes)
 
         print('Run complete')
-
+        
         return sampler
