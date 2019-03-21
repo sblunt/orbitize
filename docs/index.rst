@@ -67,11 +67,12 @@ Changelog:
 ++++++++++
 
 **1.2.0 (2019-3-21)**
-- Remove unnecessary ``astropy`` date warnings
-- Add custom likelihood function
-- Add progress bar for ``ptemcee`` sampler
-- Add customizable color axis for orbit plots
-- Small bugfixes
+
+- Remove unnecessary ``astropy`` date warnings.
+- Add custom likelihood function.
+- Add progress bar for ``ptemcee`` sampler.
+- Add customizable color axis for orbit plots.
+- Small bugfixes.
 
 **1.1.0 (2019-1-6)**
 
