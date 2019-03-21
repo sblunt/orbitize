@@ -29,7 +29,6 @@ cmap = colors.LinearSegmentedColormap.from_list(
 class Results(object):
     """
     A class to store accepted orbital configurations from the sampler
-
     Args:
         sampler_name (string): name of sampler class that generated these results (default: None).
         post (np.array of float): MxN array of orbital parameters
@@ -38,18 +37,14 @@ class Results(object):
             parameters in the fit (default: None).
         lnlike (np.array of float): M array of log-likelihoods corresponding to
             the orbits described in ``post`` (default: None).
-
     The ``post`` array is in the following order::
-
         semimajor axis 1, eccentricity 1, inclination 1,
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
         [parallax, total mass]
-
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. 
-
     Written: Henry Ngo, Sarah Blunt, 2018
     """
     def __init__(self, sampler_name=None, post=None, lnlike=None):
@@ -60,11 +55,9 @@ class Results(object):
     def add_samples(self, orbital_params, lnlikes):
         """
         Add accepted orbits and their likelihoods to the results
-
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
-
         Written: Henry Ngo, 2018
         """
         # If no exisiting results then it is easy
@@ -85,25 +78,20 @@ class Results(object):
     def save_results(self, filename, format='hdf5'):
         """
         Save results.Results object to a file
-
         Args:
             filename (string): filepath to save to
             format (string): either "hdf5" (default), or "fits"
-
         Both formats (HDF5 and FITS) save the ``sampler_name``, ``post``, and ``lnlike``
         attributes from the ``results.Results`` object. Note that currently, only the
         MCMC sampler has the ``lnlike`` attribute set. For OFTI, ``lnlike`` is None and
         it is not saved.
-
         HDF5: ``sampler_name`` is an attribute of the root group. ``post`` and ``lnlike``
         are datasets that are members of the root group.
-
         FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
         After reading with something like ``hdu = astropy.io.fits.open(file)``,
         ``hdu[1].header['SAMPNAME']`` returns the ``sampler_name``.
         ``hdu[1].data`` returns a ``Table`` with two columns. The first column
         contains the post array, and the second column contains the lnlike array
-
         Written: Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
@@ -138,16 +126,13 @@ class Results(object):
     def load_results(self, filename, format='hdf5', append=False):
         """
         Populate the ``results.Results`` object with data from a datafile
-
         Args:
             filename (string): filepath where data is saved
             format (string): either "hdf5" (default), or "fits"
             append (boolean): if True, then new data is added to existing object.
                 If False (default), new data overwrites existing object
-
         See the ``save_results()`` method in this module for information on how the
         data is structured.
-
         Written: Henry Ngo, 2018
         """
         if format.lower()=='hdf5':
@@ -196,11 +181,9 @@ class Results(object):
     def plot_corner(self, param_list=[], **corner_kwargs):
         """
         Make a corner plot of posterior on orbit fit from any sampler
-
         Args:
             param_list (list of strings): each entry is a name of a parameter to include.
                 Valid strings::
-
                     sma1: semimajor axis
                     ecc1: eccentricity
                     inc1: inclination
@@ -210,18 +193,14 @@ class Results(object):
                     [repeat for 2, 3, 4, etc if multiple objects]
                     mtot: total mass
                     plx:  parallax
-
             **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                              See `here <https://corner.readthedocs.io/>`_.
                              Note: default axis labels used unless overwritten by user input.
-
         Return:
             ``matplotlib.pyplot.Figure``: corner plot
-
         .. Note:: **Example**: Use ``param_list = ['sma1,ecc1,inc1,sma2,ecc2,inc2']`` to only
             plot posteriors for semimajor axis, eccentricity and inclination
             of the first two companions
-
         Written: Henry Ngo, 2018
         """
         # Define a dictionary to look up index of certain parameters
@@ -288,7 +267,6 @@ class Results(object):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
-
         Args:
             parallax (float): parallax (in mas), however, if plx_err was passed
                 to system, then this is ignored and the posterior samples for
@@ -315,14 +293,10 @@ class Results(object):
                 tracks in the Sep/PA panels (default: 2025.0).
             cbar_param (string): options are the following: epochs, sma1, ecc1, inc1, aop1, 
                 pan1, tau1. Number can be switched out. Default is epochs.
-
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
-
-
         (written): Henry Ngo, Sarah Blunt, 2018
         Additions by Malena Rice, 2019
-
         """
 
         with warnings.catch_warnings():
@@ -501,3 +475,4 @@ class Results(object):
             ax2.locator_params(axis='y', nbins=6)
 
         return fig
+
