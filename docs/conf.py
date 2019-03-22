@@ -22,7 +22,7 @@ import orbitize
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.')) # location of Sphinx .rst files
+sys.path.insert(0, os.path.abspath('./../orbitize')) # location of orbitize files with docstrings
 
 
 # -- General configuration ------------------------------------------------
