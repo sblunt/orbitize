@@ -32,6 +32,7 @@ class System(object):
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
         [parallax, total_mass]
+        [mass1, mass2, ..]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc.
@@ -40,7 +41,7 @@ class System(object):
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 fit_secondary_masses=False, results=None):
+                 fit_secondary_mass=False, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -127,7 +128,7 @@ class System(object):
         else:
             self.sys_priors.append(plx)
         
-        if fit_secondary_mass:
+        if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
                     self.sys_priors.append(priors.JeffreysPrior(1e-6, 1)) # in Solar masses for onw
 
