@@ -31,11 +31,11 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, total_mass]
-        [mass1, mass2, ..]
+        [parallax, [mass1, mass2, ..], total_mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc.
+    to the second, etc. Mass1, mass2, ... correspond to masses of secondary
+    bodies. Primary mass is only in tota_mass. 
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
