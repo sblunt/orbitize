@@ -272,7 +272,7 @@ class OFTI(Sampler,):
                     output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                     n_orbits_saved += maxindex2save
 
-                    # print progress statement
+                    # add to the value of the global variable
                     Value.value+=maxindex2save
             
             output.put((np.array(output_orbits),output_lnlikes))
@@ -313,32 +313,38 @@ class OFTI(Sampler,):
         Written by: Vighnesh Nagpal(2019)
         
         """
-        #setup a queue for the  
+        # a mp queue for the processes to add their results to 
         output = mp.Queue()
          
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)  
-            
+        
+        # orbits_saved is a global variable that stores the total number of orbits generated
         orbits_saved=mp.Value('i',0)
-                       
+        
+        # setup the processes
         processes=[mp.Process(target=self.run_sampler_base,args=(output,math.ceil(total_orbits/num_cores),num_samples//num_cores,orbits_saved)) for x in range(num_cores)]
             
-
+        # start the processes
         for p in processes:
             p.start()
             
         time.sleep(5)
         
+        # print out the number of orbits generated every second until the number of orbits generated exceeds the number desired
         while orbits_saved.value<total_orbits:
             time.sleep(1)
             print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
-
+        
+        # join the processes
         for p in processes:
             p.join()  
 
-                
+        
+        # get the results of each process from the queue
         results = [output.get() for p in processes]
-           
+        
+        # filling up the output_orbits array
         pos=0
             
         for p in results:
