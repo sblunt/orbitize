@@ -59,7 +59,7 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
 
-def test_run_sampler():
+def test_run_sampler(num_cores):
     
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
@@ -74,7 +74,13 @@ def test_run_sampler():
     s.run_sampler(0,num_samples=1)    
 
     # test to make sure outputs are reasonable
-    orbits = s.run_sampler(1000)
+    start=time.time()
+    orbits = s.run_sampler(100,num_cores=num_cores)
+    end=time.time()
+    print()
+    print("Runtime: "+str(end-start) +" s")
+    print()
+    print(orbits[0])
 
     print()
     idx = s.system.param_idx
@@ -112,5 +118,5 @@ def test_fixed_sys_params_sampling():
 
 if __name__ == "__main__":
     test_scale_and_rotate()
-    test_run_sampler()
+    test_run_sampler(4)
     print("Done!")
