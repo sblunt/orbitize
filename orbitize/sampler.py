@@ -4,12 +4,13 @@ import astropy.units as u
 import astropy.constants as consts
 import sys
 import abc
+import math
+import time
 
 import emcee
 import ptemcee
+import multiprocessing as mp
 
-import pathos.multiprocessing as mp
-from pathos.multiprocessing import ProcessingPool as Pool
 
 import orbitize.lnlike
 import orbitize.priors
@@ -84,7 +85,8 @@ class Sampler(ABC):
         return lnlikes_sum
 
 
-class OFTI(Sampler):
+
+class OFTI(Sampler,):
     """
     OFTI Sampler
 
@@ -233,46 +235,71 @@ class OFTI(Sampler):
 
         return saved_orbits, lnlikes
 
-
-    def run_sampler(self, total_orbits, num_samples=10000):
+    
+    def run_sampler_base(self,output,total_orbits, num_samples=10000,Value=-1):
         """
         Runs OFTI until we get the number of total accepted orbits we want.
-
         Args:
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
-
+            setting (int): Two settings: 0 and 1, which correspond to running this
+                function as a multiprocessing process and running it individually 
+                respectively. Default:0
         Return:
             output_orbits (np.array): array of accepted orbits. First dimension
             has size ``total_orbits``.
         """
-
+        
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
 
         # add orbits to `output_orbits` until `total_orbits` are saved
-        while n_orbits_saved < total_orbits:
-            samples = self.prepare_samples(num_samples)
-            accepted_orbits, lnlikes = self.reject(samples)
+        
+        if Value.value==0:
+            while n_orbits_saved<total_orbits:
+                samples = self.prepare_samples(num_samples)
+                accepted_orbits, lnlikes = self.reject(samples)
 
-            if len(accepted_orbits)==0:
-                pass
-            else:
-                n_accepted = len(accepted_orbits)
-                maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
+                if len(accepted_orbits)==0:
+                    pass
+                else:
+                    n_accepted = len(accepted_orbits)
+                    maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
-                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
-                n_orbits_saved += maxindex2save
+                    output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+                    output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                    n_orbits_saved += maxindex2save
 
-                # print progress statement
-                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+                    # print progress statement
+                    Value.value+=maxindex2save
+            
+            output.put((np.array(output_orbits),output_lnlikes))
+            return (np.array(output_orbits),output_lnlikes)
 
-        return (np.array(output_orbits),output_lnlikes)
+        else:
+            while n_orbits_saved < total_orbits:
+                samples = self.prepare_samples(num_samples)
+                accepted_orbits, lnlikes = self.reject(samples)
+
+                if len(accepted_orbits)==0:
+                    pass
+                else:
+                    n_accepted = len(accepted_orbits)
+                    maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
+
+                    output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+                    output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                    n_orbits_saved += maxindex2save
+                    Value.value+=maxindex2save
+
+            output.put((np.array(output_orbits),output_lnlikes))
+            return (np.array(output_orbits),output_lnlikes)
     
-    def run_sampler_mp(self, total_orbits,num_samples=10000,num_cores=8):
+    
+    
+    def run_sampler(self, total_orbits,num_samples=10000,num_cores=8):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
         Args:
@@ -282,35 +309,53 @@ class OFTI(Sampler):
             num_cores (int): the number of cores to run OFTI on
         Return:
             output_orbits (np.array): array of accepted orbits. First dimension
-            has size ``total_orbits``.
+            has size ``total_orbits``.            
         Written by: Vighnesh Nagpal(2019)
+        
         """
+        #setup a queue for the  
+        output = mp.Queue()
+         
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)  
-    
-        pool=Pool(num_cores)
+            
+        orbits_saved=mp.Value('i',0)
+                       
+        processes=[mp.Process(target=self.run_sampler_base,args=(output,math.ceil(total_orbits/num_cores),num_samples//num_cores,orbits_saved)) for x in range(num_cores)]
+            
+
+        for p in processes:
+            p.start()
+            
+        time.sleep(5)
         
-        results=pool.map(self.run_sampler,[total_orbits//num_cores,num_samples//num_cores])
-        
+        while orbits_saved.value<total_orbits:
+            time.sleep(1)
+            print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
+
+        for p in processes:
+            p.join()  
+
+                
+        results = [output.get() for p in processes]
+           
         pos=0
-        
+            
         for p in results:
-           num_to_fill=len(p[0])
-           if (len(output_orbits)-pos)>=num_to_fill:
-               output_orbits[pos:pos+num_to_fill]=p[0]
-               output_lnlikes[pos:pos+num_to_fill]=p[1]
-           else:
-               space_left=len(output_orbits)-pos
-               output_orbits[pos:]=p[0][:space_left]
-               output_lnlikes[pos:]=p[1][:space_left]
-    
-        self.results.add_samples(
+            num_to_fill=len(p[0])
+                
+            if (len(output_orbits)-pos)>=num_to_fill:
+                output_orbits[pos:pos+num_to_fill]=p[0]
+                output_lnlikes[pos:pos+num_to_fill]=p[1]
+            else:
+                space_left=len(output_orbits)-pos
+                output_orbits[pos:]=p[0][:space_left]
+                output_lnlikes[pos:]=p[1][:space_left] 
+            self.results.add_samples(
             np.array(output_orbits),
             output_lnlikes
-        )
-   
-        return np.array(output_orbits)
-
+            )
+            return np.array(output_orbits)
 
 
 class MCMC(Sampler):
