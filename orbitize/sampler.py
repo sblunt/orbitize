@@ -127,7 +127,8 @@ class OFTI(Sampler):
                 self.sep_err[i], self.pa_err[i]
             )
 
-        self.epochs = np.array(self.data_table['epoch'])
+        ### this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
+        self.epochs = np.array(self.data_table['epoch']) - self.system.tau_ref_epoch 
 
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error

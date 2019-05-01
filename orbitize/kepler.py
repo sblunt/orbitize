@@ -14,7 +14,7 @@ equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
 
-def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -32,6 +32,7 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tole
         plx (np.array): parallax [mas]
         mtot (np.array): total mass [Solar masses]
         mass (np.array, optional): mass of the body [Solar masses]. For planets mass ~ 0 (default)
+        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
 
@@ -66,7 +67,7 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tole
     mean_motion = 2*np.pi/(period) # in rad/day
 
     # # compute mean anomaly (size: n_orbs x n_dates)
-    manom = (mean_motion*epochs[:, None] - 2*np.pi*tau) % (2.0*np.pi)
+    manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
