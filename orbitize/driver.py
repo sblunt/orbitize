@@ -24,6 +24,8 @@ class Driver(object):
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
+        system_kwargs (dict, optional): ``restrict_angle_ranges``, ``ref_tau_epoch``, 
+            ``results`` for ``orbitize.system.System``. 
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
 
@@ -31,7 +33,8 @@ class Driver(object):
     """
     def __init__(self, input_data, sampler_str,
                  num_secondary_bodies, system_mass, plx,
-                 mass_err=0, plx_err=0, lnlike='chi2_lnlike', mcmc_kwargs=None):
+                 mass_err=0, plx_err=0, lnlike='chi2_lnlike', 
+                 system_kwargs=None, mcmc_kwargs=None):
 
         # Read in data
         # Try to interpret input as a filename first
@@ -45,10 +48,13 @@ class Driver(object):
             except:
                 raise Exception('Invalid value of input_data for Driver')
 
+        if system_kwargs is None:
+            system_kwargs = {}
+
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
             num_secondary_bodies, data_table, system_mass,
-            plx, mass_err=mass_err, plx_err=plx_err
+            plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
         )
 
         # Initialize Sampler object, which stores information about
