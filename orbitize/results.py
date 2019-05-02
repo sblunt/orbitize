@@ -52,10 +52,11 @@ class Results(object):
 
     Written: Henry Ngo, Sarah Blunt, 2018
     """
-    def __init__(self, sampler_name=None, post=None, lnlike=None):
+    def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None):
         self.sampler_name = sampler_name
         self.post = post
         self.lnlike = lnlike
+        self.tau_ref_epoch = tau_ref_epoch
 
     def add_samples(self, orbital_params, lnlikes):
         """
@@ -110,6 +111,7 @@ class Results(object):
             hf = h5py.File(filename,'w') # Creates h5py file object
             # Add sampler_name as attribute of the root group
             hf.attrs['sampler_name']=self.sampler_name
+            hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
             # Now add post and lnlike from the results object as datasets
             hf.create_dataset('post', data=self.post)
             if self.lnlike is not None: # This property doesn't exist for OFTI
@@ -130,6 +132,7 @@ class Results(object):
                 hdu = fits.BinTableHDU.from_columns([col_post])
             # Add sampler_name to the hdu's header
             hdu.header['SAMPNAME'] = self.sampler_name
+            hdu.header['TAU_REF'] = self.tau_ref_epoch
             # Write to fits file
             hdu.writeto(filename)
         else:
@@ -156,12 +159,28 @@ class Results(object):
             sampler_name = np.str(hf.attrs['sampler_name'])
             post = np.array(hf.get('post'))
             lnlike = np.array(hf.get('lnlike'))
+            # get the tau reference epoch
+            try:
+                tau_ref_epoch = float(hf.attrs['tau_ref_epoch'])
+            except KeyError:
+                # probably a old results file when reference epoch was fixed at MJD = 0
+                tau_ref_epoch = 0
+
             hf.close() # Closes file object
         elif format.lower()=='fits':
             hdu_list = fits.open(filename) # Opens file as HDUList object
             table_hdu = hdu_list[1] # Table data is in first extension
+
             # Get sampler_name from header
             sampler_name = table_hdu.header['SAMPNAME']
+            
+            # get tau reference epoch
+            if 'TAU_REF' in table_hdu.header:
+                tau_ref_epoch = table_hdu.header['TAU_REF']
+            else:
+                # this is most likely an older results file where it was fixed to MJD=0
+                tau_ref_epoch = 0
+
             # Get post and lnlike arrays from column names
             post = table_hdu.data.field('post')
             # (Note: OFTI does not have lnlike so it won't be saved)
@@ -182,13 +201,22 @@ class Results(object):
             # otherwise only proceed if the sampler_names match
             elif self.sampler_name != sampler_name:
                 raise Exception('Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+            
+            # if no tau reference epoch is set, use input file's value
+            if self.tau_ref_epoch is None:
+                self.tau_ref_epoch = tau_ref_epoch
+            # otherwise, only proceed if they are identical
+            elif self.tau_ref_epoch != tau_ref_epoch:
+                raise ValueError("Loaded data has tau reference epoch of {0} while Results object has already been initialized to {1}".format(tau_ref_epoch, self.tau_ref_epoch))
+
             # Now append post and lnlike
             self.add_samples(post,lnlike)
         else:
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None:
+            if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None:
                 self._set_sampler_name(sampler_name)
                 self.add_samples(post,lnlike)
+                self.tau_ref_epoch = tau_ref_epoch
             else:
                 raise Exception('Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
 
@@ -399,7 +427,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
+                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind], tau_ref_epoch=self.tau_ref_epoch
                 )
 
                 raoff[i,:] = raoff0
@@ -477,7 +505,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs_seppa[i,:], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind]
+                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], mass=mplanet[orb_ind], tau_ref_epoch=self.tau_ref_epoch
                 )
 
                 raoff[i,:] = raoff0
