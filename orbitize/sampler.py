@@ -137,7 +137,8 @@ class OFTI(Sampler):
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
-            lnlike = None
+            lnlike = None,
+            tau_ref_epoch=self.system.tau_ref_epoch
         )
 
     def prepare_samples(self, num_samples):
@@ -318,7 +319,8 @@ class MCMC(Sampler):
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
-            lnlike = None
+            lnlike = None,
+            tau_ref_epoch=system.tau_ref_epoch
         )
 
         if self.num_temps > 1:
