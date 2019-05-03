@@ -38,6 +38,7 @@ class Results(object):
             parameters in the fit (default: None).
         lnlike (np.array of float): M array of log-likelihoods corresponding to
             the orbits described in ``post`` (default: None).
+        tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
 
     The ``post`` array is in the following order::
 
@@ -48,7 +49,7 @@ class Results(object):
         [parallax, total mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc. 
+    to the second, etc.
 
     Written: Henry Ngo, Sarah Blunt, 2018
     """
@@ -96,12 +97,13 @@ class Results(object):
         MCMC sampler has the ``lnlike`` attribute set. For OFTI, ``lnlike`` is None and
         it is not saved.
 
-        HDF5: ``sampler_name`` is an attribute of the root group. ``post`` and ``lnlike``
-        are datasets that are members of the root group.
+        HDF5: ``sampler_name`` and ``tau_ref_epcoh`` are attributes of the root group.
+        ``post`` and ``lnlike`` are datasets that are members of the root group.
 
         FITS: Data is saved as Binary FITS Table to the *first extension* HDU.
         After reading with something like ``hdu = astropy.io.fits.open(file)``,
         ``hdu[1].header['SAMPNAME']`` returns the ``sampler_name``.
+        ``hdu[1].header['TAU_REF']`` returns the ``tau_ref_epoch``.
         ``hdu[1].data`` returns a ``Table`` with two columns. The first column
         contains the post array, and the second column contains the lnlike array
 
@@ -173,7 +175,7 @@ class Results(object):
 
             # Get sampler_name from header
             sampler_name = table_hdu.header['SAMPNAME']
-            
+
             # get tau reference epoch
             if 'TAU_REF' in table_hdu.header:
                 tau_ref_epoch = table_hdu.header['TAU_REF']
@@ -201,7 +203,7 @@ class Results(object):
             # otherwise only proceed if the sampler_names match
             elif self.sampler_name != sampler_name:
                 raise Exception('Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
-            
+
             # if no tau reference epoch is set, use input file's value
             if self.tau_ref_epoch is None:
                 self.tau_ref_epoch = tau_ref_epoch
@@ -309,7 +311,7 @@ class Results(object):
     def plot_orbits(self, parallax=None, total_mass=None, object_mass=0,
                     object_to_plot=1, start_mjd=51544.,
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
-                    square_plot=True, show_colorbar=True, cmap=cmap, 
+                    square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
                     cbar_param='epochs'):
 
@@ -337,11 +339,11 @@ class Results(object):
             show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
             cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
                 (default: modified Purples_r)
-            sep_pa_color (string): any valid matplotlib color string, used to set the 
+            sep_pa_color (string): any valid matplotlib color string, used to set the
                 color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
             sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
                 tracks in the Sep/PA panels (default: 2025.0).
-            cbar_param (string): options are the following: epochs, sma1, ecc1, inc1, aop1, 
+            cbar_param (string): options are the following: epochs, sma1, ecc1, inc1, aop1,
                 pan1, tau1. Number can be switched out. Default is epochs.
 
         Return:
@@ -364,7 +366,7 @@ class Results(object):
                 'pan': 4,
                 'tau': 5
             }
-            
+
             if cbar_param == 'epochs':
                 pass
             elif cbar_param[0:3] in dict_of_indices:
@@ -376,13 +378,13 @@ class Results(object):
                 index = dict_of_indices[cbar_param[0:3]] + 6*(object_id-1)
             else:
                 raise Exception('Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
-            
+
 
             # Split the 2-D post array into series of 1-D arrays for each orbital parameter
             num_objects, remainder = np.divmod(self.post.shape[1],6)
             if object_to_plot > num_objects:
                 return None
-            
+
             sma = self.post[:,dict_of_indices['sma']]
             ecc = self.post[:,dict_of_indices['ecc']]
             inc = self.post[:,dict_of_indices['inc']]
@@ -492,13 +494,13 @@ class Results(object):
             epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
             for i in np.arange(num_orbits_to_plot):
-                
+
                 orb_ind = choose[i]
 
 
                 epochs_seppa[i,:] = np.linspace(
-                    start_mjd, 
-                    Time(sep_pa_end_year, format='decimalyear').mjd, 
+                    start_mjd,
+                    Time(sep_pa_end_year, format='decimalyear').mjd,
                     num_epochs_to_plot
                 )
 
