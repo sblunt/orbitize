@@ -18,8 +18,8 @@ class System(object):
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
-        tau_ref_epoch (float, optional): reference epoch for defining tau (MJD). 
-            Default is 60000 (Feb 25, 2023).
+        tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
+            Default is 58849 (Jan 1, 2020).
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
