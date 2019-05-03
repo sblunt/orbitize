@@ -42,7 +42,7 @@ class System(object):
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=60000, results=None):
+                 tau_ref_epoch=58849, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
