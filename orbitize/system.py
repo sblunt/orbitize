@@ -18,6 +18,8 @@ class System(object):
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
+        tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
+            Default is 58849 (Jan 1, 2020).
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
@@ -40,12 +42,13 @@ class System(object):
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 results=None):
+                 tau_ref_epoch=58849, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
         self.results = []
+        self.tau_ref_epoch = tau_ref_epoch
 
         #
         # Group the data in some useful ways
@@ -169,7 +172,7 @@ class System(object):
             mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch
             )
 
             if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)

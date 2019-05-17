@@ -127,7 +127,8 @@ class OFTI(Sampler):
                 self.sep_err[i], self.pa_err[i]
             )
 
-        self.epochs = np.array(self.data_table['epoch'])
+        ### this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
+        self.epochs = np.array(self.data_table['epoch']) - self.system.tau_ref_epoch 
 
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
@@ -136,7 +137,8 @@ class OFTI(Sampler):
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
-            lnlike = None
+            lnlike = None,
+            tau_ref_epoch=self.system.tau_ref_epoch
         )
 
     def prepare_samples(self, num_samples):
@@ -317,7 +319,8 @@ class MCMC(Sampler):
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
-            lnlike = None
+            lnlike = None,
+            tau_ref_epoch=system.tau_ref_epoch
         )
 
         if self.num_temps > 1:
