@@ -357,11 +357,10 @@ class OFTI(Sampler,):
                 space_left=len(output_orbits)-pos
                 output_orbits[pos:]=p[0][:space_left]
                 output_lnlikes[pos:]=p[1][:space_left] 
-            self.results.add_samples(
-            np.array(output_orbits),
-            output_lnlikes
-            )
-            return np.array(output_orbits)
+        self.results.add_samples(
+        np.array(output_orbits),
+        output_lnlikes)
+        return np.array(output_orbits)
 
 
 class MCMC(Sampler):
