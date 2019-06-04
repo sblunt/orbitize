@@ -66,6 +66,13 @@ Some major planned updates:
 Changelog:
 ++++++++++
 
+**1.2.0 (2019-6-4)**
+
+- Add ability to customize date of tau definition. 
+- Sampler now saves choice of tau reference with results.
+- Default tau value is now Jan 1, 2020.
+- Small bugfixes.
+
 **1.2.0 (2019-3-21)**
 
 - Remove unnecessary ``astropy`` date warnings.
