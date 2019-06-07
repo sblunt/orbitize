@@ -192,6 +192,34 @@ class System(object):
 
         return model
 
+    def convert_data_table_radec2seppa(self,body_num=1):
+        """
+        Converts rows of self.data_table given in radec to seppa.
+        Note that self.input_table remains unchanged.
+
+        Args:
+            body_num (int): which object to convert (1 = first planet)
+        """
+        for i in self.radec[body_num]: # Loop through rows where input provided in radec
+            # Get ra/dec values
+            ra = self.data_table['quant1'][i]
+            ra_err = self.data_table['quant1_err'][i]
+            dec = self.data_table['quant2'][i]
+            dec_err = self.data_table['quant2_err'][i]
+            # Convert to sep/PA
+            sep, pa = radec2seppa(ra,dec)
+            sep_err, pa_err = radec2seppa(ra_err,dec_err)
+            # Update data_table
+            self.data_table['quant1'][i]=sep
+            self.data_table['quant1_err'][i]=sep_err
+            self.data_table['quant2'][i]=pa
+            self.data_table['quant2_err'][i]=pa_err
+            self.data_table['quant_type'][i]='seppa'
+            # Update self.radec and self.seppa arrays
+            self.radec[body_num]=np.delete(self.radec[body_num],np.where(self.radec[body_num]==i)[0])
+            self.seppa[body_num]=np.append(self.seppa[body_num],i)
+
+
     def add_results(self, results):
         """
         Adds an orbitize.results.Results object to the list in system.results
