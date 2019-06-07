@@ -55,6 +55,8 @@ class System(object):
         #
 
         self.data_table = data_table
+        # Creates a copy of the input in case data_table needs to be modified
+        self.input_table = self.data_table.copy()
 
         # List of arrays of indices corresponding to each body
         self.body_indices = []
