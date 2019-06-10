@@ -66,7 +66,11 @@ Some major planned updates:
 Changelog:
 ++++++++++
 
-**1.2.0 (2019-6-4)**
+**1.3.1 (2019-6-19)**
+
+- Bugfix for RA/Dec inputs to the OFTI sampler (Issue #108).
+
+**1.3.0 (2019-6-4)**
 
 - Add ability to customize date of tau definition. 
 - Sampler now saves choice of tau reference with results.
