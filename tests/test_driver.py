@@ -87,6 +87,23 @@ def test_create_driver_from_table():
                              plx_err=0.1) # parallax error [mas]
     _compare_table(myDriver.system.data_table)
 
+def test_system_kwargs():
+    """
+    Test additional arguments to the system class
+    """
+    testdir = os.path.dirname(os.path.abspath(__file__))
+    input_file = os.path.join(testdir, 'test_val.csv')
+    myDriver = driver.Driver(input_file, # path to data file
+                             'MCMC', # name of algorith for orbit-fitting
+                             1, # number of secondary bodies in system
+                             1.0, # total system mass [M_sun]
+                             50.0, # total parallax of system [mas]
+                             mass_err=0.1, # mass error [M_sun]
+                             plx_err=0.1,
+                             system_kwargs={"tau_ref_epoch": 50000}) # parallax error [mas]
+    assert myDriver.system.tau_ref_epoch == 50000
+
 if __name__ == '__main__':
     test_create_driver_from_filename()
     test_create_driver_from_table()
+    test_system_kwargs()

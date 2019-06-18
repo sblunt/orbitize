@@ -18,6 +18,8 @@ class System(object):
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
+        tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
+            Default is 58849 (Jan 1, 2020).
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
@@ -41,19 +43,22 @@ class System(object):
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 fit_secondary_mass=False, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
+        self.tau_ref_epoch = tau_ref_epoch
 
         #
         # Group the data in some useful ways
         #
 
         self.data_table = data_table
+        # Creates a copy of the input in case data_table needs to be modified
+        self.input_table = self.data_table.copy()
 
         # List of arrays of indices corresponding to each body
         self.body_indices = []
@@ -95,7 +100,7 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.JeffreysPrior(0.1, 100.))
+            self.sys_priors.append(priors.JeffreysPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
@@ -181,7 +186,7 @@ class System(object):
             mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
             )
 
             if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)
@@ -198,6 +203,34 @@ class System(object):
                 model[self.seppa[body_num], 1] = pa
 
         return model
+
+    def convert_data_table_radec2seppa(self,body_num=1):
+        """
+        Converts rows of self.data_table given in radec to seppa.
+        Note that self.input_table remains unchanged.
+
+        Args:
+            body_num (int): which object to convert (1 = first planet)
+        """
+        for i in self.radec[body_num]: # Loop through rows where input provided in radec
+            # Get ra/dec values
+            ra = self.data_table['quant1'][i]
+            ra_err = self.data_table['quant1_err'][i]
+            dec = self.data_table['quant2'][i]
+            dec_err = self.data_table['quant2_err'][i]
+            # Convert to sep/PA
+            sep, pa = radec2seppa(ra,dec)
+            sep_err, pa_err = radec2seppa(ra_err,dec_err)
+            # Update data_table
+            self.data_table['quant1'][i]=sep
+            self.data_table['quant1_err'][i]=sep_err
+            self.data_table['quant2'][i]=pa
+            self.data_table['quant2_err'][i]=pa_err
+            self.data_table['quant_type'][i]='seppa'
+            # Update self.radec and self.seppa arrays
+            self.radec[body_num]=np.delete(self.radec[body_num],np.where(self.radec[body_num]==i)[0])
+            self.seppa[body_num]=np.append(self.seppa[body_num],i)
+
 
     def add_results(self, results):
         """

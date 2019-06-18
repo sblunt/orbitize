@@ -88,11 +88,11 @@ class OFTI(Sampler):
     Args:
         like (string): name of likelihood function in ``lnlike.py``
         system (system.System): ``system.System`` object
-        custom_lnlike (func): ability to include an addition custom likelihood function in the fit. 
+        custom_lnlike (func): ability to include an addition custom likelihood function in the fit.
             the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
-            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()), 
+            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
             and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
-            length M, or it can be a single float if M = 1. 
+            length M, or it can be a single float if M = 1.
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
@@ -100,27 +100,23 @@ class OFTI(Sampler):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
+        # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
-        self.tbl = self.system.data_table
-        self.radec_idx = self.system.radec[1]
-        self.seppa_idx = self.system.seppa[1]
-
-        # these are of type astropy.table.column
-        self.sep_observed = self.tbl[:]['quant1']
-        self.pa_observed = self.tbl[:]['quant2']
-        self.sep_err = self.tbl[:]['quant1_err']
-        self.pa_err = self.tbl[:]['quant2_err']
 
         # convert RA/Dec rows to sep/PA
-        for i in self.radec_idx:
-            self.sep_observed[i], self.pa_observed[i] = radec2seppa(
-                self.sep_observed[i], self.pa_observed[i]
-            )
-            self.sep_err[i], self.pa_err[i] = radec2seppa(
-                self.sep_err[i], self.pa_err[i]
-            )
+        body_num = 1 # the first planet; MODIFY THIS LATER FOR MULTIPLE PLANETS
+        if len(self.system.radec[body_num]) > 0:
+            print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+            self.system.convert_data_table_radec2seppa(body_num=body_num)
 
-        self.epochs = np.array(self.tbl['epoch'])
+        # these are of type astropy.table.column
+        self.sep_observed = self.system.data_table[:]['quant1'].copy()
+        self.pa_observed = self.system.data_table[:]['quant2'].copy()
+        self.sep_err = self.system.data_table[:]['quant1_err'].copy()
+        self.pa_err = self.system.data_table[:]['quant2_err'].copy()
+
+        ### this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
+        self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
@@ -129,7 +125,8 @@ class OFTI(Sampler):
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
-            lnlike = None
+            lnlike = None,
+            tau_ref_epoch=self.system.tau_ref_epoch
         )
 
     def prepare_samples(self, num_samples):
@@ -279,7 +276,7 @@ class MCMC(Sampler):
     """
     MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if ``num_temps`` > 1
     Parallel-Tempered MCMC Sampler uses ptemcee, a fork of the emcee Affine-infariant sampler
-    Affine-Invariant Ensemble MCMC Sampler uses emcee. 
+    Affine-Invariant Ensemble MCMC Sampler uses emcee.
 
     .. Warning:: may not work well for multi-modal distributions
 
@@ -290,11 +287,11 @@ class MCMC(Sampler):
         num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
         like (str): name of likelihood function in ``lnlike.py``
-        custom_lnlike (func): ability to include an addition custom likelihood function in the fit. 
+        custom_lnlike (func): ability to include an addition custom likelihood function in the fit.
             the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
-            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()), 
+            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
             and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
-            length M, or it can be a single float if M = 1. 
+            length M, or it can be a single float if M = 1.
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -310,7 +307,8 @@ class MCMC(Sampler):
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
             post = None,
-            lnlike = None
+            lnlike = None,
+            tau_ref_epoch=system.tau_ref_epoch
         )
 
         if self.num_temps > 1:
@@ -433,6 +431,7 @@ class MCMC(Sampler):
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
         """
+
         if self.use_pt:
             sampler = ptemcee.Sampler(
                 self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
@@ -443,7 +442,6 @@ class MCMC(Sampler):
                 self.num_walkers, self.num_params, self._logl,
                 threads=self.num_threads, kwargs={'include_logp' : True}
             )
-
 
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
             pass
@@ -459,12 +457,19 @@ class MCMC(Sampler):
 
         assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
+        i=0
         for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
-            pass
+            i+=1
+            # print progress statement
+            if i%5==0:
+                print(str(i)+'/'+str(nsteps)+' steps completed',end='\r')
+        print('')
 
         self.curr_pos = pos
+
         # TODO: Need something here to pick out temperatures, just using lowest one for now
         self.chain = sampler.chain
+
         if self.use_pt:
             self.post = sampler.flatchain[0,:,:]
             self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps

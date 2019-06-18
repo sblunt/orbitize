@@ -51,7 +51,7 @@ def test_init_and_add_samples():
     Returns results.Results object
     """
     # Create object
-    results_obj = results.Results(sampler_name='testing')
+    results_obj = results.Results(sampler_name='testing', tau_ref_epoch=50000)
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
@@ -68,12 +68,13 @@ def test_init_and_add_samples():
     expected_length = n_orbit_draws1 + n_orbit_draws2
     assert results_obj.post.shape == (expected_length,8)
     assert results_obj.lnlike.shape == (expected_length,)
+    assert results_obj.tau_ref_epoch == 50000
 
     return results_obj
 
 @pytest.fixture()
 def results_to_test():
-    results_obj = results.Results(sampler_name='testing')
+    results_obj = results.Results(sampler_name='testing', tau_ref_epoch=50000)
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
@@ -121,6 +122,10 @@ def test_save_and_load_results(results_to_test, format='hdf5', has_lnlike=True):
     assert loaded_results.post.shape == (expected_length, 8)
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
+
+    # check tau reference epoch is stored
+    assert loaded_results.tau_ref_epoch == 50000
+
     # Clean up: Remove save file
     os.remove(save_filename)
 
