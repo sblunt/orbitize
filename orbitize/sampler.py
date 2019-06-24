@@ -219,6 +219,21 @@ class OFTI(Sampler):
         """
         lnp = self._logl(samples)
 
+        # TODO: add for loop over planet number
+        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+        sma_prior = self.priors[0]
+
+        # if we do not want to use standard scale-and-rotate prior
+        if __repr__(sma_prior) != "Jeffreys":
+
+            scaleandrotate_prior = orbitize.priors.JeffreysPrior()
+
+            # subtract scale-and-rotate prior probability
+            lnp -= scaleandrotate_prior.compute_lnprob(samples)
+
+            # add in proper prior probability
+            lnp += sma_prior.compute_lnprob(samples)        
+
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
