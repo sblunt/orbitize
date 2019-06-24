@@ -33,21 +33,23 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, total_mass]
+        [parallax, [mass1, mass2, ..], total_mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc.
+    to the second, etc. Mass1, mass2, ... correspond to masses of secondary
+    bodies. Primary mass is only in tota_mass. 
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
         self.results = []
+        self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
 
         #
@@ -130,6 +132,11 @@ class System(object):
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
             self.sys_priors.append(plx)
+        
+        if self.fit_secondary_mass:
+            for body in np.arange(num_secondary_bodies):
+                    self.sys_priors.append(priors.JeffreysPrior(1e-6, 1)) # in Solar masses for onw
+
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
@@ -171,10 +178,15 @@ class System(object):
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
             plx = params_arr[6*self.num_secondary_bodies]
+            if self.fit_secondary_mass:
+                # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
+                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+            else:
+                mass = None
             mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
             )
 
             if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)
