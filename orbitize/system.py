@@ -56,6 +56,8 @@ class System(object):
         # Group the data in some useful ways
         #
 
+        # TODO: add RV grouping here
+
         self.data_table = data_table
         # Creates a copy of the input in case data_table needs to be modified
         self.input_table = self.data_table.copy()
@@ -145,7 +147,6 @@ class System(object):
         #add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
-
     def compute_model(self, params_arr):
         """
         Compute model predictions for an array of fitting parameters.
@@ -171,13 +172,16 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
-            sma = params_arr[body_num-1]
-            ecc = params_arr[body_num]
+            sma = params_arr[6*body_num-1]
+            ecc = params_arr[6*body_num]
             inc = params_arr[body_num+1]
             argp = params_arr[body_num+2]
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
             plx = params_arr[6*self.num_secondary_bodies]
+
+            # import pdb; pdb.set_trace()
+
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
@@ -201,6 +205,8 @@ class System(object):
 
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
+
+            # TODO: add RV model stuff here.
 
         return model
 
