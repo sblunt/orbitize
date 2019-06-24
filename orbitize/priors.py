@@ -28,6 +28,47 @@ class Prior(ABC):
     def compute_lnprob(self, element_array):
         pass
 
+class KDEPrior(Prior):
+    """
+    Gaussian kernel density estimation (KDE) prior. This class is
+    a wrapper for scipy.stats.gaussian_kde.
+
+    Args:
+
+
+    """
+
+    def __init__(self, gaussian_kde, param_num, total_params):
+        self.gaussian_kde = gaussian_kde
+        self.param_num = param_num
+        self.total_params = total_params
+        self.correlated_drawn_samples = None 
+        self.correlated_input_samples = None
+
+    def __repr__(self):
+        return "Gaussian KDE"
+
+    def draw_samples(self, num_samples):
+        if self.param_num == 0:
+            self.correlated_samples = self.gaussian_kde.resample(num_samples)
+            return self.correlated_samples[0]
+        else:
+            return self.correlated_samples[self.param_num]
+
+    def compute_lnprob(self, element_array):
+        if self.param_num == 0:
+            self.correlated_input_samples = element_array
+        else:
+            self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+
+        if self.param_num == self.total_params:
+            lnlike = self.gaussian_kde.pdf(self.correlated_input_samples)
+            return lnlike
+        else:
+            return 0
+
+
+
 class GaussianPrior(Prior):
     """Gaussian prior.
 

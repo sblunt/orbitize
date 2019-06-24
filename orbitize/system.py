@@ -172,8 +172,8 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
-            sma = params_arr[6*body_num-1]
-            ecc = params_arr[6*body_num]
+            sma = params_arr[body_num-1]
+            ecc = params_arr[body_num]
             inc = params_arr[body_num+1]
             argp = params_arr[body_num+2]
             lan = params_arr[body_num+3]
