@@ -68,6 +68,10 @@ class System(object):
         radec_indices = np.where(self.data_table['quant_type']=='radec')
         seppa_indices = np.where(self.data_table['quant_type']=='seppa')
 
+        # save indicies for all of the ra/dec, sep/pa measurements for convenience
+        self.all_radec = radec_indices
+        self.all_seppa = seppa_indices
+
         for body_num in np.arange(self.num_secondary_bodies+1):
 
             self.body_indices.append(
@@ -162,27 +166,36 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
-            sma = params_arr[body_num-1]
-            ecc = params_arr[body_num]
-            inc = params_arr[body_num+1]
-            argp = params_arr[body_num+2]
-            lan = params_arr[body_num+3]
-            tau = params_arr[body_num+4]
-            plx = params_arr[6*self.num_secondary_bodies]
+            startindex = 6 * (body_num - 1)
+            sma = params_arr[startindex]
+            ecc = params_arr[startindex + 1]
+            inc = params_arr[startindex + 2]
+            argp = params_arr[startindex + 3]
+            lan = params_arr[startindex + 4]
+            tau = params_arr[startindex + 5]
+            plx = params_arr[6 * self.num_secondary_bodies]
             mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch
             )
 
-            if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)
-                model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
-                model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
+            # raoff, decoff, vz are scalers if the length of epochs is 1. 
+            # Jason is too lazy to figure out how to make it return a one element array without breaking everything else
+            # so hard code it here to convert them into 1-element numpy arrays. 
+            if len(epochs) == 1:
+                raoff = np.array([raoff])
+                decoff = np.array([decoff])
+                vz = np.array([vz])
 
-            if len(raoff[self.seppa[body_num]]) > 0:
+            if len(self.radec[body_num]) > 0: # (prevent empty array dimension errors)
+                model[self.radec[body_num], 0] = raoff
+                model[self.radec[body_num], 1] = decoff
+
+            if len(self.seppa[body_num]) > 0:
                 sep, pa = radec2seppa(
-                    raoff[self.seppa[body_num]],
-                    decoff[self.seppa[body_num]]
+                    raoff,
+                    decoff
                 )
 
                 model[self.seppa[body_num], 0] = sep
