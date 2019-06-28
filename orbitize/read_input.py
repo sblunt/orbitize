@@ -84,7 +84,10 @@ def read_file(filename):
                          dtype=(float,int,float,float,float,float,'S5'))
 
     # read file
-    input_table = read(filename)
+    try:
+        input_table = read(filename)
+    except:
+        raise Exception('Unable to read file: {}. \n Please check file path and format.'.format(filename))
     num_measurements = len(input_table)
 
     # Decide if input was given in the orbitize style
@@ -159,6 +162,11 @@ def read_file(filename):
     # loop through each row and format table
     index=0
     for row in input_table:
+        # First check if epoch is a number
+        try:
+            float_epoch = np.float(row['epoch'])
+        except:
+            raise Exception('Problem reading epoch in the input file. Epoch should be given in MJD.')
         # check epoch format and put in MJD
         if row['epoch'] > 2400000.5: # assume this is in JD
             MJD = row['epoch'] - 2400000.5
