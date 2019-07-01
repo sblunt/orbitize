@@ -1,4 +1,4 @@
-astropy>3
+astropy>2
 numpy
 scipy
 emcee
