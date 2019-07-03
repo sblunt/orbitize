@@ -169,6 +169,7 @@ def read_file(filename):
             raise Exception('Problem reading epoch in the input file. Epoch should be given in MJD.')
         # check epoch format and put in MJD
         if row['epoch'] > 2400000.5: # assume this is in JD
+            print('Converting input epochs from JD to MJD.\n')
             MJD = row['epoch'] - 2400000.5
         else:
             MJD = row['epoch']
