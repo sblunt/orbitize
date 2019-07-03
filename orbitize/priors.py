@@ -38,7 +38,7 @@ class KDEPrior(Prior):
 
     """
 
-    def __init__(self, gaussian_kde, param_num, total_params):
+    def __init__(self, gaussian_kde, total_params):
         self.gaussian_kde = gaussian_kde
         self.param_num = param_num
         self.total_params = total_params
@@ -50,10 +50,10 @@ class KDEPrior(Prior):
 
     def draw_samples(self, num_samples):
         if self.param_num == 0:
-            self.correlated_samples = self.gaussian_kde.resample(num_samples)
-            return self.correlated_samples[0]
+            self.correlated_drawn_samples = self.gaussian_kde.resample(num_samples)
+            return self.correlated_drawn_samples[0]
         else:
-            return self.correlated_samples[self.param_num]
+            return self.correlated_drawn_samples[self.param_num]
 
     def compute_lnprob(self, element_array):
         if self.param_num == 0:
