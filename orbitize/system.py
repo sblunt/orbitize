@@ -45,7 +45,8 @@ class System(object):
 
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None, jitter_bounds=None, gamma=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
+                 gamma_bounds=None, jitter_bounds=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -129,19 +130,20 @@ class System(object):
         #
         self.labels.append('plx')
 
+        #we'll need to iterate over instruments here
+        if self.gamma_bounds is not None:
+            self.sys_priors.append(priors.UniformPrior(
+                self.gamma_bounds[0], self.gamma_bounds[1]))
+            self.labels.append('gamma')
+            # Rob: insert tracker here
+
         # Rob: adding jitter parameter - first edit (before the masses)
         if self.jitter_bounds is not None:
-            # for body in np.arange(num_secondary_bodies):   #we'll need to iterate over instruments here instead of bodies
-
             self.sys_priors.append(priors.JeffreysPrior(
                 self.jitter_bounds[0], self.jitter_bounds[1]))
             self.labels.append('sigma')
             # Rob: Insert tracker here
 
-        if self.gamma is not None:
-            self.sys_priors.append(priors.UniformPrior(self.gamma))
-            self.labels.append('gamma')
-            # Rob: insert tracker here
 
         self.labels.append('mtot')
         if plx_err > 0:
