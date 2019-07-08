@@ -33,21 +33,23 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, total_mass]
+        [parallax, [mass1, mass2, ..], total_mass]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc.
+    to the second, etc. Mass1, mass2, ... correspond to masses of secondary
+    bodies. Primary mass is only in tota_mass. 
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
         self.results = []
+        self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
 
         #
@@ -55,6 +57,8 @@ class System(object):
         #
 
         self.data_table = data_table
+        # Creates a copy of the input in case data_table needs to be modified
+        self.input_table = self.data_table.copy()
 
         # List of arrays of indices corresponding to each body
         self.body_indices = []
@@ -127,11 +131,17 @@ class System(object):
         # Set priors on total mass and parallax
         #
         self.labels.append('plx')
-        self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
             self.sys_priors.append(plx)
+        
+        if self.fit_secondary_mass:
+            for body in np.arange(num_secondary_bodies):
+                    self.sys_priors.append(priors.JeffreysPrior(1e-6, 1)) # in Solar masses for now
+                    self.labels.append("m{0}".format(body+1))
+        
+        self.labels.append('mtot')
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
         else:
@@ -165,7 +175,9 @@ class System(object):
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            epochs = self.data_table['epoch'][self.body_indices[body_num]]
+            # we're going to compute at all epochs for convenience of indexing right now
+            # self.radec, and self.seppa index into the entire data table, not just the values for a particular body
+            epochs = self.data_table['epoch']#[self.body_indices[body_num]] 
             startindex = 6 * (body_num - 1)
             sma = params_arr[startindex]
             ecc = params_arr[startindex + 1]
@@ -174,10 +186,15 @@ class System(object):
             lan = params_arr[startindex + 4]
             tau = params_arr[startindex + 5]
             plx = params_arr[6 * self.num_secondary_bodies]
+            if self.fit_secondary_mass:
+                # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
+                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+            else:
+                mass = None
             mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
             )
 
             # raoff, decoff, vz are scalers if the length of epochs is 1. 
@@ -189,8 +206,8 @@ class System(object):
                 vz = np.array([vz])
 
             if len(self.radec[body_num]) > 0: # (prevent empty array dimension errors)
-                model[self.radec[body_num], 0] = raoff
-                model[self.radec[body_num], 1] = decoff
+                model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
+                model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
 
             if len(self.seppa[body_num]) > 0:
                 sep, pa = radec2seppa(
@@ -198,10 +215,38 @@ class System(object):
                     decoff
                 )
 
-                model[self.seppa[body_num], 0] = sep
-                model[self.seppa[body_num], 1] = pa
+                model[self.seppa[body_num], 0] = sep[self.seppa[body_num]]
+                model[self.seppa[body_num], 1] = pa[self.seppa[body_num]]
 
         return model
+
+    def convert_data_table_radec2seppa(self,body_num=1):
+        """
+        Converts rows of self.data_table given in radec to seppa.
+        Note that self.input_table remains unchanged.
+
+        Args:
+            body_num (int): which object to convert (1 = first planet)
+        """
+        for i in self.radec[body_num]: # Loop through rows where input provided in radec
+            # Get ra/dec values
+            ra = self.data_table['quant1'][i]
+            ra_err = self.data_table['quant1_err'][i]
+            dec = self.data_table['quant2'][i]
+            dec_err = self.data_table['quant2_err'][i]
+            # Convert to sep/PA
+            sep, pa = radec2seppa(ra,dec)
+            sep_err, pa_err = radec2seppa(ra_err,dec_err)
+            # Update data_table
+            self.data_table['quant1'][i]=sep
+            self.data_table['quant1_err'][i]=sep_err
+            self.data_table['quant2'][i]=pa
+            self.data_table['quant2_err'][i]=pa_err
+            self.data_table['quant_type'][i]='seppa'
+            # Update self.radec and self.seppa arrays
+            self.radec[body_num]=np.delete(self.radec[body_num],np.where(self.radec[body_num]==i)[0])
+            self.seppa[body_num]=np.append(self.seppa[body_num],i)
+
 
     def add_results(self, results):
         """

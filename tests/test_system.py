@@ -37,6 +37,23 @@ def test_add_and_clear_results():
     test_system.add_results(test_results)
     assert len(test_system.results)==1
 
+
+def test_convert_data_table_radec2seppa():
+    num_secondary_bodies=1
+    testdir = os.path.dirname(os.path.abspath(__file__))
+    input_file = os.path.join(testdir, 'test_val.csv')
+    data_table=read_input.read_file(input_file)
+    system_mass=1.0
+    plx=10.0
+    mass_err=0.1
+    plx_err=1.0
+    # Initialize System object
+    test_system = system.System(
+        num_secondary_bodies, data_table, system_mass,
+        plx, mass_err=mass_err, plx_err=plx_err
+    )
+    test_system.convert_data_table_radec2seppa()
+
 def test_multi_planets():
     """
     Test using some data for HR 8799 b and c
@@ -65,4 +82,5 @@ def test_multi_planets():
 
 if __name__ == '__main__':
     #test_add_and_clear_results()
+    #test_convert_data_table_radec2seppa()
     test_multi_planets()
