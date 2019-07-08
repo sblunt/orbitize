@@ -99,9 +99,18 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
     m1 = mtot - mass  # mass of the primary star
 
     # Rob: Modify Kv -> Change m1 on top of amplitude mass calculation.
+
+    # Rob: Kv below will be ranamed K1 for the planet's velocity and m1 will become m0
+    # Rob Then we need K0, and m1 will stay m1
     Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m1 * u.Msun * np.sin(inc)) / \
         np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+
+    # Rob: K0 = and K1 = for the amplitude of the star and the planet
+    # Rob: K1 will be close to K0*m0/m1
+
     # Convert to km/s
+
+    # Rob rename and make K1 and K2 below as well
     Kv = Kv.to(u.km/u.s)
     # compute the vz
     vz = Kv.value * (ecc*np.cos(argp) + np.cos(argp + tanom))

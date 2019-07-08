@@ -45,7 +45,7 @@ class System(object):
 
     def __init__(self, num_secondary_bodies, data_table, system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None, jitter_bounds=None, gamma=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -128,6 +128,21 @@ class System(object):
         # Set priors on total mass and parallax
         #
         self.labels.append('plx')
+
+        # Rob: adding jitter parameter - first edit (before the masses)
+        if self.jitter_bounds is not None:
+            # for body in np.arange(num_secondary_bodies):   #we'll need to iterate over instruments here instead of bodies
+
+            self.sys_priors.append(priors.JeffreysPrior(
+                self.jitter_bounds[0], self.jitter_bounds[1]))
+            self.labels.append('sigma')
+            # Rob: Insert tracker here
+
+        if self.gamma is not None:
+            self.sys_priors.append(priors.UniformPrior(self.gamma))
+            self.labels.append('gamma')
+            # Rob: insert tracker here
+
         self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
@@ -161,7 +176,7 @@ class System(object):
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
-
+        # Rob: We'll need to modify this function to output radial velocities
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
         else:
@@ -177,6 +192,9 @@ class System(object):
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
             plx = params_arr[6*self.num_secondary_bodies]
+
+            # gamma_n and sigma_n go here
+
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
@@ -203,12 +221,10 @@ class System(object):
                     decoff[self.seppa[body_num]]
                 )
 
-            # Rob: add another if len(raoff[self...]) line here to fill the velocity table
-
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
 
-        # Rob: Radial Velocity goes here
+            # Rob: Radial Velocity goes here
 
         return model
 
