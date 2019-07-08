@@ -106,7 +106,7 @@ class GaussianPrior(Prior):
 
         return lnprob
 
-class JeffreysPrior(Prior):
+class LogUniformPrior(Prior):
     """
     This is the probability distribution :math:`p(x) \\propto 1/x`
 
@@ -128,7 +128,7 @@ class JeffreysPrior(Prior):
         self.logmax = np.log(maxval)
 
     def __repr__(self):
-        return "Jeffreys"
+        return "Log Uniform"
 
     def draw_samples(self, num_samples):
         """
@@ -150,7 +150,7 @@ class JeffreysPrior(Prior):
 
     def compute_lnprob(self, element_array):
         """
-        Compute the prior probability of each element given that its drawn from a Jeffreys prior
+        Compute the prior probability of each element given that its drawn from a Log-Uniofrm  prior
 
         Args:
             element_array (float or np.array of float): array of paramters to compute the prior probability of
