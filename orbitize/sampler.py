@@ -20,6 +20,7 @@ if sys.version_info[0] < 3:
 else:
     ABC = abc.ABC
 
+
 class Sampler(ABC):
     """
     Abstract base class for sampler objects.
@@ -64,16 +65,17 @@ class Sampler(ABC):
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
-        errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
+        errs = np.array([self.system.data_table['quant1_err'],
+                         self.system.data_table['quant2_err']]).T
 
         # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
 
         # compute lnlike
-        lnlikes =  self.lnlike(data, errs, model, seppa_indices)
+        lnlikes = self.lnlike(data, errs, model, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
-        lnlikes_sum = np.nansum(lnlikes, axis=(0,1))
+        lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
 
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
@@ -96,6 +98,7 @@ class OFTI(Sampler):
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
+
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
@@ -104,7 +107,7 @@ class OFTI(Sampler):
         self.priors = self.system.sys_priors
 
         # convert RA/Dec rows to sep/PA
-        body_num = 1 # the first planet; MODIFY THIS LATER FOR MULTIPLE PLANETS
+        body_num = 1  # the first planet; MODIFY THIS LATER FOR MULTIPLE PLANETS
         if len(self.system.radec[body_num]) > 0:
             print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
             self.system.convert_data_table_radec2seppa(body_num=body_num)
@@ -115,17 +118,17 @@ class OFTI(Sampler):
         self.sep_err = self.system.data_table[:]['quant1_err'].copy()
         self.pa_err = self.system.data_table[:]['quant2_err'].copy()
 
-        ### this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
+        # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
-        self.epoch_idx = np.argmin(self.sep_err) # epoch with smallest error
+        self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
 
         # create an empty results object
         self.results = orbitize.results.Results(
-            sampler_name = self.__class__.__name__,
-            post = None,
-            lnlike = None,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
@@ -150,7 +153,7 @@ class OFTI(Sampler):
         for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else: # param is fixed & has no prior
+            else:  # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
         sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
@@ -165,13 +168,13 @@ class OFTI(Sampler):
         ra, dec, vc = orbitize.kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot
         )
-        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
+        sep, pa = orbitize.system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
 
         # generate Gaussian offsets from observational uncertainties
         sep_offset = np.random.normal(
             0, self.sep_err[self.epoch_idx], size=num_samples
         )
-        pa_offset =  np.random.normal(
+        pa_offset = np.random.normal(
             0, self.pa_err[self.epoch_idx], size=num_samples
         )
 
@@ -180,8 +183,8 @@ class OFTI(Sampler):
         lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
 
         # perform scale-and-rotate
-        sma *= sma_corr # [AU]
-        lan += np.radians(lan_corr) # [rad]
+        sma *= sma_corr  # [AU]
+        lan += np.radians(lan_corr)  # [rad]
         lan = lan % (2*np.pi)
 
         period_new = np.sqrt(
@@ -192,12 +195,11 @@ class OFTI(Sampler):
         tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
         # updates samples with new values of sma, pan, tau
-        samples[0,:] = sma
-        samples[4,:] = lan
-        samples[5,:] = tau
+        samples[0, :] = sma
+        samples[4, :] = lan
+        samples[5, :] = tau
 
         return samples
-
 
     def reject(self, samples):
         """
@@ -222,11 +224,10 @@ class OFTI(Sampler):
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
-        saved_orbits = np.array([samples[:,i] for i in saved_orbit_idx])
+        saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
         return saved_orbits, lnlikes
-
 
     def run_sampler(self, total_orbits, num_samples=10000):
         """
@@ -251,18 +252,19 @@ class OFTI(Sampler):
             samples = self.prepare_samples(num_samples)
             accepted_orbits, lnlikes = self.reject(samples)
 
-            if len(accepted_orbits)==0:
+            if len(accepted_orbits) == 0:
                 pass
             else:
                 n_accepted = len(accepted_orbits)
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
-                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                output_orbits[n_orbits_saved: n_orbits_saved +
+                              n_accepted] = accepted_orbits[0:maxindex2save]
+                output_lnlikes[n_orbits_saved: n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                 n_orbits_saved += maxindex2save
 
                 # print progress statement
-                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
 
         self.results.add_samples(
             np.array(output_orbits),
@@ -295,6 +297,7 @@ class MCMC(Sampler):
 
     Written: Jason Wang, Henry Ngo, 2018
     """
+
     def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None):
 
         super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
@@ -305,9 +308,9 @@ class MCMC(Sampler):
 
         # create an empty results object
         self.results = orbitize.results.Results(
-            sampler_name = self.__class__.__name__,
-            post = None,
-            lnlike = None,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
             tau_ref_epoch=system.tau_ref_epoch
         )
 
@@ -350,8 +353,6 @@ class MCMC(Sampler):
             # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
             # We need to make nparams the second dimension, so we have to transpose the stacked array
             self.curr_pos = np.stack(init_positions).T
-
-
 
     def _fill_in_fixed_params(self, sampled_params):
         """
@@ -401,9 +402,10 @@ class MCMC(Sampler):
             if np.ndim(params) == 1:
                 logp = orbitize.priors.all_lnpriors(params, self.priors)
             else:
-                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors) for pset in params])
+                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors)
+                                 for pset in params])
         else:
-            logp = 0 # don't include prior
+            logp = 0  # don't include prior
 
         full_params = self._fill_in_fixed_params(params)
         if np.ndim(full_params) == 2:
@@ -435,12 +437,12 @@ class MCMC(Sampler):
         if self.use_pt:
             sampler = ptemcee.Sampler(
                 self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
-                ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors,]
+                ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
             )
         else:
             sampler = emcee.EnsembleSampler(
                 self.num_walkers, self.num_params, self._logl,
-                threads=self.num_threads, kwargs={'include_logp' : True}
+                threads=self.num_threads, kwargs={'include_logp': True}
             )
 
         for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
@@ -449,7 +451,7 @@ class MCMC(Sampler):
         sampler.reset()
         try:
             self.curr_pos = pos
-        except UnboundLocalError: # 0 step burn-in (pos is not defined)
+        except UnboundLocalError:  # 0 step burn-in (pos is not defined)
             pass
         print('Burn in complete')
 
@@ -457,12 +459,12 @@ class MCMC(Sampler):
 
         assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
-        i=0
+        i = 0
         for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
-            i+=1
+            i += 1
             # print progress statement
-            if i%5==0:
-                print(str(i)+'/'+str(nsteps)+' steps completed',end='\r')
+            if i % 5 == 0:
+                print(str(i)+'/'+str(nsteps)+' steps completed', end='\r')
         print('')
 
         self.curr_pos = pos
@@ -471,8 +473,9 @@ class MCMC(Sampler):
         self.chain = sampler.chain
 
         if self.use_pt:
-            self.post = sampler.flatchain[0,:,:]
-            self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
+            self.post = sampler.flatchain[0, :, :]
+            # should also be picking out the lowest temperature logps
+            self.lnlikes = sampler.logprobability[0, :, :].flatten()
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
@@ -481,7 +484,7 @@ class MCMC(Sampler):
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
 
-        self.results.add_samples(self.post,self.lnlikes)
+        self.results.add_samples(self.post, self.lnlikes)
 
         print('Run complete')
 
