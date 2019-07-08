@@ -44,6 +44,7 @@ class Sampler(ABC):
     def run_sampler(self, total_orbits):
         pass
 
+    # Rob: This is what we want to modify: include jitter.
     def _logl(self, params):
         """
         log likelihood function that interfaces with the orbitize objects
@@ -356,7 +357,7 @@ class MCMC(Sampler):
 
     def _fill_in_fixed_params(self, sampled_params):
         """
-        Fills in the missing parameters from the chain that aren't being sampeld
+        Fills in the missing parameters from the chain that aren't being sampled
 
         Args:
             sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
