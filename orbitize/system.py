@@ -72,8 +72,13 @@ class System(object):
         # List of arrays of indices corresponding to epochs in SEP/PA for each body
         self.seppa = []
 
+        # List of arrays of indices corresponding to epochs of rv for star
+        self.rvstar = []
+
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
+        rvstar_indices = np.where(
+            self.data_table['quant_type'] == 'rv' & self.data_table['object'] == 0)
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -87,6 +92,8 @@ class System(object):
             self.seppa.append(
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
+
+        self.rvstar.append(rvstar_indices)
 
         if (len(radec_indices) + len(seppa_indices) == len(self.data_table)) and (restrict_angle_ranges is None):
             restrict_angle_ranges = True
@@ -130,7 +137,7 @@ class System(object):
         #
         self.labels.append('plx')
 
-        #we'll need to iterate over instruments here
+        # we'll need to iterate over instruments here
         if self.gamma_bounds is not None:
             self.sys_priors.append(priors.UniformPrior(
                 self.gamma_bounds[0], self.gamma_bounds[1]))
@@ -143,7 +150,6 @@ class System(object):
                 self.jitter_bounds[0], self.jitter_bounds[1]))
             self.labels.append('sigma')
             # Rob: Insert tracker here
-
 
         self.labels.append('mtot')
         if plx_err > 0:
@@ -194,8 +200,8 @@ class System(object):
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
             plx = params_arr[6*self.num_secondary_bodies]
-
-            # gamma_n and sigma_n go here
+            gamma = params_arr[6*self.num_secondary_bodies + 1]
+            jit = params_arr[6*self.num_secondary_bodies + 2]
 
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
