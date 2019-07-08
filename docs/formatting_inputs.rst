@@ -42,7 +42,7 @@ Here is another example with ... ((plan to provide an example in another file fo
 
 Whatever file format you choose, this method will read your input into an ``orbitize!``-formatted input table. This is an ``astropy.Table.table`` object that looks like this (for the example input given above)::
 
-        epoch  object  quant1 quant1_err  quant2 quant2_err quant_type
+        epoch   object quant1  quant1_err quant2  quant2_err quant_type
         float64  int   float64  float64   float64  float64      str5
         ------- ------ ------- ---------- ------- ---------- ----------
         1234.0      1    0.01      0.005     0.5       0.05      radec
@@ -55,7 +55,7 @@ where ``quant_type`` is one of "radec", "seppa", or "rv".
 If ``quant_type`` is "radec" or "seppa", the units of quant are mas and degrees,
 if ``quant_type`` is "rv", the units of quant are km/s.
 
-Second option: Alternatively, you can also supply a data file with the columns already corresponding to the ``orbitize!``-formatted input table (see above). This may be useful if you are wanting to use the output of the ``write_orbitize_input`` method (e.g. using some input prepared by another ``orbitize!`` user).
+Second option: Alternatively, you can also supply a data file with the columns already corresponding to the ``orbitize!``-formatted input table (see above for column names). This may be useful if you are wanting to use the output of the ``write_orbitize_input`` method (e.g. using some input prepared by another ``orbitize!`` user).
 
 .. Note:: When providing data with columns in the orbitize format, there should be
     no empty cells. As in the example below, when quant2 is not applicable, the cell should contain nan.
