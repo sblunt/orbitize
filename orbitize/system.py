@@ -11,9 +11,9 @@ class System(object):
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
         data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        system_mass (float): mean total mass of the system, in M_sol
+        stellar_mass (float): mean mass of the primary, in M_sol
         plx (float): mean parallax of the system, in mas
-        mass_err (float, optional): uncertainty on ``system_mass``, in M_sol
+        mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
@@ -41,7 +41,7 @@ class System(object):
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
-    def __init__(self, num_secondary_bodies, data_table, system_mass,
+    def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
 
@@ -127,7 +127,6 @@ class System(object):
         # Set priors on total mass and parallax
         #
         self.labels.append('plx')
-        self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
@@ -135,14 +134,19 @@ class System(object):
         
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
-                    self.sys_priors.append(priors.JeffreysPrior(1e-6, 1)) # in Solar masses for onw
-
-        if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
+                self.sys_priors.append(priors.JeffreysPrior(1e-6, 1)) # in Solar masses for now
+                self.labels.append('m{}'.format(body))
+            self.labels.append('m0')
         else:
-            self.sys_priors.append(system_mass)
+            self.labels.append('mtot')
 
-        #add labels dictionary for parameter indexing
+        # still need to append m0/mtot, even though labels are appended above
+        if mass_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(stellar_mass, mass_err))
+        else:
+            self.sys_priors.append(stellar_mass)
+
+        # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
 
@@ -181,12 +185,14 @@ class System(object):
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                m0 = params_arr[-1]
+                mtot = m0 + mass
             else:
                 mass = None
-            mtot = params_arr[-1]
+                mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
             )
 
             if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)

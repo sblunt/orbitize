@@ -153,7 +153,21 @@ class OFTI(Sampler):
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
-        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+        # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+        sma = samples[0,:]
+        ecc = samples[1,:]
+        inc = samples[2,:]
+        argp = samples[3,:]
+        lan = samples[4,:]
+        tau = samples[5,:]
+        plx = samples[6,:]
+        if self.system.fit_secondary_mass:
+            m0 = samples[-1,:]
+            m1 = samples[-2,:]
+            mtot = m0 + m1
+        else:
+            mtot = samples[-1,:]
+            m1 = None
 
         period_prescale = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
@@ -163,7 +177,8 @@ class OFTI(Sampler):
 
         # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot
+            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
+            mass_for_Kamp=m1
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 

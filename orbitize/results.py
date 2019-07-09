@@ -58,6 +58,7 @@ class Results(object):
         self.post = post
         self.lnlike = lnlike
         self.tau_ref_epoch = tau_ref_epoch
+        
 
     def add_samples(self, orbital_params, lnlikes):
         """
