@@ -14,7 +14,7 @@ equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
 
-def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -26,8 +26,8 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=N
         sma (np.array): semi-major axis of orbit [au]
         ecc (np.array): eccentricity of the orbit [0,1]
         inc (np.array): inclination [radians]
-        argp (np.array): argument of periastron [radians]
-        lan (np.array): longitude of the ascending node [radians]
+        aop (np.array): argument of periastron [radians]
+        pan (np.array): longitude of the ascending node [radians]
         tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
         plx (np.array): parallax [mas]
         mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
@@ -86,8 +86,8 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=N
     # math from James Graham. Lots of trig
     c2i2 = np.cos(0.5*inc)**2
     s2i2 = np.sin(0.5*inc)**2
-    arg1 = tanom + argp + lan
-    arg2 = tanom + argp - lan
+    arg1 = tanom + aop + pan
+    arg2 = tanom + aop - pan
     c1 = np.cos(arg1)
     c2 = np.cos(arg2)
     s1 = np.sin(arg1)
@@ -103,7 +103,7 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=N
     # Convert to km/s
     Kv = Kv.to(u.km/u.s)
     # compute the vz
-    vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
+    vz =  Kv.value * ( ecc*np.cos(aop) + np.cos(aop + tanom) )
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]

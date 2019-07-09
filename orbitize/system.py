@@ -33,11 +33,11 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, [mass1, mass2, ..], total_mass]
+        [parallax, [mass1, mass2, ..], total_mass/m0]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. Mass1, mass2, ... correspond to masses of secondary
-    bodies. Primary mass is only in tota_mass. 
+    bodies. Primary mass is only in total_mass. 
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
@@ -121,7 +121,7 @@ class System(object):
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('epp{}'.format(body+1))
+            self.labels.append('tau{}'.format(body+1))
 
         #
         # Set priors on total mass and parallax

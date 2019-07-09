@@ -281,7 +281,7 @@ class OFTI(Sampler):
 
         self.results.add_samples(
             np.array(output_orbits),
-            output_lnlikes
+            output_lnlikes, labels=self.system.labels
         )
 
         return np.array(output_orbits)
@@ -496,7 +496,7 @@ class MCMC(Sampler):
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
 
-        self.results.add_samples(self.post,self.lnlikes)
+        self.results.add_samples(self.post,self.lnlikes, labels=self.system.labels)
 
         print('Run complete')
 
