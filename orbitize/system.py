@@ -187,8 +187,12 @@ class System(object):
         # Rob: We'll need to modify this function to output radial velocities
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
+            total_stellar_rv = np.zeros(len(self.data_table))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
+            total_stellar_rv = np.zeros((len(self.data_table), params_arr.shape[1]))
+
+        # Keeps track of the stellar radial velocity if needed
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
@@ -197,12 +201,12 @@ class System(object):
             ecc = params_arr[body_num]
             inc = params_arr[body_num+1]
             argp = params_arr[body_num+2]
+            argp_star = np.mod(argp + np.pi, 2*np.pi)
             lan = params_arr[body_num+3]
             tau = params_arr[body_num+4]
             plx = params_arr[6*self.num_secondary_bodies]
-            gamma = params_arr[6*self.num_secondary_bodies + 1]
-            jit = params_arr[6*self.num_secondary_bodies + 2]
 
+            # REMINDER: We need to come back to this when Sarah and Jason finish changing the masses
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
@@ -211,13 +215,15 @@ class System(object):
             mtot = params_arr[-1]
 
             # Rob: will need to include rv parameters here: gamma factor and parallax.
-
-            raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
+            # Rob: Come back to this when Sarah and Jason finish with their mass changes
+            raoff, decoff, vstar = kepler.calc_orbit(
+                epochs, sma, ecc, inc, argp_star, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
             )
-            # Rob: vz above refers to the relative velocity between objects 1 and 2:
-            # RV1 - RV2.
-            # Rob: We need the relative velocity of the two objects about the center of mass
+
+            # To get v_planet multiply by vstar by -mstar/mplanet
+
+            # vstar is the same as vz for the moment so line below wont work if not changed
+            total_stellar_rv += vstar
 
             if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
@@ -232,7 +238,11 @@ class System(object):
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
 
-            # Rob: Radial Velocity goes here
+        gamma = params_arr[6*self.num_secondary_bodies + 1]
+        #jit = params_arr[6*self.num_secondary_bodies + 2]
+        total_stellar_rv += gamma
+        # if there are multiple instruments this needs to be a loop through instruments like they did in num_bodies
+        model[self.rvstar, 0] = total_stellar_rv[self.rvstar]
 
         return model
 
