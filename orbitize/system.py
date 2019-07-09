@@ -192,8 +192,6 @@ class System(object):
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             total_stellar_rv = np.zeros((len(self.data_table), params_arr.shape[1]))
 
-        # Keeps track of the stellar radial velocity if needed
-
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
