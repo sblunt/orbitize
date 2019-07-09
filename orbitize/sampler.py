@@ -14,6 +14,8 @@ import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 
+import matplotlib.pyplot as plt
+
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
     ABC = abc.ABCMeta('ABC', (), {})
@@ -486,3 +488,56 @@ class MCMC(Sampler):
         print('Run complete')
 
         return sampler
+
+    def examine_chains(self, param_list=None, temp=0, walker_list=None, n_walkers=None, step_range=None):
+        """
+        Plots position of walkers at each step. Returns list of figures, one per parameter
+        Args:
+            param_list: List of strings of parameters to plot (e.g. "sma1")
+                If None (default), all parameters are plotted
+            temp (int): The temperature to plot (defaults to 0, the lowest temp)
+            walker_list: List or array of walker numbers to plot
+                If None (default), all walkers are plotted
+            n_walkers (int): Randomly select `n_walkers` to plot
+                Overrides walker_list if this is set
+                If None (default), walkers selected as per `walker_list`
+            step_range (array or tuple): Start and end values of step numbers to plot
+                If None (default), all the steps are plotted
+
+        Returns:
+            List of ``matplotlib.pyplot.Figure`` objects: 
+                Walker position plot for each parameter selected
+
+        (written): Henry Ngo, 2019
+        """
+        
+        # Check that valid temperature is given
+        if temp < 0 or temp >= self.num_temps:
+            raise Exception('Invalid value provided for temp: {}. Must be integer in [0,num_temps)'.format(temp))
+
+        # Get the correct temperature
+        if self.num_temps > 1:
+            try:
+                chn = self.chain[temp,:,:] # Entire MCMC chain for given temperature
+            except:
+                raise Exception(
+                    'Invalid value provided for temp: {}. Must be integer in [0,num_temps)'.format(temp))
+        else: # Not Parallel Tempering, so self.chain has no temperature info
+            chn = self.chain # The entire MCMC chain
+    
+        # Get list of walkers to use 
+        if n_walkers is not None: # If n_walkers defined, randomly choose that many walkers
+            walkers_to_plot = np.random.choice(self.num_walkers,size=n_walkers,replace=False)
+        else if walker_list is not None: # if walker_list is given, use that list
+            walkers_to_plot = np.array(walker_list)
+        else: # both n_walkers and walker_list are none, so use all walkers
+            walkers_to_plot = np.arange(self.num_walkers)
+        
+        # Get list of parameters to use
+        if param_list is None:
+            params_to_plot = np.arange(self.num_params)
+        else: # build list from user input strings
+            params_to_plot = ()
+            for i in param_list:
+                pass # TODO: Can we access the index dictionary from here? Testing next...
+        
