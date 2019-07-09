@@ -40,20 +40,27 @@ class KDEPrior(Prior):
 
     def __init__(self, gaussian_kde, total_params):
         self.gaussian_kde = gaussian_kde
-        self.param_num = param_num
         self.total_params = total_params
+        self.param_num = 0
         self.correlated_drawn_samples = None 
         self.correlated_input_samples = None
 
     def __repr__(self):
         return "Gaussian KDE"
 
+    def increment_param_num(self):
+        self.param_num += 1
+        self.param_num = self.param_num % (self.total_params + 1)
+
     def draw_samples(self, num_samples):
         if self.param_num == 0:
             self.correlated_drawn_samples = self.gaussian_kde.resample(num_samples)
+            self.increment_param_num()
             return self.correlated_drawn_samples[0]
         else:
-            return self.correlated_drawn_samples[self.param_num]
+            return_me = self.correlated_drawn_samples[self.param_num]
+            self.increment_param_num()
+            return return_me
 
     def compute_lnprob(self, element_array):
         if self.param_num == 0:
@@ -63,11 +70,11 @@ class KDEPrior(Prior):
 
         if self.param_num == self.total_params:
             lnlike = self.gaussian_kde.pdf(self.correlated_input_samples)
+            self.increment_param_num()
             return lnlike
         else:
+            self.increment_param_num()
             return 0
-
-
 
 class GaussianPrior(Prior):
     """Gaussian prior.

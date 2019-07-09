@@ -224,15 +224,19 @@ class OFTI(Sampler):
         sma_prior = self.priors[0]
 
         # if we do not want to use standard scale-and-rotate prior
-        if __repr__(sma_prior) != "Jeffreys":
+        if sma_prior.__repr__() != "Jeffreys":
 
-            scaleandrotate_prior = orbitize.priors.JeffreysPrior()
+            scaleandrotate_prior = orbitize.priors.JeffreysPrior(0.001, 1e7)
 
-            # subtract scale-and-rotate prior probability
-            lnp -= scaleandrotate_prior.compute_lnprob(samples)
+            import pdb; pdb.set_trace()
 
-            # add in proper prior probability
-            lnp += sma_prior.compute_lnprob(samples)        
+            # TODO: is this right??
+
+            # subtract scale-and-rotate prior logprob
+            lnp -= scaleandrotate_prior.compute_lnprob(sma)
+
+            # add in proper prior logprob
+            lnp += sma_prior.compute_lnprob(sma)        
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
