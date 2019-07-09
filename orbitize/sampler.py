@@ -528,7 +528,7 @@ class MCMC(Sampler):
         # Get list of walkers to use 
         if n_walkers is not None: # If n_walkers defined, randomly choose that many walkers
             walkers_to_plot = np.random.choice(self.num_walkers,size=n_walkers,replace=False)
-        else if walker_list is not None: # if walker_list is given, use that list
+        elif walker_list is not None: # if walker_list is given, use that list
             walkers_to_plot = np.array(walker_list)
         else: # both n_walkers and walker_list are none, so use all walkers
             walkers_to_plot = np.arange(self.num_walkers)
@@ -537,7 +537,26 @@ class MCMC(Sampler):
         if param_list is None:
             params_to_plot = np.arange(self.num_params)
         else: # build list from user input strings
-            params_to_plot = ()
+            params_plot_list = []
             for i in param_list:
-                pass # TODO: Can we access the index dictionary from here? Testing next...
+                if i in self.system.param_idx:
+                    params_plot_list.append(self.system.param_idx[i])
+                else:
+                    raise Exception('Invalid param name: {}. See system.param_idx.'.format(i))
+            params_to_plot = np.array(params_plot_list)
+
+        # Loop through each parameter and make plot
+        output_figs = []
+        for pp in params_to_plot:
+            fig, ax = plt.subplots()
+            for ww in walkers_to_plot:
+                ax.plot(chn[ww,:,pp],'k-')
+            ax.set_xlabel('Step')
+            if step_range is not None: # Limit range shown if step_range is set
+                ax.set_xlim(step_range)
+            output_figs.append(fig)
+        
+        # Return
+        return output_figs
+
         
