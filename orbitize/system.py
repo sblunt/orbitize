@@ -11,7 +11,8 @@ class System(object):
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
         data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        stellar_mass (float): mean mass of the primary, in M_sol
+        stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
+            docstring below.
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
@@ -20,6 +21,9 @@ class System(object):
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
+        fit_secondary_mass (bool, optional): if True, include the dynamical 
+            mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
+            is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
@@ -37,7 +41,9 @@ class System(object):
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. Mass1, mass2, ... correspond to masses of secondary
-    bodies. Primary mass is only in total_mass. 
+    bodies. If `fit_secondary_mass` is set to True, the last element of this 
+    list is initialized to the mass of the primary. If not, it is 
+    initialized to the total system mass.
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """

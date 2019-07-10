@@ -47,7 +47,7 @@ class Results(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, masses (see )]
+        [parallax, masses (see docstring for orbitize.system.System)]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc.
@@ -62,13 +62,14 @@ class Results(object):
         self.labels=labels
         
 
-    def add_samples(self, orbital_params, lnlikes):
+    def add_samples(self, orbital_params, lnlikes, labels):
         """
         Add accepted orbits and their likelihoods to the results
 
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
+            labels (list of str): list of parameter labels specifying the order in ``orbital_params``
 
         Written: Henry Ngo, 2018
         """
@@ -76,6 +77,7 @@ class Results(object):
         if self.post is None and self.lnlike is None:
             self.post = orbital_params
             self.lnlike = lnlikes
+            self.labels = labels
         # Otherwise, need to append properly
         else:
             self.post = np.vstack((self.post,orbital_params))
@@ -111,7 +113,7 @@ class Results(object):
         if self.lnlike is not None: # This property doesn't exist for OFTI
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
-            hf.create_dataset('parameter_labels', data=self.labels)
+            hf['col_names'] = np.array(self.labels).astype('S')
         hf.close() # Closes file object, which writes file to disk
 
     def load_results(self, filename, append=False):
@@ -169,12 +171,12 @@ class Results(object):
 
 
             # Now append post and lnlike
-            self.add_samples(post,lnlike)
+            self.add_samples(post,lnlike, labels=self.labels)
         else:
             # Only proceed if object is completely empty
             if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None:
                 self._set_sampler_name(sampler_name)
-                self.add_samples(post,lnlike)
+                self.add_samples(post,lnlike, labels=self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
                 self.labels = labels
             else:
@@ -231,7 +233,7 @@ class Results(object):
         if param_list is not None:
             param_indices = []
             for param in param_list:
-                index_num = np.where(np.array(self.labels) == param)[0]
+                index_num = np.where(np.array(self.labels) == param)[0][0]
                 param_indices.append(index_num)
 
             samples = self.post[:,param_indices] # Keep only chains for selected parameters
@@ -239,16 +241,17 @@ class Results(object):
         else:
             param_list = self.labels
             samples = self.post
+            param_indices = np.arange(len(param_list))
 
         if 'labels' not in corner_kwargs: # Use default labels if user didn't already supply them
             reduced_labels_list = []
-            for i in param_indices:
+            for i in np.arange(len(param_indices)):
                 label_key = param_list[i]
-                if label_key.startswith('m'):
+                if label_key.startswith('m') or label_key.startswith('plx'):
                     pass
                 else:
                     label_key = label_key[0:3]
-                reduced_labels_list[i] = default_labels[label_key]
+                reduced_labels_list.append(default_labels[label_key])
             corner_kwargs['labels'] = reduced_labels_list
 
         figure = corner.corner(samples, **corner_kwargs)
