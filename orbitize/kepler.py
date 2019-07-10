@@ -48,7 +48,6 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    # Rob: We'll need to modify this function to output radial velocities
 
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
@@ -56,7 +55,7 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
     # Necessary for _calc_ecc_anom, for now
     if np.isscalar(epochs):  # just in case epochs is given as a scalar
         epochs = np.array([epochs])
-    ecc_arr = np.tile(ecc, (n_dates, 1))
+    ecc_arr = np.tile(ecc, (n_dates, 1))  # Rob: this is the eccentricity array
 
     # If mass not given, assume test particle case
     if mass is None:
@@ -64,23 +63,26 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
 
     # Compute period (from Kepler's third law) and mean motion
     period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
-    period = period.to(u.day).value
+    period = period.to(u.day).value  # Rob: from years to days
     mean_motion = 2*np.pi/(period)  # in rad/day
 
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
+    # Rob: same as Lea's kepler solver. kepler.kepler in our practice model
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
     tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
+    # Rob: Ask Lea what this refers to
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
     # compute ra/dec offsets (size: n_orbs x n_dates)
     # math from James Graham. Lots of trig
+    # Rob: Similar to our X,Y transformations in the practice model
     c2i2 = np.cos(0.5*inc)**2
     s2i2 = np.sin(0.5*inc)**2
     arg1 = tanom + argp + lan
@@ -91,8 +93,8 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
     s2 = np.sin(arg2)
 
     # updated sign convention for Green Eq. 19.4-19.7
-    raoff = radius * (c2i2*s1 - s2i2*s2) * plx
-    deoff = radius * (c2i2*c1 + s2i2*c2) * plx
+    raoff = radius * (c2i2*s1 - s2i2*s2) * plx  # Rob: dra
+    deoff = radius * (c2i2*c1 + s2i2*c2) * plx  # Rob: ddec
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)

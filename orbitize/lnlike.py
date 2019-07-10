@@ -57,3 +57,6 @@ def chi2_lnlike(data, errors, model, seppa_indices):
         chi2.shape = chi2.shape[1:]
 
     return chi2
+
+
+# Rob: add RV likelihood function here:
