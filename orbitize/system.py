@@ -220,7 +220,8 @@ class System(object):
             dec_err = self.data_table['quant2_err'][i]
             # Convert to sep/PA
             sep, pa = radec2seppa(ra,dec)
-            sep_err, pa_err = radec2seppa(ra_err,dec_err)
+            sep_err = 0.5*(ra_err+dec_err)
+            pa_err = sep_err/sep
             # Update data_table
             self.data_table['quant1'][i]=sep
             self.data_table['quant1_err'][i]=sep_err
