@@ -6,6 +6,11 @@ Installation
 For Users
 +++++++++
 
+Parts of ``orbitize`` are written in C, so you'll need ``gcc`` (a C compiler) to install properly.
+Most Linux and Windows computers come with ``gcc`` built in, but Mac computers don't. If you
+haven't before, you'll need to download Xcode command line tools. There are several
+helpful guides online that teach you how to do this. Let us know if you have trouble! 
+
 ``orbitize`` is registered on ``pip``, and works in Python 2.7 or 3.6.
 To install ``orbitize``, first make sure you have the latest versions
 of ``numpy`` and ``cython`` installed. With ``pip``, you can do this with
