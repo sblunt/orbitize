@@ -11,15 +11,19 @@ class System(object):
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
         data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        system_mass (float): mean total mass of the system, in M_sol
+        stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
+            docstring below.
         plx (float): mean parallax of the system, in mas
-        mass_err (float, optional): uncertainty on ``system_mass``, in M_sol
+        mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
+        fit_secondary_mass (bool, optional): if True, include the dynamical 
+            mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
+            is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
@@ -33,15 +37,17 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, [mass1, mass2, ..], total_mass]
+        [parallax, [mass1, mass2, ..], total_mass/m0]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. Mass1, mass2, ... correspond to masses of secondary
-    bodies. Primary mass is only in tota_mass. 
+    bodies. If `fit_secondary_mass` is set to True, the last element of this 
+    list is initialized to the mass of the primary. If not, it is 
+    initialized to the total system mass.
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
-    def __init__(self, num_secondary_bodies, data_table, system_mass,
+    def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
 
@@ -118,13 +124,12 @@ class System(object):
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('epp{}'.format(body+1))
+            self.labels.append('tau{}'.format(body+1))
 
         #
         # Set priors on total mass and parallax
         #
         self.labels.append('plx')
-        self.labels.append('mtot')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
@@ -132,14 +137,19 @@ class System(object):
         
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
-                    self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for onw
-
-        if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for now
+                self.labels.append('m{}'.format(body))
+            self.labels.append('m0')
         else:
-            self.sys_priors.append(system_mass)
+            self.labels.append('mtot')
 
-        #add labels dictionary for parameter indexing
+        # still need to append m0/mtot, even though labels are appended above
+        if mass_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(stellar_mass, mass_err))
+        else:
+            self.sys_priors.append(stellar_mass)
+
+        # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
 
@@ -178,12 +188,14 @@ class System(object):
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                m0 = params_arr[-1]
+                mtot = m0 + mass
             else:
                 mass = None
-            mtot = params_arr[-1]
+                mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
             )
 
             if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)

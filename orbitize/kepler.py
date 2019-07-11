@@ -14,7 +14,7 @@ equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
 
-def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -26,12 +26,15 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
         sma (np.array): semi-major axis of orbit [au]
         ecc (np.array): eccentricity of the orbit [0,1]
         inc (np.array): inclination [radians]
-        argp (np.array): argument of periastron [radians]
-        lan (np.array): longitude of the ascending node [radians]
+        aop (np.array): argument of periastron [radians]
+        pan (np.array): longitude of the ascending node [radians]
         tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
         plx (np.array): parallax [mas]
-        mtot (np.array): total mass [Solar masses]
-        mass (np.array, optional): mass of the body [Solar masses]. For planets mass ~ 0 (default)
+        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
+        mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
+            For example, if you want to return the stellar RV, this is the planet mass. 
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses]. 
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default). 
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
@@ -44,7 +47,8 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
 
             deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
             
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity offset between the bodies  [km/s]
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies 
+                (see `mass_for_Kamp` description)  [km/s]
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -52,14 +56,14 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
     n_orbs  = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs) # number of dates to compute offsets and vz
 
+    # return planetary RV if `mass_for_Kamp` is not defined
+    if mass_for_Kamp is None:
+        mass_for_Kamp = mtot
+
     # Necessary for _calc_ecc_anom, for now
     if np.isscalar(epochs): # just in case epochs is given as a scalar
         epochs = np.array([epochs])
     ecc_arr = np.tile(ecc, (n_dates, 1))
-
-    # If mass not given, assume test particle case
-    if mass is None:
-        mass = np.zeros(n_orbs)
 
     # Compute period (from Kepler's third law) and mean motion
     period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
@@ -82,8 +86,8 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
     # math from James Graham. Lots of trig
     c2i2 = np.cos(0.5*inc)**2
     s2i2 = np.sin(0.5*inc)**2
-    arg1 = tanom + argp + lan
-    arg2 = tanom + argp - lan
+    arg1 = tanom + aop + pan
+    arg2 = tanom + aop - pan
     c1 = np.cos(arg1)
     c2 = np.cos(arg2)
     s1 = np.sin(arg1)
@@ -95,18 +99,13 @@ def calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=None, tau_
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
-    m1 = mtot - mass # mass of the primary star
-    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m1 * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
     # Convert to km/s
     Kv = Kv.to(u.km/u.s)
     # compute the vz
-    vz =  Kv.value * ( ecc*np.cos(argp) + np.cos(argp + tanom) )
+    vz =  Kv.value * ( ecc*np.cos(aop) + np.cos(aop + tanom) )
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
-    # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
-    # raoff = np.transpose(np.squeeze(raoff)[()])
-    # deoff = np.transpose(np.squeeze(deoff)[()])
-    # vz = np.transpose(np.squeeze(vz)[()])
     vz = np.squeeze(vz)[()]
 
     return raoff, deoff, vz
