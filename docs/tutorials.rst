@@ -6,8 +6,8 @@ Tutorials
 The following tutorials walk you through performing orbit fits with
 ``orbitize``. To get started, read through "Formatting Input," "OFTI
 Introduction," and "MCMC Introduction." To learn more about the 
-``orbitize`` API (and to learn how to modify priors), check out "Modifying 
-Priors." For an advanced plotting demo, see "Advanced Plotting," and to learn 
+``orbitize`` API, check out "Modifying Priors" and "Modifying MCMC Initial Positions."
+For an advanced plotting demo, see "Advanced Plotting," and to learn 
 about the differences between OFTI and MCMC algorithms,
 we suggest "MCMC vs OFTI Comparison."
 
@@ -25,7 +25,7 @@ style of using and explaining the code. If you are confused by part of
 one tutorial, we suggest looking at some of the others (and then contacting
 us if you are still confused).
 
-**Tutorials:**
+**Basic Tutorials:**
 
 .. toctree::
    :maxdepth: 1
@@ -33,6 +33,15 @@ us if you are still confused).
    formatting_inputs
    tutorials/OFTI_tutorial.ipynb
    tutorials/MCMC_tutorial.ipynb
+
+**Advanced Tutorials:**
+
+.. toctree::
+   :maxdepth: 1
+
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
+   tutorials/Modifying_MCMC_initial_positions.ipynb
+
+
