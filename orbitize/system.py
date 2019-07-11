@@ -100,7 +100,7 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.JeffreysPrior(0.001, 1e7))
+            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
@@ -135,7 +135,7 @@ class System(object):
         
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
-                    self.sys_priors.append(priors.JeffreysPrior(1e-6, 1)) # in Solar masses for onw
+                    self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for onw
 
         if mass_err > 0:
             self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
