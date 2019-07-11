@@ -86,9 +86,6 @@ class System(object):
             )
 
 
-        if (len(radec_indices) + len(seppa_indices) == len(self.data_table)) and (restrict_angle_ranges is None):
-            restrict_angle_ranges = True
-
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
