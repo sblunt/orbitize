@@ -279,9 +279,11 @@ class OFTI(Sampler):
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
 
+
+
         self.results.add_samples(
             np.array(output_orbits),
-            output_lnlikes, labels=self.system.labels
+            output_lnlikes, self.system.labels
         )
 
         return np.array(output_orbits)
@@ -491,7 +493,11 @@ class MCMC(Sampler):
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
-            self.lnlikes = sampler.lnprobability
+            self.lnlikes = sampler.flatlnprobability
+
+        # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
+        for i, orb in enumerate(self.post):
+            self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb,self.priors)
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
