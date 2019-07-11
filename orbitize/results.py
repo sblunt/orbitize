@@ -38,6 +38,8 @@ class Results(object):
             parameters in the fit (default: None).
         lnlike (np.array of float): M array of log-likelihoods corresponding to
             the orbits described in ``post`` (default: None).
+        lnpost (np.array of float): M array of log-posterior probabilities corresponding to
+            the orbits described in ``post`` (default: None).
         tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
 
     The ``post`` array is in the following order::
@@ -53,30 +55,34 @@ class Results(object):
 
     Written: Henry Ngo, Sarah Blunt, 2018
     """
-    def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None):
+    def __init__(self, sampler_name=None, post=None, lnlike=None, lnpost=None, tau_ref_epoch=None):
         self.sampler_name = sampler_name
         self.post = post
         self.lnlike = lnlike
+        self.lnpost = lnpost
         self.tau_ref_epoch = tau_ref_epoch
 
-    def add_samples(self, orbital_params, lnlikes):
+    def add_samples(self, orbital_params, lnlikes, lnposts):
         """
         Add accepted orbits and their likelihoods to the results
 
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
+            lnlike (np.array): add corresponding lnposterior values to results
 
         Written: Henry Ngo, 2018
         """
         # If no exisiting results then it is easy
-        if self.post is None and self.lnlike is None:
+        if self.post is None:
             self.post = orbital_params
             self.lnlike = lnlikes
+            self.lnpost = lnposts
         # Otherwise, need to append properly
         else:
             self.post = np.vstack((self.post,orbital_params))
             self.lnlike = np.append(self.lnlike,lnlikes)
+            self.lnpost = np.append(self.lnpost,lnposts)
 
     def _set_sampler_name(self, sampler_name):
         """
@@ -118,6 +124,8 @@ class Results(object):
             hf.create_dataset('post', data=self.post)
             if self.lnlike is not None: # This property doesn't exist for OFTI
                 hf.create_dataset('lnlike', data=self.lnlike)
+            if self.lnpost is not None: # This property doesn't exist for OFTI
+                hf.create_dataset('lnpost', data=self.lnpost)
             hf.close() # Closes file object, which writes file to disk
         elif format.lower()=='fits':
             n_params = self.post.shape[1]
