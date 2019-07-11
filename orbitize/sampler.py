@@ -129,21 +129,10 @@ class OFTI(Sampler):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def prepare_samples(self, num_samples):
-        """
-        Prepare some orbits for rejection sampling. This draws random orbits
-        from priors, and performs scale & rotate.
-
-        Args:
-            num_samples (int): number of orbits to draw and scale & rotate for
-                OFTI to run rejection sampling on
-
-        Return:
-            np.array: array of prepared samples. The first dimension has size of
-            num_samples. This should be passed into ``OFTI.reject()``
+    def draw_from_priors(self, num_samples):
         """
 
-        # TODO: modify to work for multi-planet systems
+        """
 
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
@@ -152,6 +141,25 @@ class OFTI(Sampler):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
+
+        return samples
+
+    def scale_and_rotate(self, samples, num_samples):
+        """
+        Prepare some orbits for rejection sampling. This draws random orbits
+        from priors, and performs scale & rotate.
+
+        Args:
+            samples ():
+            num_samples (int): number of orbits to draw and scale & rotate for
+                OFTI to run rejection sampling on
+
+        Return:
+            np.array: array of prepared samples. The first dimension has size of
+            num_samples. This should be passed into ``OFTI.reject()``
+        """
+
+        samples = self.draw_from_priors(num_samples)
 
         sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
 
@@ -221,22 +229,6 @@ class OFTI(Sampler):
 
         # TODO: add for loop over planet number
         sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
-        sma_prior = self.priors[0]
-
-        # if we do not want to use standard scale-and-rotate prior
-        if sma_prior.__repr__() != "Jeffreys":
-
-            scaleandrotate_prior = orbitize.priors.JeffreysPrior(0.001, 1e7)
-
-            import pdb; pdb.set_trace()
-
-            # TODO: is this right??
-
-            # subtract scale-and-rotate prior logprob
-            lnp -= scaleandrotate_prior.compute_lnprob(sma)
-
-            # add in proper prior logprob
-            lnp += sma_prior.compute_lnprob(sma)        
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -265,9 +257,19 @@ class OFTI(Sampler):
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
 
+        # if there is a nonstandard prior set on PAN, throw an error
+
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
-            samples = self.prepare_samples(num_samples)
+
+            # if the semimajor axis prior is standard, do scale-and-rotate
+            if sma_prior.__repr__() == "Jeffreys":
+                samples = self.scale_and_rotate(num_samples)
+
+            # otherwise, don't scale and rotate. Just do rejection sampling
+            else:
+                samples = self.prepare_samples(num_samples)
+
             accepted_orbits, lnlikes = self.reject(samples)
 
             if len(accepted_orbits)==0:
