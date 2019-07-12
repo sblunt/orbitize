@@ -50,7 +50,7 @@ class KDEPrior(Prior):
 
     def increment_param_num(self):
         self.param_num += 1
-        self.param_num = self.param_num % (self.total_params + 1)
+        self.param_num = self.param_num % self.total_params
 
     def draw_samples(self, num_samples):
         if self.param_num == 0:

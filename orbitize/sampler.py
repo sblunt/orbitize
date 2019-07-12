@@ -161,7 +161,6 @@ class OFTI(Sampler):
 
         samples = self.draw_from_priors(num_samples)
 
-        # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
         sma = samples[0,:]
         ecc = samples[1,:]
         inc = samples[2,:]
@@ -243,7 +242,20 @@ class OFTI(Sampler):
         lnp = self._logl(samples)
 
         # TODO: add for loop over planet number
-        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+        sma = samples[0,:]
+        ecc = samples[1,:]
+        inc = samples[2,:]
+        argp = samples[3,:]
+        lan = samples[4,:]
+        tau = samples[5,:]
+        plx = samples[6,:]
+        if self.system.fit_secondary_mass:
+            m0 = samples[-1,:]
+            m1 = samples[-2,:]
+            mtot = m0 + m1
+        else:
+            mtot = samples[-1,:]
+            m1 = None
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -272,7 +284,9 @@ class OFTI(Sampler):
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
 
-        # if there is a nonstandard prior set on PAN, throw an error
+        sma_prior = self.priors[0]
+
+        # TODO: if there is a nonstandard prior set on PAN, throw an error
 
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
@@ -283,7 +297,7 @@ class OFTI(Sampler):
 
             # otherwise, don't scale and rotate. Just do rejection sampling
             else:
-                samples = self.prepare_samples(num_samples)
+                samples = self.draw_from_priors(num_samples)
 
             accepted_orbits, lnlikes = self.reject(samples)
 
