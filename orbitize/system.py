@@ -12,15 +12,19 @@ class System(object):
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
         data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        system_mass (float): mean total mass of the system, in M_sol
+        stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
+            docstring below.
         plx (float): mean parallax of the system, in mas
-        mass_err (float, optional): uncertainty on ``system_mass``, in M_sol
+        mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes and argument of periastron to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
+        fit_secondary_mass (bool, optional): if True, include the dynamical 
+            mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
+            is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class
 
@@ -34,16 +38,26 @@ class System(object):
         argument of periastron 1, position angle of nodes 1,
         epoch of periastron passage 1,
         [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, [mass1, mass2, ..], total_mass]
+        [parallax, [mass1, mass2, ..], total_mass/m0]
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. Mass1, mass2, ... correspond to masses of secondary
+<<<<<<< HEAD
     bodies. Primary mass is only in tota_mass.
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
 
     def __init__(self, num_secondary_bodies, data_table, system_mass,
+=======
+    bodies. If `fit_secondary_mass` is set to True, the last element of this 
+    list is initialized to the mass of the primary. If not, it is 
+    initialized to the total system mass.
+
+    Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
+    """
+    def __init__(self, num_secondary_bodies, data_table, stellar_mass,
+>>>>>>> add-rvs
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
                  gamma_bounds=None, jitter_bounds=None):
@@ -58,6 +72,8 @@ class System(object):
         #
         # Group the data in some useful ways
         #
+
+        # TODO: add RV grouping here
 
         self.data_table = data_table
         # Creates a copy of the input in case data_table needs to be modified
@@ -95,9 +111,6 @@ class System(object):
 
         self.rvstar.append(rvstar_indices)
 
-        if (len(radec_indices) + len(seppa_indices) == len(self.data_table)) and (restrict_angle_ranges is None):
-            restrict_angle_ranges = True
-
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
@@ -109,7 +122,7 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.JeffreysPrior(0.001, 1e7))
+            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
@@ -130,12 +143,13 @@ class System(object):
 
             # Add epoch of periastron prior.
             self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('epp{}'.format(body+1))
+            self.labels.append('tau{}'.format(body+1))
 
         #
         # Set priors on total mass and parallax
         #
         self.labels.append('plx')
+<<<<<<< HEAD
 
         # we'll need to iterate over instruments here
         if self.gamma_bounds is not None:
@@ -152,6 +166,8 @@ class System(object):
             # Rob: Insert tracker here
 
         self.labels.append('mtot')
+=======
+>>>>>>> add-rvs
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
@@ -159,12 +175,21 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
+<<<<<<< HEAD
                 self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))  # in Solar masses for onw
-
-        if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(system_mass, mass_err))
+=======
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for now
+                self.labels.append('m{}'.format(body))
+            self.labels.append('m0')
         else:
-            self.sys_priors.append(system_mass)
+            self.labels.append('mtot')
+>>>>>>> add-rvs
+
+        # still need to append m0/mtot, even though labels are appended above
+        if mass_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(stellar_mass, mass_err))
+        else:
+            self.sys_priors.append(stellar_mass)
 
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
@@ -204,18 +229,30 @@ class System(object):
             tau = params_arr[body_num+4]
             plx = params_arr[6*self.num_secondary_bodies]
 
+<<<<<<< HEAD
             # REMINDER: We need to come back to this when Sarah and Jason finish changing the masses
+=======
+            # import pdb; pdb.set_trace()
+
+>>>>>>> add-rvs
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                m0 = params_arr[-1]
+                mtot = m0 + mass
             else:
                 mass = None
-            mtot = params_arr[-1]
+                mtot = params_arr[-1]
 
+<<<<<<< HEAD
             # Rob: will need to include rv parameters here: gamma factor and parallax.
             # Rob: Come back to this when Sarah and Jason finish with their mass changes
             raoff, decoff, vstar = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp_star, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
+=======
+            raoff, decoff, vz = kepler.calc_orbit(
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
+>>>>>>> add-rvs
             )
 
             # To get v_planet multiply by vstar by -mstar/mplanet
@@ -236,11 +273,15 @@ class System(object):
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
 
+<<<<<<< HEAD
         gamma = params_arr[6*self.num_secondary_bodies + 1]
         #jit = params_arr[6*self.num_secondary_bodies + 2]
         total_stellar_rv += gamma
         # if there are multiple instruments this needs to be a loop through instruments like they did in num_bodies
         model[self.rvstar, 0] = total_stellar_rv[self.rvstar]
+=======
+            # TODO: add RV model stuff here.
+>>>>>>> add-rvs
 
         return model
 
@@ -259,8 +300,14 @@ class System(object):
             dec = self.data_table['quant2'][i]
             dec_err = self.data_table['quant2_err'][i]
             # Convert to sep/PA
+<<<<<<< HEAD
             sep, pa = radec2seppa(ra, dec)
             sep_err, pa_err = radec2seppa(ra_err, dec_err)
+=======
+            sep, pa = radec2seppa(ra,dec)
+            sep_err = 0.5*(ra_err+dec_err)
+            pa_err = sep_err/sep
+>>>>>>> add-rvs
             # Update data_table
             self.data_table['quant1'][i] = sep
             self.data_table['quant1_err'][i] = sep_err
