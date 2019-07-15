@@ -85,6 +85,9 @@ class System(object):
         self.rv0 = []
         self.rv1 = []
 
+        self.gamma_bounds = gamma_bounds
+        self.jitter_bounds = jitter_bounds
+
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
@@ -120,7 +123,8 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
+            # change this back to LogUniformPrior later
+            self.sys_priors.append(priors.JeffreysPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
