@@ -44,7 +44,6 @@ class Sampler(ABC):
     def run_sampler(self, total_orbits):
         pass
 
-    # Rob: This is what we want to modify: include jitter.
     def _logl(self, params):
         """
         log likelihood function that interfaces with the orbitize objects
@@ -73,6 +72,7 @@ class Sampler(ABC):
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
 
         # compute lnlike
+        # Rob: need to modify depending on which body we compute the lnlikelihood for
         lnlikes = self.lnlike(data, errs, model, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
@@ -143,7 +143,7 @@ class OFTI(Sampler):
         for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else: # param is fixed & has no prior
+            else:  # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
         return samples
@@ -163,36 +163,22 @@ class OFTI(Sampler):
             num_samples. This should be passed into ``OFTI.reject()``
         """
 
-<<<<<<< HEAD
-        # TODO: modify to work for multi-planet systems
-
-        # generate sample orbits
-        samples = np.empty([len(self.priors), num_samples])
-        for i in range(len(self.priors)):
-            if hasattr(self.priors[i], "draw_samples"):
-                samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else:  # param is fixed & has no prior
-                samples[i, :] = self.priors[i] * np.ones(num_samples)
-
-        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
-=======
         samples = self.draw_from_priors(num_samples)
 
-        sma = samples[0,:]
-        ecc = samples[1,:]
-        inc = samples[2,:]
-        argp = samples[3,:]
-        lan = samples[4,:]
-        tau = samples[5,:]
-        plx = samples[6,:]
+        sma = samples[0, :]
+        ecc = samples[1, :]
+        inc = samples[2, :]
+        argp = samples[3, :]
+        lan = samples[4, :]
+        tau = samples[5, :]
+        plx = samples[6, :]
         if self.system.fit_secondary_mass:
-            m0 = samples[-1,:]
-            m1 = samples[-2,:]
+            m0 = samples[-1, :]
+            m1 = samples[-2, :]
             mtot = m0 + m1
         else:
-            mtot = samples[-1,:]
+            mtot = samples[-1, :]
             m1 = None
->>>>>>> add-rvs
 
         period_prescale = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
@@ -202,7 +188,7 @@ class OFTI(Sampler):
 
         # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
+            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot,
             mass_for_Kamp=m1
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
@@ -259,19 +245,19 @@ class OFTI(Sampler):
         lnp = self._logl(samples)
 
         # TODO: add for loop over planet number
-        sma = samples[0,:]
-        ecc = samples[1,:]
-        inc = samples[2,:]
-        argp = samples[3,:]
-        lan = samples[4,:]
-        tau = samples[5,:]
-        plx = samples[6,:]
+        sma = samples[0, :]
+        ecc = samples[1, :]
+        inc = samples[2, :]
+        argp = samples[3, :]
+        lan = samples[4, :]
+        tau = samples[5, :]
+        plx = samples[6, :]
         if self.system.fit_secondary_mass:
-            m0 = samples[-1,:]
-            m1 = samples[-2,:]
+            m0 = samples[-1, :]
+            m1 = samples[-2, :]
             mtot = m0 + m1
         else:
-            mtot = samples[-1,:]
+            mtot = samples[-1, :]
             m1 = None
 
         # reject orbits with probability less than a uniform random number
@@ -330,8 +316,6 @@ class OFTI(Sampler):
 
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
-
-
 
         self.results.add_samples(
             np.array(output_orbits),
@@ -423,7 +407,7 @@ class MCMC(Sampler):
 
     def _fill_in_fixed_params(self, sampled_params):
         """
-        Fills in the missing parameters from the chain that aren't being sampled
+        Fills in the missing parameters from the chain that aren't being sampeld
 
         Args:
             sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
@@ -550,16 +534,12 @@ class MCMC(Sampler):
 
         # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
         for i, orb in enumerate(self.post):
-            self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb,self.priors)
+            self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
 
-<<<<<<< HEAD
-        self.results.add_samples(self.post, self.lnlikes)
-=======
-        self.results.add_samples(self.post,self.lnlikes, labels=self.system.labels)
->>>>>>> add-rvs
+        self.results.add_samples(self.post, self.lnlikes, labels=self.system.labels)
 
         print('Run complete')
 
