@@ -88,10 +88,10 @@ class System(object):
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
-        rv0_indices = np.where(self.data_table['quant_type']
-                               == 'rv' & self.data_table['object'] == 0)
-        rv1_indices = np.where(self.data_table['quant_type']
-                               == 'rv' & self.data_table['object'] == 1)
+        rv0_indices = np.where((self.data_table['quant_type']
+                                == 'rv') & (self.data_table['object'] == 0))
+        rv1_indices = np.where((self.data_table['quant_type']
+                                == 'rv') & (self.data_table['object'] == 1))
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 

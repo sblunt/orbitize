@@ -2,5 +2,7 @@ import numpy as np
 import system as sys
 import read_input
 
-test_data = read_input('../tests/test_val.csv')
-print(test_data)
+data = read_input.read_file('/Users/Helios/orbitize/tests/test_val.csv')
+print(data)
+
+sys.System(2, data, 3.0, 50)
