@@ -413,7 +413,7 @@ class MCMC(Sampler):
 
         return super(MCMC, self)._logl(full_params) + logp
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1):
+    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -429,6 +429,8 @@ class MCMC(Sampler):
                 to discard certain number of steps at the beginning
             thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
+            examine_chains (boolean): Displays plots of walkers at each step by
+                running `examine_chains` after `total_orbits` sampled.
 
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
@@ -486,6 +488,9 @@ class MCMC(Sampler):
         self.results.add_samples(self.post,self.lnlikes)
 
         print('Run complete')
+
+        if examine_chains:
+            self.examine_chains()
 
         return sampler
 
@@ -597,7 +602,7 @@ class MCMC(Sampler):
         else:
             chop_chain = np.copy(new_chain[:, keep_start:keep_end, :])
         chop_lnlikes = np.copy(new_lnlikes[:, keep_start:keep_end])
-        chop_post = np.copy(self.post[:, keep_start:keep_end,:]))
+        chop_post = np.copy(self.post[:, keep_start:keep_end,:])
 
         # Flatten likelihoods and samples
         self.chain = chop_chain
