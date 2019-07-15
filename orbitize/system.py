@@ -22,7 +22,7 @@ class System(object):
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
-        fit_secondary_mass (bool, optional): if True, include the dynamical 
+        fit_secondary_mass (bool, optional): if True, include the dynamical
             mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
             is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
@@ -42,22 +42,14 @@ class System(object):
 
     where 1 corresponds to the first orbiting object, 2 corresponds
     to the second, etc. Mass1, mass2, ... correspond to masses of secondary
-<<<<<<< HEAD
-    bodies. Primary mass is only in tota_mass.
-
-    Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
-    """
-
-    def __init__(self, num_secondary_bodies, data_table, system_mass,
-=======
-    bodies. If `fit_secondary_mass` is set to True, the last element of this 
-    list is initialized to the mass of the primary. If not, it is 
+    bodies. If `fit_secondary_mass` is set to True, the last element of this
+    list is initialized to the mass of the primary. If not, it is
     initialized to the total system mass.
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
+
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
->>>>>>> add-rvs
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
                  gamma_bounds=None, jitter_bounds=None):
@@ -88,13 +80,18 @@ class System(object):
         # List of arrays of indices corresponding to epochs in SEP/PA for each body
         self.seppa = []
 
-        # List of arrays of indices corresponding to epochs of rv for star
-        self.rvstar = []
+        # rv0 == stellar radial velocity. rv1 == companion radial velocity
+        # List of index arrays corresponding to each rv for each body
+        self.rv0 = []
+        self.rv1 = []
 
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
-        rvstar_indices = np.where(
-            self.data_table['quant_type'] == 'rv' & self.data_table['object'] == 0)
+
+        rv0_indices = np.where(self.data_table['quant_type']
+                               == 'rv' & self.data_table['object'] == 0)
+        rv1_indices = np.where(self.data_table['quant_type']
+                               == 'rv' & self.data_table['object'] == 1)
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -109,7 +106,8 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
 
-        self.rvstar.append(rvstar_indices)
+        self.rv0.append(rv0_indices)
+        self.rv1.append(rv1_indices)
 
         if restrict_angle_ranges:
             angle_upperlim = np.pi
@@ -149,7 +147,6 @@ class System(object):
         # Set priors on total mass and parallax
         #
         self.labels.append('plx')
-<<<<<<< HEAD
 
         # we'll need to iterate over instruments here
         if self.gamma_bounds is not None:
@@ -160,14 +157,11 @@ class System(object):
 
         # Rob: adding jitter parameter - first edit (before the masses)
         if self.jitter_bounds is not None:
-            self.sys_priors.append(priors.JeffreysPrior(
+            self.sys_priors.append(priors.LogUniformPrior(
                 self.jitter_bounds[0], self.jitter_bounds[1]))
             self.labels.append('sigma')
             # Rob: Insert tracker here
 
-        self.labels.append('mtot')
-=======
->>>>>>> add-rvs
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
@@ -175,15 +169,11 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
-<<<<<<< HEAD
-                self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))  # in Solar masses for onw
-=======
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for now
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))  # in Solar masses for now
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
             self.labels.append('mtot')
->>>>>>> add-rvs
 
         # still need to append m0/mtot, even though labels are appended above
         if mass_err > 0:
@@ -209,32 +199,34 @@ class System(object):
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
-        # Rob: We'll need to modify this function to output radial velocities
+
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
-            total_stellar_rv = np.zeros(len(self.data_table))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
-            total_stellar_rv = np.zeros((len(self.data_table), params_arr.shape[1]))
+
+        if len(self.rv0) > 0:
+
+            gamma = params_arr[6*self.num_secondary_bodies+1]
+            total_rv0 = gamma
+        else:
+            total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch'][self.body_indices[body_num]]
-            sma = params_arr[body_num-1]
-            ecc = params_arr[body_num]
-            inc = params_arr[body_num+1]
-            argp = params_arr[body_num+2]
-            argp_star = np.mod(argp + np.pi, 2*np.pi)
-            lan = params_arr[body_num+3]
-            tau = params_arr[body_num+4]
+            # adding body_idx0 here to account for companion index
+            body_idx0 = body_num - 1
+            sma = params_arr[6*body_idx0]
+            ecc = params_arr[6*body_idx0+1]
+            inc = params_arr[6*body_idx0+2]
+            argp = params_arr[6*body_idx0+3]
+            lan = params_arr[6*body_idx0+4]
+            tau = params_arr[6*body_idx0+5]
             plx = params_arr[6*self.num_secondary_bodies]
 
-<<<<<<< HEAD
-            # REMINDER: We need to come back to this when Sarah and Jason finish changing the masses
-=======
             # import pdb; pdb.set_trace()
 
->>>>>>> add-rvs
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
@@ -244,21 +236,17 @@ class System(object):
                 mass = None
                 mtot = params_arr[-1]
 
-<<<<<<< HEAD
-            # Rob: will need to include rv parameters here: gamma factor and parallax.
-            # Rob: Come back to this when Sarah and Jason finish with their mass changes
-            raoff, decoff, vstar = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp_star, lan, tau, plx, mtot, mass=mass, tau_ref_epoch=self.tau_ref_epoch
-=======
-            raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
->>>>>>> add-rvs
+            # Switch argp to argp0 for input into calc_orbit
+            # Then, output vz is the star's velocity
+            # argp0 = argp + np.pi
+            raoff, decoff, vz0 = kepler.calc_orbit(
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
+                mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
             )
-
-            # To get v_planet multiply by vstar by -mstar/mplanet
-
-            # vstar is the same as vz for the moment so line below wont work if not changed
-            total_stellar_rv += vstar
+            total_rv0 += vz0
+            # After vz = vstar is calculated, calc vpl by mult vz*-m0/mass (only if fit_secondary_mass)
+            if len(self.rv1[body_num]) > 0:
+                vz1 = vz0*-(m0/mass)
 
             if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
@@ -273,19 +261,16 @@ class System(object):
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
 
-<<<<<<< HEAD
-        gamma = params_arr[6*self.num_secondary_bodies + 1]
-        #jit = params_arr[6*self.num_secondary_bodies + 2]
-        total_stellar_rv += gamma
-        # if there are multiple instruments this needs to be a loop through instruments like they did in num_bodies
-        model[self.rvstar, 0] = total_stellar_rv[self.rvstar]
-=======
             # TODO: add RV model stuff here.
->>>>>>> add-rvs
 
+            if len(vz1[self.rv1[body_num]]) > 0:
+                model[self.rv1[body_num], 1])=vz1[self.rv1[body_num]]
+
+        if len(vz[self.rv0]) > 0:
+            model[self.rv0, 0]=total_rv0[self.rv0]
         return model
 
-    def convert_data_table_radec2seppa(self, body_num=1):
+    def convert_data_table_radec2seppa(self, body_num = 1):
         """
         Converts rows of self.data_table given in radec to seppa.
         Note that self.input_table remains unchanged.
@@ -295,29 +280,24 @@ class System(object):
         """
         for i in self.radec[body_num]:  # Loop through rows where input provided in radec
             # Get ra/dec values
-            ra = self.data_table['quant1'][i]
-            ra_err = self.data_table['quant1_err'][i]
-            dec = self.data_table['quant2'][i]
-            dec_err = self.data_table['quant2_err'][i]
+            ra=self.data_table['quant1'][i]
+            ra_err=self.data_table['quant1_err'][i]
+            dec=self.data_table['quant2'][i]
+            dec_err=self.data_table['quant2_err'][i]
             # Convert to sep/PA
-<<<<<<< HEAD
-            sep, pa = radec2seppa(ra, dec)
-            sep_err, pa_err = radec2seppa(ra_err, dec_err)
-=======
-            sep, pa = radec2seppa(ra,dec)
-            sep_err = 0.5*(ra_err+dec_err)
-            pa_err = sep_err/sep
->>>>>>> add-rvs
+            sep, pa=radec2seppa(ra, dec)
+            sep_err=0.5*(ra_err+dec_err)
+            pa_err=sep_err/sep
             # Update data_table
-            self.data_table['quant1'][i] = sep
-            self.data_table['quant1_err'][i] = sep_err
-            self.data_table['quant2'][i] = pa
-            self.data_table['quant2_err'][i] = pa_err
-            self.data_table['quant_type'][i] = 'seppa'
+            self.data_table['quant1'][i]=sep
+            self.data_table['quant1_err'][i]=sep_err
+            self.data_table['quant2'][i]=pa
+            self.data_table['quant2_err'][i]=pa_err
+            self.data_table['quant_type'][i]='seppa'
             # Update self.radec and self.seppa arrays
-            self.radec[body_num] = np.delete(
+            self.radec[body_num]=np.delete(
                 self.radec[body_num], np.where(self.radec[body_num] == i)[0])
-            self.seppa[body_num] = np.append(self.seppa[body_num], i)
+            self.seppa[body_num]=np.append(self.seppa[body_num], i)
 
     def add_results(self, results):
         """
@@ -332,7 +312,7 @@ class System(object):
         """
         Removes all stored results
         """
-        self.results = []
+        self.results=[]
 
 
 def radec2seppa(ra, dec):
@@ -349,7 +329,7 @@ def radec2seppa(ra, dec):
         tulple of float: (separation [mas], position angle [deg])
 
     """
-    sep = np.sqrt((ra**2) + (dec**2))
-    pa = np.degrees(np.arctan2(ra, dec)) % 360.
+    sep=np.sqrt((ra**2) + (dec**2))
+    pa=np.degrees(np.arctan2(ra, dec)) % 360.
 
     return sep, pa
