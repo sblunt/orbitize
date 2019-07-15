@@ -559,4 +559,51 @@ class MCMC(Sampler):
         # Return
         return output_figs
 
+    def chop_chains(self, burn, trim=0):
+        """
+        Permanently removes steps from beginning (and/or end) of chains by updating Results object.
+        Args:
+            burn (int): The number of steps to remove from the beginning of the chains
+            trim (int): The number of steps to remove from the end of the chians (optional)
+
+        Returns:
+            None. Updates the bookkeeping array in both `Sampler` and associated `Results` objects
+
+        (written): Henry Ngo, 2019
+        """
         
+        # Find beginning and end indices
+        n_steps = self.chain.shape[-2] # chain has shape (ntemps, nwalkers, nsteps, nparams) or (nwalkers, nsteps, nparams)
+        keep_start = burn
+        keep_end = n_steps - trim
+
+        # Make copies of arrays to be modified
+        new_chain = np.copy(self.chain)
+        new_lnlikes = np.copy(self.lnlikes)
+        if self.use_pt:
+            new_lnlikes_alltemps = np.copy(self.lnlikes_alltemps)
+        new_post = np.copy(self.post)
+
+        # Need to "unflatten" the flattened arrays in order to index by step
+        new_lnlikes = new_lnlikes.reshape((self.num_walkers,n_steps))
+        if self.use_pt:
+            new_lnlikes_alltemps = new_lnlikes_alltemps.reshape((self.num_temps,self.num_walkers,n_steps))
+        new_post = new_post.reshape((self.num_walkers, n_steps, self.num_params))
+    
+        # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
+        if self.use_pt:
+            chop_chain = np.copy(new_chain[:, :, keep_start:keep_end, :])
+            chop_lnlikes_alltemps = np.copy(new_lnlikes_alltemps[:, :, keep_start:keep_end])
+        else:
+            chop_chain = np.copy(new_chain[:, keep_start:keep_end, :])
+        chop_lnlikes = np.copy(new_lnlikes[:, keep_start:keep_end])
+        chop_post = np.copy(self.post[:, keep_start:keep_end,:]))
+
+        # Flatten likelihoods and samples
+        self.chain = chop_chain
+        self.lnlikes = chop_lnlikes.reshape(self.num_walkers*nsteps)
+        if self.use_pt:
+            self.lnlikes_alltemps = chop_lnlikes_alltemps.reshape(self.num_temps,self.num_walkers*nsteps)
+        self.post = chop_post.reshape(self.num_walkers*nsteps,self.num_params)
+
+        # Update results object
