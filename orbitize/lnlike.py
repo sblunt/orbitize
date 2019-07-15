@@ -4,9 +4,6 @@ import numpy as np
 This module contains functions for computing log(likelihood).
 """
 
-# We're going to add a separate lnlike function for the rv data below chi2_lnlike.
-# We'll duplicate it and add the jitter to both terms of the likelihood function since chi2_lnlike only takes into account the first term without jitter
-
 
 def chi2_lnlike(data, errors, model, seppa_indices):
     """Compute Log of the chi2 Likelihood
@@ -58,5 +55,4 @@ def chi2_lnlike(data, errors, model, seppa_indices):
 
     return chi2
 
-
-# Rob: add RV likelihood function here:
+# Rob: defining Chi^2 for rv data:
