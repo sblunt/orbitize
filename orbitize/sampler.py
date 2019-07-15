@@ -606,4 +606,13 @@ class MCMC(Sampler):
             self.lnlikes_alltemps = chop_lnlikes_alltemps.reshape(self.num_temps,self.num_walkers*nsteps)
         self.post = chop_post.reshape(self.num_walkers*nsteps,self.num_params)
 
-        # Update results object
+        # Update results object associated with this sampler
+        self.results = orbitize.results.Results(
+            sampler_name = self.__class__.__name__,
+            post = self.post,
+            lnlike = self.lnlikes,
+            tau_ref_epoch=self.system.tau_ref_epoch
+        )
+
+        # Print a confirmation
+        print('Chains successfully chopped. Results object updated.')
