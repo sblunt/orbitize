@@ -32,9 +32,9 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         plx (np.array): parallax [mas]
         mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
         mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
-            For example, if you want to return the stellar RV, this is the planet mass. 
-            If you want to return the planetary RV, this is the stellar mass. [Solar masses]. 
-            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default). 
+            For example, if you want to return the stellar RV, this is the planet mass.
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
@@ -46,14 +46,9 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
             (origin is at the other body) [mas]
 
             deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
-<<<<<<< HEAD
 
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity offset between the bodies  [km/s]
-=======
-            
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies 
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
->>>>>>> add-rvs
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -68,30 +63,27 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     # Necessary for _calc_ecc_anom, for now
     if np.isscalar(epochs):  # just in case epochs is given as a scalar
         epochs = np.array([epochs])
-    ecc_arr = np.tile(ecc, (n_dates, 1))  # Rob: this is the eccentricity array
+    ecc_arr = np.tile(ecc, (n_dates, 1))
 
     # Compute period (from Kepler's third law) and mean motion
     period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
-    period = period.to(u.day).value  # Rob: from years to days
+    period = period.to(u.day).value
     mean_motion = 2*np.pi/(period)  # in rad/day
 
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    # Rob: same as Lea's kepler solver. kepler.kepler in our practice model
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
     tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
-    # Rob: Ask Lea what this refers to
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
     # compute ra/dec offsets (size: n_orbs x n_dates)
     # math from James Graham. Lots of trig
-    # Rob: Similar to our X,Y transformations in the practice model
     c2i2 = np.cos(0.5*inc)**2
     s2i2 = np.sin(0.5*inc)**2
     arg1 = tanom + aop + pan
@@ -102,47 +94,21 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     s2 = np.sin(arg2)
 
     # updated sign convention for Green Eq. 19.4-19.7
-    raoff = radius * (c2i2*s1 - s2i2*s2) * plx  # Rob: dra
-    deoff = radius * (c2i2*c1 + s2i2*c2) * plx  # Rob: ddec
+    raoff = radius * (c2i2*s1 - s2i2*s2) * plx
+    deoff = radius * (c2i2*c1 + s2i2*c2) * plx
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
-<<<<<<< HEAD
-    m1 = mtot - mass  # mass of the primary star
-
-    # Rob: Modify Kv -> Change m1 on top of amplitude mass calculation.
-
-    # Rob: Kv below will be ranamed K1 for the planet's velocity and m1 will become m0
-    # Rob Then we need K0, and m1 will stay m1
-    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (m1 * u.Msun * np.sin(inc)) / \
-        np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
-
-    # Rob: K0 = and K1 = for the amplitude of the star and the planet
-    # Rob: K1 will be close to K0*m0/m1
-
-=======
-    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
->>>>>>> add-rvs
+    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun *
+                                               np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
     # Convert to km/s
-
-    # Rob rename and make K1 and K2 below as well
     Kv = Kv.to(u.km/u.s)
     # compute the vz
-<<<<<<< HEAD
-    vz = Kv.value * (ecc*np.cos(argp) + np.cos(argp + tanom))
-
-    # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
-    # [()] used to convert 1-element arrays into scalars, has no effect for larger arrays
-    # raoff = np.transpose(np.squeeze(raoff)[()])
-    # deoff = np.transpose(np.squeeze(deoff)[()])
-    # vz = np.transpose(np.squeeze(vz)[()])
-    vz = np.squeeze(vz)[()]  # Rob: relative radial velocity (RV1 - RV2)
-=======
-    vz =  Kv.value * ( ecc*np.cos(aop) + np.cos(aop + tanom) )
+    # Rob: inserting negative value to obtain to account for the stellar argp
+    vz = -Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]
->>>>>>> add-rvs
 
     return raoff, deoff, vz
 
