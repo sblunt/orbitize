@@ -12,6 +12,7 @@ if sys.version_info[0] < 3:
 else:
     ABC = abc.ABC
 
+
 class Prior(ABC):
     """
     Abstract base class for prior objects.
@@ -28,6 +29,7 @@ class Prior(ABC):
     def compute_lnprob(self, element_array):
         pass
 
+
 class KDEPrior(Prior):
     """
     Gaussian kernel density estimation (KDE) prior. This class is
@@ -42,7 +44,7 @@ class KDEPrior(Prior):
         self.gaussian_kde = gaussian_kde
         self.total_params = total_params
         self.param_num = 0
-        self.correlated_drawn_samples = None 
+        self.correlated_drawn_samples = None
         self.correlated_input_samples = None
 
     def __repr__(self):
@@ -76,6 +78,7 @@ class KDEPrior(Prior):
             self.increment_param_num()
             return 0
 
+
 class GaussianPrior(Prior):
     """Gaussian prior.
 
@@ -91,6 +94,7 @@ class GaussianPrior(Prior):
 
     (written) Sarah Blunt, 2018
     """
+
     def __init__(self, mu, sigma, no_negatives=True):
         self.mu = mu
         self.sigma = sigma
@@ -102,19 +106,19 @@ class GaussianPrior(Prior):
     def draw_samples(self, num_samples):
         """
         Draw positive samples from a Gaussian distribution.
-        Negative samples will not be returned. 
+        Negative samples will not be returned.
 
         Args:
             num_samples (float): the number of samples to generate
 
         Returns:
             numpy array of float: samples drawn from the appropriate
-            Gaussian distribution. Array has length `num_samples`. 
+            Gaussian distribution. Array has length `num_samples`.
         """
 
         samples = np.random.normal(
             loc=self.mu, scale=self.sigma, size=num_samples
-        )        
+        )
         bad = np.inf
 
         if self.no_negatives:
@@ -126,7 +130,7 @@ class GaussianPrior(Prior):
 
                 samples[bad_samples] = np.random.normal(
                     loc=self.mu, scale=self.sigma, size=bad
-                )   
+                )
 
         return samples
 
@@ -136,30 +140,31 @@ class GaussianPrior(Prior):
         Negative numbers return a probability of -inf.
 
         Args:
-            element_array (float or np.array of float): array of numbers. We want the 
-                probability of drawing each of these from the appopriate Gaussian 
+            element_array (float or np.array of float): array of numbers. We want the
+                probability of drawing each of these from the appopriate Gaussian
                 distribution
 
         Returns:
-            numpy array of float: array of log(probability) values, 
-            corresponding to the probability of drawing each of the numbers 
+            numpy array of float: array of log(probability) values,
+            corresponding to the probability of drawing each of the numbers
             in the input `element_array`.
         """
         lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
 
         if self.no_negatives:
-            
+
             bad_samples = np.where(element_array < 0)[0]
             lnprob[bad_samples] = -np.inf
 
         return lnprob
+
 
 class LogUniformPrior(Prior):
     """
     This is the probability distribution :math:`p(x) \\propto 1/x`
 
     The __init__ method should take in a "min" and "max" value
-    of the distribution, which correspond to the domain of the prior. 
+    of the distribution, which correspond to the domain of the prior.
     (If this is not implemented, the prior has a singularity at 0 and infinite
     integrated probability).
 
@@ -168,6 +173,7 @@ class LogUniformPrior(Prior):
         maxval (float): the upper bound of this distribution
 
     """
+
     def __init__(self, minval, maxval):
         self.minval = minval
         self.maxval = maxval
@@ -214,10 +220,11 @@ class LogUniformPrior(Prior):
         if np.shape(lnprob) == ():
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
-        else: 
+        else:
             lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
+
 
 class UniformPrior(Prior):
     """
@@ -228,6 +235,7 @@ class UniformPrior(Prior):
         maxval (float): the upper bound of the uniform prior
 
     """
+
     def __init__(self, minval, maxval):
         self.minval = minval
         self.maxval = maxval
@@ -270,6 +278,7 @@ class UniformPrior(Prior):
             lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
+
 
 class SinPrior(Prior):
     """
@@ -318,12 +327,13 @@ class SinPrior(Prior):
 
         # account for scalar inputs
         if np.shape(lnprob) == ():
-            if (element_array>=np.pi) or (element_array<=0):
+            if (element_array >= np.pi) or (element_array <= 0):
                 lnprob = -np.inf
         else:
-            lnprob[(element_array>=np.pi) | (element_array<=0)] = -np.inf
+            lnprob[(element_array >= np.pi) | (element_array <= 0)] = -np.inf
 
         return lnprob
+
 
 class LinearPrior(Prior):
     """
@@ -333,7 +343,7 @@ class LinearPrior(Prior):
 
         p(x) \\propto mx+b
 
-    where m is negative, b is positive, and the 
+    where m is negative, b is positive, and the
     range is [0,-b/m].
 
     Args:
@@ -341,6 +351,7 @@ class LinearPrior(Prior):
         b (float): y intercept of line. Must be positive.
 
     """
+
     def __init__(self, m, b):
         self.m = m
         self.b = b
@@ -368,8 +379,6 @@ class LinearPrior(Prior):
 
         return linear_samples
 
-        
-
     def compute_lnprob(self, element_array):
 
         x_intercept = -self.b/self.m
@@ -379,14 +388,12 @@ class LinearPrior(Prior):
 
         # account for scalar inputs
         if np.shape(lnprob) == ():
-            if (element_array>=x_intercept) or (element_array<0):
+            if (element_array >= x_intercept) or (element_array < 0):
                 lnprob = -np.inf
-        else:        
-            lnprob[(element_array>=x_intercept) | (element_array<0)] = -np.inf
+        else:
+            lnprob[(element_array >= x_intercept) | (element_array < 0)] = -np.inf
 
         return lnprob
-
-
 
 
 def all_lnpriors(params, priors):
@@ -394,7 +401,7 @@ def all_lnpriors(params, priors):
     Calculates log(prior probability) of a set of parameters and a list of priors
 
     Args:
-        params (np.array): size of N parameters 
+        params (np.array): size of N parameters
         priors (list): list of N prior objects corresponding to each parameter
 
     Returns:
@@ -403,11 +410,10 @@ def all_lnpriors(params, priors):
     logp = 0.
     for param, prior in zip(params, priors):
         param = np.array([param])
-        
-        logp += prior.compute_lnprob(param) # retrun a float
-    
-    return logp
 
+        logp += prior.compute_lnprob(param)  # retrun a float
+
+    return logp
 
 
 if __name__ == '__main__':
@@ -424,6 +430,3 @@ if __name__ == '__main__':
 
     myProbs = myPrior.compute_lnprob(mySamples)
     print(myProbs)
-
-
-
