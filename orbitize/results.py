@@ -55,7 +55,6 @@ class Results(object):
     Written: Henry Ngo, Sarah Blunt, 2018
     """
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None):
-
         self.sampler_name = sampler_name
         self.post = post
         self.lnlike = lnlike
@@ -135,7 +134,6 @@ class Results(object):
         sampler_name = np.str(hf.attrs['sampler_name'])
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
-
         # get the tau reference epoch
         try:
             tau_ref_epoch = float(hf.attrs['tau_ref_epoch'])
@@ -147,7 +145,6 @@ class Results(object):
         except KeyError:
             # again, probably an old file without saved parameter labels
             labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
-
 
         hf.close() # Closes file object
 
