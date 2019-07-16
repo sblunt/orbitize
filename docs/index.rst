@@ -66,6 +66,15 @@ Some major planned updates:
 Changelog:
 ++++++++++
 
+**1.4.0 (2019-7-15)**
+
+- API change to lay the groundwork for dynamical mass calculation. 
+- JeffreysPrior -> LogUniformPrior
+- New tutorials.
+- Added some informative error messages for input tables.
+- Bugfixes.
+
+
 **1.3.1 (2019-6-19)**
 
 - Bugfix for RA/Dec inputs to the OFTI sampler (Issue #108).
