@@ -1,5 +1,6 @@
 import numpy as np
 from orbitize import priors, read_input, kepler
+import pdb
 
 
 class System(object):
@@ -161,7 +162,7 @@ class System(object):
 
         # Rob: adding jitter parameter - first edit (before the masses)
         if self.jitter_bounds is not None:
-            self.sys_priors.append(priors.LogUniformPrior(
+            self.sys_priors.append(priors.JeffreysPrior(
                 self.jitter_bounds[0], self.jitter_bounds[1]))
             self.labels.append('sigma')
             # Rob: Insert tracker here
@@ -173,7 +174,7 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))  # in Solar masses for now
+                self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))  # in Solar masses for now
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -239,6 +240,8 @@ class System(object):
             else:
                 mass = None
                 mtot = params_arr[-1]
+
+            pdb.set_trace()
 
             # Switch argp to argp0 for input into calc_orbit
             # Then, output vz is the star's velocity
