@@ -68,7 +68,6 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     fig_list = mcmc.examine_chains(walker_list=[10, 20])
     fig_list = mcmc.examine_chains(n_walkers=5)
     fig_list = mcmc.examine_chains(step_range=[50,100])
-    examine_chains(self, param_list=None, temp=0, walker_list=None, n_walkers=None, step_range=None):
 
 if __name__ == "__main__":
     # Parallel Tempering tests
