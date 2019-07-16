@@ -230,7 +230,7 @@ class System(object):
             # Convert to sep/PA
             sep, pa = radec2seppa(ra,dec)
             sep_err = 0.5*(ra_err+dec_err)
-            pa_err = sep_err/sep
+            pa_err = np.degrees(sep_err/sep)
             # Update data_table
             self.data_table['quant1'][i]=sep
             self.data_table['quant1_err'][i]=sep_err
