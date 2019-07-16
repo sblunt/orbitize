@@ -56,18 +56,54 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     mcmc = sampler.MCMC(orbit, num_temps, n_walkers, num_threads=num_threads)
 
     # run it a little 
-    mcmc.run_sampler(100)
+    nsteps1=100
+    nsteps2=100
+    nsteps=nsteps1+nsteps2
+    mcmc.run_sampler(nsteps1)
     # run it a little more (tries examine_chains within run_sampler)
-    mcmc.run_sampler(100, examine_chains=True)
-    
+    mcmc.run_sampler(nsteps2, examine_chains=True)
+    # (200 steps total)
+
     # Try all variants of examine_chains
-    fig_list = mcmc.examine_chains()
+    mcmc.examine_chains()
     fig_list = mcmc.examine_chains(param_list=['sma1','ecc1','inc1'])
+    # Should only get 3 figures
+    assert len(fig_list) == 3
     if num_temps > 1:
-        fig_list = mcmc.examine_chains(temp=1)
-    fig_list = mcmc.examine_chains(walker_list=[10, 20])
-    fig_list = mcmc.examine_chains(n_walkers=5)
-    fig_list = mcmc.examine_chains(step_range=[50,100])
+        mcmc.examine_chains(temp=1)
+    mcmc.examine_chains(walker_list=[10, 20])
+    mcmc.examine_chains(n_walkers=5)
+    mcmc.examine_chains(step_range=[50,100])
+
+    # Now try chopping the chains
+    # Chop off first 50 steps
+    chop1=50
+    mcmc.chop_chains(chop1)
+    # Calculate expected number of orbits now
+    steps_remain = nsteps - chop1
+    expected_total_orbits = steps_remain * n_walkers
+    # Check lengths of chain object and results object
+    if num_temps > 1:
+        assert mcmc.chain.shape[2] == steps_remain
+    else:
+        assert mcmc.chain.shape[1] == steps_remain
+    assert len(mcmc.results.lnlike) == expected_total_orbits
+    assert mcmc.results.post.shape[0] == expected_total_orbits
+
+    # With 150 steps left, now try to trim 25 steps off each end
+    chop2 = 25
+    trim2 = 25
+    mcmc.chop_chains(chop2,trim=trim2)
+    # Calculated expected number of orbits now
+    steps_remain = nsteps - chop1 - chop2 - trim2
+    expected_total_orbits = steps_remain * n_walkers
+    # Check lengths of chain object and results object
+    if num_temps > 1:
+        assert mcmc.chain.shape[2] == steps_remain
+    else:
+        assert mcmc.chain.shape[1] == steps_remain
+    assert len(mcmc.results.lnlike) == expected_total_orbits
+    assert mcmc.results.post.shape[0] == expected_total_orbits
 
 if __name__ == "__main__":
     # Parallel Tempering tests
