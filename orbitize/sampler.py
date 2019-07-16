@@ -567,6 +567,8 @@ class MCMC(Sampler):
     def chop_chains(self, burn, trim=0):
         """
         Permanently removes steps from beginning (and/or end) of chains by updating Results object.
+        Also updates `curr_pos` if steps are removed from the end of the chain
+
         Args:
             burn (int): The number of steps to remove from the beginning of the chains
             trim (int): The number of steps to remove from the end of the chians (optional)
@@ -603,6 +605,13 @@ class MCMC(Sampler):
             chop_chain = np.copy(new_chain[:, keep_start:keep_end, :])
         chop_lnlikes = np.copy(new_lnlikes[:, keep_start:keep_end])
         chop_post = np.copy(self.post[:, keep_start:keep_end,:])
+
+        # Update current position if required
+        if trim > 0:
+            if self.use_pt:
+                self.curr_pos = self.chain[:,:,-1,:]
+            else:
+                self.curr_pos = self.chain[:,-1,:]
 
         # Flatten likelihoods and samples
         self.chain = chop_chain
