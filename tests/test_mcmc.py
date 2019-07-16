@@ -27,15 +27,15 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
 
     # run it a little (tests 0 burn-in steps)
     mcmc.run_sampler(100)
-    # run it a little more
-    mcmc.run_sampler(1000, 1)
     # run it a little more (tests adding to results object)
-    mcmc.run_sampler(1000, 1)
+    mcmc.run_sampler(500, burn_steps=10)
+    # run it a little more (tries examine_chains within run_sampler)
+    mcmc.run_sampler(500, burn_steps=10, examine_chains=True)
 
 if __name__ == "__main__":
     # Parallel Tempering tests
-    test_mcmc_runs(num_temps=10, num_threads=1)
-    test_mcmc_runs(num_temps=10, num_threads=4)
+    test_mcmc_runs(num_temps=2, num_threads=1)
+    test_mcmc_runs(num_temps=2, num_threads=4)
     # Ensemble MCMC tests
     test_mcmc_runs(num_temps=0, num_threads=1)
     test_mcmc_runs(num_temps=0, num_threads=8)
