@@ -174,7 +174,11 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
+<<<<<<< HEAD
                 self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))  # in Solar masses for now
+=======
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for now
+>>>>>>> 2fd776821dd6ff7bcde82a7724daa18953dc6e36
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
