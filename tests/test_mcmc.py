@@ -2,6 +2,7 @@ import os
 import orbitize.sampler as sampler
 import orbitize.system as system
 import orbitize.read_input as read_input
+import matplotlib.pyplot as plt
 
 def test_mcmc_runs(num_temps=0, num_threads=1):
     """
@@ -66,14 +67,20 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
 
     # Try all variants of examine_chains
     mcmc.examine_chains()
+    plt.close(fig='all') # Close figures generated
     fig_list = mcmc.examine_chains(param_list=['sma1','ecc1','inc1'])
     # Should only get 3 figures
     assert len(fig_list) == 3
+    plt.close(fig='all')  # Close figures generated
     if num_temps > 1:
         mcmc.examine_chains(temp=1)
+        plt.close(fig='all')  # Close figures generated
     mcmc.examine_chains(walker_list=[10, 20])
+    plt.close(fig='all')  # Close figures generated
     mcmc.examine_chains(n_walkers=5)
+    plt.close(fig='all')  # Close figures generated
     mcmc.examine_chains(step_range=[50,100])
+    plt.close(fig='all')  # Close figures generated
 
     # Now try chopping the chains
     # Chop off first 50 steps
