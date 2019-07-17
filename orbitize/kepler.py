@@ -77,7 +77,6 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
     tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
-    print(tanom)
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
     radius = sma * (1.0 - ecc * np.cos(eanom))
 

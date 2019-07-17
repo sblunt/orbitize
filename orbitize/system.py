@@ -1,9 +1,9 @@
 import numpy as np
-from orbitize import priors, read_input, kepler
-#import kepler
-#import read_input
-#import priors
-#import pdb
+#from orbitize import priors, read_input, kepler
+import kepler
+import read_input
+import priors
+import pdb
 
 
 class System(object):
