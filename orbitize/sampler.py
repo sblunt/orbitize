@@ -590,12 +590,13 @@ class MCMC(Sampler):
         if self.use_pt:
             new_lnlikes_alltemps = np.copy(self.lnlikes_alltemps)
         new_post = np.copy(self.post)
-
+        n_params = self.post.shape[-1] # note: CANNOT use self.num_params because that only includes fitted params, not fixed params
+        
         # Need to "unflatten" the flattened arrays in order to index by step
         new_lnlikes = new_lnlikes.reshape((self.num_walkers,n_steps))
         if self.use_pt:
             new_lnlikes_alltemps = new_lnlikes_alltemps.reshape((self.num_temps,self.num_walkers,n_steps))
-            new_post = new_post.reshape((self.num_walkers, n_steps, self.num_params))
+        new_post = new_post.reshape((self.num_walkers, n_steps, n_params))
     
         # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
         if self.use_pt:
@@ -618,7 +619,7 @@ class MCMC(Sampler):
         self.lnlikes = chop_lnlikes.reshape(self.num_walkers*nsteps)
         if self.use_pt:
             self.lnlikes_alltemps = chop_lnlikes_alltemps.reshape(self.num_temps,self.num_walkers*nsteps)
-        self.post = chop_post.reshape(self.num_walkers*nsteps,self.num_params)
+        self.post = chop_post.reshape(self.num_walkers*nsteps, n_params)
 
         # Update results object associated with this sampler
         self.results = orbitize.results.Results(
