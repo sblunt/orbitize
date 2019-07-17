@@ -72,10 +72,8 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
-
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
-
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
     tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
@@ -103,9 +101,11 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
                                                np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
     # Convert to km/s
     Kv = Kv.to(u.km/u.s)
+
     # compute the vz
     # Rob: inserting negative value to obtain to account for the stellar argp
     vz = -Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
+    print(vz)
 
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]

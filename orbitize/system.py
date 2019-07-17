@@ -1,5 +1,8 @@
 import numpy as np
-from orbitize import priors, read_input, kepler
+#from orbitize import priors, read_input, kepler
+import kepler
+import read_input
+import priors
 import pdb
 
 
@@ -83,8 +86,8 @@ class System(object):
 
         # rv0 == stellar radial velocity. rv1 == companion radial velocity
         # List of index arrays corresponding to each rv for each body
-        self.rv0 = []
-        self.rv1 = []
+        self.rv = []
+        #self.rv1 = []
 
         self.gamma_bounds = gamma_bounds
         self.jitter_bounds = jitter_bounds
@@ -92,10 +95,10 @@ class System(object):
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
-        rv0_indices = np.where((self.data_table['quant_type']
-                                == 'rv') & (self.data_table['object'] == 0))
-        rv1_indices = np.where((self.data_table['quant_type']
-                                == 'rv') & (self.data_table['object'] == 1))
+        rv_indices = np.where(self.data_table['quant_type']
+                              == 'rv')
+        # rv1_indices = np.where((self.data_table['quant_type']
+        # == 'rv') & (self.data_table['object'] == 1))
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -109,9 +112,12 @@ class System(object):
             self.seppa.append(
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
+            self.rv.append(
+                np.intersect1d(self.body_indices[body_num], rv_indices)
+            )
 
-        self.rv0.append(rv0_indices)
-        self.rv1.append(rv1_indices)
+        # self.rv0.append(rv0_indices)
+        # self.rv1.append(rv1_indices)
 
         if restrict_angle_ranges:
             angle_upperlim = np.pi
@@ -174,11 +180,8 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies):
-<<<<<<< HEAD
-                self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))  # in Solar masses for now
-=======
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1)) # in Solar masses for now
->>>>>>> 2fd776821dd6ff7bcde82a7724daa18953dc6e36
+                # Change back to LogUniformPrior later
+                self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -214,16 +217,17 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
 
-        if len(self.rv0) > 0:
+        if len(self.rv[0]) > 0:  # Changed to rv instead of rv0
 
-            gamma = params_arr[6*self.num_secondary_bodies+1]
+            gamma = params_arr[6*self.num_secondary_bodies+1] / 1000.
+            # gamma is in m/s, we want km/s.
             total_rv0 = gamma
         else:
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            epochs = self.data_table['epoch'][self.body_indices[body_num]]
+            epochs = self.data_table['epoch']  # [self.body_indices[body_num]]
             # adding body_idx0 here to account for companion index
             body_idx0 = body_num - 1
             sma = params_arr[6*body_idx0]
@@ -245,8 +249,6 @@ class System(object):
                 mass = None
                 mtot = params_arr[-1]
 
-            pdb.set_trace()
-
             # Switch argp to argp0 for input into calc_orbit
             # Then, output vz is the star's velocity
             # argp0 = argp + np.pi
@@ -254,9 +256,11 @@ class System(object):
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
                 mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
             )
+
+            print(np.shape(vz0))
             total_rv0 += vz0
             # After vz = vstar is calculated, calc vpl by mult vz*-m0/mass (only if fit_secondary_mass)
-            if len(self.rv1[body_num]) > 0:
+            if len(self.rv[body_num]) > 0:
                 vz1 = vz0*-(m0/mass)
 
             if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
@@ -274,11 +278,11 @@ class System(object):
 
             # TODO: add RV model stuff here.
 
-            if len(vz1[self.rv1[body_num]]) > 0:
-                model[self.rv1[body_num], 1] = vz1[self.rv1[body_num]]
+            if len(self.rv[body_num]) > 0:
+                model[self.rv[body_num], 0] = vz1[self.rv[body_num]]
 
-        if len(vz0[self.rv0]) > 0:
-            model[self.rv0, 0] = total_rv0[self.rv0]
+        if len(total_rv0[self.rv[0]]) > 0:
+            model[self.rv[0], 0] = total_rv0[self.rv[0]]
         return model
 
     def convert_data_table_radec2seppa(self, body_num=1):
