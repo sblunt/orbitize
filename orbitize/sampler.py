@@ -357,7 +357,7 @@ class MCMC(Sampler):
 
     def _fill_in_fixed_params(self, sampled_params):
         """
-        Fills in the missing parameters from the chain that aren't being sampeld
+        Fills in the missing parameters from the chain that aren't being sampled
 
         Args:
             sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
@@ -595,7 +595,7 @@ class MCMC(Sampler):
         new_lnlikes = new_lnlikes.reshape((self.num_walkers,n_steps))
         if self.use_pt:
             new_lnlikes_alltemps = new_lnlikes_alltemps.reshape((self.num_temps,self.num_walkers,n_steps))
-        new_post = new_post.reshape((self.num_walkers, n_steps, self.num_params))
+            new_post = new_post.reshape((self.num_walkers, n_steps, self.num_params))
     
         # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
         if self.use_pt:
