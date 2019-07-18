@@ -72,9 +72,6 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     # Should only get 3 figures
     assert len(fig_list) == 3
     plt.close(fig='all')  # Close figures generated
-    if num_temps > 1:
-        mcmc.examine_chains(temp=1)
-        plt.close(fig='all')  # Close figures generated
     mcmc.examine_chains(walker_list=[10, 12])
     plt.close(fig='all')  # Close figures generated
     mcmc.examine_chains(n_walkers=5)
