@@ -67,17 +67,17 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
 
     # Try all variants of examine_chains
     mcmc.examine_chains()
-    plt.close(fig='all') # Close figures generated
+    plt.close('all') # Close figures generated
     fig_list = mcmc.examine_chains(param_list=['sma1','ecc1','inc1'])
     # Should only get 3 figures
     assert len(fig_list) == 3
-    plt.close(fig='all')  # Close figures generated
+    plt.close('all')  # Close figures generated
     mcmc.examine_chains(walker_list=[10, 12])
-    plt.close(fig='all')  # Close figures generated
+    plt.close('all')  # Close figures generated
     mcmc.examine_chains(n_walkers=5)
-    plt.close(fig='all')  # Close figures generated
+    plt.close('all')  # Close figures generated
     mcmc.examine_chains(step_range=[50,100])
-    plt.close(fig='all')  # Close figures generated
+    plt.close('all')  # Close figures generated
 
     # Now try chopping the chains
     # Chop off first 50 steps
