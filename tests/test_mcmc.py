@@ -57,13 +57,13 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     mcmc = sampler.MCMC(orbit, num_temps, n_walkers, num_threads=num_threads)
 
     # run it a little 
-    nsteps1=2000 # 100 steps for each of 20 walkers
-    nsteps2=2000 # 100 steps for each of 20 walkers
-    nsteps=nsteps1+nsteps2
-    mcmc.run_sampler(nsteps1)
+    n_samples1 = 2000 # 100 steps for each of 20 walkers
+    n_samples2 = 2000 # 100 steps for each of 20 walkers
+    n_samples  = n_samples1+n_samples2
+    mcmc.run_sampler(n_samples1)
     # run it a little more (tries examine_chains within run_sampler)
-    mcmc.run_sampler(nsteps2, examine_chains=True)
-    # (200 steps x 20 walkers = 4000 orbit samples)
+    mcmc.run_sampler(n_samples2, examine_chains=True)
+    # (4000 orbit samples = 20 walkers x 200 steps)
 
     # Try all variants of examine_chains
     mcmc.examine_chains()
@@ -84,13 +84,8 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     chop1=50
     mcmc.chop_chains(chop1)
     # Calculate expected number of orbits now
-    steps_remain = nsteps - chop1
-    expected_total_orbits = steps_remain * n_walkers
-    # Check lengths of chain object and results object
-    if num_temps > 1:
-        assert mcmc.chain.shape[2] == steps_remain
-    else:
-        assert mcmc.chain.shape[1] == steps_remain
+    expected_total_orbits = n_samples - chop1*n_walkers
+    # Check lengths of arrays in results object
     assert len(mcmc.results.lnlike) == expected_total_orbits
     assert mcmc.results.post.shape[0] == expected_total_orbits
 
@@ -99,13 +94,9 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     trim2 = 25
     mcmc.chop_chains(chop2,trim=trim2)
     # Calculated expected number of orbits now
-    steps_remain = nsteps - chop1 - chop2 - trim2
-    expected_total_orbits = steps_remain * n_walkers
-    # Check lengths of chain object and results object
-    if num_temps > 1:
-        assert mcmc.chain.shape[2] == steps_remain
-    else:
-        assert mcmc.chain.shape[1] == steps_remain
+    samples_removed = (chop1 + chop2 + trim2)*n_walkers
+    expected_total_orbits = n_samples - samples_removed
+    # Check lengths of arrays in results object
     assert len(mcmc.results.lnlike) == expected_total_orbits
     assert mcmc.results.post.shape[0] == expected_total_orbits
 
