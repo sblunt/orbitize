@@ -596,7 +596,7 @@ class MCMC(Sampler):
         new_lnlikes = new_lnlikes.reshape((self.num_walkers,n_steps))
         if self.use_pt:
             new_lnlikes_alltemps = new_lnlikes_alltemps.reshape((self.num_temps,self.num_walkers,n_steps))
-            new_post = new_post.reshape((self.num_walkers, n_steps, n_params))
+        new_post = new_post.reshape((self.num_walkers, n_steps, n_params))
     
         # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
         if self.use_pt:
@@ -605,7 +605,7 @@ class MCMC(Sampler):
         else:
             chop_chain = np.copy(new_chain[:, keep_start:keep_end, :])
         chop_lnlikes = np.copy(new_lnlikes[:, keep_start:keep_end])
-        chop_post = np.copy(self.post[:, keep_start:keep_end,:])
+        chop_post = np.copy(new_post[:, keep_start:keep_end,:])
 
         # Update current position if required
         if trim > 0:
