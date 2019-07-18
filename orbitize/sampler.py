@@ -596,7 +596,7 @@ class MCMC(Sampler):
         new_lnlikes = new_lnlikes.reshape((self.num_walkers,n_steps))
         if self.use_pt:
             new_lnlikes_alltemps = new_lnlikes_alltemps.reshape((self.num_temps,self.num_walkers,n_steps))
-        new_post = new_post.reshape((self.num_walkers, n_steps, n_params))
+            new_post = new_post.reshape((self.num_walkers, n_steps, n_params))
     
         # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
         if self.use_pt:
@@ -616,10 +616,10 @@ class MCMC(Sampler):
 
         # Flatten likelihoods and samples
         self.chain = chop_chain
-        self.lnlikes = chop_lnlikes.reshape(self.num_walkers*nsteps)
+        self.lnlikes = chop_lnlikes.reshape(self.num_walkers*n_steps)
         if self.use_pt:
-            self.lnlikes_alltemps = chop_lnlikes_alltemps.reshape(self.num_temps,self.num_walkers*nsteps)
-        self.post = chop_post.reshape(self.num_walkers*nsteps, n_params)
+            self.lnlikes_alltemps = chop_lnlikes_alltemps.reshape(self.num_temps,self.num_walkers*n_steps)
+        self.post = chop_post.reshape(self.num_walkers*n_steps, n_params)
 
         # Update results object associated with this sampler
         self.results = orbitize.results.Results(
