@@ -53,17 +53,17 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     orbit = system.System(1, data_table, 1, 0.01)
 
     # construct sampler
-    n_walkers = 50
+    n_walkers = 20
     mcmc = sampler.MCMC(orbit, num_temps, n_walkers, num_threads=num_threads)
 
     # run it a little 
-    nsteps1=100
-    nsteps2=100
+    nsteps1=2000 # 100 steps for each of 20 walkers
+    nsteps2=2000 # 100 steps for each of 20 walkers
     nsteps=nsteps1+nsteps2
     mcmc.run_sampler(nsteps1)
     # run it a little more (tries examine_chains within run_sampler)
     mcmc.run_sampler(nsteps2, examine_chains=True)
-    # (200 steps total x 50 walkers = 1000 samples)
+    # (200 steps x 20 walkers = 4000 orbit samples)
 
     # Try all variants of examine_chains
     mcmc.examine_chains()
@@ -75,7 +75,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     if num_temps > 1:
         mcmc.examine_chains(temp=1)
         plt.close(fig='all')  # Close figures generated
-    mcmc.examine_chains(walker_list=[10, 20])
+    mcmc.examine_chains(walker_list=[10, 12])
     plt.close(fig='all')  # Close figures generated
     mcmc.examine_chains(n_walkers=5)
     plt.close(fig='all')  # Close figures generated
