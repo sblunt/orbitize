@@ -518,7 +518,7 @@ class MCMC(Sampler):
         # Get the flattened chain from Results object (nwalkers*nsteps, nparams)
         flatchain = np.copy(self.results.post)
         total_samples, n_params = flatchain.shape
-        n_steps = total_samples/self.num_walkers
+        n_steps = np.int(total_samples/self.num_walkers)
         # Reshape it to (nwalkers, nsteps, nparams)
         chn = flatchain.reshape((self.num_walkers, n_steps, n_params))
     
