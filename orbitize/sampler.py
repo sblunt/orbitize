@@ -558,7 +558,7 @@ class MCMC(Sampler):
 
     def chop_chains(self, burn, trim=0):
         """
-        Permanently removes steps from beginning (and/or end) of chains by updating Results object.
+        Permanently removes steps from beginning (and/or end) of chains from the Results object.
         Also updates `curr_pos` if steps are removed from the end of the chain
 
         Args:
@@ -566,58 +566,45 @@ class MCMC(Sampler):
             trim (int): The number of steps to remove from the end of the chians (optional)
 
         Returns:
-            None. Updates the bookkeeping array in both `Sampler` and associated `Results` objects
+            None. Updates self.curr_pos and the `Results` object. 
+            .. Warning:: Does not update bookkeeping arrays within `MCMC` sampler object.
 
         (written): Henry Ngo, 2019
         """
         
-        # Find beginning and end indices
-        n_steps = self.chain.shape[-2] # chain has shape (ntemps, nwalkers, nsteps, nparams) or (nwalkers, nsteps, nparams)
+        # Retrieve information from results object
+        flatchain = np.copy(self.results.post)
+        total_samples, n_params = flatchain.shape
+        n_steps = np.int(total_samples/self.num_walkers)
+        flatlnlikes = np.copy(self.results.lnlike) ## TODO: May have to change this to merge with other branches
+        
+        # Reshape chain to (nwalkers, nsteps, nparams)
+        chn = flatchain.reshape((self.num_walkers, n_steps, n_params))
+        # Reshape lnlike to (nwalkers, nsteps)
+        lnlikes = flatlnlikes.reshape((self.num_walkers, n_steps))
+
+        # Find beginning and end indices for steps to keep
         keep_start = burn
         keep_end = n_steps - trim
+        n_chopped_steps = n_steps - trim - burn
 
-        # Make copies of arrays to be modified
-        new_chain = np.copy(self.chain)
-        new_lnlikes = np.copy(self.lnlikes)
-        if self.use_pt:
-            new_lnlikes_alltemps = np.copy(self.lnlikes_alltemps)
-        new_post = np.copy(self.post)
-        n_params = self.post.shape[-1] # note: CANNOT use self.num_params because that only includes fitted params, not fixed params
-        
-        # Need to "unflatten" the flattened arrays in order to index by step
-        new_lnlikes = new_lnlikes.reshape((self.num_walkers,n_steps))
-        if self.use_pt:
-            new_lnlikes_alltemps = new_lnlikes_alltemps.reshape((self.num_temps,self.num_walkers,n_steps))
-        new_post = new_post.reshape((self.num_walkers, n_steps, n_params))
-    
         # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
-        if self.use_pt:
-            chop_chain = np.copy(new_chain[:, :, keep_start:keep_end, :])
-            chop_lnlikes_alltemps = np.copy(new_lnlikes_alltemps[:, :, keep_start:keep_end])
-        else:
-            chop_chain = np.copy(new_chain[:, keep_start:keep_end, :])
-        chop_lnlikes = np.copy(new_lnlikes[:, keep_start:keep_end])
-        chop_post = np.copy(new_post[:, keep_start:keep_end,:])
+        chopped_chain = chn[:, keep_start:keep_end, :]
+        chopped_lnlikes = lnlikes[:, keep_start:keep_end]
 
-        # Update current position if required
+        # Update current position if trimmed from edge
         if trim > 0:
-            if self.use_pt:
-                self.curr_pos = self.chain[:,:,-1,:]
-            else:
-                self.curr_pos = self.chain[:,-1,:]
+            self.curr_pos = chopped_chain[:,-1,:]
 
         # Flatten likelihoods and samples
-        self.chain = chop_chain
-        self.lnlikes = chop_lnlikes.reshape(self.num_walkers*n_steps)
-        if self.use_pt:
-            self.lnlikes_alltemps = chop_lnlikes_alltemps.reshape(self.num_temps,self.num_walkers*n_steps)
-        self.post = chop_post.reshape(self.num_walkers*n_steps, n_params)
+        flat_chopped_chain = chopped_chain.reshape(self.num_walkers*n_chopped_steps, n_params)
+        flat_chopped_lnlikes = chopped_lnlikes.reshape(self.num_walkers*n_chopped_steps)
 
         # Update results object associated with this sampler
         self.results = orbitize.results.Results(
             sampler_name = self.__class__.__name__,
-            post = self.post,
-            lnlike = self.lnlikes,
+            post = flat_chopped_chain,
+            lnlike = flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
