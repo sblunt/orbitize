@@ -8,9 +8,12 @@ import abc
 import emcee
 import ptemcee
 
-import orbitize.lnlike
-import orbitize.priors
-import orbitize.kepler
+import lnlike
+import priors
+import kepler
+#import orbitize.lnlike
+#import orbitize.priors
+#import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 
@@ -61,7 +64,7 @@ class Sampler(ABC):
 
         """
         # compute the model based on system params
-        model = self.system.compute_model(params)
+        model, jitter = self.system.compute_model(params)
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
@@ -70,10 +73,10 @@ class Sampler(ABC):
 
         # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
-
+        rv0_indices = self.system.rv[0]
         # compute lnlike
         # Rob: need to modify depending on which body we compute the lnlikelihood for
-        lnlikes = self.lnlike(data, errs, model, seppa_indices)
+        lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
         lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
@@ -388,6 +391,7 @@ class MCMC(Sampler):
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
             # TODO: be smarter in the future
+            # print(prior)
             random_init = prior.draw_samples(num_walkers*self.num_temps)
             if self.num_temps > 1:
                 random_init = random_init.reshape([self.num_temps, num_walkers])

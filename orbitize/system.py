@@ -157,6 +157,12 @@ class System(object):
         #
         # Set priors on total mass and parallax
         #
+
+        if plx_err > 0:
+            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
+        else:
+            self.sys_priors.append(plx)
+
         self.labels.append('plx')
 
         # we'll need to iterate over instruments here
@@ -173,13 +179,8 @@ class System(object):
             self.labels.append('sigma')
             # Rob: Insert tracker here
 
-        if plx_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-        else:
-            self.sys_priors.append(plx)
-
         if self.fit_secondary_mass:
-            for body in np.arange(num_secondary_bodies):
+            for body in np.arange(num_secondary_bodies)+1:
                 # Change back to LogUniformPrior later
                 self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))
                 self.labels.append('m{}'.format(body))
@@ -214,14 +215,18 @@ class System(object):
 
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
+            jitter = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
+            jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
 
         if len(self.rv[0]) > 0:  # Changed to rv instead of rv0
-
             gamma = params_arr[6*self.num_secondary_bodies+1] / 1000.
+            # need to put planetary rv later
             # gamma is in m/s, we want km/s.
             total_rv0 = gamma
+            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2] / 1000.
+            jitter[self.rv[0], 1] = np.nan
         else:
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
 
@@ -279,10 +284,12 @@ class System(object):
 
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
+                model[self.rv[body_num], 1] = np.nan
 
         if len(total_rv0[self.rv[0]]) > 0:
             model[self.rv[0], 0] = total_rv0[self.rv[0]]
-        return model
+            model[self.rv[0], 1] = np.nan
+        return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """

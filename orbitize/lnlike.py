@@ -5,7 +5,7 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, model, seppa_indices):
+def chi2_lnlike(data, errors, model, jitter, seppa_indices):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -16,6 +16,9 @@ def chi2_lnlike(data, errors, model, seppa_indices):
         model (np.array): Nobsx2xM array of model predictions, where M is the \
                 number of orbits being compared against the data. If M is 1, \
             ``model`` can be 2 dimensional.
+        jitter (np.array): Nobsx2xM array of jitter values to add to errors.
+            Elements of array should be 0 for for all data other than stellar \
+            rvs.
         seppa_indices (list): list of epoch numbers whose observations are
             given in sep/PA. This list is located in System.seppa.
 
@@ -36,14 +39,16 @@ def chi2_lnlike(data, errors, model, seppa_indices):
     elif np.ndim(model) == 2:
         model.shape = (1,) + model.shape
         third_dim = False
-
+    # print(model)
     residual = (data - model)
-
+    print(residual)
     # if there are PA values, we should take the difference modulo angle wrapping
     if np.size(seppa_indices) > 0:
         residual[:, seppa_indices, 1] = (residual[:, seppa_indices, 1] + 180.) % 360. - 180.
 
-    chi2 = -0.5 * residual**2 / errors**2
+    sigma2 = errors**2 + jitter**2
+
+    chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
 
     if third_dim:
         # move M dimension back to the last axis
@@ -54,5 +59,3 @@ def chi2_lnlike(data, errors, model, seppa_indices):
         chi2.shape = chi2.shape[1:]
 
     return chi2
-
-# Rob: defining Chi^2 for rv data:
