@@ -8,12 +8,9 @@ import abc
 import emcee
 import ptemcee
 
-import lnlike
-import priors
-import kepler
-#import orbitize.lnlike
-#import orbitize.priors
-#import orbitize.kepler
+import orbitize.lnlike
+import orbitize.priors
+import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 
@@ -75,7 +72,7 @@ class Sampler(ABC):
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
         rv0_indices = self.system.rv[0]
         # compute lnlike
-        # Rob: need to modify depending on which body we compute the lnlikelihood for
+        # Rob: added the jitter term here
         lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)

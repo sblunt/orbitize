@@ -1,9 +1,5 @@
 import numpy as np
-#from orbitize import priors, read_input, kepler
-import kepler
-import read_input
-import priors
-import pdb
+from orbitize import priors, read_input, kepler
 
 
 class System(object):
@@ -116,9 +112,6 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
 
-        # self.rv0.append(rv0_indices)
-        # self.rv1.append(rv1_indices)
-
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
@@ -157,7 +150,7 @@ class System(object):
         #
         # Set priors on total mass and parallax
         #
-
+        # Rob: moved the parallax prior here
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
@@ -174,7 +167,7 @@ class System(object):
 
         # Rob: adding jitter parameter - first edit (before the masses)
         if self.jitter_bounds is not None:
-            self.sys_priors.append(priors.JeffreysPrior(
+            self.sys_priors.append(priors.LogUniformPrior(
                 self.jitter_bounds[0], self.jitter_bounds[1]))
             self.labels.append('sigma')
             # Rob: Insert tracker here
@@ -182,7 +175,7 @@ class System(object):
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
                 # Change back to LogUniformPrior later
-                self.sys_priors.append(priors.JeffreysPrior(1e-6, 1))
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -280,7 +273,7 @@ class System(object):
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
 
-            # TODO: add RV model stuff here.
+            # Rob: RV stuff here
 
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
@@ -288,7 +281,7 @@ class System(object):
 
         if len(total_rv0[self.rv[0]]) > 0:
             model[self.rv[0], 0] = total_rv0[self.rv[0]]
-            model[self.rv[0], 1] = np.nan
+            model[self.rv[0], 1] = np.nan  # nans only for rv indices
         return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
