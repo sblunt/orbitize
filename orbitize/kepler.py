@@ -103,7 +103,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     Kv = Kv.to(u.km/u.s)
 
     # compute the vz
-    vz = -Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
+    vz = Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]
     return raoff, deoff, vz

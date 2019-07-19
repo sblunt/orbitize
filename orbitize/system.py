@@ -252,16 +252,15 @@ class System(object):
             # Switch argp to argp0 for input into calc_orbit
             # Then, output vz is the star's velocity
             # argp0 = argp + np.pi
-            raoff, decoff, vz0 = kepler.calc_orbit(
+            # i = 1,2,3...
+            raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
             )
-
-            print(np.shape(vz0))
+            # vz_i is the ith companion radial velocity
+            vz0 = vz_i*-(mass/m0)
             total_rv0 += vz0
-            # After vz = vstar is calculated, calc vpl by mult vz*-m0/mass (only if fit_secondary_mass)
-            if len(self.rv[body_num]) > 0:
-                vz1 = vz0*-(m0/mass)
+            # vz0 is the stellar radial velocity due to the ith companion
 
             if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
@@ -279,7 +278,7 @@ class System(object):
             # TODO: add RV model stuff here.
 
             if len(self.rv[body_num]) > 0:
-                model[self.rv[body_num], 0] = vz1[self.rv[body_num]]
+                model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
 
         if len(total_rv0[self.rv[0]]) > 0:
             model[self.rv[0], 0] = total_rv0[self.rv[0]]
