@@ -11,12 +11,13 @@ import ptemcee
 import lnlike
 import priors
 import kepler
+import results
 
 #import orbitize.lnlike
 #import orbitize.priors
 #import orbitize.kepler
 from orbitize.system import radec2seppa
-import orbitize.results
+#import orbitize.results
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -130,7 +131,7 @@ class OFTI(Sampler):
         self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
 
         # create an empty results object
-        self.results = orbitize.results.Results(
+        self.results = results.Results(
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
@@ -191,11 +192,11 @@ class OFTI(Sampler):
         meananno = self.epochs[self.epoch_idx]/period_prescale - tau
 
         # compute sep/PA of generated orbits
-        ra, dec, vc = orbitize.kepler.calc_orbit(
+        ra, dec, vc = kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot,
             mass_for_Kamp=m1
         )
-        sep, pa = orbitize.system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
+        sep, pa = system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
 
         # generate Gaussian offsets from observational uncertainties
         sep_offset = np.random.normal(
@@ -362,7 +363,7 @@ class MCMC(Sampler):
         self.num_threads = num_threads
 
         # create an empty results object
-        self.results = orbitize.results.Results(
+        self.results = results.Results(
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
@@ -456,9 +457,9 @@ class MCMC(Sampler):
         """
         if include_logp:
             if np.ndim(params) == 1:
-                logp = orbitize.priors.all_lnpriors(params, self.priors)
+                logp = priors.all_lnpriors(params, self.priors)
             else:
-                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors)
+                logp = np.array([priors.all_lnpriors(pset, self.priors)
                                  for pset in params])
         else:
             logp = 0  # don't include prior
@@ -492,7 +493,7 @@ class MCMC(Sampler):
 
         if self.use_pt:
             sampler = ptemcee.Sampler(
-                self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
+                self.num_walkers, self.num_params, self._logl, priors.all_lnpriors,
                 ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
             )
         else:
@@ -539,7 +540,7 @@ class MCMC(Sampler):
 
         # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
         for i, orb in enumerate(self.post):
-            self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
+            self.lnlikes[i] -= priors.all_lnpriors(orb, self.priors)
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
