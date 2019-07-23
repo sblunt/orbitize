@@ -24,23 +24,19 @@ myDriver = driver.Driver('/Users/Helios/orbitize/tests/testdata0.csv',  # path t
 
 total_orbits = 1000  # number of steps x number of walkers (at lowest temperature)
 burn_steps = 5  # steps to burn in per walker
-thin = 21  # only save every 2nd step
+thin = 2  # only save every 2nd step
 
 myDriver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
 
-# Creates a corner plot and returns Figure object
-corner_plot_fig = myDriver.sampler.results.plot_corner()
-# This is matplotlib.figure.Figure.savefig()
-corner_plot_fig.savefig(
-    '/Users/Helios/Desktop/jupyter_notebooks/orbitize_radvel_stanford/testdata0_cornerplot.png')
 
-epochs = myDriver.system.data_table['epoch']
+# corner_plot_fig = myDriver.sampler.results.plot_corner() # Creates a corner plot and returns Figure object
+# corner_plot_fig.savefig('/Users/Helios/Desktop/jupyter_notebooks/orbitize_radvel_stanford/testdata0_cornerplot.png') # This is matplotlib.figure.Figure.savefig()
 
-orbit_plot_fig = myDriver.sampler.results.plot_orbits(
-    object_to_plot=1,  # Plot orbits for the first (and only, in this case) companion
-    num_orbits_to_plot=100,  # Will plot 100 randomly selected orbits of this companion
-    start_mjd=epochs[0]  # Minimum MJD for colorbar (here we choose first data epoch)
-)
-# This is matplotlib.figure.Figure.savefig()
-orbit_plot_fig.savefig(
-    '/Users/Helios/Desktop/jupyter_notebooks/orbitize_radvel_stanford/testdata0_orbitalplot.png')
+#epochs = myDriver.system.data_table['epoch']
+
+# orbit_plot_fig = myDriver.sampler.results.plot_orbits(
+# object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
+# num_orbits_to_plot= 100, # Will plot 100 randomly selected orbits of this companion
+# start_mjd=epochs[0] # Minimum MJD for colorbar (here we choose first data epoch)
+# )
+# orbit_plot_fig.savefig('/Users/Helios/Desktop/jupyter_notebooks/orbitize_radvel_stanford/testdata0_orbitalplot.png') # This is matplotlib.figure.Figure.savefig()
