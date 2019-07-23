@@ -79,7 +79,7 @@ def test_create_driver_from_table():
     input_file = os.path.join(testdir, 'test_val.csv')
     input_table = read_file(input_file)
     myDriver = driver.Driver(input_table, # astropy.table Table of input
-                             'MCMC', # name of algorith for orbit-fitting
+                             'MCMC', # name of algorithm for orbit-fitting
                              1, # number of secondary bodies in system
                              1.0, # total system mass [M_sun]
                              50.0, # total parallax of system [mas]

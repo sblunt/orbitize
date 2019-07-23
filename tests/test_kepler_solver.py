@@ -126,7 +126,7 @@ def test_orbit_with_mass():
     orbital_params = np.array([10, 0.99, 3, 0.5, 1.5, 0.3, 50, 1.5])
     epochs = np.array([1000, 1101.4])
     raoffs, deoffs, vzs = kepler.calc_orbit(epochs, orbital_params[0], orbital_params[1], orbital_params[2], orbital_params[3],
-                                        orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7], mass=orbital_params[7]/2)
+                                        orbital_params[4], orbital_params[5], orbital_params[6], orbital_params[7], mass_for_Kamp=orbital_params[7]/2)
 
     true_raoff = [-589.45575, -571.48432]
     true_deoff = [-447.32217, -437.68456]
@@ -154,7 +154,7 @@ def test_orbit_with_mass_array():
     mtot = np.array([1.5,1.5,1.5])
     epochs = np.array([1000, 1101.4])
     mass = mtot/2
-    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass=mass)
+    raoffs, deoffs, vzs = kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass)
 
 
     true_raoff = np.array([[ 152.86786, 152.86786, 152.86786],

@@ -66,8 +66,8 @@ class Sampler(ABC):
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
         errs = np.array([self.system.data_table['quant1_err'], self.system.data_table['quant2_err']]).T
 
-        # specifiy which indices are sep/pa to handle angle wrapping
-        seppa_indices = self.system.all_seppa
+        # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
+        seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
 
         # compute lnlike
         lnlikes =  self.lnlike(data, errs, model, seppa_indices)
@@ -104,10 +104,10 @@ class OFTI(Sampler):
         self.priors = self.system.sys_priors
 
         # convert RA/Dec rows to sep/PA
-        body_num = 1 # the first planet; MODIFY THIS LATER FOR MULTIPLE PLANETS
-        if len(self.system.radec[body_num]) > 0:
-            print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
-            self.system.convert_data_table_radec2seppa(body_num=body_num)
+        for body_num in np.arange(self.system.num_secondary_bodies):
+            if len(self.system.radec[body_num]) > 0:
+                print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
         self.sep_observed = self.system.data_table[:]['quant1'].copy()
@@ -153,48 +153,65 @@ class OFTI(Sampler):
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
-        sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+        for body_num in np.arange(self.system.num_secondary_bodies):
+            # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+            ref_ind = 6 * body_num
+            sma = samples[ref_ind,:]
+            ecc = samples[ref_ind + 1,:]
+            inc = samples[ref_ind + 2,:]
+            argp = samples[ref_ind + 3,:]
+            lan = samples[ref_ind + 4,:]
+            tau = samples[ref_ind + 5,:]
+            plx = samples[6 * self.system.num_secondary_bodies,:]
+            if self.system.fit_secondary_mass:
+                m0 = samples[-1,:]
+                m1 = samples[-1-self.system.num_secondary_bodies+body_num,:]
+                mtot = m0 + m1
+            else:
+                mtot = samples[-1,:]
+                m1 = None
 
-        period_prescale = np.sqrt(
-            4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
-        )
-        period_prescale = period_prescale.to(u.day).value
-        meananno = self.epochs[self.epoch_idx]/period_prescale - tau
+            period_prescale = np.sqrt(
+                4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
+            )
+            period_prescale = period_prescale.to(u.day).value
+            meananno = self.epochs[self.epoch_idx]/period_prescale - tau
 
-        # compute sep/PA of generated orbits
-        ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot
-        )
-        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
+            # compute sep/PA of generated orbits
+            ra, dec, vc = orbitize.kepler.calc_orbit(
+                self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
+                mass_for_Kamp=m1
+            )
+            sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
-        # generate Gaussian offsets from observational uncertainties
-        sep_offset = np.random.normal(
-            0, self.sep_err[self.epoch_idx], size=num_samples
-        )
-        pa_offset =  np.random.normal(
-            0, self.pa_err[self.epoch_idx], size=num_samples
-        )
+            # generate Gaussian offsets from observational uncertainties
+            sep_offset = np.random.normal(
+                0, self.sep_err[self.epoch_idx], size=num_samples
+            )
+            pa_offset =  np.random.normal(
+                0, self.pa_err[self.epoch_idx], size=num_samples
+            )
 
-        # calculate correction factors
-        sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
-        lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
+            # calculate correction factors
+            sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
+            lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
 
-        # perform scale-and-rotate
-        sma *= sma_corr # [AU]
-        lan += np.radians(lan_corr) # [rad]
-        lan = lan % (2*np.pi)
+            # perform scale-and-rotate
+            sma *= sma_corr # [AU]
+            lan += np.radians(lan_corr) # [rad]
+            lan = lan % (2*np.pi)
 
-        period_new = np.sqrt(
-            4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
-        )
-        period_new = period_new.to(u.day).value
+            period_new = np.sqrt(
+                4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
+            )
+            period_new = period_new.to(u.day).value
 
-        tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
+            tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
-        # updates samples with new values of sma, pan, tau
-        samples[0,:] = sma
-        samples[4,:] = lan
-        samples[5,:] = tau
+            # updates samples with new values of sma, pan, tau
+            samples[ref_ind,:] = sma
+            samples[ref_ind + 4,:] = lan
+            samples[ref_ind + 5,:] = tau
 
         return samples
 
@@ -266,7 +283,7 @@ class OFTI(Sampler):
 
         self.results.add_samples(
             np.array(output_orbits),
-            output_lnlikes
+            output_lnlikes, labels=self.system.labels
         )
 
         return np.array(output_orbits)
@@ -481,7 +498,7 @@ class MCMC(Sampler):
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
 
-        self.results.add_samples(self.post,self.lnlikes)
+        self.results.add_samples(self.post,self.lnlikes, labels=self.system.labels)
 
         print('Run complete')
 
