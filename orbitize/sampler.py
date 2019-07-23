@@ -8,9 +8,13 @@ import abc
 import emcee
 import ptemcee
 
-import orbitize.lnlike
-import orbitize.priors
-import orbitize.kepler
+import lnlike
+import priors
+import kepler
+
+#import orbitize.lnlike
+#import orbitize.priors
+#import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 
@@ -36,7 +40,7 @@ class Sampler(ABC):
         if callable(like):
             self.lnlike = like
         else:
-            self.lnlike = getattr(orbitize.lnlike, like)
+            self.lnlike = getattr(lnlike, like)
 
         self.custom_lnlike = custom_lnlike
 

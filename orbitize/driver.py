@@ -1,11 +1,16 @@
-import orbitize.read_input
-import orbitize.system
-import orbitize.sampler
+import read_input
+import system
+import sampler
+
+#import orbitize.read_input
+#import orbitize.system
+#import orbitize.sampler
 
 """
 This module reads input and constructs ``orbitize`` objects
 in a standardized way.
 """
+
 
 class Driver(object):
     """
@@ -24,22 +29,23 @@ class Driver(object):
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
-        system_kwargs (dict, optional): ``restrict_angle_ranges``, ``ref_tau_epoch``, 
-            ``results`` for ``orbitize.system.System``. 
+        system_kwargs (dict, optional): ``restrict_angle_ranges``, ``ref_tau_epoch``,
+            ``results`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
 
     Written: Sarah Blunt, 2018
     """
+
     def __init__(self, input_data, sampler_str,
                  num_secondary_bodies, system_mass, plx,
-                 mass_err=0, plx_err=0, lnlike='chi2_lnlike', 
+                 mass_err=0, plx_err=0, lnlike='chi2_lnlike',
                  system_kwargs=None, mcmc_kwargs=None):
 
         # Read in data
         # Try to interpret input as a filename first
         try:
-            data_table = orbitize.read_input.read_file(input_data)
+            data_table = read_input.read_file(input_data)  # change back when done testing
         except:
             try:
                 # Check if input might be an orbitize style astropy.table.Table
@@ -52,7 +58,7 @@ class Driver(object):
             system_kwargs = {}
 
         # Initialize System object which stores data & sets priors
-        self.system = orbitize.system.System(
+        self.system = system.System(  # change back when done testing
             num_secondary_bodies, data_table, system_mass,
             plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
         )
@@ -65,5 +71,5 @@ class Driver(object):
         else:
             kwargs = {}
 
-        sampler_func = getattr(orbitize.sampler, sampler_str)
+        sampler_func = getattr(sampler, sampler_str)
         self.sampler = sampler_func(self.system, like=lnlike, **kwargs)

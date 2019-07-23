@@ -5,6 +5,8 @@ import lnlike
 import read_input
 import pandas as pd
 
+"""This script tests our modified sampler.py file"""
+
 data2 = read_input.read_file('/Users/Helios/orbitize/tests/mytestdata2.csv')
 data = read_input.read_file('/Users/Helios/orbitize/tests/mytestdata.csv')
 output = system.System(1, data, 1.0, 50, mass_err=0.01, plx_err=0.05, fit_secondary_mass=True,
