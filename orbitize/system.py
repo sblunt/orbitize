@@ -128,7 +128,7 @@ class System(object):
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
             # change this back to LogUniformPrior later
-            self.sys_priors.append(priors.JeffreysPrior(0.001, 1e7))
+            self.sys_priors.append(priors.JeffreysPrior(0.001, 1e3))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
