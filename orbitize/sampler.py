@@ -5,6 +5,7 @@ import astropy.constants as consts
 import sys
 import abc
 
+import pdb
 import emcee
 import ptemcee
 
@@ -75,7 +76,6 @@ class Sampler(ABC):
 
         # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
-        rv0_indices = self.system.rv[0]
         # compute lnlike
         # Rob: added the jitter term here
         lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
@@ -150,7 +150,6 @@ class OFTI(Sampler):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
             else:  # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
-
         return samples
 
     def scale_and_rotate(self, samples, num_samples):
@@ -178,6 +177,8 @@ class OFTI(Sampler):
         tau = samples[5, :]
         plx = samples[6, :]
         if self.system.fit_secondary_mass:
+            gamma = samples[7, :]
+            sigma = samples[8, :]
             m0 = samples[-1, :]
             m1 = samples[-2, :]
             mtot = m0 + m1
@@ -227,6 +228,7 @@ class OFTI(Sampler):
         samples[4, :] = lan
         samples[5, :] = tau
 
+        pdb.set_trace()
         return samples
 
     def reject(self, samples):
@@ -249,24 +251,15 @@ class OFTI(Sampler):
         """
         lnp = self._logl(samples)
 
+        pdb.set_trace()
         # TODO: add for loop over planet number
-        sma = samples[0, :]
-        ecc = samples[1, :]
-        inc = samples[2, :]
-        argp = samples[3, :]
-        lan = samples[4, :]
-        tau = samples[5, :]
-        plx = samples[6, :]
-        if self.system.fit_secondary_mass:
-            m0 = samples[-1, :]
-            m1 = samples[-2, :]
-            mtot = m0 + m1
-        else:
-            mtot = samples[-1, :]
-            m1 = None
 
+        self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
+        self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
+        all_errors = np.append(self.quant1_err,self.quant2_err)
+        sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
         # reject orbits with probability less than a uniform random number
-        random_samples = np.log(np.random.random(len(lnp)))
+        random_samples = np.log(np.random.random(len(lnp))) + sample_offset
         saved_orbit_idx = np.where(lnp > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
@@ -299,12 +292,13 @@ class OFTI(Sampler):
         while n_orbits_saved < total_orbits:
 
             # if the semimajor axis prior is standard, do scale-and-rotate
-            if sma_prior.__repr__() == "Jeffreys":
+            if sma_prior.__repr__() == "Log Uniform":
                 samples = self.scale_and_rotate(num_samples)
 
             # otherwise, don't scale and rotate. Just do rejection sampling
             else:
                 samples = self.draw_from_priors(num_samples)
+            pdb.set_trace()
 
             accepted_orbits, lnlikes = self.reject(samples)
 
