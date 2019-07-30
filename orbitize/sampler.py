@@ -9,16 +9,11 @@ import pdb
 import emcee
 import ptemcee
 
-import lnlike
-import priors
-import kepler
-import results
-
-#import orbitize.lnlike
-#import orbitize.priors
-#import orbitize.kepler
+import orbitize.lnlike
+import orbitize.priors
+import orbitize.kepler
 from orbitize.system import radec2seppa
-#import orbitize.results
+import orbitize.results
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
@@ -138,27 +133,12 @@ class OFTI(Sampler):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def draw_from_priors(self, num_samples):
-        """
-
-        """
-
-        # generate sample orbits
-        samples = np.empty([len(self.priors), num_samples])
-        for i in range(len(self.priors)):
-            if hasattr(self.priors[i], "draw_samples"):
-                samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else:  # param is fixed & has no prior
-                samples[i, :] = self.priors[i] * np.ones(num_samples)
-        return samples
-
-    def scale_and_rotate(self, samples, num_samples):
+    def prepare_samples(self, samples, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
 
         Args:
-            samples ():
             num_samples (int): number of orbits to draw and scale & rotate for
                 OFTI to run rejection sampling on
 
@@ -167,7 +147,17 @@ class OFTI(Sampler):
             num_samples. This should be passed into ``OFTI.reject()``
         """
 
-        samples = self.draw_from_priors(num_samples)
+        # TODO: modify to work for multi-planet systems
+
+        # generate sample orbits
+        ### Rob: added from master (update)
+        samples = np.empty([len(self.priors), num_samples])
+        for i in range(len(self.priors)):
+            if hasattr(self.priors[i], "draw_samples"):
+                samples[i, :] = self.priors[i].draw_samples(num_samples)
+            else: # param is fixed & has no prior
+                samples[i, :] = self.priors[i] * np.ones(num_samples)
+
 
         sma = samples[0, :]
         ecc = samples[1, :]
