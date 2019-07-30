@@ -37,7 +37,7 @@ class Sampler(ABC):
         if callable(like):
             self.lnlike = like
         else:
-            self.lnlike = getattr(lnlike, like)
+            self.lnlike = getattr(orbitize.lnlike, like)
 
         self.custom_lnlike = custom_lnlike
 
@@ -133,7 +133,7 @@ class OFTI(Sampler):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def prepare_samples(self, samples, num_samples):
+    def prepare_samples(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
@@ -183,11 +183,11 @@ class OFTI(Sampler):
         meananno = self.epochs[self.epoch_idx]/period_prescale - tau
 
         # compute sep/PA of generated orbits
-        ra, dec, vc = kepler.calc_orbit(
+        ra, dec, vc = orbitize.kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot,
             mass_for_Kamp=m1
         )
-        sep, pa = system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
+        sep, pa = orbitize.system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
 
         # generate Gaussian offsets from observational uncertainties
         sep_offset = np.random.normal(
@@ -214,11 +214,10 @@ class OFTI(Sampler):
         tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
         # updates samples with new values of sma, pan, tau
-        samples[0, :] = sma
-        samples[4, :] = lan
-        samples[5, :] = tau
+        samples[0,:] = sma
+        samples[4,:] = lan
+        samples[5,:] = tau
 
-        pdb.set_trace()
         return samples
 
     def reject(self, samples):
@@ -241,17 +240,21 @@ class OFTI(Sampler):
         """
         lnp = self._logl(samples)
 
-        pdb.set_trace()
+        #pdb.set_trace()
         # TODO: add for loop over planet number
 
         self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
         self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
-        all_errors = np.append(self.quant1_err,self.quant2_err)
-        sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
+
+        #these are the changes we made to adjust the likelyhood scaling factor:
+
+        #all_errors = np.append(self.quant1_err,self.quant2_err)
+        #sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
         # reject orbits with probability less than a uniform random number
-        random_samples = np.log(np.random.random(len(lnp))) + sample_offset
+        #random_samples = np.log(np.random.random(len(lnp))) + sample_offset
+        random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
-        saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
+        saved_orbits = np.array([samples[:,i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
         return saved_orbits, lnlikes
@@ -274,41 +277,24 @@ class OFTI(Sampler):
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
 
-        sma_prior = self.priors[0]
+        samples = self.prepare_samples(num_samples)
 
-        # TODO: if there is a nonstandard prior set on PAN, throw an error
+        if len(accepted_orbits) == 0:
+            pass
+        else:
+            n_accepted = len(accepted_orbits)
+            maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-        # add orbits to `output_orbits` until `total_orbits` are saved
-        while n_orbits_saved < total_orbits:
+            output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+            output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+            n_orbits_saved += maxindex2save
 
-            # if the semimajor axis prior is standard, do scale-and-rotate
-            if sma_prior.__repr__() == "Log Uniform":
-                samples = self.scale_and_rotate(num_samples)
-
-            # otherwise, don't scale and rotate. Just do rejection sampling
-            else:
-                samples = self.draw_from_priors(num_samples)
-            pdb.set_trace()
-
-            accepted_orbits, lnlikes = self.reject(samples)
-
-            if len(accepted_orbits) == 0:
-                pass
-            else:
-                n_accepted = len(accepted_orbits)
-                maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
-
-                output_orbits[n_orbits_saved: n_orbits_saved +
-                              n_accepted] = accepted_orbits[0:maxindex2save]
-                output_lnlikes[n_orbits_saved: n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
-                n_orbits_saved += maxindex2save
-
-                # print progress statement
-                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
+            # print progress statement
+            print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
 
         self.results.add_samples(
             np.array(output_orbits),
-            output_lnlikes, self.system.labels
+            output_lnlikes, labels=self.system.labels
         )
 
         return np.array(output_orbits)
@@ -377,7 +363,6 @@ class MCMC(Sampler):
         for prior in self.priors:
             # draw them uniformly becase we don't know any better right now
             # TODO: be smarter in the future
-            # print(prior)
             random_init = prior.draw_samples(num_walkers*self.num_temps)
             if self.num_temps > 1:
                 random_init = random_init.reshape([self.num_temps, num_walkers])
@@ -441,9 +426,9 @@ class MCMC(Sampler):
         """
         if include_logp:
             if np.ndim(params) == 1:
-                logp = priors.all_lnpriors(params, self.priors)
+                logp = orbitize.priors.all_lnpriors(params, self.priors)
             else:
-                logp = np.array([priors.all_lnpriors(pset, self.priors)
+                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors)
                                  for pset in params])
         else:
             logp = 0  # don't include prior
@@ -477,7 +462,7 @@ class MCMC(Sampler):
 
         if self.use_pt:
             sampler = ptemcee.Sampler(
-                self.num_walkers, self.num_params, self._logl, priors.all_lnpriors,
+                self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
                 ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
             )
         else:
@@ -514,16 +499,11 @@ class MCMC(Sampler):
         self.chain = sampler.chain
 
         if self.use_pt:
-            self.post = sampler.flatchain[0, :, :]
-            # should also be picking out the lowest temperature logps
-            self.lnlikes = sampler.logprobability[0, :, :].flatten()
+            self.post = sampler.flatchain[0,:,:]
+            self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
-            self.lnlikes = sampler.flatlnprobability
-
-        # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
-        for i, orb in enumerate(self.post):
             self.lnlikes[i] -= priors.all_lnpriors(orb, self.priors)
 
         # include fixed parameters in posterior
