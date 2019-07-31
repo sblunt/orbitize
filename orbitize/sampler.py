@@ -243,8 +243,8 @@ class OFTI(Sampler):
         #pdb.set_trace()
         # TODO: add for loop over planet number
 
-        self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
-        self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
+        #self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
+        #self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
 
         #these are the changes we made to adjust the likelyhood scaling factor:
 
@@ -277,20 +277,23 @@ class OFTI(Sampler):
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
 
-        samples = self.prepare_samples(num_samples)
+        # add orbits to `output_orbits` until `total_orbits` are saved
+        while n_orbits_saved < total_orbits:
+            samples = self.prepare_samples(num_samples)
+            accepted_orbits, lnlikes = self.reject(samples)
 
-        if len(accepted_orbits) == 0:
-            pass
-        else:
-            n_accepted = len(accepted_orbits)
-            maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
+            if len(accepted_orbits) == 0:
+                pass
+            else:
+                n_accepted = len(accepted_orbits)
+                maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-            output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
-            output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
-            n_orbits_saved += maxindex2save
+                output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
+                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                n_orbits_saved += maxindex2save
 
-            # print progress statement
-            print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+                # print progress statement
+                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
 
         self.results.add_samples(
             np.array(output_orbits),
@@ -504,7 +507,7 @@ class MCMC(Sampler):
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
-            self.lnlikes[i] -= priors.all_lnpriors(orb, self.priors)
+            self.lnlikes = sampler.lnprobability
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)

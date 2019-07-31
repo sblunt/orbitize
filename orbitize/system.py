@@ -1,9 +1,6 @@
 import numpy as np
-import priors
-import read_input
-import kepler
 import pdb
-#from orbitize import priors, read_input, kepler
+from orbitize import priors, read_input, kepler
 
 
 class System(object):
@@ -97,8 +94,6 @@ class System(object):
 
         rv_indices = np.where(self.data_table['quant_type']
                               == 'rv')
-        # rv1_indices = np.where((self.data_table['quant_type']
-        # == 'rv') & (self.data_table['object'] == 1))
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -116,6 +111,9 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
 
+        if (len(radec_indices) + len(seppa_indices) == len(self.data_table)) and (restrict_angle_ranges is None):
+            restrict_angle_ranges = True
+
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
@@ -128,7 +126,7 @@ class System(object):
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
             # change this back to LogUniformPrior later
-            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e3))
+            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
