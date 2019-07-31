@@ -34,8 +34,8 @@ Attribution:
 If you use ``orbitize`` in your work, please cite our forthcoming
 paper and the following DOI: 
 
-.. image:: https://zenodo.org/badge/117267950.svg
-   :target: https://zenodo.org/badge/latestdoi/117267950
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3337378.svg
+   :target: https://zenodo.org/record/3337378#.XUHT3ZNKjUJ
 
 If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_.
 
