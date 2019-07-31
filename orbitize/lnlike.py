@@ -1,5 +1,5 @@
 import numpy as np
-import pdb
+
 """
 This module contains functions for computing log(likelihood).
 """
@@ -35,14 +35,12 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
     if np.ndim(model) == 3:
         # move M dimension to the primary axis, so that numpy knows to iterate over it
         model = np.rollaxis(model, 2, 0)  # now MxNobsx2 in dimensions
-        jitter = np.rollaxis(jitter,2,0)
+        jitter = np.rollaxis(jitter, 2, 0)
         third_dim = True
     elif np.ndim(model) == 2:
         model.shape = (1,) + model.shape
         jitter.shape = (1,) + jitter.shape
         third_dim = False
-    #pdb.set_trace()
-    # print(model)
 
     residual = (data - model)
     # if there are PA values, we should take the difference modulo angle wrapping

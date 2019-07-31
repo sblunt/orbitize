@@ -81,10 +81,8 @@ class System(object):
         # List of arrays of indices corresponding to epochs in SEP/PA for each body
         self.seppa = []
 
-        # rv0 == stellar radial velocity. rv1 == companion radial velocity
         # List of index arrays corresponding to each rv for each body
         self.rv = []
-        #self.rv1 = []
 
         self.gamma_bounds = gamma_bounds
         self.jitter_bounds = jitter_bounds
@@ -125,7 +123,6 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            # change this back to LogUniformPrior later
             self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
@@ -152,13 +149,11 @@ class System(object):
         #
         # Set priors on total mass and parallax
         #
-        # Rob: moved the parallax prior here
+        self.labels.append('plx')
         if plx_err > 0:
             self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
         else:
             self.sys_priors.append(plx)
-
-        self.labels.append('plx')
 
         # we'll need to iterate over instruments here
         if self.gamma_bounds is not None:
@@ -176,7 +171,6 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
-                # Change back to LogUniformPrior later
                 self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
@@ -214,7 +208,6 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
-        #print('This is the length of rv[0]:',len(self.rv[0]))
         if len(self.rv[0]) > 0:  # Changed to rv instead of rv0
             gamma = params_arr[6*self.num_secondary_bodies+1] / 1000.
             # need to put planetary rv later
@@ -224,10 +217,10 @@ class System(object):
             jitter[self.rv[0], 1] = np.nan
         else:
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
-        #print(jitter)
+        # print(jitter)
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            epochs = self.data_table['epoch']  # [self.body_indices[body_num]]
+            epochs = self.data_table['epoch']
             # adding body_idx0 here to account for companion index
             body_idx0 = body_num - 1
             sma = params_arr[6*body_idx0]
@@ -283,13 +276,13 @@ class System(object):
 
         #print('This is rv[0]:',self.rv[0])
         #print('This is total rv0:',total_rv0)
-        #print(model)
+        # print(model)
         if self.fit_secondary_mass:
             if len(total_rv0[self.rv[0]]) > 0:
                 model[self.rv[0], 0] = total_rv0[self.rv[0]]
                 model[self.rv[0], 1] = np.nan  # nans only for rv indices
 
-        return model,jitter
+        return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """

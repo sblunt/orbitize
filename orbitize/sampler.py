@@ -126,7 +126,7 @@ class OFTI(Sampler):
         self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
 
         # create an empty results object
-        self.results = results.Results(
+        self.results = orbitize.results.Results(
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
@@ -150,14 +150,13 @@ class OFTI(Sampler):
         # TODO: modify to work for multi-planet systems
 
         # generate sample orbits
-        ### Rob: added from master (update)
+        # Rob: added from master (update)
         samples = np.empty([len(self.priors), num_samples])
         for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else: # param is fixed & has no prior
+            else:  # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
-
 
         sma = samples[0, :]
         ecc = samples[1, :]
@@ -214,9 +213,9 @@ class OFTI(Sampler):
         tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
         # updates samples with new values of sma, pan, tau
-        samples[0,:] = sma
-        samples[4,:] = lan
-        samples[5,:] = tau
+        samples[0, :] = sma
+        samples[4, :] = lan
+        samples[5, :] = tau
 
         return samples
 
@@ -240,13 +239,13 @@ class OFTI(Sampler):
         """
         lnp = self._logl(samples)
 
-        #pdb.set_trace()
+        # pdb.set_trace()
         # TODO: add for loop over planet number
 
         #self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
         #self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
 
-        #these are the changes we made to adjust the likelyhood scaling factor:
+        # these are the changes we made to adjust the likelyhood scaling factor:
 
         #all_errors = np.append(self.quant1_err,self.quant2_err)
         #sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
@@ -254,7 +253,7 @@ class OFTI(Sampler):
         #random_samples = np.log(np.random.random(len(lnp))) + sample_offset
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
-        saved_orbits = np.array([samples[:,i] for i in saved_orbit_idx])
+        saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
         return saved_orbits, lnlikes
@@ -288,12 +287,13 @@ class OFTI(Sampler):
                 n_accepted = len(accepted_orbits)
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
-                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                output_orbits[n_orbits_saved: n_orbits_saved +
+                              n_accepted] = accepted_orbits[0:maxindex2save]
+                output_lnlikes[n_orbits_saved: n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                 n_orbits_saved += maxindex2save
 
                 # print progress statement
-                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
 
         self.results.add_samples(
             np.array(output_orbits),
@@ -502,8 +502,9 @@ class MCMC(Sampler):
         self.chain = sampler.chain
 
         if self.use_pt:
-            self.post = sampler.flatchain[0,:,:]
-            self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
+            self.post = sampler.flatchain[0, :, :]
+            # should also be picking out the lowest temperature logps
+            self.lnlikes = sampler.logprobability[0, :, :].flatten()
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
