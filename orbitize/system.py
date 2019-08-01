@@ -90,8 +90,7 @@ class System(object):
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
-        rv_indices = np.where(self.data_table['quant_type']
-                              == 'rv')
+        rv_indices = np.where(self.data_table['quant_type'] == 'rv')
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 

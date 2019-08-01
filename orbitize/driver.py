@@ -1,10 +1,6 @@
-import read_input
-import system
-import sampler
-
-#import orbitize.read_input
-#import orbitize.system
-#import orbitize.sampler
+import orbitize.read_input
+import orbitize.system
+import orbitize.sampler
 
 """
 This module reads input and constructs ``orbitize`` objects
@@ -45,7 +41,7 @@ class Driver(object):
         # Read in data
         # Try to interpret input as a filename first
         try:
-            data_table = read_input.read_file(input_data)  # change back when done testing
+            data_table = orbitize.read_input.read_file(input_data)
         except:
             try:
                 # Check if input might be an orbitize style astropy.table.Table
@@ -58,7 +54,7 @@ class Driver(object):
             system_kwargs = {}
 
         # Initialize System object which stores data & sets priors
-        self.system = system.System(  # change back when done testing
+        self.system = orbitize.system.System(
             num_secondary_bodies, data_table, system_mass,
             plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
         )
@@ -71,5 +67,5 @@ class Driver(object):
         else:
             kwargs = {}
 
-        sampler_func = getattr(sampler, sampler_str)
+        sampler_func = getattr(orbitize.sampler, sampler_str)
         self.sampler = sampler_func(self.system, like=lnlike, **kwargs)

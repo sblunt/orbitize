@@ -15,6 +15,8 @@ import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 
+import pdb
+
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
     ABC = abc.ABCMeta('ABC', (), {})
@@ -114,10 +116,11 @@ class OFTI(Sampler):
             self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
-        self.sep_observed = self.system.data_table[:]['quant1'].copy()
-        self.pa_observed = self.system.data_table[:]['quant2'].copy()
-        self.sep_err = self.system.data_table[:]['quant1_err'].copy()
-        self.pa_err = self.system.data_table[:]['quant2_err'].copy()
+        ast_idx = self.system.seppa[body_num]
+        self.sep_observed = self.system.data_table[ast_idx]['quant1'].copy()
+        self.pa_observed = self.system.data_table[ast_idx]['quant2'].copy()
+        self.sep_err = self.system.data_table[ast_idx]['quant1_err'].copy()
+        self.pa_err = self.system.data_table[ast_idx]['quant2_err'].copy()
 
         # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
@@ -195,7 +198,7 @@ class OFTI(Sampler):
         pa_offset = np.random.normal(
             0, self.pa_err[self.epoch_idx], size=num_samples
         )
-
+        #pdb.set_trace()
         # calculate correction factors
         sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
         lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
@@ -239,23 +242,23 @@ class OFTI(Sampler):
         """
         lnp = self._logl(samples)
 
-        # pdb.set_trace()
         # TODO: add for loop over planet number
 
-        #self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
-        #self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
+        self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
+        self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
 
         # these are the changes we made to adjust the likelyhood scaling factor:
 
-        #all_errors = np.append(self.quant1_err,self.quant2_err)
-        #sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
+        all_errors = np.append(self.quant1_err,self.quant2_err)
+        sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
         # reject orbits with probability less than a uniform random number
         #random_samples = np.log(np.random.random(len(lnp))) + sample_offset
+        chi2 = lnp - sample_offset
         random_samples = np.log(np.random.random(len(lnp)))
-        saved_orbit_idx = np.where(lnp > random_samples)[0]
+        saved_orbit_idx = np.where(chi2 > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
-
+        #pdb.set_trace()
         return saved_orbits, lnlikes
 
     def run_sampler(self, total_orbits, num_samples=10000):
@@ -277,7 +280,9 @@ class OFTI(Sampler):
         output_lnlikes = np.empty(total_orbits)
 
         # add orbits to `output_orbits` until `total_orbits` are saved
+
         while n_orbits_saved < total_orbits:
+
             samples = self.prepare_samples(num_samples)
             accepted_orbits, lnlikes = self.reject(samples)
 
@@ -294,7 +299,6 @@ class OFTI(Sampler):
 
                 # print progress statement
                 print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
-
         self.results.add_samples(
             np.array(output_orbits),
             output_lnlikes, labels=self.system.labels
@@ -336,7 +340,7 @@ class MCMC(Sampler):
         self.num_threads = num_threads
 
         # create an empty results object
-        self.results = results.Results(
+        self.results = orbitize.results.Results(
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
