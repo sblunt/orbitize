@@ -416,7 +416,10 @@ class MCMC(Sampler):
             if np.ndim(params) == 1:
                 logp = orbitize.priors.all_lnpriors(params, self.priors)
             else:
-                logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors) for pset in params])
+                logp = np.sum(np.array([orbitize.priors.all_lnpriors(pset, self.priors) for pset in params]))
+            # escape if logp == -np.inf
+            if np.isinf(logp):
+                return -np.inf
         else:
             logp = 0 # don't include prior
 
