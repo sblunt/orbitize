@@ -1,5 +1,4 @@
 import numpy as np
-import pdb
 from orbitize import priors, read_input, kepler
 
 
@@ -122,7 +121,7 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
+            self.sys_priors.append(priors.LogUniformPrior(25, 1000))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
@@ -170,7 +169,7 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))
+                self.sys_priors.append(priors.LogUniformPrior(0.24, 1.44))
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
