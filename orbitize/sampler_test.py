@@ -1,9 +1,9 @@
-import sampler
-import system
+from orbitize import sampler,system,lnlike,read_input
+
 import numpy as np
-import lnlike
 import read_input
 import pandas as pd
+import custom_hd159062_lnlike as custom_like
 
 """This script tests our modified sampler.py file"""
 
@@ -12,7 +12,7 @@ data = read_input.read_file('/Users/Helios/orbitize/tests/mytestdata.csv')
 output = system.System(1, data, 1.0, 50, mass_err=0.01, plx_err=0.05, fit_secondary_mass=True,
                        tau_ref_epoch=0, gamma_bounds=(-100, 100), jitter_bounds=(1e-3, 20))
 
-mysampler = sampler.MCMC(output, like=lnlike.chi2_lnlike)
+mysampler = sampler.MCMC(output, like=lnlike.chi2_lnlike,custom_lnlike=custom_like.custom_chi2_loglike)
 
 params_arr = np.array([10.0, 0.5, np.pi/3, np.pi/6, np.pi/2, 0.0,
                        #20.0, 0.25, np.pi/6, np.pi/12, np.pi, 0.0,

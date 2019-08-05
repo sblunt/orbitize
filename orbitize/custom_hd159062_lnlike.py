@@ -11,7 +11,7 @@ of time. The goal of this chi2 is to place
 further constraints on the system.
 """
 
-def vel_star(theta,time):
+def vel_star(params,time):
     #theta are the parameters (array or list form), and time are the observation epochs (also a list or an array)
     """Arguments (theta):
         [0]: sma (semi-major axis)
@@ -29,15 +29,15 @@ def vel_star(theta,time):
         Returns: array of length(times) of the instantaneous velocities of the
         star."""
 
-    m0 = theta[-1]
-    m1 = theta[-2]
-    sma = theta[0]
-    ecc = theta[1]
-    argp = theta[3]
-    lan = theta[4]
-    inc = theta[2]
-    tau = theta[5]
-    plx = theta[6]
+    m0 = params[-1]
+    m1 = params[-2]
+    sma = params[0]
+    ecc = params[1]
+    argp = params[3]
+    lan = params[4]
+    inc = params[2]
+    tau = params[5]
+    plx = params[6]
 
     #first thing we have to do is figure out the average angular velocity in rad/day:
     P = (np.sqrt(sma**3/(m0 + m1)))*365.25 #returning period in days
@@ -119,5 +119,5 @@ def custom_chi2_loglike(theta):
     residual = obs_dvel - mod_dvel
 
     #chi2 and likelihood functions:
-    chi2 = -0.5 * (residual**2 / obs_err**2) - np.log(np.sqrt(2.0*np.pi*obs_err**2))
+    chi2 = np.sum(-0.5 * (residual**2 / obs_err**2) - np.log(np.sqrt(2.0*np.pi*obs_err**2)))
     return chi2

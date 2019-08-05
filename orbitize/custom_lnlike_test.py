@@ -7,7 +7,7 @@ def p2sma(P,m0,m1):
 sma = p2sma(238*365.25,0.80,0.65)
 ecc = 0.44
 inc = 53.0*np.pi/180
-argp = -26*np.pi/180
+argp = (-26+180)*np.pi/180
 lan = 138.0*np.pi/180
 tau = 0.0
 plx = 46.12

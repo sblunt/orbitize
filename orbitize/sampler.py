@@ -5,7 +5,6 @@ import astropy.constants as consts
 import sys
 import abc
 
-import pdb
 import emcee
 import ptemcee
 
@@ -14,8 +13,6 @@ import orbitize.priors
 import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
-
-import pdb
 
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
