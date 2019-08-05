@@ -118,7 +118,7 @@ class System(object):
             self.labels.append('inc{}'.format(body+1))
 
             # Add argument of periastron prior
-            self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
+            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
             self.labels.append('aop{}'.format(body+1))
 
             # Add position angle of nodes prior
