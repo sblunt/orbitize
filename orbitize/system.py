@@ -92,6 +92,7 @@ class System(object):
             )
 
         if (len(radec_indices[0]) + len(seppa_indices[0]) == len(self.data_table)) and (restrict_angle_ranges is None):
+            print("No RV in data table: We are restricting the longitude of ascending node to [0,pi]")
             restrict_angle_ranges = True
 
         if restrict_angle_ranges:
