@@ -15,5 +15,5 @@ m1 = 0.65
 m0 = 0.80
 
 wd_params = [sma,ecc,inc,argp,lan,tau,plx,m1,m0]
-
+print(sma)
 print('Custom Likelihood:',custom_lnlike.custom_chi2_loglike(wd_params))
