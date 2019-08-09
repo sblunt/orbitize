@@ -255,7 +255,6 @@ class OFTI(Sampler,):
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
-        
         # add orbits to `output_orbits` until `total_orbits` are saved
         
         while n_orbits_saved<total_orbits:
@@ -271,7 +270,7 @@ class OFTI(Sampler,):
                 output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
                 output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                 n_orbits_saved += maxindex2save
-        
+
                 # add to the value of the global variable
                 with lock:
                     Value.value+=maxindex2save
@@ -296,59 +295,51 @@ class OFTI(Sampler,):
         
         """
         results=[]
-        split=int(total_orbits/1000)
         
         # orbits_saved is a counter for the number of orbits generated 
         orbits_saved=mp.Value('i',0)
         
-        #this loop carries out multiprocessing iteratively, in batches of 1000
-        # orbits at a time
-        for i in range(split):
-            manager = mp.Manager()            
-            output = manager.Queue()
-             
-            # orbits_saved is a global variable that stores the total number of orbits generated
+        manager = mp.Manager()            
+        output = manager.Queue()
+         
+        # orbits_saved is a global variable that stores the total number of orbits generated
+        
+        # setup the processes
+        lock = mp.Lock()
+        nrun_per_core = math.ceil(total_orbits/num_cores)
+        processes=[
+            mp.Process(
+                target=self.run_sampler_base,
+                args=(output, nrun_per_core,num_samples,orbits_saved, num_cores,lock)
+            ) for x in range(num_cores)
+        ]
             
-            # setup the processes
-            lock = mp.Lock()
-            processes=[
-                mp.Process(
-                    target=self.run_sampler_base,
-                    args=(output, int(1000/num_cores),num_samples,orbits_saved, num_cores,lock)
-                ) for x in range(num_cores)
-            ]
+        # start the processes
+        for p in processes:
+            p.start() 
                 
-            # start the processes
-            for p in processes:
-                p.start() 
-            
-            time.sleep(2)
-            
-            # print out the number of orbits generated every second until the number of orbits generated 
-            # exceeds the number desired
-            while orbits_saved.value<(i+1)*(total_orbits/split):
-                print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
-                time.sleep(0.1)
-            
-            #print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
+        # print out the number of orbits generated every second until the number of orbits generated 
+        # exceeds the number desired
+        while orbits_saved.value<total_orbits:
+            print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
+            time.sleep(0.1)
 
-            
-            # join the processes
-            for p in processes:
-                p.join() 
-            # get the results of each process from the queue
-            for p in processes:
-                 results.append(output.get())
+        # join the processes
+        for p in processes:
+            p.join() 
+        # get the results of each process from the queue
+        for p in processes:
+            results.append(output.get())
                 
         # filling up the output_orbits array
-        output_orbits = np.empty((total_orbits, len(self.priors)))
+        output_orbits = np.zeros((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)  
         pos=0
             
         for p in results:
-            num_to_fill=len(p[0])
-            output_orbits[pos:pos+num_to_fill]=p[0]
-            output_lnlikes[pos:pos+num_to_fill]=p[1]
+            num_to_fill=np.min([len(p[0]), total_orbits - pos])
+            output_orbits[pos:pos+num_to_fill]=p[0][0:num_to_fill]
+            output_lnlikes[pos:pos+num_to_fill]=p[1][0:num_to_fill]
             pos+=num_to_fill        
         
         self.results.add_samples(

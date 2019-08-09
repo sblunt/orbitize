@@ -5,10 +5,12 @@ import numpy as np
 import os
 import pytest
 import matplotlib.pyplot as plt
+import time
 
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
+
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 input_file = os.path.join(testdir, 'GJ504.csv')
@@ -59,7 +61,7 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
 
-def test_run_sampler(num_cores):
+def test_run_sampler(num_cores=8):
     
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
@@ -75,7 +77,8 @@ def test_run_sampler(num_cores):
 
     # test to make sure outputs are reasonable
     start=time.time()
-    orbits = s.run_sampler(100,num_cores=num_cores)
+    orbits = s.run_sampler(1000,num_cores=num_cores)
+
     end=time.time()
     print()
     print("Runtime: "+str(end-start) +" s")
@@ -117,6 +120,6 @@ def test_fixed_sys_params_sampling():
 
 
 if __name__ == "__main__":
-    test_scale_and_rotate()
-    test_run_sampler(4)
+    # test_scale_and_rotate()
+    test_run_sampler()
     print("Done!")
