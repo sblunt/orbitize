@@ -60,7 +60,7 @@ def test_scale_and_rotate():
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
-def test_run_sampler(num_cores=8):
+def test_run_sampler():
     
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
@@ -76,7 +76,7 @@ def test_run_sampler(num_cores=8):
 
     # test to make sure outputs are reasonable
     start=time.time()
-    orbits = s.run_sampler(1000,num_cores=num_cores)
+    orbits = s.run_sampler(1000,num_cores=4)
 
     end=time.time()
     print()
@@ -100,6 +100,9 @@ def test_run_sampler(num_cores=8):
     assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
 
+    # test with only one core
+    orbits = s.run_sampler(1000,num_cores=1)
+
     # test with only one epoch
     myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
@@ -119,6 +122,6 @@ def test_fixed_sys_params_sampling():
 
 
 if __name__ == "__main__":
-    # test_scale_and_rotate()
+    test_scale_and_rotate()
     test_run_sampler()
     print("Done!")
