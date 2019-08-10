@@ -101,7 +101,7 @@ def test_run_sampler():
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
 
     # test with only one core
-    orbits = s.run_sampler(1000,num_cores=1)
+    orbits = s.run_sampler(100,num_cores=1)
 
     # test with only one epoch
     myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
