@@ -318,14 +318,15 @@ class OFTI(Sampler,):
         
         # setup the processes
         lock = mp.Lock()
-        nrun_per_core = math.ceil(total_orbits/num_cores)
+        nrun_per_core = int(np.ceil(float(total_orbits)/float(num_cores)))
+
         processes=[
             mp.Process(
                 target=self.run_sampler_base,
                 args=(output, nrun_per_core,num_samples,orbits_saved, num_cores,lock)
             ) for x in range(num_cores)
         ]
-            
+
         # start the processes
         for p in processes:
             p.start() 
