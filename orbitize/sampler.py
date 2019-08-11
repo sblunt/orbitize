@@ -260,8 +260,7 @@ class OFTI(Sampler,):
             lock: mp.lock to prevent issues caused by access to shared memory
             by multiple processes
         Return:
-            output_orbits (np.array): array of accepted orbits. First dimension
-            has size ``total_orbits``.
+            output_orbits (np.array): array of accepted orbits. Size: total_orbits
         """
         
         n_orbits_saved = 0
