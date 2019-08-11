@@ -300,8 +300,7 @@ class OFTI(Sampler,):
                 rejection sampling on
             num_cores (int): the number of cores to run OFTI on
         Return:
-            output_orbits (np.array): array of accepted orbits. First dimension
-            has size ``total_orbits``.            
+            output_orbits (np.array): array of accepted orbits. Size: total_orbits.            
         Written by: Vighnesh Nagpal(2019)
         
         """
