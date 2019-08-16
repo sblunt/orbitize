@@ -121,7 +121,7 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.LogUniformPrior(25, 1000))
+            self.sys_priors.append(priors.LogUniformPrior(1e-3, 1000))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
@@ -169,7 +169,7 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
-                self.sys_priors.append(priors.LogUniformPrior(0.24, 1.44))
+                self.sys_priors.append(priors.LogUniformPrior(1e-3, 2.0))
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -272,9 +272,6 @@ class System(object):
                 model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
                 model[self.rv[body_num], 1] = np.nan
 
-        #print('This is rv[0]:',self.rv[0])
-        #print('This is total rv0:',total_rv0)
-        # print(model)
         if self.fit_secondary_mass:
             if len(total_rv0[self.rv[0]]) > 0:
                 model[self.rv[0], 0] = total_rv0[self.rv[0]]

@@ -80,14 +80,14 @@ def vel_star(params,time):
 
     return dradt,ddecdt
 
-def dvel(theta):
+def dvel(params):
     epochs = np.array([Time(1991.25,format='mjd').jd,
         Time(2015.50,format='mjd').jd])
-    vels = vel_star(theta,epochs)
+    vels = vel_star(params,epochs)
     dv = np.subtract(vels[0],vels[1])
     return dv
 
-def custom_chi2_loglike(theta):
+def custom_chi2_loglike(params):
     #Hipparcos pm:
     pm_ra_H = 174.31 #mas/yr
     e_pm_ra_H = 0.66 #mas/yr
@@ -113,7 +113,7 @@ def custom_chi2_loglike(theta):
 
     #model:
 
-    mod_dvel = dvel(theta)
+    mod_dvel = dvel(params)
 
     #residual: data - model
     residual = obs_dvel - mod_dvel
@@ -121,3 +121,14 @@ def custom_chi2_loglike(theta):
     #chi2 and likelihood functions:
     chi2 = np.sum(-0.5 * (residual**2 / obs_err**2) - np.log(np.sqrt(2.0*np.pi*obs_err**2)))
     return chi2
+
+def m_and_sma_constraints(params):
+    if params[-2] > 1.44:
+        return -np.inf
+    if params[0] < 25.0:
+        return -np.inf
+    else:
+        return 0.0
+
+def custom_sum_chi2_loglike(params):
+    return custom_chi2_loglike(params) + m_and_sma_constraints(params)
