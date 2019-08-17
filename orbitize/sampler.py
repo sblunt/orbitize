@@ -247,18 +247,21 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
     
-    def run_sampler_base(self,output,total_orbits, num_samples=10000,Value=0,num_cores=8,lock=None):
+    def run_sampler_base(self, output, total_orbits, num_samples=10000, Value=0, num_cores=8, lock=None):
         """
         Runs OFTI until we get the number of total accepted orbits we want.
+
         Args:
+            output (manager.Queue): manager.Queue object to store results
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
             Value (mp.Value(int)): global counter for number of orbits generated
             num_cores(int): the number of cores that run_sampler_base is being 
-            run in parallel on. 
-            lock: mp.lock to prevent issues caused by access to shared memory
-            by multiple processes
+                run in parallel on. 
+            lock: mp.lock object to prevent issues caused by access to shared memory
+                by multiple processes
+
         Return:
             output_orbits (np.array): array of accepted orbits. Size: total_orbits
         """
@@ -266,8 +269,8 @@ class OFTI(Sampler,):
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
+
         # add orbits to `output_orbits` until `total_orbits` are saved
-        
         while n_orbits_saved<total_orbits:
             samples = self.prepare_samples(num_samples)
             accepted_orbits, lnlikes = self.reject(samples)
@@ -294,26 +297,27 @@ class OFTI(Sampler,):
     def run_sampler(self, total_orbits, num_samples=10000, num_cores=8):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
+
         Args:
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
             num_cores (int): the number of cores to run OFTI on
+
         Return:
-            output_orbits (np.array): array of accepted orbits. Size: total_orbits.            
+            output_orbits (np.array): array of accepted orbits. Size: total_orbits.    
+
         Written by: Vighnesh Nagpal(2019)
         
         """
         results=[]
         
-        # orbits_saved is a counter for the number of orbits generated 
+        # orbits_saved is a global counter for the number of orbits generated 
         orbits_saved=mp.Value('i',0)
         
         manager = mp.Manager()            
         output = manager.Queue()
-         
-        # orbits_saved is a global variable that stores the total number of orbits generated
-        
+                
         # setup the processes
         lock = mp.Lock()
         nrun_per_core = int(np.ceil(float(total_orbits)/float(num_cores)))
@@ -329,8 +333,7 @@ class OFTI(Sampler,):
         for p in processes:
             p.start() 
                 
-        # print out the number of orbits generated every second until the number of orbits generated 
-        # exceeds the number desired
+        # print out the number of orbits generated every second
         while orbits_saved.value<total_orbits:
             print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
             time.sleep(0.1)
