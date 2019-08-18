@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
+from orbitize.lnlike import chi2_lnlike
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 input_file = os.path.join(testdir, 'GJ504.csv')
@@ -87,6 +88,15 @@ def test_run_sampler():
     ecc_exp = 0.19
     inc_exp = np.radians(140)
 
+    # test that lnlikes being saved are correct
+    returned_lnlike_test = s.results.lnlike[0]
+
+    computed_lnlike_test = chi2_lnlike(data, model, errors, seppa_indices)
+
+    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
+
+    import pdb; pdb.set_trace()
+
     # test to make sure OFTI values are within 20% of expectations
     assert sma == pytest.approx(sma_exp, abs=0.2*sma_exp)
     assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
@@ -111,6 +121,6 @@ def test_fixed_sys_params_sampling():
 
 
 if __name__ == "__main__":
-    test_scale_and_rotate()
+    # test_scale_and_rotate()
     test_run_sampler()
     print("Done!")
