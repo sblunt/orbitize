@@ -489,15 +489,15 @@ class MCMC(Sampler):
 
         if self.use_pt:
             self.post = sampler.flatchain[0,:,:]
-            self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
-            self.lnlikes_alltemps = sampler.logprobability
+            self.lnlikes = sampler.loglikelihood[0,:,:].flatten() # should also be picking out the lowest temperature logps
+            self.lnlikes_alltemps = sampler.loglikelihood
         else:
             self.post = sampler.flatchain
             self.lnlikes = sampler.flatlnprobability
 
-        # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
-        for i, orb in enumerate(self.post):
-            self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb,self.priors)
+            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
+            for i, orb in enumerate(self.post):
+                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb,self.priors)
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
