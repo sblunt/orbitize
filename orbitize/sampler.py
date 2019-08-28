@@ -247,7 +247,7 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
     
-    def _run_sampler_base(self, output, total_orbits, num_cores, num_samples=10000, Value=0,lock=None):
+    def _sampler_process(self, output, total_orbits, num_cores, num_samples=10000, Value=0,lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
         Meant to be called by run_sampler.
@@ -338,7 +338,7 @@ class OFTI(Sampler,):
 
             processes=[
                 mp.Process(
-                    target=self._run_sampler_base,
+                    target=self._sampler_process,
                     args=(output,nrun_per_core,num_cores,num_samples,
                         orbits_saved,lock)
                 ) for x in range(num_cores)
@@ -381,6 +381,7 @@ class OFTI(Sampler,):
             return output_orbits
         
         else:
+            # this block is executed if num_cores=1 
             n_orbits_saved = 0
             output_orbits = np.empty((total_orbits, len(self.priors)))
             output_lnlikes = np.empty(total_orbits)
