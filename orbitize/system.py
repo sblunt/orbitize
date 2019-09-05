@@ -26,7 +26,12 @@ class System(object):
             mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
             is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
-            will be appended to this list as a Results class
+            will be appended to this list as a Results class.
+        gamma_bounds (tuple, optional): ``rv offset'': bounds for the gamma radial velocity parameter
+            used to calculate the total radial velocity (m/s).
+        jitter_bounds (tuple, optional): bounds for the jitter radial velocity parameter
+            used in the log likelihood function to calculate sigma squared.
+
 
     Users should initialize an instance of this class, then overwrite
     priors they wish to customize.
@@ -82,7 +87,6 @@ class System(object):
 
         # List of index arrays corresponding to each rv for each body
         self.rv = []
-
         self.gamma_bounds = gamma_bounds
         self.jitter_bounds = jitter_bounds
 
@@ -165,7 +169,6 @@ class System(object):
             self.sys_priors.append(priors.LogUniformPrior(
                 self.jitter_bounds[0], self.jitter_bounds[1]))
             self.labels.append('sigma')
-            # Rob: Insert tracker here
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
@@ -206,7 +209,7 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
-        if len(self.rv[0]) > 0:  # Changed to rv instead of rv0
+        if len(self.rv[0]) > 0:
             gamma = params_arr[6*self.num_secondary_bodies+1] / 1000.
             # need to put planetary rv later
             # gamma is in m/s, we want km/s.
@@ -235,23 +238,21 @@ class System(object):
                 m0 = params_arr[-1]
                 mtot = m0 + mass
             else:
+                # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
                 m0 = None
                 mtot = params_arr[-1]
 
-            # Switch argp to argp0 for input into calc_orbit
-            # Then, output vz is the star's velocity
-            # argp0 = argp + np.pi
-            # i = 1,2,3...
+            # i = 1,2,3... (companion index)
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
                 mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
             )
+
             # vz_i is the ith companion radial velocity
             if self.fit_secondary_mass:
-                vz0 = vz_i*-(mass/m0)
-                total_rv0 = total_rv0 + vz0
-            # vz0 is the stellar radial velocity due to the ith companion
+                vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
+                total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
             if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]

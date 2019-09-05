@@ -159,7 +159,7 @@ class GaussianPrior(Prior):
         return lnprob
 
 
-class LogUniformPrior(Prior):  # change back when done testing
+class LogUniformPrior(Prior):
     """
     This is the probability distribution :math:`p(x) \\propto 1/x`
 

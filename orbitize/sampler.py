@@ -61,17 +61,20 @@ class Sampler(ABC):
 
         """
         # compute the model based on system params
+        # jitter output from compute model
         model, jitter = self.system.compute_model(params)
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
+
+        # errors below required for lnlike function below
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
 
         # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
+
         # compute lnlike
-        # Rob: added the jitter term here
         lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
@@ -113,7 +116,7 @@ class OFTI(Sampler):
             self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
-        ast_idx = self.system.seppa[body_num]
+        ast_idx = self.system.seppa[body_num]  # replaced [:] with [ast_idx]
         self.sep_observed = self.system.data_table[ast_idx]['quant1'].copy()
         self.pa_observed = self.system.data_table[ast_idx]['quant2'].copy()
         self.sep_err = self.system.data_table[ast_idx]['quant1_err'].copy()
@@ -166,7 +169,7 @@ class OFTI(Sampler):
         tau = samples[5, :]
         plx = samples[6, :]
         if self.system.fit_secondary_mass:
-            gamma = samples[7, :]
+            gamma = samples[7, :]  # Rob: added gamma and sigma parameters
             sigma = samples[8, :]
             m0 = samples[-1, :]
             m1 = samples[-2, :]
@@ -195,7 +198,7 @@ class OFTI(Sampler):
         pa_offset = np.random.normal(
             0, self.pa_err[self.epoch_idx], size=num_samples
         )
-        #pdb.set_trace()
+
         # calculate correction factors
         sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
         lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
@@ -246,7 +249,7 @@ class OFTI(Sampler):
 
         # these are the changes we made to adjust the likelyhood scaling factor:
 
-        all_errors = np.append(self.quant1_err,self.quant2_err)
+        all_errors = np.append(self.quant1_err, self.quant2_err)
         sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
         # reject orbits with probability less than a uniform random number
         #random_samples = np.log(np.random.random(len(lnp))) + sample_offset
@@ -255,7 +258,7 @@ class OFTI(Sampler):
         saved_orbit_idx = np.where(chi2 > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
-        #pdb.set_trace()
+        # pdb.set_trace()
         return saved_orbits, lnlikes
 
     def run_sampler(self, total_orbits, num_samples=10000):

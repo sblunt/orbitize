@@ -10,9 +10,9 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
 
     Args:
         data (np.array): Nobsx2 array of data, where data[:,0] = sep/RA/RV
-            for every epoch, and data[:,1] = corresponding pa/DEC/np.nan
+            for every epoch, and data[:,1] = corresponding pa/DEC/np.nan.
         errors (np.array): Nobsx2 array of errors for each data point. Same
-                format as ``data``
+                format as ``data``.
         model (np.array): Nobsx2xM array of model predictions, where M is the \
                 number of orbits being compared against the data. If M is 1, \
             ``model`` can be 2 dimensional.
