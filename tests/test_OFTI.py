@@ -10,6 +10,8 @@ import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
 from orbitize.lnlike import chi2_lnlike
+from orbitize.kepler import calc_orbit
+import orbitize.system
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 input_file = os.path.join(testdir, 'GJ504.csv')
@@ -77,6 +79,11 @@ def test_run_sampler():
     # test to make sure outputs are reasonable
     orbits = s.run_sampler(1000)
 
+    # test that lnlikes being saved are correct
+    returned_lnlike_test = s.results.lnlike[0]
+    computed_lnlike_test = s._logl(orbits[0])
+    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
+
     print()
     idx = s.system.param_idx
     sma = np.median([x[idx['sma1']] for x in orbits])
@@ -87,15 +94,6 @@ def test_run_sampler():
     sma_exp = 48.
     ecc_exp = 0.19
     inc_exp = np.radians(140)
-
-    # test that lnlikes being saved are correct
-    returned_lnlike_test = s.results.lnlike[0]
-
-    computed_lnlike_test = chi2_lnlike(data, model, errors, seppa_indices)
-
-    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
-
-    import pdb; pdb.set_trace()
 
     # test to make sure OFTI values are within 20% of expectations
     assert sma == pytest.approx(sma_exp, abs=0.2*sma_exp)
@@ -121,6 +119,6 @@ def test_fixed_sys_params_sampling():
 
 
 if __name__ == "__main__":
-    # test_scale_and_rotate()
+    test_scale_and_rotate()
     test_run_sampler()
     print("Done!")
