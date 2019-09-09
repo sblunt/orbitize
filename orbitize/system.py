@@ -210,11 +210,12 @@ class System(object):
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
         if len(self.rv[0]) > 0:
-            gamma = params_arr[6*self.num_secondary_bodies+1] / 1000.
+            gamma = params_arr[6*self.num_secondary_bodies+1]  # km/s
+
             # need to put planetary rv later
-            # gamma is in m/s, we want km/s.
+            # Both gamma and jitter will be default values if fitting for secondary masses later
             total_rv0 = gamma
-            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2] / 1000.
+            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2]  # km/s
             jitter[self.rv[0], 1] = np.nan
         else:
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this

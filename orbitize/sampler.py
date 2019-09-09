@@ -244,21 +244,21 @@ class OFTI(Sampler):
 
         # TODO: add for loop over planet number
 
-        self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
-        self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
+        #self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
+        #self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
 
         # these are the changes we made to adjust the likelyhood scaling factor:
 
-        all_errors = np.append(self.quant1_err, self.quant2_err)
-        sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
+        #all_errors = np.append(self.quant1_err, self.quant2_err)
+        #sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
         # reject orbits with probability less than a uniform random number
         #random_samples = np.log(np.random.random(len(lnp))) + sample_offset
-        chi2 = lnp - sample_offset
+        #chi2 = lnp - sample_offset
         random_samples = np.log(np.random.random(len(lnp)))
-        saved_orbit_idx = np.where(chi2 > random_samples)[0]
+        saved_orbit_idx = np.where(lnp > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
-        # pdb.set_trace()
+
         return saved_orbits, lnlikes
 
     def run_sampler(self, total_orbits, num_samples=10000):
