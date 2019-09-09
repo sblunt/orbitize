@@ -66,6 +66,13 @@ Some major planned updates:
 Changelog:
 ++++++++++
 
+**1.5.0 (2019-9-9)**
+
+- Parallel processing for OFTI.
+- Fixed a bug converting errors in RA/Dec to sep/PA in OFTI.
+- OFTI and MCMC now both return likelihood, whereas before one returned posterior.
+- Updated logic for restricting Omega and omega bounds.
+
 **1.4.0 (2019-7-15)**
 
 - API change to lay the groundwork for dynamical mass calculation. 
