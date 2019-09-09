@@ -17,7 +17,7 @@ class System(object):
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
-            of the position angle of nodes and argument of periastron to [0,180)
+            of the position angle of nodes to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
@@ -91,7 +91,6 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
 
-
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
@@ -115,7 +114,7 @@ class System(object):
             self.labels.append('inc{}'.format(body+1))
 
             # Add argument of periastron prior
-            self.sys_priors.append(priors.UniformPrior(0.,angle_upperlim))
+            self.sys_priors.append(priors.UniformPrior(0.,2.*np.pi))
             self.labels.append('aop{}'.format(body+1))
 
             # Add position angle of nodes prior

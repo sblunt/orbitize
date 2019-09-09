@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pytest
 import matplotlib.pyplot as plt
+import time
 
 import orbitize.sampler as sampler
 import orbitize.driver
@@ -12,6 +13,7 @@ import orbitize.priors as priors
 from orbitize.lnlike import chi2_lnlike
 from orbitize.kepler import calc_orbit
 import orbitize.system
+
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 input_file = os.path.join(testdir, 'GJ504.csv')
@@ -61,9 +63,8 @@ def test_scale_and_rotate():
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
-
 def test_run_sampler():
-
+    
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
@@ -77,7 +78,14 @@ def test_run_sampler():
     s.run_sampler(0,num_samples=1)
 
     # test to make sure outputs are reasonable
-    orbits = s.run_sampler(1000)
+    start=time.time()
+    orbits = s.run_sampler(1000,num_cores=4)
+
+    end=time.time()
+    print()
+    print("Runtime: "+str(end-start) +" s")
+    print()
+    print(orbits[0])
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
@@ -99,6 +107,9 @@ def test_run_sampler():
     assert sma == pytest.approx(sma_exp, abs=0.2*sma_exp)
     assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
+
+    # test with only one core
+    orbits = s.run_sampler(100,num_cores=1)
 
     # test with only one epoch
     myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
