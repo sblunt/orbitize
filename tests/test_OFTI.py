@@ -10,6 +10,9 @@ import time
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
+from orbitize.lnlike import chi2_lnlike
+from orbitize.kepler import calc_orbit
+import orbitize.system
 
 
 testdir = os.path.dirname(os.path.abspath(__file__))
@@ -83,6 +86,11 @@ def test_run_sampler():
     print("Runtime: "+str(end-start) +" s")
     print()
     print(orbits[0])
+
+    # test that lnlikes being saved are correct
+    returned_lnlike_test = s.results.lnlike[0]
+    computed_lnlike_test = s._logl(orbits[0])
+    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
     print()
     idx = s.system.param_idx

@@ -91,10 +91,6 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
 
-        if (len(radec_indices[0]) + len(seppa_indices[0]) == len(self.data_table)) and (restrict_angle_ranges is None):
-            print("No RV in data table: We are restricting the longitude of ascending node to [0,pi]")
-            restrict_angle_ranges = True
-
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
@@ -232,7 +228,8 @@ class System(object):
             dec_err = self.data_table['quant2_err'][i]
             # Convert to sep/PA
             sep, pa = radec2seppa(ra,dec)
-            sep_err, pa_err = radec2seppa(ra_err,dec_err)
+            sep_err = 0.5*(ra_err+dec_err)
+            pa_err = np.degrees(sep_err/sep)
             # Update data_table
             self.data_table['quant1'][i]=sep
             self.data_table['quant1_err'][i]=sep_err

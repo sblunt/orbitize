@@ -57,9 +57,7 @@ class Driver(object):
             plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
         )
 
-        # Initialize Sampler object, which stores information about
-        # the likelihood function & the algorithm used to generate
-        # orbits, and has System object as an attribute.
+        # Initialize Sampler object, which has System object as an attribute.
         if mcmc_kwargs is not None and sampler_str == 'MCMC':
             kwargs = mcmc_kwargs
         else:

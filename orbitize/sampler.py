@@ -309,10 +309,8 @@ class OFTI(Sampler,):
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
         Args:
             total_orbits (int): total number of accepted orbits desired by user
-
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on. Defaults to 10000.
-
             num_cores (int): the number of cores to run OFTI on. Defaults to
                              number of cores availabe.
         Return:
@@ -614,11 +612,15 @@ class MCMC(Sampler):
 
         if self.use_pt:
             self.post = sampler.flatchain[0,:,:]
-            self.lnlikes = sampler.logprobability[0,:,:].flatten() # should also be picking out the lowest temperature logps
-            self.lnlikes_alltemps = sampler.logprobability
+            self.lnlikes = sampler.loglikelihood[0,:,:].flatten() # should also be picking out the lowest temperature logps
+            self.lnlikes_alltemps = sampler.loglikelihood
         else:
             self.post = sampler.flatchain
-            self.lnlikes = sampler.lnprobability
+            self.lnlikes = sampler.flatlnprobability
+
+            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
+            for i, orb in enumerate(self.post):
+                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb,self.priors)
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
