@@ -8,7 +8,7 @@ threshold = 1e-1
 
 initialization_inputs = {
 	priors.GaussianPrior : [1000., 1.], 
-	priors.JeffreysPrior : [1., 2.], 
+	priors.LogUniformPrior : [1., 2.], 
 	priors.UniformPrior : [0., 1.], 
 	priors.SinPrior : [], 
 	priors.LinearPrior : [-2., 2.]
@@ -16,7 +16,7 @@ initialization_inputs = {
 
 expected_means_mins_maxes = {
 	priors.GaussianPrior : (1000.,0.,np.inf), 
-	priors.JeffreysPrior : (1/np.log(2),1., 2.), 
+	priors.LogUniformPrior : (1/np.log(2),1., 2.), 
 	priors.UniformPrior : (0.5, 0., 1.), 
 	priors.SinPrior : (np.pi/2., 0., np.pi), 
 	priors.LinearPrior : (1./3.,0.,1.0)
@@ -24,7 +24,7 @@ expected_means_mins_maxes = {
 
 lnprob_inputs = {
 	priors.GaussianPrior : np.array([-3.0, np.inf, 1000., 999.]),
-	priors.JeffreysPrior : np.array([-1., 0., 1., 1.5, 2., 2.5]),
+	priors.LogUniformPrior : np.array([-1., 0., 1., 1.5, 2., 2.5]),
 	priors.UniformPrior : np.array([0., 0.5, 1., -1., 2.]),
 	priors.SinPrior : np.array([0., np.pi/2., np.pi, 10., -1.]),
 	priors.LinearPrior : np.array([0., 0.5, 1., 2., -1.])
@@ -32,7 +32,7 @@ lnprob_inputs = {
 
 expected_probs = {
 	priors.GaussianPrior : np.array([0., 0., nm(1000.,1.).pdf(1000.), nm(1000.,1.).pdf(999.)]),
-	priors.JeffreysPrior : np.array([0., 0., 1., 2./3., 0.5, 0.])/np.log(2),
+	priors.LogUniformPrior : np.array([0., 0., 1., 2./3., 0.5, 0.])/np.log(2),
 	priors.UniformPrior : np.array([1., 1., 1., 0., 0.]),
 	priors.SinPrior : np.array([0., 0.5, 0., 0., 0.]),
 	priors.LinearPrior : np.array([2., 1., 0., 0., 0.])

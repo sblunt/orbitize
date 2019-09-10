@@ -75,8 +75,8 @@ def test_systeminit():
     assert len(data_table[testSystem_parsing.radec[2]]) == 0
 
     assert testSystem_parsing.labels == [
-        'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'epp1', 'sma2',
-        'ecc2', 'inc2', 'aop2', 'pan2', 'epp2','plx','mtot'
+        'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2',
+        'ecc2', 'inc2', 'aop2', 'pan2', 'tau2','plx','mtot'
     ]
 
 

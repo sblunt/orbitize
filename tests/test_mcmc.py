@@ -1,4 +1,7 @@
+import pytest
+
 import os
+from orbitize.driver import Driver
 import orbitize.sampler as sampler
 import orbitize.system as system
 import orbitize.read_input as read_input
@@ -13,25 +16,34 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
             otherwises, uses Affine-Invariant Ensemble Sampler (emcee)
         num_threads: number of threads to run
     """
+
     # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
-    data_table = read_input.read_file(input_file)
-    # Manually set 'object' column of data table
-    data_table['object'] = 1
 
     # construct the system
     orbit = system.System(1, data_table, 1, 0.01)
 
-    # construct sampler
+    # construct Driver
     n_walkers=100
-    mcmc = sampler.MCMC(orbit, num_temps, n_walkers, num_threads=num_threads)
+    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01, 
+        mcmc_kwargs={'num_temps':2, 'num_threads':num_threads, 'num_walkers':n_walkers}
+    )
 
     # run it a little (tests 0 burn-in steps)
-    mcmc.run_sampler(100)
-    # run it a little more (tests adding to results object)
-    mcmc.run_sampler(500, burn_steps=10)
+    myDriver.sampler.run_sampler(100)
 
+    # run it a little more
+    myDriver.sampler.run_sampler(1000, burn_steps=1)
+
+    # run it a little more (tests adding to results object)
+    myDriver.sampler.run_sampler(1000, burn_steps=1)
+
+    # test that lnlikes being saved are correct
+    returned_lnlike_test = myDriver.sampler.results.lnlike[0]
+    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+
+    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
 def test_examine_chop_chains(num_temps=0, num_threads=1):
     """
@@ -42,6 +54,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
             otherwises, uses Affine-Invariant Ensemble Sampler (emcee)
         num_threads: number of threads to run
     """
+
     # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
@@ -52,7 +65,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     # construct the system
     orbit = system.System(1, data_table, 1, 0.01)
 
-    # construct sampler
+    # construct Driver
     n_walkers = 20
     mcmc = sampler.MCMC(orbit, num_temps, n_walkers, num_threads=num_threads)
 

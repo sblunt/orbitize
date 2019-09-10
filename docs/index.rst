@@ -34,8 +34,8 @@ Attribution:
 If you use ``orbitize`` in your work, please cite our forthcoming
 paper and the following DOI: 
 
-.. image:: https://zenodo.org/badge/117267950.svg
-   :target: https://zenodo.org/badge/latestdoi/117267950
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3337378.svg
+   :target: https://zenodo.org/record/3337378#.XUHT3ZNKjUJ
 
 If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_.
 
@@ -65,6 +65,22 @@ Some major planned updates:
 
 Changelog:
 ++++++++++
+
+**1.5.0 (2019-9-9)**
+
+- Parallel processing for OFTI.
+- Fixed a bug converting errors in RA/Dec to sep/PA in OFTI.
+- OFTI and MCMC now both return likelihood, whereas before one returned posterior.
+- Updated logic for restricting Omega and omega bounds.
+
+**1.4.0 (2019-7-15)**
+
+- API change to lay the groundwork for dynamical mass calculation. 
+- JeffreysPrior -> LogUniformPrior
+- New tutorials.
+- Added some informative error messages for input tables.
+- Bugfixes.
+
 
 **1.3.1 (2019-6-19)**
 
