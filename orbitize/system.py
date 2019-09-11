@@ -56,8 +56,7 @@ class System(object):
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
-                 gamma_bounds=None, jitter_bounds=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -158,16 +157,12 @@ class System(object):
             self.sys_priors.append(plx)
 
         # we'll need to iterate over instruments here
-        if self.gamma_bounds is not None:
-            self.sys_priors.append(priors.UniformPrior(
-                self.gamma_bounds[0], self.gamma_bounds[1]))
-            self.labels.append('gamma')
-            # Rob: insert tracker here
 
-        # Rob: adding jitter parameter - first edit (before the masses)
-        if self.jitter_bounds is not None:
-            self.sys_priors.append(priors.LogUniformPrior(
-                self.jitter_bounds[0], self.jitter_bounds[1]))
+        if len(self.rv[0]) > 0:
+            self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
+            self.labels.append('gamma')
+
+            self.sys_priors.append(priors.LogUniformPrior(1e-4, 0.05))  # jitter prior in km/s
             self.labels.append('sigma')
 
         if self.fit_secondary_mass:
