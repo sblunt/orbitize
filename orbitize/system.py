@@ -27,10 +27,6 @@ class System(object):
             is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class.
-        gamma_bounds (tuple, optional): ``rv offset'': bounds for the gamma radial velocity parameter
-            used to calculate the total radial velocity (m/s).
-        jitter_bounds (tuple, optional): bounds for the jitter radial velocity parameter
-            used in the log likelihood function to calculate sigma squared.
 
 
     Users should initialize an instance of this class, then overwrite
@@ -86,8 +82,8 @@ class System(object):
 
         # List of index arrays corresponding to each rv for each body
         self.rv = []
-        self.gamma_bounds = gamma_bounds
-        self.jitter_bounds = jitter_bounds
+        #self.gamma_bounds = gamma_bounds
+        #self.jitter_bounds = jitter_bounds
 
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
