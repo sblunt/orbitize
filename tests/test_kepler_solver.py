@@ -25,6 +25,13 @@ def test_analytical_ecc_anom_solver(use_c = False):
         for meas, truth in zip(calc_mm, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
+def test_analytical_ecc_anom_c_solver():
+    """
+    Test C solver in orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
+    _calc_ecc_anom() output vs the input mean anomaly
+    """
+    test_analytical_ecc_anom_solver(use_c = True)
+
 def test_iterative_ecc_anom_solver(use_c = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
@@ -37,6 +44,13 @@ def test_iterative_ecc_anom_solver(use_c = False):
         calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
+
+def test_iterative_ecc_anom_c_solver():
+    """
+    Test C solver in orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
+    _calc_ecc_anom() output vs the input mean anomaly
+    """
+    test_iterative_ecc_anom_solver(use_c = True)
 
 def test_orbit_e03():
     """
