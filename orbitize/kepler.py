@@ -14,6 +14,22 @@ equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
 
+
+try:
+    import pyopencl as cl
+    import struct
+
+    ctx = cl.create_some_context()
+    queue = cl.CommandQueue(ctx)
+    mf = cl.mem_flags
+
+    f = open("/home/devin/Documents/orbitize/orbitize/kepler.cl", 'r')
+    fstr = "".join(f.readlines())
+    prg = cl.Program(ctx, fstr).build()
+except:
+    print("Warning: KEPLER: Unable to import openCL Kepler solver")
+
+
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
@@ -152,24 +168,29 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-
+    ind_high = np.where(~ecc_zero & ~ecc_low)
+    #ind_high = np.array(0)
     try:
-        print("attempting open CL solver")
-        _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-        print("maybe worked?")
+        if len(ind_low[0]) > 0: 
+            print("attempting CL")
+            eanom[ind_low] = _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+            print("maybe worked?")
+            print("eanom[ind_low]: {}".format(eanom[ind_low]))
+            m_one = eanom == -1
+            ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     except Exception as e:
         print("didnt work")
         raise e
 
-    if cext and use_c:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+#    if cext and use_c:
+#        if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
         # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
-        m_one = eanom == -1
-        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
-    else:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-        ind_high = np.where(~ecc_zero & ~ecc_low)
+#        m_one = eanom == -1
+#        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
+#    else:
+#        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+#        ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
@@ -187,34 +208,23 @@ def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None)
     else:
         eanom = np.copy(eanom0)
 
-
-    import pyopencl as cl
-    import struct
-
-    ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
-    mf = cl.mem_flags
-
-    f = open("/Users/Devin/Documents/Programming/orbitize/orbitize/kepler.cl", 'r')
-    fstr = "".join(f.readlines())
-    prg = cl.Program(ctx, fstr).build()
-
+    #print("len manom: {}, {}".format(manom.size, ecc.size))
     manom_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=manom)
     ecc_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=ecc)
-    eanom_buf = cl.Buffer(ctx, mf.WRITE_ONLY, manom.nbytes)
+    eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, manom.nbytes)
 
     params = struct.pack('dd', tolerance, max_iter)
-    print(len(params), struct.calcsize('dd'))
+    #print("param parameters", len(params), struct.calcsize('dd'))
 
     params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
-    cl.enqueue_write_buffer(queue, params_buf, params).wait()
-    
+    cl.enqueue_copy(queue, params_buf, params).wait()
+
     global_size = manom.shape
     local_size = None
     prg.newton_gpu(queue, global_size, local_size, manom_buf, ecc_buf, eanom_buf, params_buf)
     queue.finish()
 
-    cl.enqueue_read_buffer(eanom, eanom_buf, c).wait()
+    cl.enqueue_copy(queue, eanom, eanom_buf).wait()
     return eanom
 
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
