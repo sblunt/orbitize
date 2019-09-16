@@ -201,20 +201,20 @@ def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True):
     _calc_ecc_anom() output vs the input mean anomaly
     """
 
-    mean_anoms=np.linspace(0,2.0*np.pi,n_orbits)
-    eccs=np.linspace(0,0.9499999,n_orbits)
+    mean_anoms=np.linspace(0, 2.0*np.pi,n_orbits)
+    eccs=np.linspace(0,0.9499999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9, use_c = use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c = use_c)
 
 def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
     """
-    mean_anoms=np.linspace(0,2.0*np.pi,n_orbits)
-    eccs=np.linspace(.95,0.999999,n_orbits)
+    mean_anoms=np.linspace(0, 2.0*np.pi,n_orbits)
+    eccs=np.linspace(.95,0.999999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms,ee,tolerance=1e-9, use_c = use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, use_c = use_c)
 
 
 if __name__ == "__main__":
@@ -226,16 +226,25 @@ if __name__ == "__main__":
 
         profile_name = "Profile.prof"
 
-        print("Profiling: C with {} orbits".format(n_orbits))
+        print("Profiling Newton: C with {} orbits".format(n_orbits**2))
         cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
         s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()
 
-        print("Profiling: Python with {} orbits".format(n_orbits))
+        print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
         cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), "Profile.prof")
         s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()
 
+        print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
+        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
+        s = pstats.Stats(profile_name)
+        s.strip_dirs().sort_stats("time").print_stats()
+
+        print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
+        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), "Profile.prof")
+        s = pstats.Stats(profile_name)
+        s.strip_dirs().sort_stats("time").print_stats()
 
         os.remove(profile_name)
     else:
