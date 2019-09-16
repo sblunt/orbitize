@@ -110,7 +110,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -152,7 +152,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    if cext and use_cpp:
+    if cext and use_c:
         if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
         # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
@@ -163,7 +163,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
         ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
+    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
 
     return np.squeeze(eanom)[()]
 
@@ -209,11 +209,11 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], use_c) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
 
-def _mikkola_solver_wrapper(manom, ecc):
+def _mikkola_solver_wrapper(manom, ecc, use_c):
     """
     Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
     Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
@@ -229,7 +229,10 @@ def _mikkola_solver_wrapper(manom, ecc):
 
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
-    eanom = _mikkola_solver(manom, ecc)
+    if cext and use_c:
+        eanom = _kepler._c_mikkola_solver(manom, ecc)
+    else:
+        eanom = _mikkola_solver(manom, ecc)
     eanom[ind_change] = (2.0 * np.pi) - eanom[ind_change]
 
     return eanom
