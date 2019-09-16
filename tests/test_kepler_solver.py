@@ -25,13 +25,6 @@ def test_analytical_ecc_anom_solver(use_c = False):
         for meas, truth in zip(calc_mm, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
-def test_analytical_ecc_anom_c_solver():
-    """
-    Test C solver in orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
-    _calc_ecc_anom() output vs the input mean anomaly
-    """
-    test_analytical_ecc_anom_solver(use_c = True)
-
 def test_iterative_ecc_anom_solver(use_c = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
@@ -45,12 +38,14 @@ def test_iterative_ecc_anom_solver(use_c = False):
         for meas, truth in zip(calc_ma, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
-def test_iterative_ecc_anom_c_solver():
+def test_c_ecc_anom_solver():
     """
-    Test C solver in orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
+    Test the C implementations in orbitize.kepler._calc_ecc_anom() in the iterative and analytical solver regimes by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
     """
-    test_iterative_ecc_anom_solver(use_c = True)
+    if kepler.cext:
+        test_iterative_ecc_anom_solver(use_c = True)
+        test_analytical_ecc_anom_solver(use_c = True)
 
 def test_orbit_e03():
     """
@@ -263,9 +258,8 @@ if __name__ == "__main__":
         os.remove(profile_name)
     else:
         test_analytical_ecc_anom_solver()
-        test_analytical_ecc_anom_solver(use_c = True) # Repeat with C Solver
         test_iterative_ecc_anom_solver()
-        test_iterative_ecc_anom_solver(use_c = True) # Repeat with C Solver
+        test_c_ecc_anom_solver()
         test_orbit_e03()
         test_orbit_e03_array()
         test_orbit_e99()
