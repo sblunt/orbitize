@@ -29,7 +29,7 @@ def get_requires():
 def get_extensions():
     extensions = []
     if(USE_C_KEPLER_MODULE):
-        extensions = cythonize([Extension("orbitize._kepler", ["orbitize/_kepler.pyx"])])
+        extensions = cythonize([Extension("orbitize._kepler", ["orbitize/_kepler.pyx"], include_dirs=[numpy.get_include()])])
     return extensions
 
 setup(

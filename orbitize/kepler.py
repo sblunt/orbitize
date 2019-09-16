@@ -152,6 +152,15 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
+
+    try:
+        print("attempting open CL solver")
+        _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        print("maybe worked?")
+    except Exception as e:
+        print("didnt work")
+        raise e
+
     if cext and use_c:
         if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
@@ -166,6 +175,47 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
 
     return np.squeeze(eanom)[()]
+
+def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
+    manom = np.array(manom)
+    ecc = np.array(ecc)
+
+    # Initialize at E=M, E=pi is better at very high eccentricities
+    if eanom0 is None:
+        eanom = np.copy(manom)
+    else:
+        eanom = np.copy(eanom0)
+
+
+    import pyopencl as cl
+    import struct
+
+    ctx = cl.create_some_context()
+    queue = cl.CommandQueue(ctx)
+    mf = cl.mem_flags
+
+    f = open("/Users/Devin/Documents/Programming/orbitize/orbitize/kepler.cl", 'r')
+    fstr = "".join(f.readlines())
+    prg = cl.Program(ctx, fstr).build()
+
+    manom_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=manom)
+    ecc_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=ecc)
+    eanom_buf = cl.Buffer(ctx, mf.WRITE_ONLY, manom.nbytes)
+
+    params = struct.pack('dd', tolerance, max_iter)
+    print(len(params), struct.calcsize('dd'))
+
+    params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
+    cl.enqueue_write_buffer(queue, params_buf, params).wait()
+    
+    global_size = manom.shape
+    local_size = None
+    prg.newton_gpu(queue, global_size, local_size, manom_buf, ecc_buf, eanom_buf, params_buf)
+    queue.finish()
+
+    cl.enqueue_read_buffer(eanom, eanom_buf, c).wait()
+    return eanom
 
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
