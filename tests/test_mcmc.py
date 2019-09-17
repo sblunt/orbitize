@@ -21,9 +21,6 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
 
-    # construct the system
-    orbit = system.System(1, data_table, 1, 0.01)
-
     # construct Driver
     n_walkers=100
     myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01, 
