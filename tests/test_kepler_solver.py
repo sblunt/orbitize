@@ -204,7 +204,7 @@ def test_orbit_scalar():
     assert true_deoff == pytest.approx(deoffs, abs=threshold)
     assert true_vz    == pytest.approx(vzs, abs=1e-8)
 
-def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True):
+def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True, use_opencl = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -213,7 +213,7 @@ def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True):
     mean_anoms=np.linspace(0, 2.0*np.pi,n_orbits)
     eccs=np.linspace(0,0.9499999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c = use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c = use_c, use_opencl = use_opencl)
 
 def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True):
     """
@@ -235,6 +235,11 @@ if __name__ == "__main__":
 
         profile_name = "Profile.prof"
 
+        print("Profiling Newton: OpenCL with {} orbits".format(n_orbits**2))
+        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True, use_opencl = True)", globals(), locals(), "Profile.prof")
+        s = pstats.Stats(profile_name)
+        s.strip_dirs().sort_stats("time").print_stats()
+        
         print("Profiling Newton: C with {} orbits".format(n_orbits**2))
         cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
         s = pstats.Stats(profile_name)

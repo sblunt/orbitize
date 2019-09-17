@@ -26,9 +26,27 @@ try:
     f = open("/home/devin/Documents/orbitize/orbitize/kepler.cl", 'r')
     fstr = "".join(f.readlines())
     prg = cl.Program(ctx, fstr).build()
-except:
-    print("Warning: KEPLER: Unable to import openCL Kepler solver")
 
+
+    tolerance = 1e-9
+    max_iter = 100
+    print("copy parameters to gpu")
+    params = struct.pack('dd', tolerance, max_iter)
+    print("prams: {}".format(params))    
+    #print("param parameters", len(params), struct.calcsize('dd'))
+    print("actuall transfer") 
+    params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
+
+    print("allocating space") 
+    manom_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
+    print("manom buf")
+    ecc_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
+    print("ecc buf") 
+    eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, int(4e6)) 
+
+except Exception as e:
+    print("Warning: KEPLER: Unable to import openCL Kepler solver")
+    print(e)
 
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
     """
@@ -126,7 +144,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_opencl=False):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -170,27 +188,26 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
     ind_low = np.where(~ecc_zero & ecc_low)
     ind_high = np.where(~ecc_zero & ~ecc_low)
     #ind_high = np.array(0)
-    try:
+    if use_opencl:
         if len(ind_low[0]) > 0: 
-            print("attempting CL")
+#            print("attempting CL")
             eanom[ind_low] = _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-            print("maybe worked?")
-            print("eanom[ind_low]: {}".format(eanom[ind_low]))
+#            print("maybe worked?")
+#            print("eanom[ind_low]: {}".format(eanom[ind_low]))
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
-    except Exception as e:
-        print("didnt work")
-        raise e
-
-#    if cext and use_c:
-#        if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+#    except Exception as e:
+#        print("didnt work")
+#        raise e
+    elif cext and use_c:
+        if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
         # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
-#        m_one = eanom == -1
-#        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
-#    else:
-#        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-#        ind_high = np.where(~ecc_zero & ~ecc_low)
+        m_one = eanom == -1
+        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
+    else:
+        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
@@ -209,14 +226,9 @@ def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None)
         eanom = np.copy(eanom0)
 
     #print("len manom: {}, {}".format(manom.size, ecc.size))
-    manom_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=manom)
-    ecc_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=ecc)
-    eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, manom.nbytes)
-
-    params = struct.pack('dd', tolerance, max_iter)
-    #print("param parameters", len(params), struct.calcsize('dd'))
-
-    params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
+    cl.enqueue_copy(queue, manom_buf, manom)
+    cl.enqueue_copy(queue, ecc_buf, ecc)
+    
     cl.enqueue_copy(queue, params_buf, params).wait()
 
     global_size = manom.shape
