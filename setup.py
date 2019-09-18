@@ -10,6 +10,7 @@ else:
     try:
         from Cython.Build import cythonize
     except:
+        print("Error: Importing cython build environment failed")
         USE_C_KEPLER_MODULE = 0
 
 
