@@ -749,7 +749,8 @@ class MCMC(Sampler):
             sampler_name = self.__class__.__name__,
             post = flat_chopped_chain,
             lnlike = flat_chopped_lnlikes,
-            tau_ref_epoch=self.system.tau_ref_epoch
+            tau_ref_epoch=self.system.tau_ref_epoch,
+            labels = self.system.labels
         )
 
         # Print a confirmation
