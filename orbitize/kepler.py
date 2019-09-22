@@ -43,10 +43,12 @@ try:
     ecc_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
     print("ecc buf") 
     eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, int(4e6)) 
-
+    clext = True
 except Exception as e:
     print("Warning: KEPLER: Unable to import openCL Kepler solver")
     print(e)
+    clext = False
+
 
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
     """
@@ -188,23 +190,18 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_op
     ind_low = np.where(~ecc_zero & ecc_low)
     ind_high = np.where(~ecc_zero & ~ecc_low)
     #ind_high = np.array(0)
-    if use_opencl:
+    if clext and use_opencl:
         if len(ind_low[0]) > 0: 
-#            print("attempting CL")
             eanom[ind_low] = _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-#            print("maybe worked?")
-#            print("eanom[ind_low]: {}".format(eanom[ind_low]))
+            # the CL solver returns eanom = -1 if it doesnt converge after max_iter iterations
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
-#    except Exception as e:
-#        print("didnt work")
-#        raise e
     elif cext and use_c:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-
-        # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
-        m_one = eanom == -1
-        ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
+        if len(ind_low[0]) > 0: 
+            eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+            # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
+            m_one = eanom == -1
+            ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     else:
         if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
         ind_high = np.where(~ecc_zero & ~ecc_low)
