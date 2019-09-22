@@ -12,7 +12,7 @@ def angle_diff(ang1, ang2):
     # Return the difference between two angles
     return np.arctan2(np.sin(ang1 - ang2), np.cos(ang1 - ang2))
 
-def test_analytical_ecc_anom_solver(use_c = False):
+def test_analytical_ecc_anom_solver(use_c = False, use_opencl = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -20,12 +20,12 @@ def test_analytical_ecc_anom_solver(use_c = False):
     mean_anoms = np.linspace(0,2.0*np.pi,1000)
     eccs = np.linspace(0.95,0.999999,100)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c, use_opencl = use_opencl)
         calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
-def test_iterative_ecc_anom_solver(use_c = False):
+def test_iterative_ecc_anom_solver(use_c = False, use_opencl = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -33,7 +33,7 @@ def test_iterative_ecc_anom_solver(use_c = False):
     mean_anoms = np.linspace(0,2.0*np.pi,100)
     eccs = np.linspace(0,0.9499999,100)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c, use_opencl = use_opencl)
         calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
@@ -46,6 +46,13 @@ def test_c_ecc_anom_solver():
     if kepler.cext:
         test_iterative_ecc_anom_solver(use_c = True)
         test_analytical_ecc_anom_solver(use_c = True)
+
+def test_pycuda_ecc_anom_solver():
+    if kepler.clext:
+        test_iterative_ecc_anom_solver(use_opencl = True)
+        test_analytical_ecc_anom_solver(use_opencl = True)
+
+
 
 def test_orbit_e03():
     """
@@ -265,6 +272,7 @@ if __name__ == "__main__":
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()
         test_c_ecc_anom_solver()
+        test_pycuda_ecc_anom_solver()
         test_orbit_e03()
         test_orbit_e03_array()
         test_orbit_e99()

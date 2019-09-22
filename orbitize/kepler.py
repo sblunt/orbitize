@@ -16,33 +16,31 @@ equation solver. Falling back to the slower NumPy implementation.")
 
 
 try:
-    import pyopencl as cl
-    import struct
+    print("importing libs")
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    from pycuda.compiler import SourceModule
 
-    ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
-    mf = cl.mem_flags
-
-    f = open("/home/devin/Documents/orbitize/orbitize/kepler.cl", 'r')
+    print("Compiling kernel")
+    f = open("/home/devin/Documents/orbitize/orbitize/kepler.cu", 'r')
     fstr = "".join(f.readlines())
-    prg = cl.Program(ctx, fstr).build()
+    mod = SourceModule(fstr)
+    newton_gpu = mod.get_function("newton_gpu")
 
+    print("allocating")
+    tolerance = np.array([1e-9], dtype = np.float64)
+    max_iter = np.array([100])
 
-    tolerance = 1e-9
-    max_iter = 100
-    print("copy parameters to gpu")
-    params = struct.pack('dd', tolerance, max_iter)
-    print("prams: {}".format(params))    
-    #print("param parameters", len(params), struct.calcsize('dd'))
-    print("actuall transfer") 
-    params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
+    d_manom = cuda.mem_alloc(10000000)
+    d_ecc = cuda.mem_alloc(10000000)
+    d_eanom = cuda.mem_alloc(10000000)
+    d_tol = cuda.mem_alloc(tolerance.nbytes)
+    d_max_iter = cuda.mem_alloc(max_iter.nbytes)
+    
+    print("Copying parameters to GPU")
+    cuda.memcpy_htod(d_tol, tolerance)
+    cuda.memcpy_htod(d_max_iter, max_iter)
 
-    print("allocating space") 
-    manom_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
-    print("manom buf")
-    ecc_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
-    print("ecc buf") 
-    eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, int(4e6)) 
     clext = True
 except Exception as e:
     print("Warning: KEPLER: Unable to import openCL Kepler solver")
@@ -222,18 +220,15 @@ def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None)
     else:
         eanom = np.copy(eanom0)
 
-    #print("len manom: {}, {}".format(manom.size, ecc.size))
-    cl.enqueue_copy(queue, manom_buf, manom)
-    cl.enqueue_copy(queue, ecc_buf, ecc)
-    
-    cl.enqueue_copy(queue, params_buf, params).wait()
+    #print("Doing some GPU stuff, idk")
 
-    global_size = manom.shape
-    local_size = None
-    prg.newton_gpu(queue, global_size, local_size, manom_buf, ecc_buf, eanom_buf, params_buf)
-    queue.finish()
+    cuda.memcpy_htod(d_manom, manom)
+    cuda.memcpy_htod(d_ecc, ecc)
 
-    cl.enqueue_copy(queue, eanom, eanom_buf).wait()
+    newton_gpu(d_manom, d_ecc, d_eanom, d_max_iter, d_tol, grid = (len(manom)//64+1,1,1), block = (64,1,1))
+
+    cuda.memcpy_dtoh(eanom, d_eanom)
+
     return eanom
 
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
