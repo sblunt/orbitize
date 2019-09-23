@@ -4,6 +4,11 @@ This module solves for the orbit of the planet given Keplerian parameters.
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
+import os
+import sys
+from orbitize import clext, len_gpu_arrays
+from orbitize import d_max_iter, d_tol, d_manom, d_ecc, d_eanom
+from orbitize import newton_gpu, gpu_initalized
 
 try:
     from . import _kepler
@@ -13,42 +18,13 @@ except ImportError:
 equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
-
-
-try:
-    print("importing libs")
+if clext:
     import pycuda.driver as cuda
     import pycuda.autoinit
     from pycuda.compiler import SourceModule
 
-    print("Compiling kernel")
-    f = open("/home/devin/Documents/orbitize/orbitize/kepler.cu", 'r')
-    fstr = "".join(f.readlines())
-    mod = SourceModule(fstr)
-    newton_gpu = mod.get_function("newton_gpu")
 
-    print("allocating")
-    tolerance = np.array([1e-9], dtype = np.float64)
-    max_iter = np.array([100])
-
-    d_manom = cuda.mem_alloc(10000000)
-    d_ecc = cuda.mem_alloc(10000000)
-    d_eanom = cuda.mem_alloc(10000000)
-    d_tol = cuda.mem_alloc(tolerance.nbytes)
-    d_max_iter = cuda.mem_alloc(max_iter.nbytes)
-    
-    print("Copying parameters to GPU")
-    cuda.memcpy_htod(d_tol, tolerance)
-    cuda.memcpy_htod(d_max_iter, max_iter)
-
-    clext = True
-except Exception as e:
-    print("Warning: KEPLER: Unable to import openCL Kepler solver")
-    print(e)
-    clext = False
-
-
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100, use_gpu = False):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -144,7 +120,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_opencl=False):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gpu=False):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -188,7 +164,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_op
     ind_low = np.where(~ecc_zero & ecc_low)
     ind_high = np.where(~ecc_zero & ~ecc_low)
     #ind_high = np.array(0)
-    if clext and use_opencl:
+    if clext and use_gpu:
         if len(ind_low[0]) > 0: 
             eanom[ind_low] = _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
             # the CL solver returns eanom = -1 if it doesnt converge after max_iter iterations
@@ -210,6 +186,12 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_op
     return np.squeeze(eanom)[()]
 
 def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+    global len_gpu_arrays, gpu_initalized, d_manom, d_ecc, d_eanom, d_tol, d_max_iter, newton_gpu
+
+    # print("initalizing GPU parameters")
+    if gpu_initalized == False:
+        init_gpu()
+
     # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
     manom = np.array(manom)
     ecc = np.array(ecc)
@@ -221,6 +203,14 @@ def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None)
         eanom = np.copy(eanom0)
 
     #print("Doing some GPU stuff, idk")
+
+    # Check to make sure we have enough data to process orbits
+    if (len_gpu_arrays < manom.nbytes):
+        print("Warning: Need more memory")
+        len_gpu_arrays = manom.nbytes
+        d_manom = cuda.mem_alloc(len_gpu_arrays)
+        d_ecc = cuda.mem_alloc(len_gpu_arrays)
+        d_eanom = cuda.mem_alloc(len_gpu_arrays)
 
     cuda.memcpy_htod(d_manom, manom)
     cuda.memcpy_htod(d_ecc, ecc)
@@ -339,3 +329,45 @@ def _mikkola_solver(manom, ecc):
     u4 = -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3**3.0))
 
     return (e0 + u4)
+
+
+def init_gpu():
+    global gpu_initalized, len_gpu_arrays, d_manom, d_ecc, d_eanom, newton_gpu, d_max_iter, d_tol
+
+    try:
+        import pycuda.driver as cuda
+        import pycuda.autoinit
+        from pycuda.compiler import SourceModule
+
+        print("Compiling kernel")
+        if "win" in sys.platform:
+            f = open(os.path.dirname(__file__) + "\\kepler.cu", 'r')
+        else:
+            f = open(os.path.dirname(__file__) + "/kepler.cu", 'r')
+
+        fstr = "".join(f.readlines())
+        mod = SourceModule(fstr)
+        newton_gpu = mod.get_function("newton_gpu")
+
+        print("allocating with {} bytes".format(len_gpu_arrays))
+        tolerance = np.array([1e-9], dtype = np.float64)
+        max_iter = np.array([100])
+
+        
+        d_manom = cuda.mem_alloc(len_gpu_arrays)
+        d_ecc = cuda.mem_alloc(len_gpu_arrays)
+        d_eanom = cuda.mem_alloc(len_gpu_arrays)
+
+        d_tol = cuda.mem_alloc(tolerance.nbytes)
+        d_max_iter = cuda.mem_alloc(max_iter.nbytes)
+        
+        print("Copying parameters to GPU")
+        cuda.memcpy_htod(d_tol, tolerance)
+        cuda.memcpy_htod(d_max_iter, max_iter)
+
+    except Exception as e:
+        print("Warning: KEPLER: Unable to import openCL Kepler solver")
+        print(e)
+        clext = False
+
+    gpu_initalized = True

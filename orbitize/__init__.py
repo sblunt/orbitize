@@ -2,6 +2,18 @@ import sys
 import types
 import os
 
+# try:
+#     c = 1
+#     frames = []
+#     while sys._getframe(c).f_globals.get('__name__'):
+#         print("stack: ", sys._getframe(c).f_globals.get('__name__'))
+#         c+= 1
+# except:
+#     pass
+
+# print ('I am being imported by', frames)
+
+
 __version__ = '1.5.0'
 
 # set Python env variable to keep track of example data dir
@@ -28,3 +40,22 @@ def _unpickle_method(func_name, obj, cls):
 if sys.version_info[0] < 3:
     import copy_reg
     copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+
+
+try:
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    from pycuda.compiler import SourceModule
+
+    clext = True
+    len_gpu_arrays = 10000000
+    gpu_initalized = False
+    
+    d_max_iter = None
+    d_tol = None
+    d_manom = None
+    d_ecc = None
+    d_eanom = None
+    newton_gpu = None
+except:
+    clext = False

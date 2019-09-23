@@ -11,7 +11,7 @@ import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
 from orbitize.lnlike import chi2_lnlike
-from orbitize.kepler import calc_orbit
+from orbitize import kepler
 import orbitize.system
 
 
@@ -23,14 +23,14 @@ def test_scale_and_rotate():
 
     # perform scale-and-rotate
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-    1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
+    1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
 
     s = myDriver.sampler
     samples = s.prepare_samples(100)
 
     sma,ecc,inc,argp,lan,tau,plx,mtot = [samp for samp in samples]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -55,7 +55,7 @@ def test_scale_and_rotate():
     plx = samples[:,6]
     mtot = samples[:,7]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -67,7 +67,7 @@ def test_run_sampler():
     
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-    1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
+    1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
 
     s = myDriver.sampler
 
@@ -75,15 +75,15 @@ def test_run_sampler():
     myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0,num_samples=1)
+    s.run_sampler(0, num_samples=1)
 
     # test to make sure outputs are reasonable
     start=time.time()
-    orbits = s.run_sampler(1000,num_cores=4)
+    orbits = s.run_sampler(1000, num_cores=4)
 
     end=time.time()
     print()
-    print("Runtime: "+str(end-start) +" s")
+    print("Runtime: " + str(end-start) +" s")
     print()
     print(orbits[0])
 
@@ -109,7 +109,7 @@ def test_run_sampler():
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
 
     # test with only one core
-    orbits = s.run_sampler(100,num_cores=1)
+    orbits = s.run_sampler(100, num_cores=1)
 
     # test with only one epoch
     myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',

@@ -134,7 +134,7 @@ class OFTI(Sampler,):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def prepare_samples(self, num_samples):
+    def prepare_samples(self, num_samples, use_gpu=False):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
@@ -183,7 +183,7 @@ class OFTI(Sampler,):
         # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
-            mass_for_Kamp=m1
+            mass_for_Kamp=m1, use_gpu=use_gpu
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
@@ -247,7 +247,7 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
     
-    def _sampler_process(self, output, total_orbits, num_cores, num_samples=10000, Value=0,lock=None):
+    def _sampler_process(self, output, total_orbits, num_cores, use_gpu = False, num_samples=10000, Value=0, lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
         Meant to be called by run_sampler.
@@ -282,7 +282,7 @@ class OFTI(Sampler,):
 
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved<total_orbits:
-            samples = self.prepare_samples(num_samples)
+            samples = self.prepare_samples(num_samples, use_gpu = use_gpu)
             accepted_orbits, lnlikes = self.reject(samples)
         
             if len(accepted_orbits)==0:
@@ -304,7 +304,7 @@ class OFTI(Sampler,):
         
         
     
-    def run_sampler(self, total_orbits, num_samples=10000, num_cores=None):
+    def run_sampler(self, total_orbits, num_samples=10000, num_cores=None, use_gpu=False):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
         Args:
@@ -319,6 +319,12 @@ class OFTI(Sampler,):
         Written by: Vighnesh Nagpal(2019)
         
         """
+        if use_gpu and orbitize.kepler.clext:
+            if num_cores and num_cores > 1:
+                print("Warning: Only 1 core can be used with GPU")
+            num_cores = 1
+            print("using GPU!!!")
+
         if num_cores!=1:
             if num_cores==None:
                 num_cores=mp.cpu_count()
@@ -337,7 +343,7 @@ class OFTI(Sampler,):
             processes=[
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output,nrun_per_core,num_cores,num_samples,
+                    args=(output,nrun_per_core,num_cores,use_gpu,num_samples,
                         orbits_saved,lock)
                 ) for x in range(num_cores)
             ]
@@ -386,7 +392,7 @@ class OFTI(Sampler,):
 
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
-                samples = self.prepare_samples(num_samples)
+                samples = self.prepare_samples(num_samples, use_gpu=use_gpu)
                 accepted_orbits, lnlikes = self.reject(samples)
 
                 if len(accepted_orbits)==0:
