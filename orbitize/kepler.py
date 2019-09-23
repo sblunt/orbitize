@@ -20,9 +20,9 @@ if cuda_ext:
     import pycuda.driver as cuda
     import pycuda.autoinit
     from pycuda.compiler import SourceModule
+
     len_gpu_arrays = 10000000
     gpu_initalized = False
-    
     d_max_iter = None
     d_tol = None
     d_manom = None
@@ -31,7 +31,7 @@ if cuda_ext:
     newton_gpu = None
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100, use_gpu = False):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100, use_c=False, use_gpu = False):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -91,7 +91,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=False, use_gpu = False)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
@@ -188,7 +188,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
         ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
+    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c = use_c, use_gpu = use_gpu)
 
     return np.squeeze(eanom)[()]
 
@@ -227,6 +227,32 @@ def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     cuda.memcpy_dtoh(eanom, d_eanom)
 
     return eanom
+
+def _CUDA_mikkola_solver(manom, ecc):
+    global len_gpu_arrays, gpu_initalized, d_manom, d_ecc, d_eanom, mikkola_gpu
+
+    # print("initalizing GPU parameters")
+    if gpu_initalized == False:
+        init_gpu()
+
+    # Check to make sure we have enough data to process orbits
+    if (len_gpu_arrays < manom.nbytes):
+        print("Warning: Need more memory")
+        len_gpu_arrays = manom.nbytes
+        d_manom = cuda.mem_alloc(len_gpu_arrays)
+        d_ecc = cuda.mem_alloc(len_gpu_arrays)
+        d_eanom = cuda.mem_alloc(len_gpu_arrays)
+
+    cuda.memcpy_htod(d_manom, manom)
+    cuda.memcpy_htod(d_ecc, ecc)
+
+    mikkola_gpu(d_manom, d_ecc, d_eanom, grid = (len(manom)//64+1,1,1), block = (64,1,1))
+
+    eanom = np.zeros_like(manom)
+    cuda.memcpy_dtoh(eanom, d_eanom)
+
+    return eanom
+
 
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
@@ -270,11 +296,11 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], use_c) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
 
-def _mikkola_solver_wrapper(manom, ecc, use_c):
+def _mikkola_solver_wrapper(manom, ecc, use_c = False, use_gpu = False):
     """
     Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
     Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
@@ -290,7 +316,9 @@ def _mikkola_solver_wrapper(manom, ecc, use_c):
 
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
-    if cext and use_c:
+    if cuda_ext and use_gpu:
+        eanom = _CUDA_mikkola_solver(manom, ecc)
+    elif cext and use_c:
         eanom = _kepler._c_mikkola_solver(manom, ecc)
     else:
         eanom = _mikkola_solver(manom, ecc)
@@ -339,7 +367,7 @@ def _mikkola_solver(manom, ecc):
 
 
 def init_gpu():
-    global gpu_initalized, len_gpu_arrays, d_manom, d_ecc, d_eanom, newton_gpu, d_max_iter, d_tol
+    global gpu_initalized, len_gpu_arrays, d_manom, d_ecc, d_eanom, newton_gpu, mikkola_gpu, d_max_iter, d_tol
 
     try:
         import pycuda.driver as cuda
@@ -348,19 +376,24 @@ def init_gpu():
 
         print("Compiling kernel")
         if "win" in sys.platform:
-            f = open(os.path.dirname(__file__) + "\\kernels\\newton.cu", 'r')
+            f_newton = open(os.path.dirname(__file__) + "\\kernels\\newton.cu", 'r')
+            f_mikkola = open(os.path.dirname(__file__) + "\\kernels\\mikkola.cu", 'r')
         else:
-            f = open(os.path.dirname(__file__) + "/kernels/newton.cu", 'r')
+            f_newton = open(os.path.dirname(__file__) + "/kernels/newton.cu", 'r')
+            f_mikkola = open(os.path.dirname(__file__) + "/kernels/mikkola.cu", 'r')
 
-        fstr = "".join(f.readlines())
-        mod = SourceModule(fstr)
-        newton_gpu = mod.get_function("newton_gpu")
+        fstr_newton = "".join(f_newton.readlines())
+        mod_newton = SourceModule(fstr_newton)
+        newton_gpu = mod_newton.get_function("newton_gpu")
+
+        fstr_mikkola = "".join(f_mikkola.readlines())
+        mod_mikkola = SourceModule(fstr_mikkola)
+        mikkola_gpu = mod_mikkola.get_function("mikkola_gpu")
 
         print("Allocating with {} bytes".format(len_gpu_arrays))
         tolerance = np.array([1e-9], dtype = np.float64)
         max_iter = np.array([100])
 
-        
         d_manom = cuda.mem_alloc(len_gpu_arrays)
         d_ecc = cuda.mem_alloc(len_gpu_arrays)
         d_eanom = cuda.mem_alloc(len_gpu_arrays)
