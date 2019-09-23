@@ -5,7 +5,7 @@ import pytest
 import sys, pstats, cProfile, os
 import numpy as np
 import orbitize.kepler as kepler
-from orbitize import clext
+from orbitize import cuda_ext
 
 threshold = 1e-5
 
@@ -49,7 +49,7 @@ def test_c_ecc_anom_solver():
         test_analytical_ecc_anom_solver(use_c = True)
 
 def test_pycuda_ecc_anom_solver():
-    if clext:
+    if cuda_ext:
         test_iterative_ecc_anom_solver(use_gpu = True)
         test_analytical_ecc_anom_solver(use_gpu = True)
 

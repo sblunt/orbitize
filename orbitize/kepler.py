@@ -6,9 +6,7 @@ import astropy.units as u
 import astropy.constants as consts
 import os
 import sys
-from orbitize import clext, len_gpu_arrays
-from orbitize import d_max_iter, d_tol, d_manom, d_ecc, d_eanom
-from orbitize import newton_gpu, gpu_initalized
+from orbitize import cuda_ext
 
 try:
     from . import _kepler
@@ -18,10 +16,19 @@ except ImportError:
 equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
-if clext:
+if cuda_ext:
     import pycuda.driver as cuda
     import pycuda.autoinit
     from pycuda.compiler import SourceModule
+    len_gpu_arrays = 10000000
+    gpu_initalized = False
+    
+    d_max_iter = None
+    d_tol = None
+    d_manom = None
+    d_ecc = None
+    d_eanom = None
+    newton_gpu = None
 
 
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100, use_gpu = False):
@@ -164,9 +171,9 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
     ind_low = np.where(~ecc_zero & ecc_low)
     ind_high = np.where(~ecc_zero & ~ecc_low)
     #ind_high = np.array(0)
-    if clext and use_gpu:
+    if cuda_ext and use_gpu:
         if len(ind_low[0]) > 0: 
-            eanom[ind_low] = _openCL_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+            eanom[ind_low] = _CUDA_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
             # the CL solver returns eanom = -1 if it doesnt converge after max_iter iterations
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
@@ -185,7 +192,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
 
     return np.squeeze(eanom)[()]
 
-def _openCL_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     global len_gpu_arrays, gpu_initalized, d_manom, d_ecc, d_eanom, d_tol, d_max_iter, newton_gpu
 
     # print("initalizing GPU parameters")
@@ -341,15 +348,15 @@ def init_gpu():
 
         print("Compiling kernel")
         if "win" in sys.platform:
-            f = open(os.path.dirname(__file__) + "\\kepler.cu", 'r')
+            f = open(os.path.dirname(__file__) + "\\kernels\\newton.cu", 'r')
         else:
-            f = open(os.path.dirname(__file__) + "/kepler.cu", 'r')
+            f = open(os.path.dirname(__file__) + "/kernels/newton.cu", 'r')
 
         fstr = "".join(f.readlines())
         mod = SourceModule(fstr)
         newton_gpu = mod.get_function("newton_gpu")
 
-        print("allocating with {} bytes".format(len_gpu_arrays))
+        print("Allocating with {} bytes".format(len_gpu_arrays))
         tolerance = np.array([1e-9], dtype = np.float64)
         max_iter = np.array([100])
 
@@ -366,8 +373,7 @@ def init_gpu():
         cuda.memcpy_htod(d_max_iter, max_iter)
 
     except Exception as e:
-        print("Warning: KEPLER: Unable to import openCL Kepler solver")
-        print(e)
-        clext = False
+        print("Error: KEPLER: Unable to import GPU Kepler solver")
+        raise(e)
 
     gpu_initalized = True

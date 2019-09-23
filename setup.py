@@ -41,7 +41,7 @@ setup(
     author_email='',
     license='BSD',
     packages=find_packages(),
-    package_data={"":["*.cu", "*.cl"]},
+    package_data={"":["kernels/*.cu", "kernels/*.cl"]},
     ext_modules=get_extensions(),
     include_dirs=[numpy.get_include()],
     data_files=[

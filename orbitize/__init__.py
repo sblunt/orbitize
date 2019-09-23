@@ -47,15 +47,6 @@ try:
     import pycuda.autoinit
     from pycuda.compiler import SourceModule
 
-    clext = True
-    len_gpu_arrays = 10000000
-    gpu_initalized = False
-    
-    d_max_iter = None
-    d_tol = None
-    d_manom = None
-    d_ecc = None
-    d_eanom = None
-    newton_gpu = None
+    cuda_ext = True
 except:
-    clext = False
+    cuda_ext = False
