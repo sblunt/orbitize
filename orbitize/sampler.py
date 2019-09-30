@@ -598,7 +598,7 @@ class MCMC(Sampler):
         assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
         i=0
-        for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
+        for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=nsteps, thin=thin):
             i+=1
             # print progress statement
             if i%5==0:
