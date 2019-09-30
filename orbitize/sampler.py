@@ -275,6 +275,8 @@ class OFTI(Sampler,):
                                        size: total_orbits
 
         """
+
+        np.random.seed()
          
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
