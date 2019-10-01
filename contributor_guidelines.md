@@ -37,3 +37,10 @@ You should test as much of your code as possible (ideally all of it). To check h
     - Classes = named with first letter uppercase 
     - multi-word function names = lowercase with underscores
     
+- Releasing a new version:
+    - Pull all new code to master
+    - Increment version in __init__
+    - Update docs changelog
+    - GitHub release
+    - Upload new code to PyPi
+    
