@@ -39,7 +39,7 @@ You should test as much of your code as possible (ideally all of it). To check h
     
 - Releasing a new version:
     - Pull all new code to master
-    - Increment version in __init__
+    - Increment version in \_\_init\_\_
     - Update docs changelog
     - GitHub release
     - Upload new code to PyPi
