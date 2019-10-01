@@ -18,6 +18,8 @@ import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 
+import matplotlib.pyplot as plt
+
 # Python 2 & 3 handle ABCs differently
 if sys.version_info[0] < 3:
     ABC = abc.ABCMeta('ABC', (), {})
@@ -494,7 +496,7 @@ class MCMC(Sampler):
 
     def _fill_in_fixed_params(self, sampled_params):
         """
-        Fills in the missing parameters from the chain that aren't being sampeld
+        Fills in the missing parameters from the chain that aren't being sampled
 
         Args:
             sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
@@ -553,7 +555,7 @@ class MCMC(Sampler):
 
         return super(MCMC, self)._logl(full_params) + logp
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1):
+    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -569,6 +571,8 @@ class MCMC(Sampler):
                 to discard certain number of steps at the beginning
             thin (int): factor to thin the steps of each walker
                 by to remove correlations in the walker steps
+            examine_chains (boolean): Displays plots of walkers at each step by
+                running `examine_chains` after `total_orbits` sampled.
 
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
@@ -631,4 +635,125 @@ class MCMC(Sampler):
 
         print('Run complete')
 
+        if examine_chains:
+            self.examine_chains()
+
         return sampler
+
+    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None):
+        """
+        Plots position of walkers at each step from Results object. Returns list of figures, one per parameter
+        Args:
+            param_list: List of strings of parameters to plot (e.g. "sma1")
+                If None (default), all parameters are plotted
+            walker_list: List or array of walker numbers to plot
+                If None (default), all walkers are plotted
+            n_walkers (int): Randomly select `n_walkers` to plot
+                Overrides walker_list if this is set
+                If None (default), walkers selected as per `walker_list`
+            step_range (array or tuple): Start and end values of step numbers to plot
+                If None (default), all the steps are plotted
+
+        Returns:
+            List of ``matplotlib.pyplot.Figure`` objects: 
+                Walker position plot for each parameter selected
+
+        (written): Henry Ngo, 2019
+        """
+        
+        # Get the flattened chain from Results object (nwalkers*nsteps, nparams)
+        flatchain = np.copy(self.results.post)
+        total_samples, n_params = flatchain.shape
+        n_steps = np.int(total_samples/self.num_walkers)
+        # Reshape it to (nwalkers, nsteps, nparams)
+        chn = flatchain.reshape((self.num_walkers, n_steps, n_params))
+    
+        # Get list of walkers to use 
+        if n_walkers is not None: # If n_walkers defined, randomly choose that many walkers
+            walkers_to_plot = np.random.choice(self.num_walkers,size=n_walkers,replace=False)
+        elif walker_list is not None: # if walker_list is given, use that list
+            walkers_to_plot = np.array(walker_list)
+        else: # both n_walkers and walker_list are none, so use all walkers
+            walkers_to_plot = np.arange(self.num_walkers)
+        
+        # Get list of parameters to use
+        if param_list is None:
+            params_to_plot = np.arange(n_params)
+        else: # build list from user input strings
+            params_plot_list = []
+            for i in param_list:
+                if i in self.system.param_idx:
+                    params_plot_list.append(self.system.param_idx[i])
+                else:
+                    raise Exception('Invalid param name: {}. See system.param_idx.'.format(i))
+            params_to_plot = np.array(params_plot_list)
+
+        # Loop through each parameter and make plot
+        output_figs = []
+        for pp in params_to_plot:
+            fig, ax = plt.subplots()
+            for ww in walkers_to_plot:
+                ax.plot(chn[ww,:,pp],'k-')
+            ax.set_xlabel('Step')
+            if step_range is not None: # Limit range shown if step_range is set
+                ax.set_xlim(step_range)
+            output_figs.append(fig)
+        
+        # Return
+        return output_figs
+
+    def chop_chains(self, burn, trim=0):
+        """
+        Permanently removes steps from beginning (and/or end) of chains from the Results object.
+        Also updates `curr_pos` if steps are removed from the end of the chain
+
+        Args:
+            burn (int): The number of steps to remove from the beginning of the chains
+            trim (int): The number of steps to remove from the end of the chians (optional)
+
+        Returns:
+            None. Updates self.curr_pos and the `Results` object. 
+            .. Warning:: Does not update bookkeeping arrays within `MCMC` sampler object.
+
+        (written): Henry Ngo, 2019
+        """
+        
+        # Retrieve information from results object
+        flatchain = np.copy(self.results.post)
+        total_samples, n_params = flatchain.shape
+        n_steps = np.int(total_samples/self.num_walkers)
+        flatlnlikes = np.copy(self.results.lnlike) ## TODO: May have to change this to merge with other branches
+        
+        # Reshape chain to (nwalkers, nsteps, nparams)
+        chn = flatchain.reshape((self.num_walkers, n_steps, n_params))
+        # Reshape lnlike to (nwalkers, nsteps)
+        lnlikes = flatlnlikes.reshape((self.num_walkers, n_steps))
+
+        # Find beginning and end indices for steps to keep
+        keep_start = burn
+        keep_end = n_steps - trim
+        n_chopped_steps = n_steps - trim - burn
+
+        # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
+        chopped_chain = chn[:, keep_start:keep_end, :]
+        chopped_lnlikes = lnlikes[:, keep_start:keep_end]
+
+        # Update current position if trimmed from edge
+        if trim > 0:
+            self.curr_pos = chopped_chain[:,-1,:]
+
+        # Flatten likelihoods and samples
+        flat_chopped_chain = chopped_chain.reshape(self.num_walkers*n_chopped_steps, n_params)
+        flat_chopped_lnlikes = chopped_lnlikes.reshape(self.num_walkers*n_chopped_steps)
+
+        # Update results object associated with this sampler
+        self.results = orbitize.results.Results(
+            sampler_name = self.__class__.__name__,
+            post = flat_chopped_chain,
+            lnlike = flat_chopped_lnlikes,
+            tau_ref_epoch=self.system.tau_ref_epoch,
+            labels = self.system.labels
+        )
+
+        # Print a confirmation
+        print('Chains successfully chopped. Results object updated.')
