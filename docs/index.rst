@@ -39,6 +39,7 @@ paper and the following DOI:
 
 If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_.
 
+
 User Guide:
 +++++++++++
 
@@ -73,7 +74,7 @@ Changelog:
 - Fixed a bug with parallel processing for OFTI
 - Added orbit vizualisation jupyter nb show-me-the-orbit to docs/tutorials
 - New methods for viewing/chopping MCMC chains
-- Require `emcee<3` for now
+- Require ``emcee<3`` for now
 
 **1.5.0 (2019-9-9)**
 
