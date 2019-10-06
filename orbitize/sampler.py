@@ -15,6 +15,7 @@ import multiprocessing as mp
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
+from orbitize import cuda_ext
 from orbitize.system import radec2seppa
 import orbitize.results
 
@@ -32,7 +33,7 @@ class Sampler(ABC):
     Written: Sarah Blunt, 2018
     """
 
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c = True, use_gpu = False):
         self.system = system
 
         # check if `like` is a string or a function
@@ -42,12 +43,14 @@ class Sampler(ABC):
             self.lnlike = getattr(orbitize.lnlike, like)
 
         self.custom_lnlike = custom_lnlike
+        self.use_c = use_c
+        self.use_gpu = use_gpu
 
     @abc.abstractmethod
-    def run_sampler(self, total_orbits):
+    def run_sampler(self, total_orbits, use_c = None, use_gpu = None):
         pass
 
-    def _logl(self, params):
+    def _logl(self, params, use_c, use_gpu):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -64,7 +67,7 @@ class Sampler(ABC):
 
         """
         # compute the model based on system params
-        model = self.system.compute_model(params)
+        model = self.system.compute_model(params, use_c = use_c, use_gpu = use_gpu)
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
@@ -101,9 +104,9 @@ class OFTI(Sampler,):
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c = True, use_gpu = False):
 
-        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c = use_c, use_gpu = use_gpu)
 
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
@@ -134,7 +137,7 @@ class OFTI(Sampler,):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def prepare_samples(self, num_samples, use_gpu=False):
+    def prepare_samples(self, num_samples, use_c = None, use_gpu = None):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
@@ -149,6 +152,12 @@ class OFTI(Sampler,):
         """
 
         # TODO: modify to work for multi-planet systems
+
+        if use_c is None:
+            use_c = self.use_c
+        if use_gpu is None:
+            use_gpu = self.use_gpu
+
 
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
@@ -183,7 +192,7 @@ class OFTI(Sampler,):
         # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
-            mass_for_Kamp=m1, use_gpu=use_gpu
+            mass_for_Kamp=m1, use_c = use_c, use_gpu = use_gpu
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
@@ -219,7 +228,7 @@ class OFTI(Sampler,):
         return samples
 
 
-    def reject(self, samples):
+    def reject(self, samples, use_c = None, use_gpu = None):
         """
         Runs rejection sampling on some prepared samples.
 
@@ -237,7 +246,12 @@ class OFTI(Sampler,):
                 np.array: the log likelihood values of the accepted orbits.
 
         """
-        lnp = self._logl(samples)
+        if use_c is None:
+            use_c = self.use_c
+        if use_gpu is None:
+            use_gpu = self.use_gpu
+
+        lnp = self._logl(samples, use_c, use_gpu)
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -247,7 +261,7 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
     
-    def _sampler_process(self, output, total_orbits, num_cores, use_gpu = False, num_samples=10000, Value=0, lock=None):
+    def _sampler_process(self, output, total_orbits, num_cores, use_c, use_gpu, num_samples=10000, Value=0, lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
         Meant to be called by run_sampler.
@@ -282,8 +296,8 @@ class OFTI(Sampler,):
 
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved<total_orbits:
-            samples = self.prepare_samples(num_samples, use_gpu = use_gpu)
-            accepted_orbits, lnlikes = self.reject(samples)
+            samples = self.prepare_samples(num_samples, use_c = use_c, use_gpu = use_gpu)
+            accepted_orbits, lnlikes = self.reject(samples, use_c = use_c, use_gpu = use_gpu)
         
             if len(accepted_orbits)==0:
                 pass
@@ -304,7 +318,7 @@ class OFTI(Sampler,):
         
         
     
-    def run_sampler(self, total_orbits, num_samples=10000, num_cores=None, use_gpu=False):
+    def run_sampler(self, total_orbits, num_samples=10000, num_cores=None, use_c=None, use_gpu=None):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
         Args:
@@ -319,7 +333,12 @@ class OFTI(Sampler,):
         Written by: Vighnesh Nagpal(2019)
         
         """
-        if use_gpu and orbitize.kepler.clext:
+        if use_c is None:
+            use_c = self.use_c
+        if use_gpu is None:
+            use_gpu = self.use_gpu
+
+        if use_gpu and cuda_ext:
             if num_cores and num_cores > 1:
                 print("Warning: Only 1 core can be used with GPU")
             num_cores = 1
@@ -343,7 +362,7 @@ class OFTI(Sampler,):
             processes=[
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output,nrun_per_core,num_cores,use_gpu,num_samples,
+                    args=(output,nrun_per_core,num_cores,use_c,use_gpu,num_samples,
                         orbits_saved,lock)
                 ) for x in range(num_cores)
             ]
@@ -392,8 +411,8 @@ class OFTI(Sampler,):
 
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
-                samples = self.prepare_samples(num_samples, use_gpu=use_gpu)
-                accepted_orbits, lnlikes = self.reject(samples)
+                samples = self.prepare_samples(num_samples, use_c = use_c, use_gpu = use_gpu)
+                accepted_orbits, lnlikes = self.reject(samples, use_c = use_c, use_gpu = use_gpu)
 
                 if len(accepted_orbits)==0:
                     pass
@@ -438,9 +457,9 @@ class MCMC(Sampler):
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None, use_c = True, use_gpu = False):
 
-        super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+        super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c = use_c, use_gpu = use_gpu)
 
         self.num_temps = num_temps
         self.num_walkers = num_walkers
@@ -522,7 +541,7 @@ class MCMC(Sampler):
 
         return sampled_params
 
-    def _logl(self, params, include_logp=False):
+    def _logl(self, params, use_c, use_gpu, include_logp=False):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -555,9 +574,9 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(MCMC, self)._logl(full_params) + logp
+        return super(MCMC, self)._logl(full_params, use_c, use_gpu) + logp
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1):
+    def run_sampler(self, total_orbits, burn_steps=0, thin=1, use_c = None, use_gpu = None):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -577,6 +596,11 @@ class MCMC(Sampler):
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
         """
+
+        if use_c is None:
+            use_c = self.use_c
+        if use_gpu is None:
+            use_gpu = self.use_gpu
 
         if self.use_pt:
             sampler = ptemcee.Sampler(

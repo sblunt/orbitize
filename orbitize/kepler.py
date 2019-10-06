@@ -31,7 +31,7 @@ if cuda_ext:
     newton_gpu = None
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100, use_c=False, use_gpu = False):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100, use_c=True, use_gpu = False):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -91,7 +91,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
 
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=False, use_gpu = False)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu = use_gpu)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
@@ -173,21 +173,26 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
     #ind_high = np.array(0)
     if cuda_ext and use_gpu:
         if len(ind_low[0]) > 0: 
+            # print("len(ind_high) before: {}".format(len(ind_high[0])))
             eanom[ind_low] = _CUDA_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-            # the CL solver returns eanom = -1 if it doesnt converge after max_iter iterations
+            # print("cuda: {}, {}, {}".format(cuda_ext, use_c, use_gpu))
+            # the CUDA solver returns eanom = -1 if it doesnt converge after max_iter iterations
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     elif cext and use_c:
         if len(ind_low[0]) > 0: 
             eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+            # print("c++: {}, {}, {}".format(cuda_ext, use_c, use_gpu))
             # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     else:
         if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        # print("python: {}, {}, {}".format(cuda_ext, use_c, use_gpu))
         ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
+    # print("len(ind_high) after: {}".format(len(ind_high[0])))
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c = use_c, use_gpu = use_gpu)
 
     return np.squeeze(eanom)[()]

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
@@ -80,8 +82,8 @@ def test_run_sampler():
     # test to make sure outputs are reasonable
     start=time.time()
     orbits = s.run_sampler(1000, num_cores=4)
-
     end=time.time()
+
     print()
     print("Runtime: " + str(end-start) +" s")
     print()
@@ -129,7 +131,56 @@ def test_fixed_sys_params_sampling():
     assert isinstance(samples[-3], np.ndarray)
 
 
+def profile_system():
+    import pycuda.driver
+    # pycuda.driver.initialize_profiler()
+
+    # initialize sampler
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+    1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+
+    s = myDriver.sampler
+
+    # change eccentricity prior
+    myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
+
+    # test num_samples=1
+    s.run_sampler(0, num_samples=1)
+
+    # test to make sure outputs are reasonable
+    pycuda.driver.start_profiler()
+    start=time.time()
+    orbits = s.run_sampler(30000, num_samples=10000, use_c = True, use_gpu = True, num_cores = 1)
+    end=time.time()
+    
+    print()
+    print("CUDA Runtime: " + str(end-start) +" s")
+    print()
+    print(orbits[0])
+
+    start=time.time()
+    orbits = s.run_sampler(30000, use_c = True, use_gpu = False)
+    end=time.time()
+    pycuda.driver.stop_profiler()
+    
+    print()
+    print("MULTIPROCESSING Runtime: " + str(end-start) +" s")
+    print()
+    print(orbits[0])
+
+    start=time.time()
+    orbits = s.run_sampler(30000, use_c = True, use_gpu = False, num_cores = 1)
+    end=time.time()
+    pycuda.driver.stop_profiler()
+    pycuda.autoinit.context.detach()
+    
+    print()
+    print("single threaded Runtime: " + str(end-start) +" s")
+    print()
+    print(orbits[0])
+
 if __name__ == "__main__":
-    test_scale_and_rotate()
-    test_run_sampler()
+    # test_scale_and_rotate()
+    # test_run_sampler()
+    profile_system()
     print("Done!")

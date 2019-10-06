@@ -49,7 +49,8 @@ class System(object):
     """
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
+                 use_c = True, use_gpu = False):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -151,8 +152,10 @@ class System(object):
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
+        self.use_c = use_c
+        self.use_gpu = use_gpu
 
-    def compute_model(self, params_arr):
+    def compute_model(self, params_arr, use_c = None, use_gpu = None):
         """
         Compute model predictions for an array of fitting parameters.
 
@@ -167,6 +170,11 @@ class System(object):
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
+
+        if use_c == None:
+            use_c = self.use_c
+        if use_gpu == None:
+            use_gpu = self.use_gpu
 
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
@@ -194,7 +202,7 @@ class System(object):
                 mtot = params_arr[-1]
 
             raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch, use_c = use_c, use_gpu = use_gpu
             )
 
             if len(raoff[self.radec[body_num]]) > 0: # (prevent empty array dimension errors)
