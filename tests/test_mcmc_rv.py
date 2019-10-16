@@ -26,23 +26,13 @@ def test_pt_mcmc_runs(num_threads=1):
     myDriver.sampler.run_sampler(100)
 
     # run it a little more
-    #myDriver.sampler.run_sampler(1000, burn_steps=1)
-
-    # run it a little more (tests adding to results object)
-    #myDriver.sampler.run_sampler(1000, burn_steps=1)
-
-    s = myDriver.sampler
-    print(np.shape(s.chain))
-    print(np.shape(s.results.post))
+    myDriver.sampler.run_sampler(1000, burn_steps=1)
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
     computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
-    pdb.set_trace()
-    print('returned lnlike test:', returned_lnlike_test)
-    print('computed lnlike test:', computed_lnlike_test)
 
-    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)  # was 0.01 for abs
+    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
 
 def test_ensemble_mcmc_runs(num_threads=1):
