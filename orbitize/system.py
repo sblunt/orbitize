@@ -266,7 +266,7 @@ def radec2seppa(ra, dec, mod180=False):
         ra (np.array of float): array of RA values, in mas
         dec (np.array of float): array of Dec values, in mas
         mod180 (Bool): if True, output PA values will be given
-            in range [180, 540] (useful for plotting short
+            in range [180, 540) (useful for plotting short
             arcs with PAs that cross 360 during observations)
             (default: False)
 
