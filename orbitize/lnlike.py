@@ -49,6 +49,7 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
 
     sigma2 = errors**2 + jitter**2
 
+    # including the second term of chi2
     chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
 
     if third_dim:

@@ -76,7 +76,7 @@ class Results(object):
         Written: Henry Ngo, 2018
         """
         # If no exisiting results then it is easy
-        if self.post is None:
+        if self.post is None and self.lnlike is None:
             self.post = orbital_params
             self.lnlike = lnlikes
             self.labels = labels
@@ -98,7 +98,8 @@ class Results(object):
         Args:
             filename (string): filepath to save to
 
-        Save attributes from the ``results.Results`` object.
+        Save the ``sampler_name``, ``post``, and ``lnlike``
+        attributes from the ``results.Results`` object.
 
         ``sampler_name``, ``tau_ref_epcoh`` are attributes of the root group.
         ``post``, ``lnlike``, and ``parameter_labels`` are datasets
@@ -112,7 +113,7 @@ class Results(object):
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
-        if self.lnlike is not None:
+        if self.lnlike is not None:  # This property doesn't exist for OFTI
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
@@ -176,12 +177,12 @@ class Results(object):
                     labels, self.labels))
 
             # Now append post and lnlike
-            self.add_samples(post, lnlike, self.labels)
+            self.add_samples(post, lnlike, labels=self.labels)
         else:
             # Only proceed if object is completely empty
             if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None:
                 self._set_sampler_name(sampler_name)
-                self.add_samples(post, lnlike, self.labels)
+                self.add_samples(post, lnlike, labels=self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
                 self.labels = labels
             else:

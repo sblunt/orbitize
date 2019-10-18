@@ -65,8 +65,6 @@ class System(object):
         # Group the data in some useful ways
         #
 
-        # TODO: add RV grouping here
-
         self.data_table = data_table
         # Creates a copy of the input in case data_table needs to be modified
         self.input_table = self.data_table.copy()
@@ -82,8 +80,6 @@ class System(object):
 
         # List of index arrays corresponding to each rv for each body
         self.rv = []
-        #self.gamma_bounds = gamma_bounds
-        #self.jitter_bounds = jitter_bounds
 
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
@@ -106,7 +102,9 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
 
-        if (len(radec_indices) + len(seppa_indices) == len(self.data_table)) and (restrict_angle_ranges is None):
+        if (len(radec_indices[0]) + len(seppa_indices[0]) == len(self.data_table)) and (restrict_angle_ranges is None):
+            print(
+                "No RV in data table: We are restricting the longitude of ascending node to [0,pi]")
             restrict_angle_ranges = True
 
         if restrict_angle_ranges:
@@ -120,7 +118,7 @@ class System(object):
 
         for body in np.arange(num_secondary_bodies):
             # Add semimajor axis prior
-            self.sys_priors.append(priors.LogUniformPrior(1e-3, 1000))
+            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
             self.labels.append('sma{}'.format(body+1))
 
             # Add eccentricity prior
@@ -132,7 +130,7 @@ class System(object):
             self.labels.append('inc{}'.format(body+1))
 
             # Add argument of periastron prior
-            self.sys_priors.append(priors.UniformPrior(0., angle_upperlim))
+            self.sys_priors.append(priors.UniformPrior(0., 2.*np.pi))
             self.labels.append('aop{}'.format(body+1))
 
             # Add position angle of nodes prior
@@ -152,7 +150,7 @@ class System(object):
         else:
             self.sys_priors.append(plx)
 
-        # we'll need to iterate over instruments here
+        # checking for rv data to include appropriate rv priors:
 
         if len(self.rv[0]) > 0:
             self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
@@ -163,7 +161,7 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
-                self.sys_priors.append(priors.LogUniformPrior(1e-3, 2.0))
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))  # in Solar masses for now
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -236,12 +234,14 @@ class System(object):
                 mtot = params_arr[-1]
 
             # i = 1,2,3... (companion index)
+
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
                 mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
             )
 
             # vz_i is the ith companion radial velocity
+
             if self.fit_secondary_mass:
                 vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
@@ -258,8 +258,6 @@ class System(object):
 
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
-
-            # Rob: RV stuff here
 
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
@@ -288,8 +286,7 @@ class System(object):
             dec_err = self.data_table['quant2_err'][i]
             # Convert to sep/PA
             sep, pa = radec2seppa(ra, dec)
-            sep_err = 0.5*(ra_err+dec_err)
-            pa_err = sep_err/sep
+            sep_err, pa_err = radec2seppa(ra_err, dec_err)
             # Update data_table
             self.data_table['quant1'][i] = sep
             self.data_table['quant1_err'][i] = sep_err

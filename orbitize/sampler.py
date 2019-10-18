@@ -116,11 +116,10 @@ class OFTI(Sampler):
             self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
-        ast_idx = self.system.seppa[body_num]  # replaced [:] with [ast_idx]
-        self.sep_observed = self.system.data_table[ast_idx]['quant1'].copy()
-        self.pa_observed = self.system.data_table[ast_idx]['quant2'].copy()
-        self.sep_err = self.system.data_table[ast_idx]['quant1_err'].copy()
-        self.pa_err = self.system.data_table[ast_idx]['quant2_err'].copy()
+        self.sep_observed = self.system.data_table[:]['quant1'].copy()
+        self.pa_observed = self.system.data_table[:]['quant2'].copy()
+        self.sep_err = self.system.data_table[:]['quant1_err'].copy()
+        self.pa_err = self.system.data_table[:]['quant2_err'].copy()
 
         # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
@@ -153,7 +152,6 @@ class OFTI(Sampler):
         # TODO: modify to work for multi-planet systems
 
         # generate sample orbits
-        # Rob: added from master (update)
         samples = np.empty([len(self.priors), num_samples])
         for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
@@ -161,6 +159,7 @@ class OFTI(Sampler):
             else:  # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
+        # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
         sma = samples[0, :]
         ecc = samples[1, :]
         inc = samples[2, :]
@@ -242,18 +241,7 @@ class OFTI(Sampler):
         """
         lnp = self._logl(samples)
 
-        # TODO: add for loop over planet number
-
-        #self.quant1_err = self.system.data_table[:]['quant1_err'].copy()
-        #self.quant2_err = self.system.data_table[:]['quant2_err'].copy()
-
-        # these are the changes we made to adjust the likelyhood scaling factor:
-
-        #all_errors = np.append(self.quant1_err, self.quant2_err)
-        #sample_offset = -np.nansum(np.log(np.sqrt(2*np.pi*all_errors**2)))
         # reject orbits with probability less than a uniform random number
-        #random_samples = np.log(np.random.random(len(lnp))) + sample_offset
-        #chi2 = lnp - sample_offset
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
@@ -434,6 +422,9 @@ class MCMC(Sampler):
         if include_logp:
             if np.ndim(params) == 1:
                 logp = orbitize.priors.all_lnpriors(params, self.priors)
+                # escape if logp == -np.inf
+                if np.isinf(logp):
+                    return -np.inf
             else:
                 logp = np.array([orbitize.priors.all_lnpriors(pset, self.priors)
                                  for pset in params])
@@ -508,7 +499,7 @@ class MCMC(Sampler):
         if self.use_pt:
             self.post = sampler.flatchain[0, :, :]
             # should also be picking out the lowest temperature logps
-            self.lnlikes = sampler.logprobability[0, :, :].flatten()
+            self.lnlikes = sampler.logprobability[0, :, :].flatte
             self.lnlikes_alltemps = sampler.logprobability
         else:
             self.post = sampler.flatchain
