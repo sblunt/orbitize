@@ -261,7 +261,7 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='epochs'):
+                    cbar_param='epochs', mod180=False):
 
         """
         Plots one orbital period for a select number of fitted orbits
@@ -285,6 +285,8 @@ class Results(object):
                 tracks in the Sep/PA panels (default: 2025.0).
             cbar_param (string): options are the following: epochs, sma1, ecc1, inc1, aop1,
                 pan1, tau1. Number can be switched out. Default is epochs.
+            mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
+                arcs with PAs that cross 360 deg during observations (default: False)
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -452,7 +454,7 @@ class Results(object):
                 plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
                 yr_epochs = yr_epochs[plot_epochs]
 
-                seps, pas = orbitize.system.radec2seppa(raoff[i,:], deoff[i,:])
+                seps, pas = orbitize.system.radec2seppa(raoff[i,:], deoff[i,:], mod180=mod180)
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)

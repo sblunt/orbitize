@@ -1,11 +1,13 @@
 """
 Tests functionality of methods in system.py
 """
+import numpy as np
+import pytest
+import os
 
 import orbitize.read_input as read_input
 import orbitize.system as system
 import orbitize.results as results
-import os
 
 def test_add_and_clear_results():
     num_secondary_bodies=1
@@ -52,6 +54,25 @@ def test_convert_data_table_radec2seppa():
     )
     test_system.convert_data_table_radec2seppa()
 
+def test_radec2seppa():
+
+    ras = np.array([-1, -1, 1, 1])
+    decs = np.array([-1, 1, -1, 1])
+
+    pas_expected = np.array([225., 315., 135., 45.])
+    pas_expected_180mod = np.array([225., 315., 495., 405.])
+    seps_expected = np.ones(4)*np.sqrt(2)
+
+    sep_nomod, pa_nomod = system.radec2seppa(ras, decs)
+    sep_180mod, pa_180mod = system.radec2seppa(ras, decs, mod180=True)
+
+    assert sep_nomod ==  pytest.approx(seps_expected, abs=1e-3)
+    assert sep_180mod ==  pytest.approx(seps_expected, abs=1e-3)
+    assert pa_nomod ==  pytest.approx(pas_expected, abs=1e-3)
+    assert pa_180mod ==  pytest.approx(pas_expected_180mod, abs=1e-3)
+
+
 if __name__ == '__main__':
     test_add_and_clear_results()
     test_convert_data_table_radec2seppa()
+    test_radec2seppa()

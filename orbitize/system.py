@@ -256,7 +256,7 @@ class System(object):
         """
         self.results = []
 
-def radec2seppa(ra, dec):
+def radec2seppa(ra, dec, mod180=False):
     """
     Convenience function for converting from
     right ascension/declination to separation/
@@ -265,6 +265,11 @@ def radec2seppa(ra, dec):
     Args:
         ra (np.array of float): array of RA values, in mas
         dec (np.array of float): array of Dec values, in mas
+        mod180 (Bool): if True, output PA values will be given
+            in range [180, 540) (useful for plotting short
+            arcs with PAs that cross 360 during observations)
+            (default: False)
+
 
     Returns:
         tulple of float: (separation [mas], position angle [deg])
@@ -272,5 +277,8 @@ def radec2seppa(ra, dec):
     """
     sep = np.sqrt((ra**2) + (dec**2))
     pa = np.degrees(np.arctan2(ra, dec)) % 360.
+
+    if mod180:
+        pa[pa < 180] += 360
 
     return sep, pa
