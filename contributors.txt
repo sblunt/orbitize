@@ -1,13 +1,25 @@
-Sarah Blunt -- collaboratively designed basic API, wrote basic API
+Sarah Blunt -- team leader/organizer; collaboratively designed basic API; wrote basic API; collaboratively developed OFTI sampler; designed orbit plot
 
-Jason Wang -- collaboratively designed basic API, collaboratively developed kepler.py, wrote MCMC sampler
+Jason Wang -- team leader/organizer; collaboratively designed basic API; collaboratively developed kepler.py; wrote MCMC sampler
 
 Henry Ngo -- wrote code to read inputs, save/load results, and make basic plots; collaboratively developed kepler.py and results.py
 
 Rob De Rosa -- collaboratively developed kepler.py
 
-Devin Cody -- wrote c implementation of kepler module
+Devin Cody -- wrote C implementation of kepler module
 
-Isabel Angelo -- collaboratively wrote OFTI sampler and tutorial
+Isabel Angelo -- led development of OFTI sampler and tutorial
 
-Logan Pearce -- assisted with OFTI code and provided test data
+Logan Pearce -- assisted with OFTI development and provided test data
+
+Vighnesh Nagpal -- wrote parallel processing OFTI implementation
+
+Malena Rice -- wrote code to customize colorbar in orbit plots
+
+James Graham -- wrote orbit-solving code that kepler.py inherits from
+
+Lea Hirsch -- advising RT on development of RV/astrometry joint fitting code
+
+Eric Nielsen -- came up with idea for OFTI algorithm; advised SB on development of OFTI code that sampler.py inherits from
+
+Roberto Tejada -- developing RV/astrometry joint fitting code

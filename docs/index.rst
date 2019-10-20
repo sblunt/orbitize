@@ -31,13 +31,12 @@ create an `issue on GitHub <https://github.com/sblunt/orbitize/issues>`_.
 Attribution:
 ++++++++++++
 
-If you use ``orbitize`` in your work, please cite our forthcoming
-paper and the following DOI: 
+- If you use ``orbitize`` in your work, please cite `Blunt et al (2019) <https://ui.adsabs.harvard.edu/abs/2019arXiv191001756B/abstract>`_.
+- If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
+- If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
+- If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
 
-.. image:: https://zenodo.org/badge/117267950.svg
-   :target: https://zenodo.org/badge/latestdoi/117267950
 
-If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_.
 
 User Guide:
 +++++++++++
@@ -58,13 +57,29 @@ look over our `issues list <https://github.com/sblunt/orbitize/issues>`_, and/or
 `Sarah <https://sites.google.com/g.harvard.edu/sarah/contact?authuser=0>`_. We'd love to have
 you on our team!
 
-Some major planned updates:
-	- fit orbits of multiple objects in one system
-	- fit Gaia astrometry & RVs
-	- marginalize over instrumental uncertainties
+**Some major planned updates:**
+
+- fit orbits of multiple objects in one system
+- fit Gaia astrometry & RVs
+- marginalize over instrumental uncertainties
 
 Changelog:
 ++++++++++
+
+**1.6.0 (2019-10-1)**
+
+- Mikkola solver now implemented in C-Kepler solver
+- Fixed a bug with parallel processing for OFTI
+- Added orbit vizualisation jupyter nb show-me-the-orbit to docs/tutorials
+- New methods for viewing/chopping MCMC chains
+- Require ``emcee<3`` for now
+
+**1.5.0 (2019-9-9)**
+
+- Parallel processing for OFTI.
+- Fixed a bug converting errors in RA/Dec to sep/PA in OFTI.
+- OFTI and MCMC now both return likelihood, whereas before one returned posterior.
+- Updated logic for restricting Omega and omega bounds.
 
 **1.4.0 (2019-7-15)**
 

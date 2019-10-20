@@ -32,6 +32,7 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
         this function should be an array of dimension 8 x 2 x 10,000.
 
     """
+
     if np.ndim(model) == 3:
         # move M dimension to the primary axis, so that numpy knows to iterate over it
         model = np.rollaxis(model, 2, 0)  # now MxNobsx2 in dimensions

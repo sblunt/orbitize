@@ -18,7 +18,7 @@ class System(object):
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
-            of the position angle of nodes and argument of periastron to [0,180)
+            of the position angle of nodes to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
@@ -101,11 +101,6 @@ class System(object):
             self.rv.append(
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
-
-        if (len(radec_indices[0]) + len(seppa_indices[0]) == len(self.data_table)) and (restrict_angle_ranges is None):
-            print(
-                "No RV in data table: We are restricting the longitude of ascending node to [0,pi]")
-            restrict_angle_ranges = True
 
         if restrict_angle_ranges:
             angle_upperlim = np.pi
@@ -285,8 +280,10 @@ class System(object):
             dec = self.data_table['quant2'][i]
             dec_err = self.data_table['quant2_err'][i]
             # Convert to sep/PA
-            sep, pa = radec2seppa(ra, dec)
-            sep_err, pa_err = radec2seppa(ra_err, dec_err)
+            sep, pa = radec2seppa(ra,dec)
+            sep_err = 0.5*(ra_err+dec_err)
+            pa_err = np.degrees(sep_err/sep)
+
             # Update data_table
             self.data_table['quant1'][i] = sep
             self.data_table['quant1_err'][i] = sep_err
@@ -313,8 +310,7 @@ class System(object):
         """
         self.results = []
 
-
-def radec2seppa(ra, dec):
+def radec2seppa(ra, dec, mod180=False):
     """
     Convenience function for converting from
     right ascension/declination to separation/
@@ -323,6 +319,11 @@ def radec2seppa(ra, dec):
     Args:
         ra (np.array of float): array of RA values, in mas
         dec (np.array of float): array of Dec values, in mas
+        mod180 (Bool): if True, output PA values will be given
+            in range [180, 540) (useful for plotting short
+            arcs with PAs that cross 360 during observations)
+            (default: False)
+
 
     Returns:
         tulple of float: (separation [mas], position angle [deg])
@@ -330,5 +331,8 @@ def radec2seppa(ra, dec):
     """
     sep = np.sqrt((ra**2) + (dec**2))
     pa = np.degrees(np.arctan2(ra, dec)) % 360.
+
+    if mod180:
+        pa[pa < 180] += 360
 
     return sep, pa
