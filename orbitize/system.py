@@ -216,6 +216,7 @@ class System(object):
                 decoff = np.array([decoff])
                 vz = np.array([vz])
 
+            # for the model points that correspond to this planet's orbit, add the model prediction
             if len(self.radec[body_num]) > 0: # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
                 model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
