@@ -229,6 +229,16 @@ class System(object):
                 model[self.seppa[body_num], 0] = sep[self.seppa[body_num]]
                 model[self.seppa[body_num], 1] = pa[self.seppa[body_num]]
 
+            # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
+            # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
+            # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
+            if mass > 0:
+                # psueocode
+                # if len(self.radec[body_num]) < len(total_measurements):
+                #     for index in measurements_not_from_this_body:
+                #           model += this_body_astrometry * -this_body_mass/mtot. 
+                pass
+
         return model
 
     def convert_data_table_radec2seppa(self,body_num=1):
