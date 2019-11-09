@@ -147,7 +147,7 @@ class System(object):
 
         # checking for rv data to include appropriate rv priors:
 
-        if len(self.rv[0]) > 0:
+        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
             self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
             self.labels.append('gamma')
 
@@ -193,7 +193,7 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
-        if len(self.rv[0]) > 0:
+        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
             gamma = params_arr[6*self.num_secondary_bodies+1]  # km/s
 
             # need to put planetary rv later
@@ -280,7 +280,7 @@ class System(object):
             dec = self.data_table['quant2'][i]
             dec_err = self.data_table['quant2_err'][i]
             # Convert to sep/PA
-            sep, pa = radec2seppa(ra,dec)
+            sep, pa = radec2seppa(ra, dec)
             sep_err = 0.5*(ra_err+dec_err)
             pa_err = np.degrees(sep_err/sep)
 
@@ -309,6 +309,7 @@ class System(object):
         Removes all stored results
         """
         self.results = []
+
 
 def radec2seppa(ra, dec, mod180=False):
     """

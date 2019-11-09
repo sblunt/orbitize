@@ -17,7 +17,8 @@ def test_pt_mcmc_runs(num_threads=1):
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'test_val.csv')
 
-    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01, mass_err=0.05, plx_err=0.01,
+    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
+                      # mass_err=0.05, plx_err=0.01,
                       system_kwargs={'fit_secondary_mass': True, 'tau_ref_epoch': 0},
                       mcmc_kwargs={'num_temps': 2, 'num_threads': num_threads, 'num_walkers': 100}
                       )
@@ -28,9 +29,15 @@ def test_pt_mcmc_runs(num_threads=1):
     # run it a little more
     myDriver.sampler.run_sampler(1000, burn_steps=1)
 
+    # run it a little more (tests adding to results object)
+    myDriver.sampler.run_sampler(1000, burn_steps=1)
+
+    fixed_index = [index for index, fixed_param in myDriver.sampler.fixed_params]
+    clean_params = np.delete(myDriver.sampler.results.post[0], fixed_index)
+
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    computed_lnlike_test = myDriver.sampler._logl(clean_params)
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
@@ -59,9 +66,12 @@ def test_ensemble_mcmc_runs(num_threads=1):
     # run it a little more (tests adding to results object)
     myDriver.sampler.run_sampler(1000, burn_steps=1)
 
+    fixed_index = [index for index, fixed_param in myDriver.sampler.fixed_params]
+    clean_params = np.delete(myDriver.sampler.results.post[0], fixed_index)
+
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    computed_lnlike_test = myDriver.sampler._logl(clean_params)
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 

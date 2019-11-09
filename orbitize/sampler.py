@@ -92,7 +92,6 @@ class Sampler(ABC):
         return lnlikes_sum
 
 
-
 class OFTI(Sampler,):
     """
     OFTI Sampler
@@ -255,8 +254,8 @@ class OFTI(Sampler,):
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
         return saved_orbits, lnlikes
-    
-    def _sampler_process(self, output, total_orbits, num_cores, num_samples=10000, Value=0,lock=None):
+
+    def _sampler_process(self, output, total_orbits, num_cores, num_samples=10000, Value=0, lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
         Meant to be called by run_sampler.
@@ -266,27 +265,27 @@ class OFTI(Sampler,):
 
             total_orbits (int): total number of accepted orbits desired by user
 
-            num_cores(int): the number of cores that _run_sampler_base is being 
-                            run in parallel on. 
+            num_cores(int): the number of cores that _run_sampler_base is being
+                            run in parallel on.
 
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
 
             Value (mp.Value(int)): global counter for the orbits generated
 
-            lock: mp.lock object to prevent issues caused by access to shared 
+            lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
         Returns:
             output_orbits (np.array): array of accepted orbits,
                                       size: total_orbits
 
-            output_lnlikes (np.array): array of log probabilities, 
+            output_lnlikes (np.array): array of log probabilities,
                                        size: total_orbits
 
         """
 
         np.random.seed()
-         
+
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
@@ -302,19 +301,18 @@ class OFTI(Sampler,):
             else:
                 n_accepted = len(accepted_orbits)
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
-                output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
-                output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                output_orbits[n_orbits_saved: n_orbits_saved +
+                              n_accepted] = accepted_orbits[0:maxindex2save]
+                output_lnlikes[n_orbits_saved: n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
                 n_orbits_saved += maxindex2save
 
                 # add to the value of the global variable
                 with lock:
-                    Value.value+=maxindex2save
-        
-        output.put((np.array(output_orbits),output_lnlikes))
-        return (np.array(output_orbits),output_lnlikes)
-        
-        
-    
+                    Value.value += maxindex2save
+
+        output.put((np.array(output_orbits), output_lnlikes))
+        return (np.array(output_orbits), output_lnlikes)
+
     def run_sampler(self, total_orbits, num_samples=10000, num_cores=None):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -325,71 +323,71 @@ class OFTI(Sampler,):
             num_cores (int): the number of cores to run OFTI on. Defaults to
                              number of cores availabe.
         Return:
-            output_orbits (np.array): array of accepted orbits. Size: total_orbits.  
+            output_orbits (np.array): array of accepted orbits. Size: total_orbits.
 
         Written by: Vighnesh Nagpal(2019)
-        
+
         """
-        if num_cores!=1:
-            if num_cores==None:
-                num_cores=mp.cpu_count()
-            
-            results=[]
-            # orbits_saved is a global counter for the number of orbits generated 
-            orbits_saved=mp.Value('i',0)
-            
-            manager = mp.Manager()            
+        if num_cores != 1:
+            if num_cores == None:
+                num_cores = mp.cpu_count()
+
+            results = []
+            # orbits_saved is a global counter for the number of orbits generated
+            orbits_saved = mp.Value('i', 0)
+
+            manager = mp.Manager()
             output = manager.Queue()
-                    
+
             # setup the processes
             lock = mp.Lock()
             nrun_per_core = int(np.ceil(float(total_orbits)/float(num_cores)))
 
-            processes=[
+            processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output,nrun_per_core,num_cores,num_samples,
-                        orbits_saved,lock)
+                    args=(output, nrun_per_core, num_cores, num_samples,
+                          orbits_saved, lock)
                 ) for x in range(num_cores)
             ]
 
             # start the processes
             for p in processes:
-                p.start() 
-                    
+                p.start()
+
             # print out the number of orbits generated every second
-            while orbits_saved.value<total_orbits:
-                print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found',end='\r')
+            while orbits_saved.value < total_orbits:
+                print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found', end='\r')
                 time.sleep(0.1)
 
-            print(str(total_orbits)+'/'+str(total_orbits)+' orbits found',end='\r')
+            print(str(total_orbits)+'/'+str(total_orbits)+' orbits found', end='\r')
 
             # join the processes
             for p in processes:
-                p.join() 
+                p.join()
             # get the results of each process from the queue
             for p in processes:
                 results.append(output.get())
-                    
+
             # filling up the output_orbits array
             output_orbits = np.zeros((total_orbits, len(self.priors)))
-            output_lnlikes = np.empty(total_orbits)  
-            pos=0
-                
+            output_lnlikes = np.empty(total_orbits)
+            pos = 0
+
             for p in results:
-                num_to_fill=np.min([len(p[0]), total_orbits - pos])
-                output_orbits[pos:pos+num_to_fill]=p[0][0:num_to_fill]
-                output_lnlikes[pos:pos+num_to_fill]=p[1][0:num_to_fill]
-                pos+=num_to_fill        
-            
+                num_to_fill = np.min([len(p[0]), total_orbits - pos])
+                output_orbits[pos:pos+num_to_fill] = p[0][0:num_to_fill]
+                output_lnlikes[pos:pos+num_to_fill] = p[1][0:num_to_fill]
+                pos += num_to_fill
+
             self.results.add_samples(
                 np.array(output_orbits),
                 output_lnlikes, labels=self.system.labels
             )
             return output_orbits
-        
+
         else:
-            # this block is executed if num_cores=1 
+            # this block is executed if num_cores=1
             n_orbits_saved = 0
             output_orbits = np.empty((total_orbits, len(self.priors)))
             output_lnlikes = np.empty(total_orbits)
@@ -399,18 +397,20 @@ class OFTI(Sampler,):
                 samples = self.prepare_samples(num_samples)
                 accepted_orbits, lnlikes = self.reject(samples)
 
-                if len(accepted_orbits)==0:
+                if len(accepted_orbits) == 0:
                     pass
                 else:
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                    output_orbits[n_orbits_saved : n_orbits_saved+n_accepted] = accepted_orbits[0:maxindex2save]
-                    output_lnlikes[n_orbits_saved : n_orbits_saved+n_accepted] = lnlikes[0:maxindex2save]
+                    output_orbits[n_orbits_saved: n_orbits_saved +
+                                  n_accepted] = accepted_orbits[0:maxindex2save]
+                    output_lnlikes[n_orbits_saved: n_orbits_saved +
+                                   n_accepted] = lnlikes[0:maxindex2save]
                     n_orbits_saved += maxindex2save
 
                     # print progress statement
-                    print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found',end='\r')
+                    print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
 
             self.results.add_samples(
                 np.array(output_orbits),
@@ -418,6 +418,7 @@ class OFTI(Sampler,):
             )
 
             return output_orbits
+
 
 class MCMC(Sampler):
     """
@@ -623,8 +624,9 @@ class MCMC(Sampler):
         self.chain = sampler.chain
 
         if self.use_pt:
-            self.post = sampler.flatchain[0,:,:]
-            self.lnlikes = sampler.loglikelihood[0,:,:].flatten() # should also be picking out the lowest temperature logps
+            self.post = sampler.flatchain[0, :, :]
+            # should also be picking out the lowest temperature logps
+            self.lnlikes = sampler.loglikelihood[0, :, :].flatten()
             self.lnlikes_alltemps = sampler.loglikelihood
         else:
             self.post = sampler.flatchain
@@ -632,7 +634,7 @@ class MCMC(Sampler):
 
             # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
             for i, orb in enumerate(self.post):
-                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb,self.priors)
+                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
@@ -661,31 +663,31 @@ class MCMC(Sampler):
                 If None (default), all the steps are plotted
 
         Returns:
-            List of ``matplotlib.pyplot.Figure`` objects: 
+            List of ``matplotlib.pyplot.Figure`` objects:
                 Walker position plot for each parameter selected
 
         (written): Henry Ngo, 2019
         """
-        
+
         # Get the flattened chain from Results object (nwalkers*nsteps, nparams)
         flatchain = np.copy(self.results.post)
         total_samples, n_params = flatchain.shape
         n_steps = np.int(total_samples/self.num_walkers)
         # Reshape it to (nwalkers, nsteps, nparams)
         chn = flatchain.reshape((self.num_walkers, n_steps, n_params))
-    
-        # Get list of walkers to use 
-        if n_walkers is not None: # If n_walkers defined, randomly choose that many walkers
-            walkers_to_plot = np.random.choice(self.num_walkers,size=n_walkers,replace=False)
-        elif walker_list is not None: # if walker_list is given, use that list
+
+        # Get list of walkers to use
+        if n_walkers is not None:  # If n_walkers defined, randomly choose that many walkers
+            walkers_to_plot = np.random.choice(self.num_walkers, size=n_walkers, replace=False)
+        elif walker_list is not None:  # if walker_list is given, use that list
             walkers_to_plot = np.array(walker_list)
-        else: # both n_walkers and walker_list are none, so use all walkers
+        else:  # both n_walkers and walker_list are none, so use all walkers
             walkers_to_plot = np.arange(self.num_walkers)
-        
+
         # Get list of parameters to use
         if param_list is None:
             params_to_plot = np.arange(n_params)
-        else: # build list from user input strings
+        else:  # build list from user input strings
             params_plot_list = []
             for i in param_list:
                 if i in self.system.param_idx:
@@ -699,12 +701,12 @@ class MCMC(Sampler):
         for pp in params_to_plot:
             fig, ax = plt.subplots()
             for ww in walkers_to_plot:
-                ax.plot(chn[ww,:,pp],'k-')
+                ax.plot(chn[ww, :, pp], 'k-')
             ax.set_xlabel('Step')
-            if step_range is not None: # Limit range shown if step_range is set
+            if step_range is not None:  # Limit range shown if step_range is set
                 ax.set_xlim(step_range)
             output_figs.append(fig)
-        
+
         # Return
         return output_figs
 
@@ -718,18 +720,19 @@ class MCMC(Sampler):
             trim (int): The number of steps to remove from the end of the chians (optional)
 
         Returns:
-            None. Updates self.curr_pos and the `Results` object. 
+            None. Updates self.curr_pos and the `Results` object.
             .. Warning:: Does not update bookkeeping arrays within `MCMC` sampler object.
 
         (written): Henry Ngo, 2019
         """
-        
+
         # Retrieve information from results object
         flatchain = np.copy(self.results.post)
         total_samples, n_params = flatchain.shape
         n_steps = np.int(total_samples/self.num_walkers)
-        flatlnlikes = np.copy(self.results.lnlike) ## TODO: May have to change this to merge with other branches
-        
+        # TODO: May have to change this to merge with other branches
+        flatlnlikes = np.copy(self.results.lnlike)
+
         # Reshape chain to (nwalkers, nsteps, nparams)
         chn = flatchain.reshape((self.num_walkers, n_steps, n_params))
         # Reshape lnlike to (nwalkers, nsteps)
@@ -746,7 +749,7 @@ class MCMC(Sampler):
 
         # Update current position if trimmed from edge
         if trim > 0:
-            self.curr_pos = chopped_chain[:,-1,:]
+            self.curr_pos = chopped_chain[:, -1, :]
 
         # Flatten likelihoods and samples
         flat_chopped_chain = chopped_chain.reshape(self.num_walkers*n_chopped_steps, n_params)
@@ -754,11 +757,11 @@ class MCMC(Sampler):
 
         # Update results object associated with this sampler
         self.results = orbitize.results.Results(
-            sampler_name = self.__class__.__name__,
-            post = flat_chopped_chain,
-            lnlike = flat_chopped_lnlikes,
+            sampler_name=self.__class__.__name__,
+            post=flat_chopped_chain,
+            lnlike=flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch,
-            labels = self.system.labels
+            labels=self.system.labels
         )
 
         # Print a confirmation
