@@ -1,6 +1,7 @@
 import numpy as np
 import warnings
 import h5py
+import copy
 
 import astropy.units as u
 import astropy.constants as consts
@@ -239,20 +240,21 @@ class Results(object):
             'm1': '$M_1$ [Msol]',
         }
 
-        if param_list is not None:
-            param_indices = []
-            for param in param_list:
-                index_num = np.where(np.array(self.labels) == param)[0][0]
-                param_indices.append(index_num)
-
-            samples = self.post[:, param_indices]  # Keep only chains for selected parameters
-
-        else:
+        if param_list is None:
             param_list = self.labels
-            samples = self.post
-            param_indices = np.arange(len(param_list))
+        param_indices = []
+        angle_indices = []
+        for i, param in enumerate(param_list):
+            index_num = np.where(np.array(self.labels) == param)[0][0]
+            param_indices.append(index_num)
+            label_key = param_list[i]
+            if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
+                angle_indices.append(index_num)
 
-        if 'labels' not in corner_kwargs:  # Use default labels if user didn't already supply them
+        samples = copy.copy(self.post[:,param_indices]) # keep only chains for selected parameters
+        samples[:,angle_indices] = np.degrees(self.post[:,angle_indices]) # convert angles from rad to deg
+
+        if 'labels' not in corner_kwargs: # use default labels if user didn't already supply them
             reduced_labels_list = []
             for i in np.arange(len(param_indices)):
                 label_key = param_list[i]

@@ -66,6 +66,11 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.7.0 (2019-11-10)**
+
+- Default corner plots now display angles in degrees instead of radians
+- Add a keyword for plotting orbits that cross PA=360
+
 **1.6.0 (2019-10-1)**
 
 - Mikkola solver now implemented in C-Kepler solver
