@@ -39,6 +39,7 @@ us if you are still confused).
 .. toctree::
    :maxdepth: 1
 
+   tutorials/RV_tutorial.ipynb
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
