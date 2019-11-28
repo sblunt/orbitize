@@ -9,3 +9,4 @@ dependencies:
   - ipykernel
   - pip:
     - nbsphinx
+    - prompt-toolkit==1.0.15 
