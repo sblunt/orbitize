@@ -7,7 +7,7 @@ import pytest
 import matplotlib.pyplot as plt
 import time
 
-import orbitize.sampler as sampler
+import orbitize.sampler_OFTI_mods as sampler
 import orbitize.driver
 import orbitize.priors as priors
 from orbitize.lnlike import chi2_lnlike
@@ -16,8 +16,8 @@ import orbitize.system
 
 
 testdir = os.path.dirname(os.path.abspath(__file__))
-input_file = os.path.join(testdir, 'GJ504.csv')
-input_file_1epoch = os.path.join(testdir, 'GJ504_1epoch.csv')
+input_file = os.path.join(testdir, 'test_val.csv')
+#input_file_1epoch = os.path.join(testdir, 'GJ504_1epoch.csv')
 
 
 def test_scale_and_rotate():
@@ -114,11 +114,11 @@ def test_run_sampler():
     orbits = s.run_sampler(100, num_cores=1)
 
     # test with only one epoch
-    myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
-                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
-    s = myDriver.sampler
-    s.run_sampler(1)
-    print()
+    # myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
+    # 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+    #s = myDriver.sampler
+    # s.run_sampler(1)
+    # print()
 
 
 def test_fixed_sys_params_sampling():

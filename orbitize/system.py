@@ -203,7 +203,7 @@ class System(object):
             jitter[self.rv[0], 1] = np.nan
         else:
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
-        # print(jitter)
+
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             epochs = self.data_table['epoch']
