@@ -233,7 +233,7 @@ class System(object):
             # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
-            if mass > 0:
+            if mass is not None:
                 # psueocode
                 # if len(self.radec[body_num]) < len(total_measurements):
                 #     for index in measurements_not_from_this_body:
