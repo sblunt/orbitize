@@ -24,12 +24,16 @@ def test_scale_and_rotate():
 
     # perform scale-and-rotate
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26,
+                                      system_kwargs={'fit_secondary_mass': True, 'tau_ref_epoch': 0}
+                                      )
 
     s = myDriver.sampler
     samples = s.prepare_samples(100)
 
-    sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
+    sma, ecc, inc, argp, lan, tau, plx, gamma, sigma, m1, m0 = [samp for samp in samples]
+    mtot = m0 + m1
+    print('samples read')
 
     ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
@@ -54,7 +58,14 @@ def test_scale_and_rotate():
     lan = samples[:, 4]
     tau = samples[:, 5]
     plx = samples[:, 6]
-    mtot = samples[:, 7]
+    if self.system.fit_secondary_mass:
+        gamma = samples[:, 7]
+        sigma = samples[:, 8]
+        m0 = samples[:, -1]
+        m1 = samples[:, -2]
+        mtot = m0 + m1
+    else:
+        mtot = samples[:, 7]
 
     ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
