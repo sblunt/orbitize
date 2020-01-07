@@ -122,16 +122,29 @@ class OFTI(Sampler,):
             self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
-        self.sep_observed = self.system.data_table[:]['quant1'].copy()
-        self.pa_observed = self.system.data_table[:]['quant2'].copy()
-        self.sep_err = self.system.data_table[:]['quant1_err'].copy()
-        self.pa_err = self.system.data_table[:]['quant2_err'].copy()
+        self.sep_observed = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant1'].copy()
+        self.pa_observed = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant2'].copy()
+        self.sep_err = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
+        self.pa_err = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant2_err'].copy()
 
         # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
+
+        if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:  # checking for RV data
+            self.rv_observed = self.system.data_table[np.where(
+                self.system.data_table['quant_type'] == 'rv')]['quant1'].copy()
+            self.rv_err = self.system.data_table[np.where(
+                self.system.data_table['quant_type'] == 'rv')]['quant1_err'].copy()
+
+            self.epoch_rv_idx = [np.argmin(self.rv_observed),
+                                 np.argmax(self.rv_observed)]
 
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -173,7 +186,7 @@ class OFTI(Sampler,):
         lan = samples[4, :]
         tau = samples[5, :]
         plx = samples[6, :]
-        if self.system.fit_secondary_mass:
+        if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:
             gamma = samples[7, :]  # Rob: added gamma and sigma parameters
             sigma = samples[8, :]
             m0 = samples[-1, :]
@@ -225,6 +238,38 @@ class OFTI(Sampler,):
         samples[4, :] = lan
         samples[5, :] = tau
 
+        if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:
+            ra, dec, vc = orbitize.kepler.calc_orbit(
+                self.epochs[self.epoch_rv_idx], sma, ecc, inc, argp, lan, tau, plx, mtot,
+                mass_for_Kamp=m0
+            )  # arrays of length 2 for each index
+
+            v_star = vc*-(m1/m0)
+            v_diff = abs(v_star[1] - v_star[0])  # proxy Kamp for model
+
+            v_diff_observed = abs(self.rv_observed[self.epoch_rv_idx[1]
+                                                   ] - self.rv_observed[self.epoch_rv_idx[0]])
+
+            v_offset0 = np.random.normal(0, self.rv_err[self.epoch_rv_idx[0]], size=num_samples)
+            v_offset1 = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
+
+            v_offset = np.sqrt(v_offset0**2 + v_offset1**2)  # array of length num_samples
+
+            m1_corr = (v_offset + v_diff_observed)/v_diff  # model difference correction factor
+
+            # gamma shifts:
+            gamma_obs = self.rv_observed[self.epoch_rv_idx[1]] - \
+                v_star[1]  # difference between observed and model to shift
+            gamma_offset = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
+
+            gamma_corr = (gamma_obs+gamma_offset)
+
+            m1 *= m1_corr  # scaling
+            gamma += gamma_corr  # shifting
+
+            samples[-2, :] = m1
+            samples[7, :] = gamma
+
         return samples
 
     def reject(self, samples):
@@ -246,10 +291,13 @@ class OFTI(Sampler,):
 
         """
         lnp = self._logl(samples)
+        errs = np.array([self.system.data_table['quant1_err'],
+                         self.system.data_table['quant2_err']]).T
+        lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
-        saved_orbit_idx = np.where(lnp > random_samples)[0]
+        saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 

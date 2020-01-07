@@ -39,7 +39,7 @@ def test_scale_and_rotate():
     sar_epoch = s.system.data_table[s.epoch_idx]
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
-    print('done asserting')
+
     # test scale-and-rotate for orbits run all the way through OFTI
     s.run_sampler(100)
 
