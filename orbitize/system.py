@@ -108,8 +108,8 @@ class System(object):
 
         # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
         # we are not fitting relative astrometry of just a single body
-        self.track_planet_perturbs = self.fit_secondary_mass and 
-                                     ((len(self.radec[1] + self.seppa[1] + self.rv[1]) < len(data_table)) or
+        self.track_planet_perturbs = self.fit_secondary_mass and \
+                                     ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
                                       (self.num_secondary_bodies > 1))
 
         if restrict_angle_ranges:
@@ -256,7 +256,7 @@ class System(object):
             if len(epochs) == 1:
                 raoff = np.array([raoff])
                 decoff = np.array([decoff])
-                vz = np.array([vz])
+                vz = np.array([vz_i])
 
 
             # vz_i is the ith companion radial velocity
@@ -285,12 +285,11 @@ class System(object):
             # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
-            if self.track_planet_perturbs
+            if self.track_planet_perturbs:
                 for other_body_num in range(self.num_secondary_bodies+1):
                     # skip itself since the the 2-body problem is measuring the planet-star separation already
                     if body_num == other_body_num:
                         continue
-
                     ## NOTE: we are only handling ra/dec and sep/pa right now
                     ## TOOD: integrate RV into this
                     if len(self.radec[other_body_num]) > 0:
@@ -309,13 +308,13 @@ class System(object):
         if self.track_planet_perturbs:
             for body_num in range(self.num_secondary_bodies+1):
                 if len(self.radec[body_num]) > 0:
-                    model[self.radec[body_num]] += radec_perturb[self.radec[body_num]]
+                    model[self.radec[body_num]] -= radec_perturb[self.radec[body_num]]
 
                 if len(self.seppa[body_num]) > 0:
                     # for seppa, add the perturbations in radec space and convert back
                     ra_unperturb, dec_unperturb = seppa2radec(model[self.seppa[body_num], 0], model[self.seppa[body_num], 1])
-                    ra_perturb = ra_unperturb + radec_perturb[self.seppa[body_num], 0]
-                    dec_perturb = dec_unperturb + radec_perturb[self.seppa[body_num], 1]
+                    ra_perturb = ra_unperturb - radec_perturb[self.seppa[body_num], 0]
+                    dec_perturb = dec_unperturb - radec_perturb[self.seppa[body_num], 1]
                     sep_perturb, pa_perturb = radec2seppa(ra_perturb, dec_perturb)
 
                     model[self.seppa[body_num], 0] = sep_perturb
