@@ -63,3 +63,27 @@ def switch_tau_epoch(old_tau, old_epoch, new_epoch, period):
     new_tau = t0_to_tau(t0, new_epoch, period)
 
     return new_tau
+
+def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
+    """
+    Gets the mean anomlay
+    
+    Args:
+        date (float or np.array): MJD
+        sma (float): semi major axis (AU)
+        mtot (float): total mass (M_sun)
+        tau (float): epoch of periastron, in units of the orbital period
+        tau_ref_epoch (float): reference epoch for tau
+        
+    Returns:
+        mean_anom (float or np.array): mean anomaly on that date [0, 2pi)
+    """
+    period = sma**(1.5)/np.sqrt(mtot) # years
+
+    frac_date = (date - tau_ref_epoch)/365.25/period
+    frac_date %= 1
+
+    mean_anom = (frac_date - tau) * 2 * np.pi
+    mean_anom %= 2 * np.pi
+
+    return mean_anom
