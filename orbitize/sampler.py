@@ -205,6 +205,8 @@ class OFTI(Sampler,):
             mtot = samples[-1, :]
             m1 = None
 
+# changing order of RV scaling to be before astrometric scaling and rotating
+
         period_prescale = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
         )
@@ -254,6 +256,7 @@ class OFTI(Sampler,):
             )  # arrays of length 2 for each index
 
             v_star = vc*-(m1/m0)
+            #v_star_total = v_star + gamma
             pdb.set_trace()
             # Rob: kepler.py throws an error in the newton_solver if we take the absolute value off below:
             v_diff = v_star[1] - v_star[0]  # proxy Kamp for model
@@ -270,6 +273,8 @@ class OFTI(Sampler,):
 
             argp[v_star_sign_idx] = np.mod(argp[v_star_sign_idx]+np.pi, 2*np.pi)
             samples[3, :] = argp
+            lan[v_star_sign_idx] = np.mod(lan[v_star_sign_idx]+np.pi, 2*np.pi)
+            samples[4, :] = lan
 
             v_offset0 = np.random.normal(0, self.rv_err[self.epoch_rv_idx[0]], size=num_samples)
             v_offset1 = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
@@ -290,15 +295,11 @@ class OFTI(Sampler,):
             # difference between observed and updated model to shift
             gamma_obs = self.rv_observed[self.epoch_rv_idx[1]] - v_star_2[1]
 
-            #gamma_obs = np.median(self.rv_observed)
-            #gamma_mod = np.median(v_star_2[1])
-
-            #gamma_diff = gamma_obs - gamma_mod
-            # gamma_offset = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
             gamma_offset = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
-            gamma_corr = gamma_offset + gamma_obs
+            #gamma_corr = gamma_offset + gamma_obs
 
-            gamma += gamma_corr  # shifting
+            # gamma += gamma_corr  # shifting
+            gamma = gamma_offset + gamma_obs
 
             samples[7, :] = gamma
             pdb.set_trace()
@@ -327,6 +328,7 @@ class OFTI(Sampler,):
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
         lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
+        # pdb.set_trace()
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
