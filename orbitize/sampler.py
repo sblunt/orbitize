@@ -248,7 +248,6 @@ class OFTI(Sampler,):
         samples[0, :] = sma
         samples[4, :] = lan
         samples[5, :] = tau
-        pdb.set_trace()
 
         if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:
             ra, dec, vc = orbitize.kepler.calc_orbit(
@@ -258,7 +257,6 @@ class OFTI(Sampler,):
 
             v_star = vc*-(m1/m0)
             #v_star_total = v_star + gamma
-            # pdb.set_trace()
             # Rob: kepler.py throws an error in the newton_solver if we take the absolute value off below:
             v_diff = v_star[1] - v_star[0]  # proxy Kamp for model
 
@@ -291,7 +289,7 @@ class OFTI(Sampler,):
 
             # re-calculating model RVs after correcting for m1:
             v_star_2 = v_star*(m1/m1_old)
-            pdb.set_trace()
+
             # gamma shifts:
             # difference between observed and updated model to shift
             gamma_obs = self.rv_observed[self.epoch_rv_idx[1]] - v_star_2[1]
@@ -303,7 +301,6 @@ class OFTI(Sampler,):
             gamma = gamma_offset + gamma_obs
 
             samples[7, :] = gamma
-            pdb.set_trace()
 
         return samples
 
