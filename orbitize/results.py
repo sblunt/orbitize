@@ -419,6 +419,7 @@ class Results(object):
             ax.set_ylabel('$\Delta$Dec [mas]')
             ax.locator_params(axis='x', nbins=6)
             ax.locator_params(axis='y', nbins=6)
+            ax.invert_xaxis() # To go to a left-handed coordinate system
 
             # add colorbar
             if show_colorbar:
