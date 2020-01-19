@@ -15,7 +15,7 @@ def test_pt_mcmc_runs(num_threads=1):
 
     # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(testdir, 'test_val_rv.csv')
 
     myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
                       # mass_err=0.05, plx_err=0.01,
