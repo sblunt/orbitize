@@ -24,7 +24,7 @@ import orbitize.system
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
     'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=0.0, b=0.7),
-    cmap(np.linspace(0.0, 0.7, 1000.))
+    cmap(np.linspace(0.0, 0.7, 1000))
 )
 
 class Results(object):
