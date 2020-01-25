@@ -66,6 +66,11 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.8.0 (2020-1-24)**
+
+- Bugfixes related to numpy and astropy upgrades
+- **This is the last version that will support Python 2**
+
 **1.7.0 (2019-11-10)**
 
 - Default corner plots now display angles in degrees instead of radians
