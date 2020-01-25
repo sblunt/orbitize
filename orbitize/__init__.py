@@ -2,7 +2,7 @@ import sys
 import types
 import os
 
-__version__ = '1.7.0'
+__version__ = '1.9.0'
 
 # set Python env variable to keep track of example data dir
 DATADIR = os.path.join(sys.prefix, 'orbitize_example_data')

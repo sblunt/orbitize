@@ -86,6 +86,11 @@ def read_file(filename):
     # read file
     try:
         input_table = read(filename)
+
+        # convert to masked table
+        if input_table.has_masked_columns:
+            input_table = Table(input_table, masked=True, copy=False)
+
     except:
         raise Exception('Unable to read file: {}. \n Please check file path and format.'.format(filename))
     num_measurements = len(input_table)

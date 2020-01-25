@@ -1,4 +1,4 @@
-astropy>2
+astropy>=4
 numpy
 scipy
 emcee<3
@@ -7,3 +7,5 @@ matplotlib
 corner
 h5py
 deprecation
+cython
+pytest
