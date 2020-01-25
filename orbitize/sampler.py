@@ -154,7 +154,7 @@ class OFTI(Sampler,):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-   def prepare_samples(self, num_samples):
+    def prepare_samples(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
