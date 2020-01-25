@@ -1,4 +1,3 @@
-from __future__ import print_function
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
@@ -11,25 +10,17 @@ import emcee
 import ptemcee
 import multiprocessing as mp
 
-
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 import copy
-import pdb
 
 import matplotlib.pyplot as plt
 
-# Python 2 & 3 handle ABCs differently
-if sys.version_info[0] < 3:
-    ABC = abc.ABCMeta('ABC', (), {})
-else:
-    ABC = abc.ABC
 
-
-class Sampler(ABC):
+class Sampler(abc.ABC):
     """
     Abstract base class for sampler objects.
     All sampler objects should inherit from this class.
@@ -163,7 +154,7 @@ class OFTI(Sampler,):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def prepare_samples(self, num_samples):
+   def prepare_samples(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
@@ -184,47 +175,43 @@ class OFTI(Sampler,):
         for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else:  # param is fixed & has no prior
+            else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
         # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
-        sma = samples[0, :]
-        ecc = samples[1, :]
-        inc = samples[2, :]
-        argp = samples[3, :]
-        lan = samples[4, :]
-        tau = samples[5, :]
-        plx = samples[6, :]
-        if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:
-            gamma = samples[7, :]  # Rob: added gamma and sigma parameters
-            sigma = samples[8, :]
-            m0 = samples[-1, :]
-            m1 = samples[-2, :]
+        sma = samples[0,:]
+        ecc = samples[1,:]
+        inc = samples[2,:]
+        argp = samples[3,:]
+        lan = samples[4,:]
+        tau = samples[5,:]
+        plx = samples[6,:]
+        if self.system.fit_secondary_mass:
+            m0 = samples[-1,:]
+            m1 = samples[-2,:]
             mtot = m0 + m1
         else:
-            mtot = samples[-1, :]
+            mtot = samples[-1,:]
             m1 = None
-
-# changing order of RV scaling to be before astrometric scaling and rotating
 
         period_prescale = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
         )
         period_prescale = period_prescale.to(u.day).value
-        meananno = self.epochs_seppa[self.epoch_idx]/period_prescale - tau
+        meananno = self.epochs[self.epoch_idx]/period_prescale - tau
 
         # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs_seppa[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot,
+            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
             mass_for_Kamp=m1
         )
-        sep, pa = orbitize.system.radec2seppa(ra, dec)  # sep[mas], PA[deg]
+        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
         # generate Gaussian offsets from observational uncertainties
         sep_offset = np.random.normal(
             0, self.sep_err[self.epoch_idx], size=num_samples
         )
-        pa_offset = np.random.normal(
+        pa_offset =  np.random.normal(
             0, self.pa_err[self.epoch_idx], size=num_samples
         )
 
@@ -233,8 +220,8 @@ class OFTI(Sampler,):
         lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
 
         # perform scale-and-rotate
-        sma *= sma_corr  # [AU]
-        lan += np.radians(lan_corr)  # [rad]
+        sma *= sma_corr # [AU]
+        lan += np.radians(lan_corr) # [rad]
         lan = lan % (2*np.pi)
 
         period_new = np.sqrt(
@@ -242,65 +229,12 @@ class OFTI(Sampler,):
         )
         period_new = period_new.to(u.day).value
 
-        tau = (self.epochs_seppa[self.epoch_idx]/period_new - meananno) % 1
+        tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
 
         # updates samples with new values of sma, pan, tau
-        samples[0, :] = sma
-        samples[4, :] = lan
-        samples[5, :] = tau
-
-        if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:
-            ra, dec, vc = orbitize.kepler.calc_orbit(
-                self.epochs_rv[self.epoch_rv_idx], sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0
-            )  # arrays of length 2 for each index
-
-            v_star = vc*-(m1/m0)
-            #v_star_total = v_star + gamma
-            # Rob: kepler.py throws an error in the newton_solver if we take the absolute value off below:
-            v_diff = v_star[1] - v_star[0]  # proxy Kamp for model
-
-            v_diff_observed = self.rv_observed[self.epoch_rv_idx[1]
-                                               ] - self.rv_observed[self.epoch_rv_idx[0]]
-
-            v_star_sign_idx = np.where(np.sign(v_diff) != np.sign(
-                v_diff_observed))
-            v_star[:, v_star_sign_idx] *= -1
-            v_diff[v_star_sign_idx] *= -1
-
-            # change argp by 180 degrees and mod between 0 and 2pi here
-
-            argp[v_star_sign_idx] = np.mod(argp[v_star_sign_idx]+np.pi, 2*np.pi)
-            samples[3, :] = argp
-            lan[v_star_sign_idx] = np.mod(lan[v_star_sign_idx]+np.pi, 2*np.pi)
-            samples[4, :] = lan
-
-            v_offset0 = np.random.normal(0, self.rv_err[self.epoch_rv_idx[0]], size=num_samples)
-            v_offset1 = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
-
-            v_offset = np.sqrt(v_offset0**2 + v_offset1**2)  # array of length num_samples
-            #v_offset = 0
-            m1_corr = (v_offset + v_diff_observed)/v_diff  # model difference correction factor
-
-            m1_old = copy.deepcopy(m1)
-
-            m1 *= m1_corr  # scaling
-            samples[-2, :] = m1  # saving scaled m1 to samples
-
-            # re-calculating model RVs after correcting for m1:
-            v_star_2 = v_star*(m1/m1_old)
-
-            # gamma shifts:
-            # difference between observed and updated model to shift
-            gamma_obs = self.rv_observed[self.epoch_rv_idx[1]] - v_star_2[1]
-
-            gamma_offset = np.random.normal(0, self.rv_err[self.epoch_rv_idx[1]], size=num_samples)
-            #gamma_corr = gamma_offset + gamma_obs
-
-            # gamma += gamma_corr  # shifting
-            gamma = gamma_offset + gamma_obs
-
-            samples[7, :] = gamma
+        samples[0,:] = sma
+        samples[4,:] = lan
+        samples[5,:] = tau
 
         return samples
 
