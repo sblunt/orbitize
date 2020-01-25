@@ -24,7 +24,7 @@ import orbitize.system
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
     'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=0.0, b=0.7),
-    cmap(np.linspace(0.0, 0.7, 1000.))
+    cmap(np.linspace(0.0, 0.7, 1000))
 )
 
 class Results(object):
@@ -220,14 +220,14 @@ class Results(object):
         default_labels = {
             'sma':'a [au]',
             'ecc':'ecc',
-            'inc':'inc [$^{\circ}$]',
-            'aop':'$\omega$ [$^{\circ}$]',
-            'pan':'$\Omega$ [$^{\circ}$]',
+            'inc':'inc [$^{\\circ}$]',
+            'aop':'$\\omega$ [$^{\\circ}$]',
+            'pan':'$\\Omega$ [$^{\\circ}$]',
             'tau':'$\\tau$',
-            'plx':'$\pi$ [mas]',
-            'mtot':'$M_T$ [M$_{\odot}$]',
-            'm0':'$M_0$ [M$_{\odot}$]',
-            'm1':'$M_1$ [M$_{\odot}$]',
+            'plx':'$\\pi$ [mas]',
+            'mtot':'$M_T$ [M$_{\\odot}$]',
+            'm0':'$M_0$ [M$_{\\odot}$]',
+            'm1':'$M_1$ [M$_{\\odot}$]',
         }
 
         if param_list is None:
@@ -418,8 +418,8 @@ class Results(object):
             else:
                 adjustable_param='box'
             ax.set_aspect('equal', adjustable=adjustable_param)
-            ax.set_xlabel('$\Delta$RA [mas]')
-            ax.set_ylabel('$\Delta$Dec [mas]')
+            ax.set_xlabel('$\\Delta$RA [mas]')
+            ax.set_ylabel('$\\Delta$Dec [mas]')
             ax.locator_params(axis='x', nbins=6)
             ax.locator_params(axis='y', nbins=6)
 
