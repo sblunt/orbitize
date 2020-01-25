@@ -24,11 +24,11 @@ def test_compute_model():
     params_arr = np.array([[1., 0.5], [0., 0.], [0., 0.], [0., 0.], [
                           0., 0.], [245000., 245000.], [10, 10], [10, 10]])
     model, jitter = testSystem_parsing.compute_model(params_arr)
-    assert model[0].shape == (4, 2, 2)
+    assert model.shape == (4, 2, 2)
 
     params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 10])
     model, jitter = testSystem_parsing.compute_model(params_arr)
-    assert model[0].shape == (4, 2, 2)
+    assert model.shape == (4, 2, 2)
 
 
 def test_systeminit():
