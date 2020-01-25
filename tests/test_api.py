@@ -90,6 +90,7 @@ def test_chi2lnlike():
     """
     # test with a single model
     model = np.zeros((3, 2))
+    jitter = np.zeros((3, 2))
     data = np.ones((3, 2))
     errors = np.ones((3, 2))
 
