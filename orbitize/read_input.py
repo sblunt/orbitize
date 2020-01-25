@@ -7,8 +7,6 @@ import numpy as np
 import orbitize
 from astropy.table import Table
 from astropy.io.ascii import read, write
-from packaging import version
-from astropy import __version__ as astropyversion
 
 def read_file(filename):
     """ Reads data from any file for use in orbitize
@@ -89,9 +87,10 @@ def read_file(filename):
     try:
         input_table = read(filename)
 
-        # convert to masked table if astropy version >= 4.0
-        if version.parse(astropyversion) >= version.parse("4.0") and input_table.has_masked_columns:
+        # convert to masked table
+        if input_table.has_masked_columns:
             input_table = Table(input_table, masked=True, copy=False)
+
     except:
         raise Exception('Unable to read file: {}. \n Please check file path and format.'.format(filename))
     num_measurements = len(input_table)
