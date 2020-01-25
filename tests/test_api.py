@@ -118,7 +118,7 @@ def test_custom_likelihood():
     # use the test_csv dir
     testdir = os.path.dirname(os.path.abspath(__file__))
     input_file = os.path.join(testdir, 'GJ504.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
 
