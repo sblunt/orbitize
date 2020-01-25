@@ -7,7 +7,6 @@ import orbitize.system as system
 import orbitize.sampler as sampler
 import orbitize.read_input as read_input
 import os
-import pdb
 
 
 def test_compute_model():
@@ -98,7 +97,6 @@ def test_chi2lnlike():
     seppa_indices = [np.array([1])]
 
     chi2 = lnlike.chi2_lnlike(data, errors, model, jitter, seppa_indices)
-    pdb.set_trace()
     assert chi2.shape == (3, 2)
     assert (chi2 == -0.5 * np.ones((3, 2)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2))))).all()
 
