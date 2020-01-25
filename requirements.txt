@@ -7,3 +7,5 @@ matplotlib
 corner
 h5py
 deprecation
+cython
+pytest
