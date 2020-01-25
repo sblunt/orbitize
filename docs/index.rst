@@ -66,6 +66,12 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.9.0 (2020-1-24)**
+
+- Require astropy>=4
+- Minor documentation upgrades
+- **This is the first Python 2 noncompliant version**
+
 **1.8.0 (2020-1-24)**
 
 - Bugfixes related to numpy and astropy upgrades
