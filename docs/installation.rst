@@ -37,12 +37,12 @@ For Developers
 
 ``orbitize`` is actively being developed. The following method for 
 installing ``orbitize`` will allow you to use it and make changes to it. 
-After cloning the Git repository, run the setup file in the top level 
+After cloning the Git repository, run the following command in the top level 
 of the repo:
 
 .. code-block:: bash
 	
-	$ python setup.py develop
+	$ pip install -r requirements.txt -e .
 
 Issues?
 +++++++
