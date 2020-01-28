@@ -301,6 +301,9 @@ class Results(object):
 
         """
 
+        if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
+            raise Exception('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
+
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
 
