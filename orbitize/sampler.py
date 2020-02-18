@@ -1,4 +1,3 @@
-from __future__ import print_function
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
@@ -11,23 +10,17 @@ import emcee
 import ptemcee
 import multiprocessing as mp
 
-
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
+import copy
 
 import matplotlib.pyplot as plt
 
-# Python 2 & 3 handle ABCs differently
-if sys.version_info[0] < 3:
-    ABC = abc.ABCMeta('ABC', (), {})
-else:
-    ABC = abc.ABC
 
-
-class Sampler(ABC):
+class Sampler(abc.ABC):
     """
     Abstract base class for sampler objects.
     All sampler objects should inherit from this class.
@@ -111,7 +104,7 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
-
+        # pdb.set_trace()
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -122,16 +115,36 @@ class OFTI(Sampler,):
                 self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
-        self.sep_observed = self.system.data_table[:]['quant1'].copy()
-        self.pa_observed = self.system.data_table[:]['quant2'].copy()
-        self.sep_err = self.system.data_table[:]['quant1_err'].copy()
-        self.pa_err = self.system.data_table[:]['quant2_err'].copy()
+        self.sep_observed = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant1'].copy()
+        self.pa_observed = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant2'].copy()
+        self.sep_err = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
+        self.pa_err = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['quant2_err'].copy()
 
         # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
 
+        # distinguishing all epochs from sep/pa epochs
+        self.epochs_seppa = np.array(self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['epoch']) - self.system.tau_ref_epoch
+
+        self.epochs_rv = np.array(self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'rv')]['epoch']) - self.system.tau_ref_epoch
+
         # choose scale-and-rotate epoch
         self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
+
+        if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:  # checking for RV data
+            self.rv_observed = self.system.data_table[np.where(
+                self.system.data_table['quant_type'] == 'rv')]['quant1'].copy()
+            self.rv_err = self.system.data_table[np.where(
+                self.system.data_table['quant_type'] == 'rv')]['quant1_err'].copy()
+
+            self.epoch_rv_idx = [np.argmin(self.rv_observed),
+                                 np.argmax(self.rv_observed)]
 
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -162,7 +175,7 @@ class OFTI(Sampler,):
         for i in range(len(self.priors)):
             if hasattr(self.priors[i], "draw_samples"):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else:  # param is fixed & has no prior
+            else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
         for body_num in np.arange(self.system.num_secondary_bodies):
@@ -251,10 +264,14 @@ class OFTI(Sampler,):
 
         """
         lnp = self._logl(samples)
+        errs = np.array([self.system.data_table['quant1_err'],
+                         self.system.data_table['quant2_err']]).T
+        lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
+        # pdb.set_trace()
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
-        saved_orbit_idx = np.where(lnp > random_samples)[0]
+        saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
