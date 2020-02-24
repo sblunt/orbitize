@@ -39,6 +39,9 @@ class Sampler(abc.ABC):
 
         self.custom_lnlike = custom_lnlike
 
+        # check if need to handle covariances
+        self.has_cov = np.any(~np.isnan(self.system.data_table['quant12_cov']))
+
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
         pass
@@ -69,12 +72,17 @@ class Sampler(abc.ABC):
         # errors below required for lnlike function below
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
+        # covariances, if applicable
+        if self.has_cov:
+            covs = self.system.data_table['quant12_err']
+        else:
+            covs = None
 
         # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
         seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
 
         # compute lnlike
-        lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
+        lnlikes = self.lnlike(data, errs, covs, model, jitter, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
         lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))

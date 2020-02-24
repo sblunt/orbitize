@@ -5,7 +5,7 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, model, jitter, seppa_indices):
+def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -13,6 +13,8 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
             for every epoch, and data[:,1] = corresponding pa/DEC/np.nan.
         errors (np.array): Nobsx2 array of errors for each data point. Same
                 format as ``data``.
+        covs (np.array): Nobs array of covariance between the two quantities. 
+                If there is none, can be None.
         model (np.array): Nobsx2xM array of model predictions, where M is the \
                 number of orbits being compared against the data. If M is 1, \
             ``model`` can be 2 dimensional.
@@ -48,10 +50,22 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
     if np.size(seppa_indices) > 0:
         residual[:, seppa_indices, 1] = (residual[:, seppa_indices, 1] + 180.) % 360. - 180.
 
-    sigma2 = errors**2 + jitter**2
+    sigma2 = errors**2 + jitter**2 # diagonal error term
 
-    # including the second term of chi2
-    chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+    if covs is None:
+        # including the second term of chi2
+        chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+    else:
+        has_no_cov = ~np.where(np.isnan(covs))
+        yes_cov = np.where(~has_no_cov)
+        no_cov = np.where(has_no_cov)
+
+        chi2 = np.zoeres(residual.shape)
+        chi2[no_cov] = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+
+        # analytical solution for 2x2 covariance matrix
+        # chi2 = -0.5 * (R^T C^-1 R + ln(det_C))
+        chi2[yes_cov] = _chi2_2x2cov(residual, sigma2, covs)
 
     if third_dim:
         # move M dimension back to the last axis
@@ -62,5 +76,27 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
         model.shape = model.shape[1:]
         chi2.shape = chi2.shape[1:]
         jitter.shape = jitter.shape[1:]
+
+    return chi2
+
+def _chi2_2x2cov(residual, var, covs):
+    """
+    Analytical solution for when quant1/quant2 have a covariance term
+    So we don't need to calculate matrix inverses when the jitter varies depending on the model
+
+    Args:
+        residual (np.array): Nobsx2xM array of fit residuals, 
+        var (np.array): Nobsx2xM array of variance for each residual
+        covs (np.array): Nobs array of off axis covariance matrix element
+                between the two quantities. 
+    """
+
+    det_C = var[:,0] * var[:,1] - covs**2
+
+    chi2 = (residual[:,0]**2 * var[:,1] + residual[:,1]**2 * var[:,0] - 2 * residual[:,0] * residual[:,1] * covs)/det_C
+
+    chi2 += np.log(det_C)
+
+    chi2 *= -0.5
 
     return chi2

@@ -328,6 +328,8 @@ class System(object):
         Converts rows of self.data_table given in radec to seppa.
         Note that self.input_table remains unchanged.
 
+        TODO: Does not handle rotation of covariance matrix if covariances exist
+
         Args:
             body_num (int): which object to convert (1 = first planet)
         """
