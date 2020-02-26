@@ -99,10 +99,10 @@ class Results(object):
         Args:
             filename (string): filepath to save to
 
-        Save attributes from the ``results.Results`` object. 
+        Save attributes from the ``results.Results`` object.
 
         ``sampler_name``, ``tau_ref_epcoh`` are attributes of the root group.
-        ``post``, ``lnlike``, and ``parameter_labels`` are datasets 
+        ``post``, ``lnlike``, and ``parameter_labels`` are datasets
         that are members of the root group.
 
         Written: Henry Ngo, 2018
@@ -113,7 +113,7 @@ class Results(object):
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
-        if self.lnlike is not None: 
+        if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
@@ -149,7 +149,11 @@ class Results(object):
             labels = np.array([hf.attrs['parameter_labels']])
         except KeyError:
             # again, probably an old file without saved parameter labels
-            labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+            if len(post[0, :]) == 11:
+                labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1',
+                          'tau1', 'plx', 'gamma', 'sigma', 'm1', 'm0']
+            else:
+                labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
 
         hf.close()  # Closes file object
 
@@ -226,18 +230,18 @@ class Results(object):
 
         # Define array of default axis labels (overwritten if user specifies list)
         default_labels = {
-            'sma':'a [au]',
-            'ecc':'ecc',
-            'inc':'inc [$^{\\circ}$]',
-            'aop':'$\\omega$ [$^{\\circ}$]',
-            'pan':'$\\Omega$ [$^{\\circ}$]',
-            'tau':'$\\tau$',
-            'plx':'$\\pi$ [mas]',
+            'sma': 'a [au]',
+            'ecc': 'ecc',
+            'inc': 'inc [$^{\\circ}$]',
+            'aop': '$\\omega$ [$^{\\circ}$]',
+            'pan': '$\\Omega$ [$^{\\circ}$]',
+            'tau': '$\\tau$',
+            'plx': '$\\pi$ [mas]',
             'gam': '$\\gamma$ [m/s]',
             'sig': '$\\sigma$ [m/s]',
-            'mtot':'$M_T$ [M$_{\\odot}$]',
-            'm0':'$M_0$ [M$_{\\odot}$]',
-            'm1':'$M_1$ [M$_{\\odot}$]',
+            'mtot': '$M_T$ [M$_{\\odot}$]',
+            'm0': '$M_0$ [M$_{\\odot}$]',
+            'm1': '$M_1$ [M$_{\\odot}$]',
         }
 
         if param_list is None:
@@ -251,10 +255,11 @@ class Results(object):
             if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
                 angle_indices.append(index_num)
 
-        samples = copy.copy(self.post[:,param_indices]) # keep only chains for selected parameters
-        samples[:,angle_indices] = np.degrees(self.post[:,angle_indices]) # convert angles from rad to deg
+        samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
+        samples[:, angle_indices] = np.degrees(
+            self.post[:, angle_indices])  # convert angles from rad to deg
 
-        if 'labels' not in corner_kwargs: # use default labels if user didn't already supply them
+        if 'labels' not in corner_kwargs:  # use default labels if user didn't already supply them
             reduced_labels_list = []
             for i in np.arange(len(param_indices)):
                 label_key = param_list[i]
@@ -272,7 +277,7 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='epochs', mod180=False):
+                    cbar_param='epochs', mod180=False, rv_time_series=False):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -297,6 +302,8 @@ class Results(object):
                 pan1, tau1. Number can be switched out. Default is epochs.
             mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
                 arcs with PAs that cross 360 deg during observations (default: False)
+            rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
+                display time series, set to True.
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -317,7 +324,7 @@ class Results(object):
                 'aop': 3,
                 'pan': 4,
                 'tau': 5,
-                'plx': 6
+                'plx': 6,
             }
 
             if cbar_param == 'epochs':
@@ -351,8 +358,12 @@ class Results(object):
                 mtot = self.post[:, -1]
             elif 'm0' in self.labels:
                 m0 = self.post[:, -1]
-                mplanet = self.post[:, -2]
-                mtot = m0 + mplanet
+                m1 = self.post[:, -2]
+                mtot = m0 + m1
+            if 'gamma' in self.labels:
+                dict_of_indices['gamma'] = 7
+                dict_of_indices['sigma'] = 8
+                gamma = self.post[:, dict_of_indices['gamma']]
 
             # Select random indices for plotted orbit
             if num_orbits_to_plot > len(sma):
@@ -361,6 +372,7 @@ class Results(object):
 
             raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
             deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+            vz_star = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
             epochs = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
             # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
@@ -377,7 +389,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch
+                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
                 )
 
                 raoff[i, :] = raoff0
@@ -401,8 +413,12 @@ class Results(object):
 
             # Create figure for orbit plots
             fig = plt.figure(figsize=(14, 6))
-
-            ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+            if rv_time_series:
+                fig = plt.figure(figsize=(14, 12))
+                ax = plt.subplot2grid((5, 14), (0, 0), rowspan=2, colspan=6)
+            else:
+                fig = plt.figure(figsize=(14, 6))
+                ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
 
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
@@ -435,12 +451,22 @@ class Results(object):
                 cbar = mpl.colorbar.ColorbarBase(
                     cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
 
-            # plot sep/PA zoom-in panels
-            ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
-            ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
-            ax2.set_ylabel('PA [$^{{\\circ}}$]')
-            ax1.set_ylabel('$\\rho$ [mas]')
-            ax2.set_xlabel('Epoch')
+            # plot sep/PA and/or rv zoom-in panels
+            if rv_time_series:
+                ax1 = plt.subplot2grid((5, 14), (0, 8), colspan=6)
+                ax2 = plt.subplot2grid((5, 14), (1, 8), colspan=6)
+                ax3 = plt.subplot2grid((5, 14), (2, 0), colspan=14, rowspan=2)
+                ax2.set_ylabel('PA [$^{{\\circ}}$]')
+                ax1.set_ylabel('$\\rho$ [mas]')
+                ax3.set_ylabel('RV [km/s]')
+                ax3.set_xlabel('Epoch')
+                ax2.set_xlabel('Epoch')
+            else:
+                ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
+                ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
+                ax2.set_ylabel('PA [$^{{\\circ}}$]')
+                ax1.set_ylabel('$\\rho$ [mas]')
+                ax2.set_xlabel('Epoch')
 
             epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
@@ -455,25 +481,44 @@ class Results(object):
                 )
 
                 # Calculate ra/dec offsets for all epochs of this orbit
-                raoff0, deoff0, _ = kepler.calc_orbit(
-                    epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch
-                )
+                if rv_time_series:
+                    raoff0, deoff0, vzoff0 = kepler.calc_orbit(
+                        epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
+                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                        mass_for_Kamp=m0[orb_ind]
+                    )
 
-                raoff[i, :] = raoff0
-                deoff[i, :] = deoff0
+                    raoff[i, :] = raoff0
+                    deoff[i, :] = deoff0
+                    vz_star[i, :] = vzoff0*-(m1[orb_ind]/m0[orb_ind]) + gamma[orb_ind]
+
+                else:
+                    raoff0, deoff0, _ = kepler.calc_orbit(
+                        epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
+                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                    )
+
+                    raoff[i, :] = raoff0
+                    deoff[i, :] = deoff0
 
                 yr_epochs = Time(epochs_seppa[i, :], format='mjd').decimalyear
                 plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
                 yr_epochs = yr_epochs[plot_epochs]
 
-                seps, pas = orbitize.system.radec2seppa(raoff[i,:], deoff[i,:], mod180=mod180)
+                seps, pas = orbitize.system.radec2seppa(raoff[i, :], deoff[i, :], mod180=mod180)
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
 
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
+
+                if rv_time_series:
+                    plt.sca(ax3)
+                    plt.plot(yr_epochs, vz_star[i, :], color=sep_pa_color)
+                    ax3.locator_params(axis='x', nbins=6)
+                    ax3.locator_params(axis='y', nbins=6)
+                    plt.tight_layout()
 
             ax1.locator_params(axis='x', nbins=6)
             ax1.locator_params(axis='y', nbins=6)
