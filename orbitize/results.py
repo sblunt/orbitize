@@ -135,6 +135,7 @@ class Results(object):
         """
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
+        # pdb.set_trace() #here to see what attributes this has.
         sampler_name = np.str(hf.attrs['sampler_name'])
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
@@ -414,8 +415,8 @@ class Results(object):
             # Create figure for orbit plots
             fig = plt.figure(figsize=(14, 6))
             if rv_time_series:
-                fig = plt.figure(figsize=(14, 12))
-                ax = plt.subplot2grid((5, 14), (0, 0), rowspan=2, colspan=6)
+                fig = plt.figure(figsize=(14, 9))
+                ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
             else:
                 fig = plt.figure(figsize=(14, 6))
                 ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
@@ -453,9 +454,9 @@ class Results(object):
 
             # plot sep/PA and/or rv zoom-in panels
             if rv_time_series:
-                ax1 = plt.subplot2grid((5, 14), (0, 8), colspan=6)
-                ax2 = plt.subplot2grid((5, 14), (1, 8), colspan=6)
-                ax3 = plt.subplot2grid((5, 14), (2, 0), colspan=14, rowspan=2)
+                ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
+                ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
+                ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
                 ax2.set_ylabel('PA [$^{{\\circ}}$]')
                 ax1.set_ylabel('$\\rho$ [mas]')
                 ax3.set_ylabel('RV [km/s]')
