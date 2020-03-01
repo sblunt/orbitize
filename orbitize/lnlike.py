@@ -60,12 +60,12 @@ def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
         yes_cov = np.where(~has_no_cov)
         no_cov = np.where(has_no_cov)
 
-        chi2 = np.zoeres(residual.shape)
-        chi2[no_cov] = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+        chi2 = np.zeros(residual.shape)
+        chi2[no_cov] = -0.5 * residual[no_cov]**2 / sigma2[no_cov] - np.log(np.sqrt(2*np.pi*sigma2[no_cov]))
 
         # analytical solution for 2x2 covariance matrix
         # chi2 = -0.5 * (R^T C^-1 R + ln(det_C))
-        chi2[yes_cov] = _chi2_2x2cov(residual, sigma2, covs)
+        chi2[yes_cov] = _chi2_2x2cov(residual[yes_cov], sigma2[yes_cov], covs[yes_cov])
 
     if third_dim:
         # move M dimension back to the last axis
