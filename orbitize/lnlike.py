@@ -34,7 +34,7 @@ def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
         this function should be an array of dimension 8 x 2 x 10,000.
 
     """
-
+    
     if np.ndim(model) == 3:
         # move M dimension to the primary axis, so that numpy knows to iterate over it
         model = np.rollaxis(model, 2, 0)  # now MxNobsx2 in dimensions
@@ -56,16 +56,16 @@ def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
         # including the second term of chi2
         chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
     else:
-        has_no_cov = ~np.where(np.isnan(covs))
-        yes_cov = np.where(~has_no_cov)
-        no_cov = np.where(has_no_cov)
+        has_no_cov = np.isnan(covs)
+        yes_cov = np.where(~has_no_cov)[0]
+        no_cov = np.where(has_no_cov)[0]
 
         chi2 = np.zeros(residual.shape)
-        chi2[no_cov] = -0.5 * residual[no_cov]**2 / sigma2[no_cov] - np.log(np.sqrt(2*np.pi*sigma2[no_cov]))
+        chi2[:,no_cov] = -0.5 * residual[:,no_cov]**2 / sigma2[:,no_cov] - np.log(np.sqrt(2*np.pi*sigma2[:,no_cov]))
 
         # analytical solution for 2x2 covariance matrix
         # chi2 = -0.5 * (R^T C^-1 R + ln(det_C))
-        chi2[yes_cov] = _chi2_2x2cov(residual[yes_cov], sigma2[yes_cov], covs[yes_cov])
+        chi2[:,yes_cov] = _chi2_2x2cov(residual[:,yes_cov], sigma2[:,yes_cov], covs[yes_cov])
 
     if third_dim:
         # move M dimension back to the last axis
@@ -85,18 +85,25 @@ def _chi2_2x2cov(residual, var, covs):
     So we don't need to calculate matrix inverses when the jitter varies depending on the model
 
     Args:
-        residual (np.array): Nobsx2xM array of fit residuals, 
-        var (np.array): Nobsx2xM array of variance for each residual
+        residual (np.array): MxNobsx2 array of fit residuals, 
+        var (np.array): MxNobsx2 array of variance for each residual
         covs (np.array): Nobs array of off axis covariance matrix element
                 between the two quantities. 
+
+    Returns
+        chi2 (np.array): MxNobsx2 array of chi2. Becuase of x/y coariance, it's impossible to
+                         spearate the quant1/quant2 chi2. Thus, all the chi2 is in the first term
+                         and the second dimension is 0
     """
 
-    det_C = var[:,0] * var[:,1] - covs**2
+    det_C = var[:,:,0] * var[:,:,1] - covs**2
 
-    chi2 = (residual[:,0]**2 * var[:,1] + residual[:,1]**2 * var[:,0] - 2 * residual[:,0] * residual[:,1] * covs)/det_C
+    chi2 = (residual[:,:,0]**2 * var[:,:,1] + residual[:,:,1]**2 * var[:,:,0] - 2 * residual[:,:,0] * residual[:,:,1] * covs)/det_C
 
     chi2 += np.log(det_C)
 
     chi2 *= -0.5
+
+    chi2 = np.stack([chi2, np.zeros(chi2.shape)], axis=2)
 
     return chi2
