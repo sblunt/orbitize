@@ -74,7 +74,7 @@ class Sampler(abc.ABC):
                          self.system.data_table['quant2_err']]).T
         # covariances, if applicable
         if self.has_cov:
-            covs = self.system.data_table['quant12_err']
+            covs = self.system.data_table['quant12_cov']
         else:
             covs = None
 
