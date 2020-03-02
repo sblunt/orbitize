@@ -70,8 +70,8 @@ class Sampler(abc.ABC):
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
 
-        # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
-        seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
+        # grab all seppa indices
+        seppa_indices = self.system.all_seppa
 
         # compute lnlike
         lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
