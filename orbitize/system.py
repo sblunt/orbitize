@@ -18,7 +18,7 @@ class System(object):
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
-            of the position angle of nodes and argument of periastron to [0,180)
+            of the position angle of nodes to [0,180)
             to get rid of symmetric double-peaks for imaging-only datasets.
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
@@ -26,7 +26,8 @@ class System(object):
             mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
             is taken to be the total mass of the system. (default: False)
         results (list of orbitize.results.Results): results from an orbit-fit
-            will be appended to this list as a Results class
+            will be appended to this list as a Results class.
+
 
     Users should initialize an instance of this class, then overwrite
     priors they wish to customize.
@@ -65,8 +66,6 @@ class System(object):
         # Group the data in some useful ways
         #
 
-        # TODO: add RV grouping here
-
         self.data_table = data_table
         # Creates a copy of the input in case data_table needs to be modified
         self.input_table = self.data_table.copy()
@@ -80,15 +79,13 @@ class System(object):
         # List of arrays of indices corresponding to epochs in SEP/PA for each body
         self.seppa = []
 
-        # List of arrays of indices corresponding to epochs of rv for star
-        self.rvstar = []
+        # List of index arrays corresponding to each rv for each body
+        self.rv = []
 
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
-        # Rob: Question: if we're fitting for either the stellar mass or the
-        # companion star, we don't need to specify the object index right?
-        rvstar_indices = np.where(self.data_table['quant_type'] == 'rv')
+        rv_indices = np.where(self.data_table['quant_type'] == 'rv')
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -102,8 +99,9 @@ class System(object):
             self.seppa.append(
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
-
-        self.rvstar.append(rvstar_indices)
+            self.rv.append(
+                np.intersect1d(self.body_indices[body_num], rv_indices)
+            )
 
         if restrict_angle_ranges:
             angle_upperlim = np.pi
@@ -163,9 +161,18 @@ class System(object):
         else:
             self.sys_priors.append(plx)
 
+        # checking for rv data to include appropriate rv priors:
+
+        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
+            self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
+            self.labels.append('gamma')
+
+            self.sys_priors.append(priors.LogUniformPrior(1e-4, 0.05))  # jitter prior in km/s
+            self.labels.append('sigma')
+
         if self.fit_secondary_mass:
-            for body in np.arange(num_secondary_bodies):
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 1))  # in Solar masses for now
+            for body in np.arange(num_secondary_bodies)+1:
+                self.sys_priors.append(priors.LogUniformPrior(1e-3, 2))  # in Solar masses for now
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -198,21 +205,33 @@ class System(object):
 
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
+            jitter = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
+            jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
+        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
+            gamma = params_arr[6*self.num_secondary_bodies+1]  # km/s
+
+            # need to put planetary rv later
+            # Both gamma and jitter will be default values if fitting for secondary masses later
+            total_rv0 = gamma
+            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2]  # km/s
+            jitter[self.rv[0], 1] = np.nan
+        else:
+            total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            epochs = self.data_table['epoch'][self.body_indices[body_num]]
-            sma = params_arr[body_num-1]
-            ecc = params_arr[body_num]
-            inc = params_arr[body_num+1]
-            argp = params_arr[body_num+2]
-            lan = params_arr[body_num+3]
-            tau = params_arr[body_num+4]
+            epochs = self.data_table['epoch']
+            # adding body_idx0 here to account for companion index
+            body_idx0 = body_num - 1
+            sma = params_arr[6*body_idx0]
+            ecc = params_arr[6*body_idx0+1]
+            inc = params_arr[6*body_idx0+2]
+            argp = params_arr[6*body_idx0+3]
+            lan = params_arr[6*body_idx0+4]
+            tau = params_arr[6*body_idx0+5]
             plx = params_arr[6*self.num_secondary_bodies]
-
-            # import pdb; pdb.set_trace()
 
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
@@ -220,12 +239,23 @@ class System(object):
                 m0 = params_arr[-1]
                 mtot = m0 + mass
             else:
+                # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
+                m0 = None
                 mtot = params_arr[-1]
 
-            raoff, decoff, vz = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass_for_Kamp=mass, tau_ref_epoch=self.tau_ref_epoch
+            # i = 1,2,3... (companion index)
+
+            raoff, decoff, vz_i = kepler.calc_orbit(
+                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
             )
+
+            # vz_i is the ith companion radial velocity
+
+            if self.fit_secondary_mass:
+                vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
+                total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
             if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
@@ -240,9 +270,16 @@ class System(object):
                 model[self.seppa[body_num], 0] = sep
                 model[self.seppa[body_num], 1] = pa
 
-            # TODO: add RV model stuff here.
+            if len(self.rv[body_num]) > 0:
+                model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
+                model[self.rv[body_num], 1] = np.nan
 
-        return model
+        if self.fit_secondary_mass:
+            if len(total_rv0[self.rv[0]]) > 0:
+                model[self.rv[0], 0] = total_rv0[self.rv[0]]
+                model[self.rv[0], 1] = np.nan  # nans only for rv indices
+
+        return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """
@@ -261,7 +298,8 @@ class System(object):
             # Convert to sep/PA
             sep, pa = radec2seppa(ra, dec)
             sep_err = 0.5*(ra_err+dec_err)
-            pa_err = sep_err/sep
+            pa_err = np.degrees(sep_err/sep)
+
             # Update data_table
             self.data_table['quant1'][i] = sep
             self.data_table['quant1_err'][i] = sep_err
@@ -289,7 +327,7 @@ class System(object):
         self.results = []
 
 
-def radec2seppa(ra, dec):
+def radec2seppa(ra, dec, mod180=False):
     """
     Convenience function for converting from
     right ascension/declination to separation/
@@ -298,6 +336,11 @@ def radec2seppa(ra, dec):
     Args:
         ra (np.array of float): array of RA values, in mas
         dec (np.array of float): array of Dec values, in mas
+        mod180 (Bool): if True, output PA values will be given
+            in range [180, 540) (useful for plotting short
+            arcs with PAs that cross 360 during observations)
+            (default: False)
+
 
     Returns:
         tulple of float: (separation [mas], position angle [deg])
@@ -305,5 +348,8 @@ def radec2seppa(ra, dec):
     """
     sep = np.sqrt((ra**2) + (dec**2))
     pa = np.degrees(np.arctan2(ra, dec)) % 360.
+
+    if mod180:
+        pa[pa < 180] += 360
 
     return sep, pa

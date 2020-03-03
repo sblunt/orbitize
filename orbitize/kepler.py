@@ -32,9 +32,9 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         plx (np.array): parallax [mas]
         mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
         mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
-            For example, if you want to return the stellar RV, this is the planet mass. 
-            If you want to return the planetary RV, this is the stellar mass. [Solar masses]. 
-            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default). 
+            For example, if you want to return the stellar RV, this is the planet mass.
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
@@ -42,43 +42,41 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     Return:
         3-tuple:
 
-            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies 
+            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies
             (origin is at the other body) [mas]
 
             deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
-            
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies 
+
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
 
     Written: Jason Wang, Henry Ngo, 2018
     """
 
-    n_orbs  = np.size(sma)  # num sets of input orbital parameters
-    n_dates = np.size(epochs) # number of dates to compute offsets and vz
+    n_orbs = np.size(sma)  # num sets of input orbital parameters
+    n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
     # return planetary RV if `mass_for_Kamp` is not defined
     if mass_for_Kamp is None:
         mass_for_Kamp = mtot
 
     # Necessary for _calc_ecc_anom, for now
-    if np.isscalar(epochs): # just in case epochs is given as a scalar
+    if np.isscalar(epochs):  # just in case epochs is given as a scalar
         epochs = np.array([epochs])
     ecc_arr = np.tile(ecc, (n_dates, 1))
 
     # Compute period (from Kepler's third law) and mean motion
     period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
     period = period.to(u.day).value
-    mean_motion = 2*np.pi/(period) # in rad/day
+    mean_motion = 2*np.pi/(period)  # in rad/day
 
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
-
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
-
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
-    tanom = 2.*np.arctan(np.sqrt( (1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom) )
+    tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
@@ -99,18 +97,18 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
-    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun * np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun *
+                                               np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
     # Convert to km/s
     Kv = Kv.to(u.km/u.s)
-    # compute the vz
-    vz =  Kv.value * ( ecc*np.cos(aop) + np.cos(aop + tanom) )
 
+    # compute the vz
+    vz = Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]
-
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -148,24 +146,29 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_cpp=False):
 
     # First deal with e == 0 elements
     ind_zero = np.where(ecc_zero)
-    if len(ind_zero[0]) > 0: eanom[ind_zero] = manom[ind_zero]
+    if len(ind_zero[0]) > 0:
+        eanom[ind_zero] = manom[ind_zero]
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    if cext and use_cpp:
+    if cext and use_c:
         if len(ind_low[0]) > 0: eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
 
         # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
         m_one = eanom == -1
         ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     else:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
+        if len(ind_low[0]) > 0:
+            eanom[ind_low] = _newton_solver(
+                manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
         ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
+    if len(ind_high[0]) > 0: 
+        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
 
     return np.squeeze(eanom)[()]
+
 
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
@@ -202,18 +205,19 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
         # If it hasn't converged after half the iterations are done, try starting from pi
         if niter == (max_iter//2):
             eanom[ind] = np.pi
-        diff[ind] = (eanom[ind] - (ecc[ind] * np.sin(eanom[ind])) - manom[ind]) / (1.0 - (ecc[ind] * np.cos(eanom[ind])))
+        diff[ind] = (eanom[ind] - (ecc[ind] * np.sin(eanom[ind])) - manom[ind]) / \
+            (1.0 - (ecc[ind] * np.cos(eanom[ind])))
         abs_diff[ind] = np.abs(diff[ind])
         ind = np.where(abs_diff > tolerance)
         niter += 1
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], use_c) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
 
-def _mikkola_solver_wrapper(manom, ecc):
+def _mikkola_solver_wrapper(manom, ecc, use_c):
     """
     Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
     Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
@@ -229,10 +233,14 @@ def _mikkola_solver_wrapper(manom, ecc):
 
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
-    eanom = _mikkola_solver(manom, ecc)
+    if cext and use_c:
+        eanom = _kepler._c_mikkola_solver(manom, ecc)
+    else:
+        eanom = _mikkola_solver(manom, ecc)
     eanom[ind_change] = (2.0 * np.pi) - eanom[ind_change]
 
     return eanom
+
 
 def _mikkola_solver(manom, ecc):
     """
@@ -258,10 +266,10 @@ def _mikkola_solver(manom, ecc):
     s1 = s0 - (0.078*(s0**5.0)) / (1.0 + ecc)
     e0 = manom + (ecc * (3.0*s1 - 4.0*(s1**3.0)))
 
-    se0=np.sin(e0)
-    ce0=np.cos(e0)
+    se0 = np.sin(e0)
+    ce0 = np.cos(e0)
 
-    f  = e0-ecc*se0-manom
+    f = e0-ecc*se0-manom
     f1 = 1.0-ecc*ce0
     f2 = ecc*se0
     f3 = ecc*ce0

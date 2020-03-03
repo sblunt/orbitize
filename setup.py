@@ -10,6 +10,7 @@ else:
     try:
         from Cython.Build import cythonize
     except:
+        print("Error: Importing cython build environment failed")
         USE_C_KEPLER_MODULE = 0
 
 
@@ -47,7 +48,8 @@ setup(
             'orbitize_example_data', 
             [
                 'tests/GJ504.csv', 
-                'tests/GJ504_1epoch.csv'
+                'tests/GJ504_1epoch.csv',
+                'tests/HD4747.csv'
             ]
         )
     ],

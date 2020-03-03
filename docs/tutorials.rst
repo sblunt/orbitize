@@ -30,6 +30,7 @@ us if you are still confused).
 .. toctree::
    :maxdepth: 1
 
+   tutorials/Quick-Start.ipynb
    formatting_inputs
    tutorials/OFTI_tutorial.ipynb
    tutorials/MCMC_tutorial.ipynb
@@ -39,7 +40,7 @@ us if you are still confused).
 .. toctree::
    :maxdepth: 1
 
-   tutorials/RV_tutorial.ipynb
+   tutorials/Orbitize_RV_Tutorial.ipynb
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb

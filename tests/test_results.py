@@ -22,12 +22,12 @@ def simulate_orbit_sampling(n_sim_orbits):
     sma_err = 1.1  # not real
     ecc = 0.08
     ecc_err = 0.03 # not real
-    inc = 88.81
-    inc_err = 0.12
-    aop = 205.8
-    aop_err = 20.0 # not real
-    pan = 31.76
-    pan_err = 0.09
+    inc = np.radians(88.81)
+    inc_err = np.radians(0.12)
+    aop = np.radians(205.8)
+    aop_err = np.radians(20.0) # not real
+    pan = np.radians(31.76)
+    pan_err = np.radians(0.09)
     epp = 0.73
     epp_err = 0.20 # not real
     system_mass = 1.80
@@ -42,8 +42,8 @@ def simulate_orbit_sampling(n_sim_orbits):
     sim_post[:,3]=np.random.normal(aop,aop_err,n_sim_orbits)
     sim_post[:,4]=np.random.normal(pan,pan_err,n_sim_orbits)
     sim_post[:,5]=np.random.normal(epp,epp_err,n_sim_orbits)
-    sim_post[:,6]=np.random.normal(system_mass,system_mass_err,n_sim_orbits)
-    sim_post[:,7]=np.random.normal(plx,plx_err,n_sim_orbits)
+    sim_post[:,6]=np.random.normal(plx,plx_err,n_sim_orbits)
+    sim_post[:,7]=np.random.normal(system_mass,system_mass_err,n_sim_orbits)
 
     return sim_post
 
@@ -170,10 +170,10 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results, has_lnlike=False)
     test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
-    # test_corner_fig1.savefig('test_corner1.png')
-    # test_corner_fig2.savefig('test_corner2.png')
-    # test_orbit_figs[0].savefig('test_orbit1.png')
-    # test_orbit_figs[1].savefig('test_orbit2.png')
-    # test_orbit_figs[2].savefig('test_orbit3.png')
-    # test_orbit_figs[3].savefig('test_orbit4.png')
-    # test_orbit_figs[4].savefig('test_orbit5.png')
+    test_corner_fig1.savefig('test_corner1.png')
+    test_corner_fig2.savefig('test_corner2.png')
+    test_orbit_figs[0].savefig('test_orbit1.png')
+    test_orbit_figs[1].savefig('test_orbit2.png')
+    test_orbit_figs[2].savefig('test_orbit3.png')
+    test_orbit_figs[3].savefig('test_orbit4.png')
+    test_orbit_figs[4].savefig('test_orbit5.png')
