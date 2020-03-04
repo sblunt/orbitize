@@ -104,7 +104,7 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
-        # pdb.set_trace()
+
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -154,22 +154,9 @@ class OFTI(Sampler,):
             tau_ref_epoch=self.system.tau_ref_epoch
         )
 
-    def prepare_samples(self, num_samples):
+    def draw_from_priors(self, num_samples):
         """
-        Prepare some orbits for rejection sampling. This draws random orbits
-        from priors, and performs scale & rotate.
-
-        Args:
-            num_samples (int): number of orbits to draw and scale & rotate for
-                OFTI to run rejection sampling on
-
-        Return:
-            np.array: array of prepared samples. The first dimension has size of
-            num_samples. This should be passed into ``OFTI.reject()``
         """
-
-        # TODO: modify to work for multi-planet systems
-
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
         for i in range(len(self.priors)):
@@ -177,6 +164,22 @@ class OFTI(Sampler,):
                 samples[i, :] = self.priors[i].draw_samples(num_samples)
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
+        return samples
+
+    def scale_and_rotate(self, samples, num_samples):
+        """
+        Prepare some orbits for rejection sampling. This draws random orbits
+        from priors, and performs scale & rotate.
+        Args:
+            samples ():
+            num_samples (int): number of orbits to draw and scale & rotate for
+                OFTI to run rejection sampling on
+        Return:
+            np.array: array of prepared samples. The first dimension has size of
+            num_samples. This should be passed into ``OFTI.reject()``
+        """
+
+        samples = self.draw_from_priors(num_samples)
 
         # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
         sma = samples[0,:]
@@ -193,20 +196,17 @@ class OFTI(Sampler,):
         else:
             mtot = samples[-1,:]
             m1 = None
-
         period_prescale = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
         )
         period_prescale = period_prescale.to(u.day).value
         meananno = self.epochs[self.epoch_idx]/period_prescale - tau
-
         # compute sep/PA of generated orbits
         ra, dec, vc = orbitize.kepler.calc_orbit(
             self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
             mass_for_Kamp=m1
         )
         sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
-
         # generate Gaussian offsets from observational uncertainties
         sep_offset = np.random.normal(
             0, self.sep_err[self.epoch_idx], size=num_samples
@@ -214,28 +214,22 @@ class OFTI(Sampler,):
         pa_offset =  np.random.normal(
             0, self.pa_err[self.epoch_idx], size=num_samples
         )
-
         # calculate correction factors
         sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
         lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
-
         # perform scale-and-rotate
         sma *= sma_corr # [AU]
         lan += np.radians(lan_corr) # [rad]
         lan = lan % (2*np.pi)
-
         period_new = np.sqrt(
             4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
         )
         period_new = period_new.to(u.day).value
-
         tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
-
         # updates samples with new values of sma, pan, tau
         samples[0,:] = sma
         samples[4,:] = lan
         samples[5,:] = tau
-
         return samples
 
     def reject(self, samples):
@@ -260,7 +254,6 @@ class OFTI(Sampler,):
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
         lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
-        # pdb.set_trace()
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -269,6 +262,23 @@ class OFTI(Sampler,):
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
         return saved_orbits, lnlikes
+
+    def _do_ofti(self, num_samples):
+        """
+        """
+
+        # if the semimajor axis prior is standard, do scale-and-rotate
+        if self.priors[0].__repr__() == "Jeffreys":
+            samples = self.draw_from_priors(num_samples)
+            samples = self.scale_and_rotate(samples, num_samples)
+            
+        # otherwise, don't scale and rotate. Just do rejection sampling
+        else:
+            samples = self.draw_from_priors(num_samples)   
+        
+        accepted_orbits, lnlikes = self.reject(samples)
+
+        return accepted_orbits, lnlikes
 
     def _sampler_process(self, output, total_orbits, num_cores, num_samples=10000, Value=0, lock=None):
         """
@@ -308,8 +318,7 @@ class OFTI(Sampler,):
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
 
-            samples = self.prepare_samples(num_samples)
-            accepted_orbits, lnlikes = self.reject(samples)
+            accepted_orbits, lnlikes = self._do_ofti(num_samples)
 
             if len(accepted_orbits) == 0:
                 pass
@@ -409,8 +418,8 @@ class OFTI(Sampler,):
 
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
-                samples = self.prepare_samples(num_samples)
-                accepted_orbits, lnlikes = self.reject(samples)
+
+                accepted_orbits, lnlikes = self._do_ofti(num_samples)
 
                 if len(accepted_orbits) == 0:
                     pass

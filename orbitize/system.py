@@ -143,16 +143,16 @@ class System(object):
         self.labels.append('plx')
 
         # we'll need to iterate over instruments here
-        if self.gamma_bounds is not None:
+        if gamma_bounds is not None:
             self.sys_priors.append(priors.UniformPrior(
-                self.gamma_bounds[0], self.gamma_bounds[1]))
+                gamma_bounds[0], gamma_bounds[1]))
             self.labels.append('gamma')
             # Rob: insert tracker here
 
         # Rob: adding jitter parameter - first edit (before the masses)
-        if self.jitter_bounds is not None:
+        if jitter_bounds is not None:
             self.sys_priors.append(priors.LogUniformPrior(
-                self.jitter_bounds[0], self.jitter_bounds[1]))
+                jitter_bounds[0], jitter_bounds[1]))
             self.labels.append('sigma')
             # Rob: Insert tracker here
 
