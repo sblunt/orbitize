@@ -117,6 +117,7 @@ class Results(object):
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
+        hf.attrs['parameter_labels'] = self.labels
         hf.close()  # Closes file object, which writes file to disk
 
     def load_results(self, filename, append=False):
@@ -150,11 +151,7 @@ class Results(object):
             labels = np.array([hf.attrs['parameter_labels']])
         except KeyError:
             # again, probably an old file without saved parameter labels
-            if len(post[0, :]) == 11:
-                labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1',
-                          'tau1', 'plx', 'gamma', 'sigma', 'm1', 'm0']
-            else:
-                labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+            labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
 
         hf.close()  # Closes file object
 
