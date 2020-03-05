@@ -117,7 +117,7 @@ class Results(object):
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
-        hf.attrs['parameter_labels'] = self.labels
+        hf.attrs['parameter_labels'] = self.labels  # Rob: added this to account for the RV labels
         hf.close()  # Closes file object, which writes file to disk
 
     def load_results(self, filename, append=False):
