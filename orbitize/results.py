@@ -19,7 +19,6 @@ import corner
 import orbitize.kepler as kepler
 import orbitize.system
 
-
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
@@ -136,7 +135,6 @@ class Results(object):
         """
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
-        # pdb.set_trace() #here to see what attributes this has.
         sampler_name = np.str(hf.attrs['sampler_name'])
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
@@ -164,7 +162,6 @@ class Results(object):
             elif self.sampler_name != sampler_name:
                 raise Exception(
                     'Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
-
             # if no tau reference epoch is set, use input file's value
             if self.tau_ref_epoch is None:
                 self.tau_ref_epoch = tau_ref_epoch
@@ -174,7 +171,7 @@ class Results(object):
                     tau_ref_epoch, self.tau_ref_epoch))
             if self.labels is None:
                 self.labels = labels
-            elif self.labels != labels:
+            elif self.labels.any() != labels.any():
                 raise ValueError("Loaded data has parameter labels {} while Results object has already been initialized to {}.".format(
                     labels, self.labels))
 
