@@ -48,7 +48,8 @@ setup(
             'orbitize_example_data', 
             [
                 'tests/GJ504.csv', 
-                'tests/GJ504_1epoch.csv'
+                'tests/GJ504_1epoch.csv',
+                'tests/HD4747.csv'
             ]
         )
     ],
