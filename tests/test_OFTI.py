@@ -6,7 +6,7 @@ import os
 import pytest
 import matplotlib.pyplot as plt
 import time
-
+import orbitize
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
@@ -15,9 +15,8 @@ from orbitize.kepler import calc_orbit
 import orbitize.system
 
 
-testdir = os.path.dirname(os.path.abspath(__file__))
-input_file = os.path.join(testdir, 'GJ504.csv')
-input_file_1epoch = os.path.join(testdir, 'GJ504_1epoch.csv')
+input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+input_file_1epoch = os.path.join(orbitize.DATADIR, 'GJ504_1epoch.csv')
 
 
 def test_scale_and_rotate():
