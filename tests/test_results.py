@@ -57,7 +57,7 @@ def test_init_and_add_samples():
     # Create object
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels
+        labels=std_labels, num_secondary_bodies=1
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -85,7 +85,7 @@ def test_init_and_add_samples():
 def results_to_test():
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels
+        labels=std_labels, num_secondary_bodies=1
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000

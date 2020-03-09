@@ -151,7 +151,8 @@ class OFTI(Sampler,):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=self.system.tau_ref_epoch
+            tau_ref_epoch=self.system.tau_ref_epoch,
+            num_secondary_bodies=self.system.num_secondary_bodies
         )
 
     def prepare_samples(self, num_samples):
@@ -479,7 +480,8 @@ class MCMC(Sampler):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=system.tau_ref_epoch
+            tau_ref_epoch=system.tau_ref_epoch,
+            num_secondary_bodies=system.num_secondary_bodies
         )
 
         if self.num_temps > 1:
@@ -787,7 +789,8 @@ class MCMC(Sampler):
             post=flat_chopped_chain,
             lnlike=flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch,
-            labels=self.system.labels
+            labels=self.system.labels,
+            num_secondary_bondies=self.system.num_secondary_bodies
         )
 
         # Print a confirmation
