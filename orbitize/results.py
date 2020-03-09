@@ -265,11 +265,11 @@ class Results(object):
         for i, param in enumerate(param_list):
             index_num = np.where(np.array(self.labels) == param)[0][0]
             param_indices.append(index_num)
-            label_key = param_list[i]
+            label_key = param
             if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
-                angle_indices.append(index_num)
+                angle_indices.append(i)
             if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
-                secondary_mass_indices.append(index_num)
+                secondary_mass_indices.append(i)
 
         samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
@@ -380,7 +380,7 @@ class Results(object):
             aop = self.post[:, start_index + dict_of_indices['aop']]
             pan = self.post[:, start_index + dict_of_indices['pan']]
             tau = self.post[:, start_index + dict_of_indices['tau']]
-            plx = self.post[:, start_index + dict_of_indices['plx']]
+            plx = self.post[:, dict_of_indices['plx']]
 
             # Then, get the other parameters
             if 'mtot' in self.labels:
