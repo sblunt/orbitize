@@ -87,6 +87,7 @@ class Results(object):
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
+            self.labels = np.append(self.labels, labels)
 
     def _set_sampler_name(self, sampler_name):
         """
@@ -152,7 +153,7 @@ class Results(object):
             # probably a old results file when reference epoch was fixed at MJD = 0
             tau_ref_epoch = 0
         try:
-            labels = np.array([hf.attrs['parameter_labels']])
+            labels = np.array(hf.attrs['parameter_labels'])
         except KeyError:
             # again, probably an old file without saved parameter labels
             # old files only fit single planets
