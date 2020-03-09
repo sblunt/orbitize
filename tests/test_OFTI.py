@@ -143,7 +143,7 @@ def test_OFTI_multiplanet():
     # change eccentricity prior for c
     myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
 
-    orbits = s.run_sampler(1000)
+    orbits = s.run_sampler(500)
 
     idx = s.system.param_idx
     sma1 = np.median(orbits[:,idx['sma1']])
@@ -159,7 +159,7 @@ def test_OFTI_multiplanet():
 
 
 if __name__ == "__main__":
-    #test_scale_and_rotate()
-    #test_run_sampler()
+    test_scale_and_rotate()
+    test_run_sampler()
     test_OFTI_multiplanet()
     print("Done!")

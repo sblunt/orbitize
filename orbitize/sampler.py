@@ -137,9 +137,11 @@ class OFTI(Sampler,):
             self.system.data_table['quant_type'] == 'rv')]['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
+        # for multiplanet support, this is now a list. 
+        # For each planet, we find the measurment for it that corresponds to the smallest astrometric error
         self.epoch_idx = []
-        min_sep_indices = np.argsort(self.sep_err)
-        min_sep_indices_body = self.meas_object[min_sep_indices]
+        min_sep_indices = np.argsort(self.sep_err) # indices of sep err sorted from smallest to higheset
+        min_sep_indices_body = self.meas_object[min_sep_indices] # the corresponding body_num that these sorted measurements correspond to
         for i in range(self.system.num_secondary_bodies):
             body_num = i + 1
             this_object_meas = np.where(min_sep_indices_body == body_num)[0]
@@ -148,7 +150,7 @@ class OFTI(Sampler,):
                 self.epoch_idx.append(None)
                 continue
             # get the smallest measurement belonging to this body
-            best_epoch = min_sep_indices_body[this_object_meas][0] # already sorted by argsort
+            best_epoch = min_sep_indices[this_object_meas][0] # already sorted by argsort
             self.epoch_idx.append(best_epoch)
         
         if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:  # checking for RV data
