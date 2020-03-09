@@ -131,7 +131,35 @@ def test_fixed_sys_params_sampling():
     assert isinstance(samples[-3], np.ndarray)
 
 
+def test_OFTI_multiplanet():
+    # initialize sampler
+    input_file = os.path.join(orbitize.DATADIR, "test_val_multi.csv")
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+                                      2, 1.52, 24.76, mass_err=0.15, plx_err=0.64)
+
+    s = myDriver.sampler
+    # change eccentricity prior for b
+    myDriver.system.sys_priors[1] = priors.UniformPrior(0.0, 0.1)
+    # change eccentricity prior for c
+    myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
+
+    orbits = s.run_sampler(1000)
+
+    idx = s.system.param_idx
+    sma1 = np.median(orbits[:,idx['sma1']])
+    sma2 = np.median(orbits[:,idx['sma2']])
+
+    sma1_exp = 66
+    sma2_exp = 40
+    print(sma1, sma2)
+    assert sma1 == pytest.approx(sma1_exp, abs=0.3*sma1_exp)
+    assert sma2 == pytest.approx(sma2_exp, abs=0.3*sma2_exp)
+    assert np.all(orbits[:, idx['ecc1']] < 0.1)
+    assert np.all(orbits[:, idx['ecc2']] < 0.1)
+
+
 if __name__ == "__main__":
-    test_scale_and_rotate()
-    test_run_sampler()
+    #test_scale_and_rotate()
+    #test_run_sampler()
+    test_OFTI_multiplanet()
     print("Done!")
