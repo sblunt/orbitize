@@ -129,7 +129,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     original_length = results_to_save.post.shape[0]
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
-    assert loaded_results.labels[0].tolist() == std_labels
+    assert loaded_results.labels.tolist() == std_labels
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
 

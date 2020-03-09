@@ -87,7 +87,6 @@ class Results(object):
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
-            self.labels = np.append(self.labels, labels)
 
     def _set_sampler_name(self, sampler_name):
         """
