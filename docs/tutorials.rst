@@ -41,6 +41,7 @@ us if you are still confused).
    :maxdepth: 1
 
    tutorials/RV_MCMC_Tutorial.ipynb
+   tutorials/Multiplanet_Tutorial.ipynb
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
