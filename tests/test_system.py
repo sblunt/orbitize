@@ -4,15 +4,14 @@ Tests functionality of methods in system.py
 import numpy as np
 import pytest
 import os
-
+import orbitize
 import orbitize.read_input as read_input
 import orbitize.system as system
 import orbitize.results as results
 
 def test_add_and_clear_results():
     num_secondary_bodies=1
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     data_table=read_input.read_file(input_file)
     system_mass=1.0
     plx=10.0
@@ -41,8 +40,7 @@ def test_add_and_clear_results():
 
 def test_convert_data_table_radec2seppa():
     num_secondary_bodies=1
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     data_table=read_input.read_file(input_file)
     system_mass=1.0
     plx=10.0
@@ -60,8 +58,7 @@ def test_multi_planets():
     Test using some data for HR 8799 b and c
     """
     num_secondary_bodies=2
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val_multi.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val_multi.csv')
     data_table=read_input.read_file(input_file)
     system_mass=1.47
     plx=24.30

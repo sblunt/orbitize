@@ -117,7 +117,7 @@ class OFTI(Sampler,):
         self.priors = self.system.sys_priors
 
         # convert RA/Dec rows to sep/PA
-        for body_num in np.arange(self.system.num_secondary_bodies):
+        for body_num in np.arange(self.system.num_secondary_bodies) + 1:
             if len(self.system.radec[body_num]) > 0:
                 print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
                 self.system.convert_data_table_radec2seppa(body_num=body_num)
@@ -131,6 +131,8 @@ class OFTI(Sampler,):
             self.system.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
         self.pa_err = self.system.data_table[np.where(
             self.system.data_table['quant_type'] == 'seppa')]['quant2_err'].copy()
+        self.meas_object = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['object'].copy()
 
         # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
@@ -143,8 +145,22 @@ class OFTI(Sampler,):
             self.system.data_table['quant_type'] == 'rv')]['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
-        self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
-
+        # for multiplanet support, this is now a list. 
+        # For each planet, we find the measurment for it that corresponds to the smallest astrometric error
+        self.epoch_idx = []
+        min_sep_indices = np.argsort(self.sep_err) # indices of sep err sorted from smallest to higheset
+        min_sep_indices_body = self.meas_object[min_sep_indices] # the corresponding body_num that these sorted measurements correspond to
+        for i in range(self.system.num_secondary_bodies):
+            body_num = i + 1
+            this_object_meas = np.where(min_sep_indices_body == body_num)[0]
+            if np.size(this_object_meas) == 0:
+                # no data, no scaling
+                self.epoch_idx.append(None)
+                continue
+            # get the smallest measurement belonging to this body
+            best_epoch = min_sep_indices[this_object_meas][0] # already sorted by argsort
+            self.epoch_idx.append(best_epoch)
+        
         if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:  # checking for RV data
             self.rv_observed = self.system.data_table[np.where(
                 self.system.data_table['quant_type'] == 'rv')]['quant1'].copy()
@@ -159,7 +175,8 @@ class OFTI(Sampler,):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=self.system.tau_ref_epoch
+            tau_ref_epoch=self.system.tau_ref_epoch,
+            num_secondary_bodies=self.system.num_secondary_bodies
         )
 
     def prepare_samples(self, num_samples):
@@ -209,30 +226,35 @@ class OFTI(Sampler,):
             if "sigma" in self.system.labels:
                 sigma = samples[6 * self.system.num_secondary_bodies + 2, :]
 
+            min_epoch = self.epoch_idx[body_num]
+            if min_epoch is None:
+                # Don't need to rotate and scale if no astrometric measurments for this body. Brute force rejection sampling
+                continue
+
             period_prescale = np.sqrt(
                 4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
             )
             period_prescale = period_prescale.to(u.day).value
-            meananno = self.epochs[self.epoch_idx]/period_prescale - tau
+            meananno = self.epochs[min_epoch]/period_prescale - tau
 
             # compute sep/PA of generated orbits
             ra, dec, vc = orbitize.kepler.calc_orbit(
-                self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
+                self.epochs[min_epoch], sma, ecc, inc, argp, lan, tau, plx, mtot, 
                 mass_for_Kamp=m1
             )
             sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
             # generate Gaussian offsets from observational uncertainties
             sep_offset = np.random.normal(
-                0, self.sep_err[self.epoch_idx], size=num_samples
+                0, self.sep_err[min_epoch], size=num_samples
             )
             pa_offset =  np.random.normal(
-                0, self.pa_err[self.epoch_idx], size=num_samples
+                0, self.pa_err[min_epoch], size=num_samples
             )
 
             # calculate correction factors
-            sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
-            lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
+            sma_corr = (sep_offset + self.sep_observed[min_epoch])/sep
+            lan_corr = (pa_offset + self.pa_observed[min_epoch] - pa)
 
             # perform scale-and-rotate
             sma *= sma_corr # [AU]
@@ -244,7 +266,7 @@ class OFTI(Sampler,):
             )
             period_new = period_new.to(u.day).value
 
-            tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
+            tau = (self.epochs[min_epoch]/period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
             samples[ref_ind,:] = sma
@@ -487,7 +509,8 @@ class MCMC(Sampler):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=system.tau_ref_epoch
+            tau_ref_epoch=system.tau_ref_epoch,
+            num_secondary_bodies=system.num_secondary_bodies
         )
 
         if self.num_temps > 1:
@@ -795,7 +818,8 @@ class MCMC(Sampler):
             post=flat_chopped_chain,
             lnlike=flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch,
-            labels=self.system.labels
+            labels=self.system.labels,
+            num_secondary_bodies=self.system.num_secondary_bodies
         )
 
         # Print a confirmation

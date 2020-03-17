@@ -66,6 +66,11 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.1.0.0 (2020-3-6)**
+
+- Joint RV + relative astrometry fitting capabilities! 
+- New tutorial added
+
 **1.9.0 (2020-1-24)**
 
 - Require astropy>=4

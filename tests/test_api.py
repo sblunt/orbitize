@@ -2,6 +2,7 @@
 Test the functionality of the API
 """
 import numpy as np
+import orbitize
 import orbitize.lnlike as lnlike
 import orbitize.system as system
 import orbitize.sampler as sampler
@@ -13,8 +14,7 @@ def test_compute_model():
     """
     Test basic functionality of ``System.compute_model()``
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     data_table = read_input.read_file(input_file)
     data_table['object'] = 1
     testSystem_parsing = system.System(
@@ -43,7 +43,7 @@ def test_systeminit():
     Test that the different types of data are parsed correctly
     when initializing a ``System`` object.
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
+    testdir = orbitize.DATADIR
     input_file = os.path.join(testdir, 'test_val.csv')
     data_table = read_input.read_file(input_file)
 
@@ -88,7 +88,7 @@ def test_custom_likelihood():
     Tests the inclusion of a custom likelihood function in the code
     """
     # use the test_csv dir
-    testdir = os.path.dirname(os.path.abspath(__file__))
+    testdir = orbitize.DATADIR
     input_file = os.path.join(testdir, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table

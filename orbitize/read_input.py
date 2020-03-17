@@ -45,11 +45,6 @@ def read_file(filename):
         taken at the same epoch), ``read_file()`` will generate a separate output row for
         each valid set.
 
-    .. Warning:: For now, ``orbitize`` only accepts astrometric measurements for one
-        secondary body. In a future release, it will also handle astrometric measurements for
-        multiple secondaries, RV measurements of the primary and secondar(ies), and astrometric
-        measurements of the primary. Stay tuned!
-
     For RA/Dec and Sep/PA, you can also specify a covariance term. This is useful when your error ellipse
     is tilted with respect to the RA/Dec or Sep/PA. The covariance term is the off diagonal element of the 
     covariance matrix: C = [[C_11, C_12], [C_12, C_22]]. Here C_11 = quant1_err^2 and C_22 = quant2_err^2
