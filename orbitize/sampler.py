@@ -40,7 +40,7 @@ class Sampler(abc.ABC):
         self.custom_lnlike = custom_lnlike
 
         # check if need to handle covariances
-        self.has_cov = np.any(~np.isnan(self.system.data_table['quant12_cov']))
+        self.has_corr = np.any(~np.isnan(self.system.data_table['quant12_corr']))
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
@@ -72,17 +72,17 @@ class Sampler(abc.ABC):
         # errors below required for lnlike function below
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
-        # covariances, if applicable
-        if self.has_cov:
-            covs = self.system.data_table['quant12_cov']
+        # covariances/correlations, if applicable
+        if self.has_corr:
+            corrs = self.system.data_table['quant12_corr']
         else:
-            covs = None
+            corrs = None
 
         # grab all seppa indices
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
-        lnlikes = self.lnlike(data, errs, covs, model, jitter, seppa_indices)
+        lnlikes = self.lnlike(data, errs, corrs, model, jitter, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
         lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))

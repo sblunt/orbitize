@@ -38,11 +38,12 @@ def test_chi2lnlike_withcov():
     ### all all covariances
     data = np.array([[5,-4], [3,-2], [1,0] ])
     model = np.zeros(data.shape)
-    jitter = np.zeros(jitter)
+    jitter = np.zeros(data.shape)
     errs = np.array([[2,2], [2,2], [2,2]])
     covs = np.array([1, 0.25, 0.25])
+    corrs = covs/errs[:,0]/errs[:,1]
 
-    chi2s = lnlike.chi2_lnlike(data, errs, covs, model, jitter, [])
+    chi2s = lnlike.chi2_lnlike(data, errs, corrs, model, jitter, [])
 
     residuals = data - model
     for res, err, cov, chi2 in zip(residuals, errs, covs, chi2s):
@@ -53,13 +54,14 @@ def test_chi2lnlike_withcov():
         res_cov_res = res.dot(cov_inv_dot_diff)
         numpy_chi2 = -0.5 * (res_cov_res + logdet) 
 
-        assert chi2 == numpy_chi2
+        assert np.sum(chi2) == numpy_chi2
 
     ### only one covariance term
     covs = np.array([1, np.nan, np.nan])
-    new_chi2s = lnlike.chi2_lnlike(data, errs, covs, model, jitter, [])
+    corrs = covs/errs[:,0]/errs[:,1]
+    new_chi2s = lnlike.chi2_lnlike(data, errs, corrs, model, jitter, [])
 
-    assert chi2s[0] == new_chi2s[0]
+    assert np.all(chi2s[0] == new_chi2s[0])
 
 
 def test_2x2_analytical_solution():
@@ -70,11 +72,12 @@ def test_2x2_analytical_solution():
 
     errs = np.array([[2,2], [2,2], [2,2]])
     covs = np.array([1, 0.25, 0.25])
+    corrs = covs/errs[:,0]/errs[:,1]
 
-    chi2s = lnlike._chi2_2x2cov(residuals, errs**2, covs)
+    chi2s = lnlike._chi2_2x2cov(np.array([residuals]), np.array([errs**2]), corrs)
 
     # compare to numpy solution
-    for res, err, cov, chi2 in zip(residuals, errs, covs, chi2s):
+    for res, err, cov, chi2 in zip(residuals, errs, covs, chi2s[0]):
         cov_matrix = np.array([[err[0]**2, cov], [cov, err[1]**2]])
         cov_inv = np.linalg.inv(cov_matrix)
         cov_inv_dot_diff = np.dot(cov_inv, res)
@@ -82,10 +85,10 @@ def test_2x2_analytical_solution():
         res_cov_res = res.dot(cov_inv_dot_diff)
         numpy_chi2 = -0.5 * (res_cov_res + logdet) 
 
-        assert chi2 == numpy_chi2
+        assert np.sum(chi2) == numpy_chi2
 
 
 if __name__ == "__main__":
-    test_chi2lnlike()
+    test_chi2lnlike_withcov()
     test_2x2_analytical_solution()
 

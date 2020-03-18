@@ -5,7 +5,7 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
+def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -13,8 +13,8 @@ def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
             for every epoch, and data[:,1] = corresponding pa/DEC/np.nan.
         errors (np.array): Nobsx2 array of errors for each data point. Same
                 format as ``data``.
-        covs (np.array): Nobs array of covariance between the two quantities. 
-                If there is none, can be None.
+        corrs (np.array): Nobs array of Pearson correlation coeffs
+                between the two quantities. If there is none, can be None.
         model (np.array): Nobsx2xM array of model predictions, where M is the \
                 number of orbits being compared against the data. If M is 1, \
             ``model`` can be 2 dimensional.
@@ -52,20 +52,20 @@ def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
 
     sigma2 = errors**2 + jitter**2 # diagonal error term
 
-    if covs is None:
+    if corrs is None:
         # including the second term of chi2
         chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
     else:
-        has_no_cov = np.isnan(covs)
-        yes_cov = np.where(~has_no_cov)[0]
-        no_cov = np.where(has_no_cov)[0]
+        has_no_corr = np.isnan(corrs)
+        yes_corr = np.where(~has_no_corr)[0]
+        no_corr = np.where(has_no_corr)[0]
 
         chi2 = np.zeros(residual.shape)
-        chi2[:,no_cov] = -0.5 * residual[:,no_cov]**2 / sigma2[:,no_cov] - np.log(np.sqrt(2*np.pi*sigma2[:,no_cov]))
+        chi2[:,no_corr] = -0.5 * residual[:,no_corr]**2 / sigma2[:,no_corr] - np.log(np.sqrt(2*np.pi*sigma2[:,no_corr]))
 
         # analytical solution for 2x2 covariance matrix
         # chi2 = -0.5 * (R^T C^-1 R + ln(det_C))
-        chi2[:,yes_cov] = _chi2_2x2cov(residual[:,yes_cov], sigma2[:,yes_cov], covs[yes_cov])
+        chi2[:,yes_corr] = _chi2_2x2cov(residual[:,yes_corr], sigma2[:,yes_corr], corrs[yes_corr])
 
     if third_dim:
         # move M dimension back to the last axis
@@ -79,7 +79,7 @@ def chi2_lnlike(data, errors, covs, model, jitter, seppa_indices):
 
     return chi2
 
-def _chi2_2x2cov(residual, var, covs):
+def _chi2_2x2cov(residual, var, corrs):
     """
     Analytical solution for when quant1/quant2 have a covariance term
     So we don't need to calculate matrix inverses when the jitter varies depending on the model
@@ -87,8 +87,8 @@ def _chi2_2x2cov(residual, var, covs):
     Args:
         residual (np.array): MxNobsx2 array of fit residuals, 
         var (np.array): MxNobsx2 array of variance for each residual
-        covs (np.array): Nobs array of off axis covariance matrix element
-                between the two quantities. 
+        corrs (np.array): Nobs array of off axis Pearson corr coeffs
+                          between the two quantities. 
 
     Returns
         chi2 (np.array): MxNobsx2 array of chi2. Becuase of x/y coariance, it's impossible to
@@ -96,8 +96,9 @@ def _chi2_2x2cov(residual, var, covs):
                          and the second dimension is 0
     """
 
-    det_C = var[:,:,0] * var[:,:,1] - covs**2
+    det_C = var[:,:,0] * var[:,:,1] * (1 - corrs**2) 
 
+    covs = corrs * np.sqrt(var[:,:,0]) * np.sqrt(var[:,:,1])
     chi2 = (residual[:,:,0]**2 * var[:,:,1] + residual[:,:,1]**2 * var[:,:,0] - 2 * residual[:,:,0] * residual[:,:,1] * covs)/det_C
 
     chi2 += np.log(det_C)
