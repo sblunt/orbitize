@@ -81,8 +81,8 @@ def read_file(filename):
     Written: Henry Ngo, 2018
     """
     # initialize output table
-    output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant_type'),
-                         dtype=(float, int, float, float, float, float, 'S5'))
+    output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant_type', 'instrument'),  # Rob: add "instrument" column with 'str5' dtype
+                         dtype=(float, int, float, float, float, float, 'S5', 'S5'))
 
     # read file
     try:
@@ -165,6 +165,11 @@ def read_file(filename):
                 have_rv = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
+            # Rob: not sure if we need this but adding just in case
+            if 'instrument' in input_table.columns:
+                have_inst = np.ones(num_measurements, dtype=bool)
+            else:
+                have_inst = np.zeros(num_measurements, dtype=bool)
 
     # loop through each row and format table
     index = 0
@@ -199,13 +204,13 @@ def read_file(filename):
         else:  # When not in orbitize style
             if have_ra[index] and have_dec[index]:
                 output_table.add_row([MJD, row['object'], row['raoff'],
-                                      row['raoff_err'], row['decoff'], row['decoff_err'], "radec"])
+                                      row['raoff_err'], row['decoff'], row['decoff_err'], "radec", row['instrument']])
             elif have_sep[index] and have_pa[index]:
                 output_table.add_row([MJD, row['object'], row['sep'],
-                                      row['sep_err'], row['pa'], row['pa_err'], "seppa"])
+                                      row['sep_err'], row['pa'], row['pa_err'], "seppa", row['instrument']])
             if have_rv[index]:
                 output_table.add_row([MJD, row['object'], row['rv'],
-                                      row['rv_err'], None, None, "rv"])
+                                      row['rv_err'], None, None, "rv", row['instrument']])
 
         index = index+1
 
