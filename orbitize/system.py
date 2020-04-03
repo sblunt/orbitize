@@ -69,7 +69,12 @@ class System(object):
         # Creates a copy of the input in case data_table needs to be modified
         self.input_table = self.data_table.copy()
 
+        # Rob: check if instrument column is other than default. If other than default, then separate data table into n number of instruments.
+        # gather list of instrument: list_instr = self.data_table['instruments'][name of instrument]
         # List of arrays of indices corresponding to each body
+
+        # instruments = np.unique(self.data_table['instruments']) gives a list of unique names
+
         self.body_indices = []
 
         # List of arrays of indices corresponding to epochs in RA/Dec for each body
@@ -81,10 +86,27 @@ class System(object):
         # List of index arrays corresponding to each rv for each body
         self.rv = []
 
+        # instr1_tbl = np.where(self.data_table['instruments'] == list_instr[0])
+        # loop through the indices per input_table:
+        # rv_indices = np.where(instr1_tbl['quant_type'] == 'rv')
+        # ... return the parameter labels for each table
+        # ...
+
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
         rv_indices = np.where(self.data_table['quant_type'] == 'rv')
+
+        # Rob and Lea:
+
+        # list of instruments of unique values:
+        # instrument_list = [inst1,inst2, inst3, ] inst1 astr, inst2 and ins3 rv
+        # inst_indices_all = [] list of lists
+        # for inst in instrument_list:
+        # inst_indices = np.where(self.data_table['instruments'] == inst) list of indices for instruments
+        # inst_indices_all.append(inst_indices)
+        # rv_instruments = np.unique(self.data_table['instruments'].iloc[rv_indices]) gives all instruments belonging to the rv data
+        # do same for ra,dec and sep,pa and append these together to get the astr_instruments
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -148,6 +170,9 @@ class System(object):
         # checking for rv data to include appropriate rv priors:
 
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
+            # Rob and Lea:
+            # for instrument in rv_instruments:
+                # add gamma and sigma for each and label each unique gamma and sigma per instrument name (gamma+instrument1, ...)
             self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
             self.labels.append('gamma')
 
@@ -189,16 +214,23 @@ class System(object):
 
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
+            # Rob and Lea:
+            # gamma = np.zeros((len(self.data_table),2))
             jitter = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
+            # for instrument in rv_instruments:
             gamma = params_arr[6*self.num_secondary_bodies+1]  # km/s
 
             # need to put planetary rv later
             # Both gamma and jitter will be default values if fitting for secondary masses later
-            total_rv0 = gamma
+            total_rv0 = gamma  # this will go away
+            # Rob and Lea:
+            # for inst in instrument_list_rv:
+            # track where the rv instruments are in the list of indices
+            # get the rv indices to set gamma = params_arr, jitter = params_arr that corresponds to the right rv index
             jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2]  # km/s
             jitter[self.rv[0], 1] = np.nan
         else:
@@ -262,7 +294,8 @@ class System(object):
             if len(total_rv0[self.rv[0]]) > 0:
                 model[self.rv[0], 0] = total_rv0[self.rv[0]]
                 model[self.rv[0], 1] = np.nan  # nans only for rv indices
-
+        # Rob and Lea:
+        # we can add gamma here to: return model+gamma, jitter
         return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
