@@ -108,6 +108,18 @@ class System(object):
         # rv_instruments = np.unique(self.data_table['instruments'].iloc[rv_indices]) gives all instruments belonging to the rv data
         # do same for ra,dec and sep,pa and append these together to get the astr_instruments
 
+        instrument_list = self.data_table['instrument']
+        inst_indices_all = []
+        for inst in instruments:
+            inst_indices = np.where(self.data_table['instrument'] == inst)
+            inst_indices_all.append(inst_indices)
+
+        # defining indices for unique instruments in the data table
+        # we need these because we'll need to loop through the unique rv instruments to get different offsets and jitters
+        rv_instruments = np.unique(self.data_table['instrument'][rv_indices])
+        # astrometry instruments same for radec and seppa:
+        astr_instruments = np.unique(self.data_table['instrument'][np.where(self.data_table['quant_type'] != 'rv')]))
+
         for body_num in np.arange(self.num_secondary_bodies+1):
 
             self.body_indices.append(
