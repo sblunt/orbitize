@@ -86,7 +86,7 @@ def test_fit_selfconsist():
     mass_c = 0.002 # Msun
     period_c = np.sqrt(c_params[0]**3/m0)
 
-    epochs = np.linspace(0, period_c*365.25, 100) + tau_ref_epoch # the full period of c, MJD
+    epochs = np.linspace(0, period_c*365.25, 20) + tau_ref_epoch # the full period of c, MJD
 
     # comptue Keplerian orbit of b
     ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], b_params[5], plx, m0+mass_b, mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch)
@@ -106,11 +106,11 @@ def test_fit_selfconsist():
     dec_model_c += mass_b/m0 * dec_model_b_orig
 
     # generate some fake measurements to fit to. Make it with b first
-    t = table.Table([epochs, np.ones(epochs.shape, dtype=int), ra_model_b, 0.0001 * np.ones(epochs.shape, dtype=int), dec_model_b, 0.0001 * np.ones(epochs.shape, dtype=int)], 
+    t = table.Table([epochs, np.ones(epochs.shape, dtype=int), ra_model_b, 0.00001 * np.ones(epochs.shape, dtype=int), dec_model_b, 0.00001 * np.ones(epochs.shape, dtype=int)], 
                      names=["epoch", "object" ,"raoff", "raoff_err","decoff","decoff_err"])
     # add c
     for eps, ra, dec in zip(epochs, ra_model_c, dec_model_c):
-        t.add_row([eps, 2, ra, 0.0001, dec, 0.0001])
+        t.add_row([eps, 2, ra, 0.00001, dec, 0.00001])
 
     filename = os.path.join(orbitize.DATADIR, "multiplanet_fake_2planettest.csv")
     t.write(filename, overwrite=True)
@@ -139,6 +139,7 @@ def test_fit_selfconsist():
 
     # start walkers near the true location for the orbital parameters
     # planet b
+    np.random.seed(seed=1234)
     samp.curr_pos[:,0] = np.random.normal(b_params[0], 0.01, n_walkers) # sma
     samp.curr_pos[:,1] = np.random.uniform(0, 0.05, n_walkers) # ecc
     samp.curr_pos[:,2] = np.random.normal(b_params[-1], 0.01, n_walkers) # tau
@@ -148,13 +149,15 @@ def test_fit_selfconsist():
     samp.curr_pos[:,5] = np.random.normal(c_params[-1], 0.01, n_walkers) # tau
     # we won't do anything with the mass priors
 
-    samp.run_sampler(n_walkers*100, burn_steps=300)
+    samp.run_sampler(n_walkers*100, burn_steps=200)
 
     res = samp.results
 
+    print(np.median(res.post[:,sys.param_idx['m1']]), np.median(res.post[:,sys.param_idx['m2']]))
     assert np.median(res.post[:,sys.param_idx['sma1']]) == pytest.approx(b_params[0], abs=0.01)
+    assert np.median(res.post[:,sys.param_idx['m1']]) == pytest.approx(mass_b, abs=0.5 * mass_b)
     assert np.median(res.post[:,sys.param_idx['sma2']]) == pytest.approx(c_params[0], abs=0.01)
-    assert np.median(res.post[:,sys.param_idx['m2']]) == pytest.approx(mass_c, abs=0.1 * mass_c)
+    assert np.median(res.post[:,sys.param_idx['m2']]) == pytest.approx(mass_c, abs=0.5 * mass_c)
     
 
 if __name__ == "__main__":
