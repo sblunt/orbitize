@@ -238,6 +238,7 @@ class System(object):
             jitter = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
+            gamma = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
             # Rob: looping through instruments to get the gammas
@@ -312,7 +313,10 @@ class System(object):
                 model[self.rv[0], 1] = np.nan  # nans only for rv indices
         # Rob and Lea:
         # we can add gamma here to: return model+gamma, jitter
-        return model+gamma, jitter
+        if self.fit_secondary_mass:
+            return model+gamma, jitter
+        else:
+            return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """

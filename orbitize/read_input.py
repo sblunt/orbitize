@@ -141,11 +141,11 @@ def read_file(filename):
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
             if 'instrument' in input_table.columns:
-                
-                #Vighnesh: establishes which rows have instrument names provided
+
+                # Vighnesh: establishes which rows have instrument names provided
                 have_inst = ~input_table['instrument'].mask
             else:
-                have_inst = np.zeros(num_measurements, dtype=bool) #zeros are false
+                have_inst = np.zeros(num_measurements, dtype=bool)  # zeros are false
 
     else:  # no masked entries, just check for required columns
         if 'epoch' not in input_table.columns:
@@ -173,7 +173,7 @@ def read_file(filename):
                 have_rv = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            
+
             # Rob: not sure if we need this but adding just in case
             if 'instrument' in input_table.columns:
                 have_inst = np.ones(num_measurements, dtype=bool)
@@ -204,37 +204,37 @@ def read_file(filename):
         if orbitize_style:
             if row['quant_type'] == 'rv':  # special format for rv rows
                 output_table.add_row([MJD, row['object'], row['quant1'],
-                                      row['quant1_err'], None, None, row['quant_type']])
+                                      row['quant1_err'], None, None, row['quant_type'], row['instrument']])
             elif row['quant_type'] == 'radec' or row['quant_type'] == 'seppa':  # other allowed formats
                 output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'],
-                                      row['quant2'], row['quant2_err'], row['quant_type']])
+                                      row['quant2'], row['quant2_err'], row['quant_type'], row['instrument']])
             else:  # catch wrong formats
                 raise Exception("Invalid 'quant_type'. Valid values are 'radec', 'seppa' or 'rv'")
         else:  # When not in orbitize style
             if have_ra[index] and have_dec[index]:
                 if have_inst[index]:
                     output_table.add_row([MJD, row['object'], row['raoff'],
-                                      row['raoff_err'], row['decoff'], row['decoff_err'], "radec", row['instrument']])
+                                          row['raoff_err'], row['decoff'], row['decoff_err'], "radec", row['instrument']])
                 else:
-                    #Vighnesh: sets the row with a default instrument name if none is provided
+                    # Vighnesh: sets the row with a default instrument name if none is provided
                     output_table.add_row([MJD, row['object'], row['raoff'],
-                                      row['raoff_err'], row['decoff'], row['decoff_err'], "radec", "defrd"])
+                                          row['raoff_err'], row['decoff'], row['decoff_err'], "radec", "defrd"])
 
             elif have_sep[index] and have_pa[index]:
                 if have_inst[index]:
                     output_table.add_row([MJD, row['object'], row['sep'],
-                                      row['sep_err'], row['pa'], row['pa_err'], "seppa", row['instrument']])
+                                          row['sep_err'], row['pa'], row['pa_err'], "seppa", row['instrument']])
                 else:
-                    #Vighnesh: sets the row with a default instrument name if none is provided
+                    # Vighnesh: sets the row with a default instrument name if none is provided
                     output_table.add_row([MJD, row['object'], row['sep'],
-                                      row['sep_err'], row['pa'], row['pa_err'], "seppa", "defsp"])
+                                          row['sep_err'], row['pa'], row['pa_err'], "seppa", "defsp"])
 
             if have_rv[index]:
                 if have_inst[index]:
                     output_table.add_row([MJD, row['object'], row['rv'],
                                           row['rv_err'], None, None, "rv", row['instrument']])
-                else: 
-                    #Vighnesh: sets the row with a default instrument name if none is provided
+                else:
+                    # Vighnesh: sets the row with a default instrument name if none is provided
                     output_table.add_row([MJD, row['object'], row['rv'],
                                           row['rv_err'], None, None, "rv", "defrv"])
 
