@@ -111,7 +111,7 @@ class System(object):
         # Rob: defining all indices to loop through the unique rv instruments to get different offsets and jitters
         instrument_list = np.unique(self.data_table['instrument'])
         inst_indices_all = []
-        for inst in instruments:
+        for inst in instrument_list:
             inst_indices = np.where(self.data_table['instrument'] == inst)
             inst_indices_all.append(inst_indices)
 
@@ -123,7 +123,8 @@ class System(object):
             self.rv_inst_indices.append(inst_indices)
 
         # astrometry instruments same for radec and seppa:
-        self.astr_instruments = np.unique(self.data_table['instrument'][np.where(self.data_table['quant_type'] != 'rv')]))
+        self.astr_instruments = np.unique(
+            self.data_table['instrument'][np.where(self.data_table['quant_type'] != 'rv')])
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -233,7 +234,7 @@ class System(object):
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
             # Rob and Lea: adding gamma zeros
-            gamma = np.zeros((len(self.data_table),2))
+            gamma = np.zeros((len(self.data_table), 2))
             jitter = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
@@ -241,10 +242,12 @@ class System(object):
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
             # Rob: looping through instruments to get the gammas
             for rv_idx in range(len(self.rv_instruments)):
-                gamma[self.rv_inst_indices[rv_idx,0] = params_arr[6*self.num_secondary_bodies+1+2*rv_idx]  # km/s
-                jitter[self.rv_inst_indices[rv_idx,0] = params_arr[6*self.num_secondary_bodies+2+2*rv_idx]
-                gamma[self.rv_inst_indices[rv_idx,1] = np.nan
-                jitter[self.rv_inst_indices[rv_idx,1] = np.nan
+                gamma[self.rv_inst_indices[rv_idx], 0] = params_arr[6 *
+                                                                    self.num_secondary_bodies+1+2*rv_idx]  # km/s
+                jitter[self.rv_inst_indices[rv_idx], 0] = params_arr[6 *
+                                                                     self.num_secondary_bodies+2+2*rv_idx]
+                gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
+                jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
             # need to put planetary rv later
 
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
