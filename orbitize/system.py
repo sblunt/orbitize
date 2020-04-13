@@ -108,17 +108,22 @@ class System(object):
         # rv_instruments = np.unique(self.data_table['instruments'].iloc[rv_indices]) gives all instruments belonging to the rv data
         # do same for ra,dec and sep,pa and append these together to get the astr_instruments
 
-        instrument_list = self.data_table['instrument']
+        # Rob: defining all indices to loop through the unique rv instruments to get different offsets and jitters
+        instrument_list = np.unique(self.data_table['instrument'])
         inst_indices_all = []
         for inst in instruments:
             inst_indices = np.where(self.data_table['instrument'] == inst)
             inst_indices_all.append(inst_indices)
 
         # defining indices for unique instruments in the data table
-        # we need these because we'll need to loop through the unique rv instruments to get different offsets and jitters
-        rv_instruments = np.unique(self.data_table['instrument'][rv_indices])
+        self.rv_instruments = np.unique(self.data_table['instrument'][rv_indices])
+        self.rv_inst_indices = []
+        for inst in self.rv_instruments:
+            inst_indices = np.where(self.data_table['instrument'] == inst)
+            self.rv_inst_indices.append(inst_indices)
+
         # astrometry instruments same for radec and seppa:
-        astr_instruments = np.unique(self.data_table['instrument'][np.where(self.data_table['quant_type'] != 'rv')]))
+        self.astr_instruments = np.unique(self.data_table['instrument'][np.where(self.data_table['quant_type'] != 'rv')]))
 
         for body_num in np.arange(self.num_secondary_bodies+1):
 
@@ -185,11 +190,12 @@ class System(object):
             # Rob and Lea:
             # for instrument in rv_instruments:
                 # add gamma and sigma for each and label each unique gamma and sigma per instrument name (gamma+instrument1, ...)
-            self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
-            self.labels.append('gamma')
+            for instrument in self.rv_instruments:
+                self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
+                self.labels.append('gamma_{}'.format(instrument))
 
-            self.sys_priors.append(priors.LogUniformPrior(1e-4, 0.05))  # jitter prior in km/s
-            self.labels.append('sigma')
+                self.sys_priors.append(priors.LogUniformPrior(1e-4, 0.05))  # jitter prior in km/s
+                self.labels.append('sigma_{}'.format(instrument))
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
@@ -226,26 +232,21 @@ class System(object):
 
         if len(params_arr.shape) == 1:
             model = np.zeros((len(self.data_table), 2))
-            # Rob and Lea:
-            # gamma = np.zeros((len(self.data_table),2))
+            # Rob and Lea: adding gamma zeros
+            gamma = np.zeros((len(self.data_table),2))
             jitter = np.zeros((len(self.data_table), 2))
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
-            # for instrument in rv_instruments:
-            gamma = params_arr[6*self.num_secondary_bodies+1]  # km/s
-
+            # Rob: looping through instruments to get the gammas
+            for rv_idx in range(len(self.rv_instruments)):
+                gamma[self.rv_inst_indices[rv_idx,0] = params_arr[6*self.num_secondary_bodies+1+2*rv_idx]  # km/s
+                jitter[self.rv_inst_indices[rv_idx,0] = params_arr[6*self.num_secondary_bodies+2+2*rv_idx]
+                gamma[self.rv_inst_indices[rv_idx,1] = np.nan
+                jitter[self.rv_inst_indices[rv_idx,1] = np.nan
             # need to put planetary rv later
-            # Both gamma and jitter will be default values if fitting for secondary masses later
-            total_rv0 = gamma  # this will go away
-            # Rob and Lea:
-            # for inst in instrument_list_rv:
-            # track where the rv instruments are in the list of indices
-            # get the rv indices to set gamma = params_arr, jitter = params_arr that corresponds to the right rv index
-            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2]  # km/s
-            jitter[self.rv[0], 1] = np.nan
-        else:
+
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
@@ -308,7 +309,7 @@ class System(object):
                 model[self.rv[0], 1] = np.nan  # nans only for rv indices
         # Rob and Lea:
         # we can add gamma here to: return model+gamma, jitter
-        return model, jitter
+        return model+gamma, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """
