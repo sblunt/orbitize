@@ -1,0 +1,5 @@
+epoch,object,raoff,raoff_err,decoff,decoff_err,sep,sep_err,pa,pa_err,rv,rv_err
+1234,1,0.01,0.005,0.5,0.05,,,,,,
+1235,1,,,,,1,0.005,89,0.1,,
+1236,1,,,,,1,0.005,89.3,0.3,,
+1237,0,,,,,,,,,10,0.1

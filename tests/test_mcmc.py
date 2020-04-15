@@ -1,6 +1,7 @@
 import pytest
 
 import os
+import orbitize
 from orbitize.driver import Driver
 import orbitize.sampler as sampler
 import orbitize.system as system
@@ -19,8 +20,10 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     """
 
     # use the test_csv dir
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    data_table = read_input.read_formatted_file(input_file)
+    # Manually set 'object' column of data table
+    data_table['object'] = 1
 
     # construct Driver
     n_walkers = 100
@@ -56,9 +59,8 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     """
 
     # use the test_csv dir
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
-    data_table = read_input.read_file(input_file)
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    data_table = read_input.read_formatted_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
 

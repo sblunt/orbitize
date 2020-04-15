@@ -86,6 +86,10 @@ class System(object):
 
         rv_indices = np.where(self.data_table['quant_type'] == 'rv')
 
+        # save indicies for all of the ra/dec, sep/pa measurements for convenience
+        self.all_radec = radec_indices
+        self.all_seppa = seppa_indices
+
         for body_num in np.arange(self.num_secondary_bodies+1):
 
             self.body_indices.append(
@@ -101,6 +105,12 @@ class System(object):
             self.rv.append(
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
+
+        # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
+        # we are not fitting relative astrometry of just a single body
+        self.track_planet_perturbs = self.fit_secondary_mass and \
+                                     ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
+                                      (self.num_secondary_bodies > 1))
 
         if restrict_angle_ranges:
             angle_upperlim = np.pi
@@ -156,7 +166,7 @@ class System(object):
 
         if self.fit_secondary_mass:
             for body in np.arange(num_secondary_bodies)+1:
-                self.sys_priors.append(priors.LogUniformPrior(1e-3, 2))  # in Solar masses for now
+                self.sys_priors.append(priors.LogUniformPrior(1e-6, 2))  # in Solar masses for now
                 self.labels.append('m{}'.format(body))
             self.labels.append('m0')
         else:
@@ -193,35 +203,40 @@ class System(object):
         else:
             model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
             jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
+            
+        if self.track_planet_perturbs:
+            radec_perturb = np.zeros(model.shape)
+
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
-            gamma = params_arr[6*self.num_secondary_bodies+1]  # km/s
+            gamma = params_arr[6*self.num_secondary_bodies + 1]  # km/s
 
             # need to put planetary rv later
             # Both gamma and jitter will be default values if fitting for secondary masses later
             total_rv0 = gamma
-            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies+2]  # km/s
+            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies + 2]  # km/s
             jitter[self.rv[0], 1] = np.nan
         else:
             total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
-
-            epochs = self.data_table['epoch']
-            # adding body_idx0 here to account for companion index
-            body_idx0 = body_num - 1
-            sma = params_arr[6*body_idx0]
-            ecc = params_arr[6*body_idx0+1]
-            inc = params_arr[6*body_idx0+2]
-            argp = params_arr[6*body_idx0+3]
-            lan = params_arr[6*body_idx0+4]
-            tau = params_arr[6*body_idx0+5]
-            plx = params_arr[6*self.num_secondary_bodies]
+            # we're going to compute at all epochs for convenience of indexing right now
+            # self.radec, and self.seppa index into the entire data table, not just the values for a particular body
+            epochs = self.data_table['epoch']#[self.body_indices[body_num]] 
+            startindex = 6 * (body_num - 1)
+            sma = params_arr[startindex]
+            ecc = params_arr[startindex + 1]
+            inc = params_arr[startindex + 2]
+            argp = params_arr[startindex + 3]
+            lan = params_arr[startindex + 4]
+            tau = params_arr[startindex + 5]
+            plx = params_arr[6 * self.num_secondary_bodies]
 
             if self.fit_secondary_mass:
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
                 m0 = params_arr[-1]
                 mtot = m0 + mass
+                # TODO: include the masses of other bodies?
             else:
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
@@ -235,33 +250,76 @@ class System(object):
                 mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
             )
 
-            # vz_i is the ith companion radial velocity
+            # raoff, decoff, vz are scalers if the length of epochs is 1. 
+            # Jason is too lazy to figure out how to make it return a one element array without breaking everything else
+            # so hard code it here to convert them into 1-element numpy arrays. 
+            if len(epochs) == 1:
+                raoff = np.array([raoff])
+                decoff = np.array([decoff])
+                vz = np.array([vz_i])
 
+
+            # vz_i is the ith companion radial velocity
             if self.fit_secondary_mass:
                 vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
-            if len(raoff[self.radec[body_num]]) > 0:  # (prevent empty array dimension errors)
+            # for the model points that correspond to this planet's orbit, add the model prediction
+            # RA/Dec
+            if len(self.radec[body_num]) > 0: # (prevent empty array dimension errors)
                 model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
                 model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
 
-            if len(raoff[self.seppa[body_num]]) > 0:
-                sep, pa = radec2seppa(
-                    raoff[self.seppa[body_num]],
-                    decoff[self.seppa[body_num]]
-                )
+            # Sep/PA
+            if len(self.seppa[body_num]) > 0:
+                sep, pa = radec2seppa(raoff, decoff)
 
-                model[self.seppa[body_num], 0] = sep
-                model[self.seppa[body_num], 1] = pa
+                model[self.seppa[body_num], 0] = sep[self.seppa[body_num]]
+                model[self.seppa[body_num], 1] = pa[self.seppa[body_num]]
 
+            # RV
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
                 model[self.rv[body_num], 1] = np.nan
+
+            # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
+            # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
+            # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
+            if self.track_planet_perturbs:
+                for other_body_num in range(self.num_secondary_bodies+1):
+                    # skip itself since the the 2-body problem is measuring the planet-star separation already
+                    if body_num == other_body_num:
+                        continue
+                    ## NOTE: we are only handling ra/dec and sep/pa right now
+                    ## TOOD: integrate RV into this
+                    if len(self.radec[other_body_num]) > 0:
+                        radec_perturb[self.radec[other_body_num], 0] += -(mass/m0) * raoff[self.radec[other_body_num]]
+                        radec_perturb[self.radec[other_body_num], 1] += -(mass/m0) * decoff[self.radec[other_body_num]] 
+                    if len(self.seppa[other_body_num]) > 0:
+                        radec_perturb[self.seppa[other_body_num], 0] += -(mass/m0) * raoff[self.seppa[other_body_num]]
+                        radec_perturb[self.seppa[other_body_num], 1] += -(mass/m0) * decoff[self.seppa[other_body_num]]
 
         if self.fit_secondary_mass:
             if len(total_rv0[self.rv[0]]) > 0:
                 model[self.rv[0], 0] = total_rv0[self.rv[0]]
                 model[self.rv[0], 1] = np.nan  # nans only for rv indices
+
+        # add the effects of other planets on the measured astrometry
+        if self.track_planet_perturbs:
+            for body_num in range(self.num_secondary_bodies+1):
+                if len(self.radec[body_num]) > 0:
+                    model[self.radec[body_num]] -= radec_perturb[self.radec[body_num]]
+
+                if len(self.seppa[body_num]) > 0:
+                    # for seppa, add the perturbations in radec space and convert back
+                    ra_unperturb, dec_unperturb = seppa2radec(model[self.seppa[body_num], 0], model[self.seppa[body_num], 1])
+                    ra_perturb = ra_unperturb - radec_perturb[self.seppa[body_num], 0]
+                    dec_perturb = dec_unperturb - radec_perturb[self.seppa[body_num], 1]
+                    sep_perturb, pa_perturb = radec2seppa(ra_perturb, dec_perturb)
+
+                    model[self.seppa[body_num], 0] = sep_perturb
+                    model[self.seppa[body_num], 1] = pa_perturb
+
 
         return model, jitter
 
@@ -337,3 +395,19 @@ def radec2seppa(ra, dec, mod180=False):
         pa[pa < 180] += 360
 
     return sep, pa
+
+def seppa2radec(sep, pa):
+    """
+    Convenience function to convert sep/pa to ra/dec
+
+    Args:
+        sep (np.array of float): array of separation in mas
+        pa (np.array of float): array of position angles in degrees
+
+    Returns:
+        tuple: (ra [mas], dec [mas])
+    """
+    ra = sep * np.sin(np.radians(pa))
+    dec = sep * np.cos(np.radians(pa))
+
+    return ra, dec
