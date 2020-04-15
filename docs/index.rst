@@ -66,7 +66,12 @@ you on our team!
 Changelog:
 ++++++++++
 
-**1.1.0.0 (2020-3-6)**
+**1.11.0 (2020-4-14)**
+- Multiplanet support!
+- Changes to directory structure of sample data files
+- Fixed a bug that was causing corner plots to fail on loaded results objects
+
+**1.10.0 (2020-3-6)**
 
 - Joint RV + relative astrometry fitting capabilities! 
 - New tutorial added

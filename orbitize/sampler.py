@@ -117,9 +117,13 @@ class OFTI(Sampler,):
         self.priors = self.system.sys_priors
 
         # convert RA/Dec rows to sep/PA
+        convert_warning_print = False
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
             if len(self.system.radec[body_num]) > 0:
-                print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                # only print the warning once. 
+                if not convert_warning_print:
+                    print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                    convert_warning_print = True
                 self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
