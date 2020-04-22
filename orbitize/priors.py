@@ -62,10 +62,23 @@ class KDEPrior(Prior):
         print(self.param_num, self.total_params)
         if self.param_num == 0:
             self.correlated_input_samples = element_array
+#            self.correlated_input_samples = element_array.reshape(-1,1)
         else:
-            self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
-        if self.param_num == self.total_params:
-            lnlike = self.gaussian_kde.pdf(self.correlated_input_samples)
+            try: 
+                self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+#                self.correlated_input_samples = np.hstack((self.correlated_input_samples, element_array.reshape(-1,1)))
+    #            self.correlated_input_samples = np.vstack((self.correlated_input_samples, element_array))
+            except:
+                import pdb
+                pdb.set_trace()
+        if self.param_num == self.total_params-1:
+#            try: 
+#                lnlike = self.gaussian_kde.pdf(self.correlated_input_samples)
+#            except:
+#                import pdb
+#                pdb.set_trace()
+
+            lnlike = self.gaussian_kde.logpdf(self.correlated_input_samples)
             self.increment_param_num()
             return lnlike
         else:
