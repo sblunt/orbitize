@@ -59,6 +59,7 @@ class KDEPrior(Prior):
             self.increment_param_num()
             return return_me
     def compute_lnprob(self, element_array):
+        print(self.param_num, self.total_params)
         if self.param_num == 0:
             self.correlated_input_samples = element_array
         else:
