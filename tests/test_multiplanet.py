@@ -110,7 +110,7 @@ def test_fit_selfconsist():
                      names=["epoch", "object" ,"raoff", "raoff_err","decoff","decoff_err"])
     # add c
     for eps, ra, dec in zip(epochs, ra_model_c, dec_model_c):
-        t.add_row([eps, 2, ra, 0.00001, dec, 0.00001])
+        t.add_row([eps, 2, ra, 0.000001, dec, 0.000001])
 
     filename = os.path.join(orbitize.DATADIR, "multiplanet_fake_2planettest.csv")
     t.write(filename, overwrite=True)
@@ -120,10 +120,12 @@ def test_fit_selfconsist():
     sys = system.System(2, astrom_dat, m0, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
 
     # fix most of the orbital parameters to make the dimensionality a bit smaller
+    sys.sys_priors[sys.param_idx['ecc1']] = b_params[1]
     sys.sys_priors[sys.param_idx['inc1']] = b_params[2]
     sys.sys_priors[sys.param_idx['aop1']] = b_params[3]
     sys.sys_priors[sys.param_idx['pan1']] = b_params[4]
 
+    sys.sys_priors[sys.param_idx['ecc2']] = c_params[1]
     sys.sys_priors[sys.param_idx['inc2']] = c_params[2]
     sys.sys_priors[sys.param_idx['aop2']] = c_params[3]
     sys.sys_priors[sys.param_idx['pan2']] = c_params[4]
@@ -131,23 +133,24 @@ def test_fit_selfconsist():
     sys.sys_priors[sys.param_idx['m1']] = priors.LogUniformPrior(mass_b*0.01, mass_b*100)
     sys.sys_priors[sys.param_idx['m2']] = priors.LogUniformPrior(mass_c*0.01, mass_c*100)
 
-    n_walkers = 100
+    n_walkers = 50
     samp = sampler.MCMC(sys, num_temps=1, num_walkers=n_walkers, num_threads=1)
-
     # should have 8 parameters
-    assert samp.num_params == 8
+    assert samp.num_params == 6
 
     # start walkers near the true location for the orbital parameters
+    np.random.seed(123)
     # planet b
-    np.random.seed(seed=1234)
     samp.curr_pos[:,0] = np.random.normal(b_params[0], 0.01, n_walkers) # sma
-    samp.curr_pos[:,1] = np.random.uniform(0, 0.05, n_walkers) # ecc
-    samp.curr_pos[:,2] = np.random.normal(b_params[-1], 0.01, n_walkers) # tau
+    samp.curr_pos[:,1] = np.random.normal(b_params[-1], 0.01, n_walkers) # tau
     # planet c
-    samp.curr_pos[:,3] = np.random.normal(c_params[0], 0.01, n_walkers) # sma
-    samp.curr_pos[:,4] = np.random.uniform(0, 0.05, n_walkers) # ecc
-    samp.curr_pos[:,5] = np.random.normal(c_params[-1], 0.01, n_walkers) # tau
-    # we won't do anything with the mass priors
+    samp.curr_pos[:,2] = np.random.normal(c_params[0], 0.01, n_walkers) # sma
+    samp.curr_pos[:,3] = np.random.normal(c_params[-1], 0.01, n_walkers) # tau
+    # we will make a fairly broad mass starting position
+    samp.curr_pos[:,4] = np.random.uniform(mass_b * 0.25, mass_b * 4, n_walkers) 
+    samp.curr_pos[:,5] = np.random.uniform(mass_c * 0.25, mass_c * 4, n_walkers) 
+    samp.curr_pos[0,4] = mass_b
+    samp.curr_pos[0,5] = mass_c
 
     samp.run_sampler(n_walkers*100, burn_steps=200)
 

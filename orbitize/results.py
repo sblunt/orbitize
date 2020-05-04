@@ -254,7 +254,7 @@ class Results(object):
             'sig': '$\\sigma$ [m/s]',
             'mtot': '$M_T$ [M$_\\odot$]',
             'm0': '$M_0$ [M$_\\odot$]',
-            'm': '$M_{0}$ [M$_\{Jup\}$]',
+            'm': '$M_{0}$ [M$_\{{Jup\}}$]',
         }
 
         if param_list is None:
