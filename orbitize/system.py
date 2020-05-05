@@ -235,8 +235,13 @@ class System(object):
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                 mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
                 m0 = params_arr[-1]
-                mtot = m0 + mass
-                # TODO: include the masses of other bodies?
+                # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
+                # We need to select all planets with sma < this planet. 
+                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                within_orbit = np.where(all_smas <= sma)
+                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
+                inside_masses = all_pl_masses[within_orbit]
+                mtot = np.sum(inside_masses) + m0
             else:
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
