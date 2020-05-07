@@ -310,7 +310,8 @@ class Results(object):
         """
 
         if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
-            raise Exception('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
+            raise Exception(
+                'start_mjd keyword date must be less than sep_pa_end_year keyword date.')
 
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
@@ -441,14 +442,20 @@ class Results(object):
             ax.set_ylabel('$\\Delta$Dec [mas]')
             ax.locator_params(axis='x', nbins=6)
             ax.locator_params(axis='y', nbins=6)
-            ax.invert_xaxis() # To go to a left-handed coordinate system
+            ax.invert_xaxis()  # To go to a left-handed coordinate system
 
             # add colorbar
             if show_colorbar:
                 # xpos, ypos, width, height, in fraction of figure size
-                cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
-                cbar = mpl.colorbar.ColorbarBase(
-                    cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
+                if rv_time_series:
+                    cbar_ax = fig.add_axes(
+                        [ax.get_position().x1+0.01, ax.get_position().y0, 0.02, ax.get_position().height])
+                    cbar = mpl.colorbar.ColorbarBase(
+                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
+                else:
+                    cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
+                    cbar = mpl.colorbar.ColorbarBase(
+                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
 
             # plot sep/PA and/or rv zoom-in panels
             if rv_time_series:
