@@ -444,6 +444,8 @@ class Results(object):
             ax.locator_params(axis='y', nbins=6)
             ax.invert_xaxis()  # To go to a left-handed coordinate system
 
+            # Rob: Moved colorbar size to the bottom after tight_layout() because the cbar scaling was not compatible with tight_layout()
+
             # plot sep/PA and/or rv zoom-in panels
             if rv_time_series:
                 ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
