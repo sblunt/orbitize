@@ -444,23 +444,6 @@ class Results(object):
             ax.locator_params(axis='y', nbins=6)
             ax.invert_xaxis()  # To go to a left-handed coordinate system
 
-            # add colorbar
-            if show_colorbar:
-
-                if rv_time_series:
-                    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
-                    # You can change x1.0.01 to adjust the distance between the main image and the colorbar.
-                    # You can change 0.02 to adjust the width of the colorbar.
-                    cbar_ax = fig.add_axes(
-                        [ax.get_position().x1+0.005, ax.get_position().y0+0.001, 0.02, ax.get_position().height])
-                    cbar = mpl.colorbar.ColorbarBase(
-                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
-                else:
-                    # xpos, ypos, width, height, in fraction of figure size
-                    cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
-                    cbar = mpl.colorbar.ColorbarBase(
-                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
-
             # plot sep/PA and/or rv zoom-in panels
             if rv_time_series:
                 ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
@@ -528,7 +511,23 @@ class Results(object):
                     plt.plot(yr_epochs, vz_star[i, :], color=sep_pa_color)
                     ax3.locator_params(axis='x', nbins=6)
                     ax3.locator_params(axis='y', nbins=6)
-                    # plt.tight_layout()
+                    fig.tight_layout()
+
+            # add colorbar
+            if show_colorbar:
+                if rv_time_series:
+                    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+                    # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
+                    # You can change 0.02 to adjust the width of the colorbar.
+                    cbar_ax = fig.add_axes(
+                        [ax.get_position().x1+0.005, ax.get_position().y0, 0.02, ax.get_position().height])
+                    cbar = mpl.colorbar.ColorbarBase(
+                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
+                else:
+                    # xpos, ypos, width, height, in fraction of figure size
+                    cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
+                    cbar = mpl.colorbar.ColorbarBase(
+                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
 
             ax1.locator_params(axis='x', nbins=6)
             ax1.locator_params(axis='y', nbins=6)
