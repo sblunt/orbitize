@@ -266,7 +266,7 @@ class System(object):
 
             # vz_i is the ith companion radial velocity
             if self.fit_secondary_mass:
-                vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
+                vz0 = vz_i*-(mass/mtot)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
             # for the model points that correspond to this planet's orbit, add the model prediction
@@ -298,11 +298,11 @@ class System(object):
                     ## NOTE: we are only handling ra/dec and sep/pa right now
                     ## TOOD: integrate RV into this
                     if len(self.radec[other_body_num]) > 0:
-                        radec_perturb[self.radec[other_body_num], 0] += -(mass/m0) * raoff[self.radec[other_body_num]]
-                        radec_perturb[self.radec[other_body_num], 1] += -(mass/m0) * decoff[self.radec[other_body_num]] 
+                        radec_perturb[self.radec[other_body_num], 0] += -(mass/mtot) * raoff[self.radec[other_body_num]]
+                        radec_perturb[self.radec[other_body_num], 1] += -(mass/mtot) * decoff[self.radec[other_body_num]] 
                     if len(self.seppa[other_body_num]) > 0:
-                        radec_perturb[self.seppa[other_body_num], 0] += -(mass/m0) * raoff[self.seppa[other_body_num]]
-                        radec_perturb[self.seppa[other_body_num], 1] += -(mass/m0) * decoff[self.seppa[other_body_num]]
+                        radec_perturb[self.seppa[other_body_num], 0] += -(mass/mtot) * raoff[self.seppa[other_body_num]]
+                        radec_perturb[self.seppa[other_body_num], 1] += -(mass/mtot) * decoff[self.seppa[other_body_num]]
 
         if self.fit_secondary_mass:
             if len(total_rv0[self.rv[0]]) > 0:
