@@ -59,7 +59,7 @@ class KDEPrior(Prior):
             self.increment_param_num()
             return return_me
     def compute_lnprob(self, element_array):
-        print(self.param_num, self.total_params)
+#        print(self.param_num, self.total_params)
         if self.param_num == 0:
             self.correlated_input_samples = element_array
 #            self.correlated_input_samples = element_array.reshape(-1,1)
@@ -416,6 +416,8 @@ def all_lnpriors(params, priors):
     logp = 0.
     for param, prior in zip(params, priors):
         param = np.array([param])
+        # import pdb
+        # pdb.set_trace()
 
         logp += prior.compute_lnprob(param)  # retrun a float
 
