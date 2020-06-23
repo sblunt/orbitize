@@ -66,7 +66,12 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.11.1 (2020-6-11)**
+
+- Fixed a string formatting bug causing corner plots to fail for RV+astrometry fits
+
 **1.11.0 (2020-4-14)**
+
 - Multiplanet support!
 - Changes to directory structure of sample data files
 - Fixed a bug that was causing corner plots to fail on loaded results objects
