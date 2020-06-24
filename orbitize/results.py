@@ -455,8 +455,8 @@ class Results(object):
                 deoff[i,:] = deoff0
 
                 yr_epochs = Time(epochs_seppa[i,:],format='mjd').decimalyear
-                plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
-                yr_epochs = yr_epochs[plot_epochs]
+                #plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
+                #yr_epochs = yr_epochs[plot_epochs]
 
                 seps, pas = orbitize.system.radec2seppa(raoff[i,:], deoff[i,:], mod180=mod180)
 
