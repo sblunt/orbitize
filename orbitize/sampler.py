@@ -637,9 +637,11 @@ class MCMC(Sampler):
         i = 0
         for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
             i += 1
-            if pos[0][0][-2]<1e-4:
-                print('pos = '+str(pos[0][0][7]))
-                print('lnprob = '+str(lnprob[0][0])+' / lnlike = '+ str(lnlike[0][0])+' / lnprob-lnlike = '+ str(lnprob[0][0]-lnlike[0][0]))
+            # numw = pos.shape[1]
+            # w = np.random.randint(0,numw)
+            # if pos[0][w][7]<1e-3:
+            #     print('pos = '+str(pos[0][w][7]))
+            #     print('lnprob = '+str(lnprob[0][w])+' / lnlike = '+ str(lnlike[0][w])+' / lnprob-lnlike = '+ str(lnprob[0][w]-lnlike[0][w]))
             # print progress statement
             if i % 5 == 0:
                 print(str(i)+'/'+str(nsteps)+' steps completed', end='\r')
