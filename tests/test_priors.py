@@ -68,10 +68,24 @@ def test_compute_lnprob():
 
 		assert np.log(expected_probs[Prior]) == pytest.approx(lnprobs, abs=threshold)
 
+def test_obsprior():
+	"""
+	Test basic functionality & exception handling of observation-based prior
+	of O'Neil 2019.
+	"""
+
+	# test exception handling (this prior is not implemented for OFTI)
+	myObsPrior = priors.ObsPrior()
+	try:
+		myObsPrior.draw_samples(10)
+	except Exception:
+		pass
+	print(myObsPrior)
 
 if __name__=='__main__':
-	test_compute_lnprob()
-	test_draw_samples()
+	# test_compute_lnprob()
+	# test_draw_samples()
+	test_obsprior()
 
 
 

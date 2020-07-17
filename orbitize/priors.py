@@ -1,6 +1,9 @@
 import numpy as np
 import sys
 import abc
+from astropy import units as u, constants as cst
+
+from orbitize.kepler import _calc_ecc_anom
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -345,6 +348,105 @@ class LinearPrior(Prior):
             lnprob[(element_array >= x_intercept) | (element_array < 0)] = -np.inf
 
         return lnprob
+
+class ObsPrior(Prior):
+   """
+
+    TODO: document better, create notebook tutorial where I plot these priors
+        vs standard priors, finish tests
+
+   Limitations: 
+    - in current form, only works with MCMC
+    - in current form, only works with planetary astrometry only (no RVs or other data types)
+    - in current form, only works when input astrometry is Ra/Dec (ie need to convert ahead of time)
+    - must let all params float (i.e. cannot fix total_mass/dist)
+    - only works with one secondary object
+   """
+   def __init__(self, ra_err, dec_err, epochs, tau_ref_epoch, total_params):
+        self.ra_err = ra_err
+        self.dec_err = dec_err
+        self.epochs = epochs
+        self.tau_ref_epoch = tau_ref_epoch
+
+        self.total_params = 5
+        self.param_num = 0
+
+        self.correlated_input_samples = None
+
+   def __repr__(self):
+        return "O'Neil obervational prior on tau, ecc, mtot, sma, and dist."
+
+    def increment_param_num(self):
+        self.param_num += 1
+        self.param_num = self.param_num % (self.total_params + 1)
+        self.param_num = self.param_num % self.total_params
+
+   def draw_samples(self, num_samples):
+       raise Exception(
+"""
+The O'Neil observation-based prior is not implemented for OFTI (yet). 
+To use this prior, try running MCMC, or feel free to implement it for us! :)
+"""
+    )
+
+   def compute_lnprob(self, element_array):
+
+        if self.param_num == 0:
+            self.correlated_input_samples = element_array
+
+        else:
+            self.correlated_input_samples = np.append(
+                self.correlated_input_samples, element_array
+            )
+
+        if self.param_num == self.total_params:
+
+            sma = self.correlated_input_samples[0]
+            ecc = self.correlated_input_samples[1]
+            tau = self.self.correlated_input_samples[5]
+            
+            plx = self.correlated_input_samples[-2]
+            dist = 1 / plx
+            mtot = self.correlated_input_samples[-1]
+
+            period = np.sqrt(
+                4 * np.pi**2 * (sma * u.au)**3 / 
+                (cst.G * (mtot * u.Msun))
+            )
+
+            jac_prefactor = -((
+                (cst.G * mtot * u.Msun)**2 * period / 
+                (2 * np.pi**4)
+            )**(1 / 3)).value
+
+            period = period.to(u.day).value
+            mean_motion = 2*np.pi/(period)  # [rad/day]
+
+            manoms = (
+                (mean_motion * (self.epochs - self.tau_ref_epoch) - 2 * np.pi * tau) % 
+                (2 * np.pi)
+            )
+            eccanoms = _calc_ecc_anom(manoms, ecc)
+
+            # sum Jacobian over all epochs (O'Neil 2019 eq 33)
+            jacobian = np.sum(
+                np.abs(
+                    2 * (ecc**2 - 2) * np.sin(eccanom) +
+                    ecc * (3 * meananom + np.sin(2 * eccanom)) +
+                    3 * meananom * np.cos(eccanom)
+                ) / (dist**2 * self.ra_err * self.dec_err * 6 * np.sqrt(1 - ecc**2))
+            )
+
+            jacobian *= jac_prefactor
+            lnprob = -2 * np.log(jacobian)
+
+            self.increment_param_num()
+            return lnprob
+
+        else:
+
+            self.increment_param_num()
+            return 0
 
 
 def all_lnpriors(params, priors):
