@@ -701,7 +701,7 @@ class MCMC(Sampler):
 
         return sampler
 
-    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None):
+    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None, transparency = 1):
         """
         Plots position of walkers at each step from Results object. Returns list of figures, one per parameter
         Args:
@@ -754,12 +754,12 @@ class MCMC(Sampler):
         for pp in params_to_plot:
             fig, ax = plt.subplots()
             for ww in walkers_to_plot:
-                ax.plot(chn[ww, :, pp], 'k-')
+                ax.plot(chn[ww, :, pp], 'k-', alpha = transparency)
             ax.set_xlabel('Step')
             if step_range is not None:  # Limit range shown if step_range is set
                 ax.set_xlim(step_range)
             output_figs.append(fig)
-
+        
         # Return
         return output_figs
 
