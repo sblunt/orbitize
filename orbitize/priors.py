@@ -350,46 +350,49 @@ class LinearPrior(Prior):
         return lnprob
 
 class ObsPrior(Prior):
-   """
+    """
 
     TODO: document better, create notebook tutorial where I plot these priors
         vs standard priors, finish tests
 
-   Limitations: 
+    Limitations: 
     - in current form, only works with MCMC
     - in current form, only works with planetary astrometry only (no RVs or other data types)
     - in current form, only works when input astrometry is Ra/Dec (ie need to convert ahead of time)
-    - must let all params float (i.e. cannot fix total_mass/dist)
+    - must let ecc, sma, and tau float, but must fix plx and mtot
     - only works with one secondary object
-   """
-   def __init__(self, ra_err, dec_err, epochs, tau_ref_epoch, total_params):
-        self.ra_err = ra_err
-        self.dec_err = dec_err
+    """
+    def __init__(self, epochs, max_sep, mtot, plx, tau_ref_epoch=58849):
         self.epochs = epochs
         self.tau_ref_epoch = tau_ref_epoch
+        self.mtot = mtot
 
-        self.total_params = 5
+        self.max_sma = 10 * sep0 / plx # sep0 and plx in arcsec
+        print(self.max_sma)
+
+        self.total_params = 3
         self.param_num = 0
+
+        self.num_at_a_time = 10000
 
         self.correlated_input_samples = None
 
-   def __repr__(self):
-        return "O'Neil obervational prior on tau, ecc, mtot, sma, and dist."
+    def __repr__(self):
+        return "ObsPrior"
 
     def increment_param_num(self):
         self.param_num += 1
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
 
-   def draw_samples(self, num_samples):
-       raise Exception(
-"""
-The O'Neil observation-based prior is not implemented for OFTI (yet). 
-To use this prior, try running MCMC, or feel free to implement it for us! :)
-"""
-    )
+    def draw_samples(self, num_samples):
+        sample_smas = np.random.uniform(0, self.max_sma, self.numatat)
+        sample_eccs = np.random.uniform(0, 1, self.numatat)
+        sample_taus = np.random.uniform(0, 1, self.numatat)
 
-   def compute_lnprob(self, element_array):
+
+
+    def compute_lnprob(self, element_array):
 
         if self.param_num == 0:
             self.correlated_input_samples = element_array
@@ -403,11 +406,7 @@ To use this prior, try running MCMC, or feel free to implement it for us! :)
 
             sma = self.correlated_input_samples[0]
             ecc = self.correlated_input_samples[1]
-            tau = self.self.correlated_input_samples[5]
-            
-            plx = self.correlated_input_samples[-2]
-            dist = 1 / plx
-            mtot = self.correlated_input_samples[-1]
+            tau = self.self.correlated_input_samples[2]
 
             period = np.sqrt(
                 4 * np.pi**2 * (sma * u.au)**3 / 
@@ -434,7 +433,7 @@ To use this prior, try running MCMC, or feel free to implement it for us! :)
                     2 * (ecc**2 - 2) * np.sin(eccanom) +
                     ecc * (3 * meananom + np.sin(2 * eccanom)) +
                     3 * meananom * np.cos(eccanom)
-                ) / (dist**2 * self.ra_err * self.dec_err * 6 * np.sqrt(1 - ecc**2))
+                ) / (6 * np.sqrt(1 - ecc**2))
             )
 
             jacobian *= jac_prefactor
