@@ -35,10 +35,18 @@ class KDEPrior(Prior):
     a wrapper for scipy.stats.gaussian_kde.
     Args:
     """
-    def __init__(self, gaussian_kde, total_params):
+    def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
         self.gaussian_kde = gaussian_kde
         self.total_params = total_params
         self.param_num = 0
+        if not bounds:
+            self.bounds = [[-np.inf,np.inf] for i in range(total_params)]
+        else:
+            self.bounds = bounds
+        if not log_scale_arr:
+            self.log_scale_arr = [False for i in range(total_params)] 
+        else:
+            self.log_scale_arr = log_scale_arr
         self.correlated_drawn_samples = None 
         self.correlated_input_samples = None
     def __repr__(self):
@@ -60,6 +68,22 @@ class KDEPrior(Prior):
             return return_me
     def compute_lnprob(self, element_array):
 #        print(self.param_num, self.total_params)
+        # if self.param_num==5:
+        #     import pdb
+        #     pdb.set_trace()
+        if element_array<self.bounds[self.param_num][0] or element_array>self.bounds[self.param_num][1]:
+            if self.log_scale_arr[self.param_num]:
+                element_array = np.log10(element_array)
+                if np.isnan(element_array):
+                    element_array = 0 #set to zero bc doesn't matter what it is since we're already returning a small prob
+            if self.param_num == 0:
+                self.correlated_input_samples = element_array
+            else:
+                self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+            self.increment_param_num()
+            return -1e10
+        if self.log_scale_arr[self.param_num]:
+            element_array = np.log10(element_array)
         if self.param_num == 0:
             self.correlated_input_samples = element_array
         else:
