@@ -714,7 +714,8 @@ class MCMC(Sampler):
                 If None (default), walkers selected as per `walker_list`
             step_range (array or tuple): Start and end values of step numbers to plot
                 If None (default), all the steps are plotted
-            transparency (int or float): Determines visibility of the plotted function where 1 is 100% opacity.
+            transparency (int or float): Determines visibility of the plotted function
+                If 1 (default) results plot at 100% opacity
 
         Returns:
             List of ``matplotlib.pyplot.Figure`` objects:
