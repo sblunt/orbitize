@@ -362,13 +362,12 @@ class ObsPrior(Prior):
     - must let ecc, sma, and tau float, but must fix plx and mtot
     - only works with one secondary object
     """
-    def __init__(self, epochs, max_sep, mtot, plx, tau_ref_epoch=58849):
+    def __init__(self, epochs, mtot, plx, tau_ref_epoch=58849):
         self.epochs = epochs
         self.tau_ref_epoch = tau_ref_epoch
         self.mtot = mtot
 
-        self.max_sma = 10 * sep0 / plx # sep0 and plx in arcsec
-        print(self.max_sma)
+        # self.max_sma = 10 * sep0 / plx # sep0 and plx in arcsec
 
         self.total_params = 3
         self.param_num = 0
@@ -385,12 +384,24 @@ class ObsPrior(Prior):
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
 
+    def draw_uniform_samples(self, num_samples):
+        if self.param_num == 0:
+            sample_smas = np.exp(np.random.uniform(0, np.log(1000), num_samples))
+            return sample_smas
+        elif self.param_num == 1:
+            sample_eccs = np.random.uniform(0, 1, num_samples)
+            return sample_eccs
+        else:
+            sample_taus = np.random.uniform(0, 1, num_samples)
+            return sample_taus
+
     def draw_samples(self, num_samples):
-        sample_smas = np.random.uniform(0, self.max_sma, self.numatat)
-        sample_eccs = np.random.uniform(0, 1, self.numatat)
-        sample_taus = np.random.uniform(0, 1, self.numatat)
 
-
+        # for now, draw samples from a distribution uniform in log(a), ecc, and tau 
+        # this is needed for initializing the MCMC walkers
+        samples = self.draw_uniform_samples(num_samples)
+        self.increment_param_num()
+        return samples
 
     def compute_lnprob(self, element_array):
 
@@ -402,30 +413,34 @@ class ObsPrior(Prior):
                 self.correlated_input_samples, element_array
             )
 
-        if self.param_num == self.total_params:
+        if self.param_num == (self.total_params - 1):
 
             sma = self.correlated_input_samples[0]
             ecc = self.correlated_input_samples[1]
-            tau = self.self.correlated_input_samples[2]
+            tau = self.correlated_input_samples[2]
 
+            if ((sma < 0) or (ecc < 0) or (ecc > 1) or (tau < 0) or (tau > 1)):
+                self.increment_param_num()
+                return -np.inf
+            
             period = np.sqrt(
                 4 * np.pi**2 * (sma * u.au)**3 / 
-                (cst.G * (mtot * u.Msun))
+                (cst.G * (self.mtot * u.Msun))
             )
 
             jac_prefactor = -((
-                (cst.G * mtot * u.Msun)**2 * period / 
+                (cst.G * self.mtot * u.Msun)**2 * period / 
                 (2 * np.pi**4)
             )**(1 / 3)).value
 
             period = period.to(u.day).value
             mean_motion = 2*np.pi/(period)  # [rad/day]
 
-            manoms = (
+            meananom = (
                 (mean_motion * (self.epochs - self.tau_ref_epoch) - 2 * np.pi * tau) % 
                 (2 * np.pi)
             )
-            eccanoms = _calc_ecc_anom(manoms, ecc)
+            eccanom = _calc_ecc_anom(meananom, ecc)
 
             # sum Jacobian over all epochs (O'Neil 2019 eq 33)
             jacobian = np.sum(
@@ -436,7 +451,8 @@ class ObsPrior(Prior):
                 ) / (6 * np.sqrt(1 - ecc**2))
             )
 
-            jacobian *= jac_prefactor
+
+            jacobian *= np.abs(jac_prefactor)
             lnprob = -2 * np.log(jacobian)
 
             self.increment_param_num()

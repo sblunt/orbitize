@@ -213,7 +213,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], use_c) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], False) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
 
