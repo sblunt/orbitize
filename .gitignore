@@ -117,3 +117,4 @@ build.sh
 !docs/orbitize_logo_500.png
 .vscode/settings.json
 tests/test_results.h5
+launch.json
