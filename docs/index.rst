@@ -66,6 +66,11 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.11.2 (2020-8-10)**
+
+- Added transparency option for plotting MCMC chains (@sofiacovarrubias)
+- Removed some redundant code (@MissingBrainException)
+
 **1.11.1 (2020-6-11)**
 
 - Fixed a string formatting bug causing corner plots to fail for RV+astrometry fits
