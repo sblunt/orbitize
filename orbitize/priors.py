@@ -3,6 +3,7 @@ import sys
 import abc
 from astropy import units as u, constants as cst
 
+from orbitize import basis
 from orbitize.kepler import _calc_ecc_anom
 
 """
@@ -362,10 +363,12 @@ class ObsPrior(Prior):
     - must let ecc, sma, and tau float, but must fix plx and mtot
     - only works with one secondary object
     """
-    def __init__(self, epochs, mtot, plx, tau_ref_epoch=58849):
+    def __init__(self, epochs, ra_err, dec_err, mtot, plx, tau_ref_epoch=58849):
         self.epochs = epochs
         self.tau_ref_epoch = tau_ref_epoch
         self.mtot = mtot
+        self.ra_err = ra_err
+        self.dec_err = dec_err
 
         # self.max_sma = 10 * sep0 / plx # sep0 and plx in arcsec
 
@@ -433,24 +436,20 @@ class ObsPrior(Prior):
                 (2 * np.pi**4)
             )**(1 / 3)).value
 
-            period = period.to(u.day).value
-            mean_motion = 2*np.pi/(period)  # [rad/day]
-
-            meananom = (
-                (mean_motion * (self.epochs - self.tau_ref_epoch) - 2 * np.pi * tau) % 
-                (2 * np.pi)
+            meananom = basis.tau_to_manom(
+                self.epochs, sma, self.mtot, tau, self.tau_ref_epoch
             )
             eccanom = _calc_ecc_anom(meananom, ecc)
 
             # sum Jacobian over all epochs (O'Neil 2019 eq 33)
             jacobian = np.sum(
+                (1 / (self.ra_err * self.dec_err)) *
                 np.abs(
                     2 * (ecc**2 - 2) * np.sin(eccanom) +
                     ecc * (3 * meananom + np.sin(2 * eccanom)) +
                     3 * meananom * np.cos(eccanom)
                 ) / (6 * np.sqrt(1 - ecc**2))
             )
-
 
             jacobian *= np.abs(jac_prefactor)
             lnprob = -2 * np.log(jacobian)

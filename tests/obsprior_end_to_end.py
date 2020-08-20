@@ -22,6 +22,21 @@ thin = 10
 data_table = orbitize.read_input.read_file('{}/GJ504.csv'.format(orbitize.DATADIR))
 epochs = data_table['epoch']
 
+# convert input sep/PA measurements to RA/decl
+sep = np.array(data_table['quant1'])
+sep_err = np.array(data_table['quant1_err'])
+pa = np.radians(np.array(data_table['quant2']))
+pa_err = np.radians(np.array(data_table['quant2_err']))
+
+ra_err = np.sqrt(
+    (np.cos(pa) * sep_err)**2 + 
+    (sep * np.sin(pa) * pa_err)**2
+)
+dec_err = np.sqrt(
+    (np.sin(pa) * sep_err)**2 + 
+    (sep * np.cos(pa) * pa_err)**2
+)
+
 # number of secondary bodies in system
 num_planets = 1
 
@@ -39,7 +54,7 @@ sys = orbitize.system.System(
 lab = sys.param_idx
 
 # place ObsPrior on sma, ecc, and tau
-my_obsprior = ObsPrior(epochs, mtot, plx)
+my_obsprior = ObsPrior(epochs, ra_err, dec_err, mtot, plx)
 sys.sys_priors[lab['sma1']] = my_obsprior
 sys.sys_priors[lab['ecc1']] = my_obsprior
 sys.sys_priors[lab['tau1']] = my_obsprior
