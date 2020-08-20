@@ -66,6 +66,11 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.11.3 (2020-8-20)**
+
+- Save results section of OFTI tutorial now current (@rferrerc)
+- Modifying MCMC initial positions tutorial documentation now uses correct orbital elements (@rferrerc)
+
 **1.11.2 (2020-8-10)**
 
 - Added transparency option for plotting MCMC chains (@sofiacovarrubias)
