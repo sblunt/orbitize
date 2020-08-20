@@ -70,5 +70,5 @@ obj_results = sampler.results
 obj_results.save_results('obsprior_test.hdf5')
 
 # make corner plot
-corner_fig = obj_results.plot_corner(['sma1','ecc1','aop1','pan1','tau1'], bins=50, show_titles=True, plot_datapoints=False, quantiles=[0.05,0.5,0.95])
+corner_fig = obj_results.plot_corner(['sma1','ecc1','aop1','inc1','pan1','tau1'], bins=50, show_titles=True, plot_datapoints=False, quantiles=[0.05,0.5,0.95])
 plt.savefig('obsprior_corner.png', dpi=250)
