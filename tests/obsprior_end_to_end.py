@@ -5,11 +5,14 @@ import datetime
 import matplotlib.pyplot as plt
 from astropy.table import Table
 from astropy.time import Time
+import os
 
 import orbitize.read_input
 import orbitize.sampler
 import orbitize.system
 from orbitize.priors import ObsPrior
+
+do_run = True
 
 n_temps = 20
 n_walkers = 1000
@@ -62,12 +65,20 @@ sys.sys_priors[lab['tau1']] = my_obsprior
 obsprior = sys.sys_priors[0]
 
 # initialize & run MCMC
-sampler = orbitize.sampler.MCMC(
-    sys, num_temps=n_temps, num_walkers=n_walkers, num_threads=n_threads
-)
-sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
-obj_results = sampler.results
-obj_results.save_results('obsprior_test.hdf5')
+if do_run: 
+    sampler = orbitize.sampler.MCMC(
+        sys, num_temps=n_temps, num_walkers=n_walkers, num_threads=n_threads
+    )
+    sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+    obj_results = sampler.results
+
+    filename = 'obsprior_test.hdf5'
+    if os.path.isfile(filename):
+        os.remove(filename)
+    obj_results.save_results(filename)
+
+obj_results = orbitize.results.Results()
+obj_results.load_results('obsprior_test.hdf5')
 
 # make corner plot
 corner_fig = obj_results.plot_corner(['sma1','ecc1','aop1','inc1','pan1','tau1'], bins=50, show_titles=True, plot_datapoints=False, quantiles=[0.05,0.5,0.95])
