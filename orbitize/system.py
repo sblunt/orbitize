@@ -60,6 +60,7 @@ class System(object):
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
+        self.restrict_angle_ranges = restrict_angle_ranges
 
         #
         # Group the data in some useful ways

@@ -55,6 +55,8 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
+    assert np.max(lan) > np.pi
+
     ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
@@ -62,6 +64,26 @@ def test_scale_and_rotate():
     # test to make sure sep and pa scaled to scale-and-rotate epoch
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
+    # test scale-and-rotate with restricted upper limits on PAN
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26, system_kwargs={'restrict_angle_ranges':True})
+    s = myDriver.sampler
+    samples = s.prepare_samples(100)
+
+    sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
+
+    assert np.max(lan) < np.pi
+    assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
+
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    sep, pa = orbitize.system.radec2seppa(ra, dec)
+    sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
+
+    sar_epoch = s.system.data_table[s.epoch_idx]
+    assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
+    assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
 
 
 def test_run_sampler():
@@ -160,6 +182,6 @@ def test_OFTI_multiplanet():
 
 if __name__ == "__main__":
     test_scale_and_rotate()
-    test_run_sampler()
-    test_OFTI_multiplanet()
-    print("Done!")
+    # test_run_sampler()
+    # test_OFTI_multiplanet()
+    # print("Done!")

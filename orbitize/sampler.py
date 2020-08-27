@@ -255,7 +255,12 @@ class OFTI(Sampler,):
             # perform scale-and-rotate
             sma *= sma_corr # [AU]
             lan += np.radians(lan_corr) # [rad]
-            lan = lan % (2*np.pi)
+            lan = (lan + 2 * np.pi) % (2 * np.pi)
+
+            if self.system.restrict_angle_ranges:
+                argp[lan >= np.pi] += np.pi
+                argp = argp % (2 * np.pi)
+                lan[lan >= np.pi] -= np.pi
 
             period_new = np.sqrt(
                 4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
@@ -266,6 +271,7 @@ class OFTI(Sampler,):
 
             # updates samples with new values of sma, pan, tau
             samples[ref_ind,:] = sma
+            samples[ref_ind + 3,:] = argp
             samples[ref_ind + 4,:] = lan
             samples[ref_ind + 5,:] = tau
 
@@ -293,7 +299,6 @@ class OFTI(Sampler,):
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
         lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
-        # pdb.set_trace()
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
