@@ -28,7 +28,7 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     # construct Driver
     n_walkers = 100
     myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
-                      mcmc_kwargs={'num_temps': 2, 'num_threads': num_threads,
+                      mcmc_kwargs={'num_temps': num_temps, 'num_threads': num_threads,
                                    'num_walkers': n_walkers}
                       )
 
