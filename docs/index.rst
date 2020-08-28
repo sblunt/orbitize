@@ -66,6 +66,10 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.11.4 (2020-8-28)**
+
+- Compatibility with ``emcee>=3`` (@sblunt)
+
 **1.11.3 (2020-8-20)**
 
 - Save results section of OFTI tutorial now current (@rferrerc)
