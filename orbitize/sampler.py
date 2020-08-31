@@ -648,21 +648,23 @@ class MCMC(Sampler):
                 ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
             )
         else:
+            if self.num_threads != 1:
+                print('Setting num_threads=1. If you want parallel processing for emcee implemented in orbitize, let us know.')
+                self.num_threads = 1
+
             sampler = emcee.EnsembleSampler(
                 self.num_walkers, self.num_params, self._logl,
-                threads=self.num_threads, kwargs={'include_logp': True}
+                kwargs={'include_logp': True}
             )
+                
         
-        # we're using args because emcee < 3.0 has three return values whereas emcee > 3.0 has
-        # four. We can explicitly declare 4 variables instead of args in the future. 
-        for args in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
-            pass
+        for state in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+            if self.use_pt:
+                self.curr_pos = state[0]
+            else:
+                self.curr_pos = state.coords
 
         sampler.reset()
-        try:
-            self.curr_pos = args[0]
-        except UnboundLocalError:  # 0 step burn-in (pos is not defined)
-            pass
         print('Burn in complete')
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
@@ -670,16 +672,16 @@ class MCMC(Sampler):
         assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
         i=0
-        # we're using args because emcee < 3.0 has three return values whereas emcee > 3.0 has
-        # four. We can explicitly declare 4 variables instead of args in the future. 
-        for args in sampler.sample(self.curr_pos, iterations=nsteps, thin=thin):
+        for state in sampler.sample(self.curr_pos, iterations=nsteps, thin=thin):
+            if self.use_pt:
+                self.curr_pos = state[0]
+            else:
+                self.curr_pos = state.coords
             i+=1
             # print progress statement
             if i % 5 == 0:
                 print(str(i)+'/'+str(nsteps)+' steps completed', end='\r')
         print('')
-
-        self.curr_pos = args[0] # note that args[0] is pos output
 
         # TODO: Need something here to pick out temperatures, just using lowest one for now
         self.chain = sampler.chain
@@ -709,7 +711,7 @@ class MCMC(Sampler):
 
         return sampler
 
-    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None):
+    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None, transparency = 1):
         """
         Plots position of walkers at each step from Results object. Returns list of figures, one per parameter
         Args:
@@ -722,6 +724,8 @@ class MCMC(Sampler):
                 If None (default), walkers selected as per `walker_list`
             step_range (array or tuple): Start and end values of step numbers to plot
                 If None (default), all the steps are plotted
+            transparency (int or float): Determines visibility of the plotted function
+                If 1 (default) results plot at 100% opacity
 
         Returns:
             List of ``matplotlib.pyplot.Figure`` objects:
@@ -762,12 +766,12 @@ class MCMC(Sampler):
         for pp in params_to_plot:
             fig, ax = plt.subplots()
             for ww in walkers_to_plot:
-                ax.plot(chn[ww, :, pp], 'k-')
+                ax.plot(chn[ww, :, pp], 'k-', alpha = transparency)
             ax.set_xlabel('Step')
             if step_range is not None:  # Limit range shown if step_range is set
                 ax.set_xlim(step_range)
             output_figs.append(fig)
-
+        
         # Return
         return output_figs
 

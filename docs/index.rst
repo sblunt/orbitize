@@ -66,6 +66,20 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.11.4 (2020-8-28)**
+
+- Compatibility with ``emcee>=3`` (@sblunt)
+
+**1.11.3 (2020-8-20)**
+
+- Save results section of OFTI tutorial now current (@rferrerc)
+- Modifying MCMC initial positions tutorial documentation now uses correct orbital elements (@rferrerc)
+
+**1.11.2 (2020-8-10)**
+
+- Added transparency option for plotting MCMC chains (@sofiacovarrubias)
+- Removed some redundant code (@MissingBrainException)
+
 **1.11.1 (2020-6-11)**
 
 - Fixed a string formatting bug causing corner plots to fail for RV+astrometry fits
