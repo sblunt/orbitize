@@ -30,7 +30,7 @@ def test_scale_and_rotate():
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -55,7 +55,7 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -160,6 +160,6 @@ def test_OFTI_multiplanet():
 
 if __name__ == "__main__":
     test_scale_and_rotate()
-    test_run_sampler()
-    test_OFTI_multiplanet()
+    #test_run_sampler()
+    #test_OFTI_multiplanet()
     print("Done!")
