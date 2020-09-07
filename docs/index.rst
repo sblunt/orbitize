@@ -59,12 +59,16 @@ you on our team!
 
 **Some major planned updates:**
 
-- fit orbits of multiple objects in one system
-- fit Gaia astrometry & RVs
+- fit Gaia astrometry
 - marginalize over instrumental uncertainties
 
 Changelog:
 ++++++++++
+
+**1.12.0 (2020-9-6)**
+
+- ``tau_ref_epoch`` is now set to Jan 1, 2020 throughout the code (@semaphoreP)
+- ``restrict_angle_ranges`` keyword now works as expected for OFTI (@sblunt)
 
 **1.11.4 (2020-8-28)**
 
