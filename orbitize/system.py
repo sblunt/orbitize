@@ -253,7 +253,7 @@ class System(object):
 
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
             )
 
             # raoff, decoff, vz are scalers if the length of epochs is 1. 

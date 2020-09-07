@@ -4,6 +4,7 @@ This module solves for the orbit of the planet given Keplerian parameters.
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
+import warnings # to be removed after tau_ref_epoch warning is removed. 
 
 try:
     from . import _kepler
@@ -14,7 +15,7 @@ equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=0, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, tau_warning=True):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -38,6 +39,9 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        tau_warning (bool, optional, depricating): temporary argument to warn users about tau_ref_epoch default value change. 
+            Users that are calling this function themsleves should receive a warning since default is True. 
+            To be removed when tau_ref_epoch change is fully propogated to users. Users can turn it off to stop getting the warning.
 
     Return:
         3-tuple:
@@ -52,6 +56,10 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     Written: Jason Wang, Henry Ngo, 2018
     """
+    if tau_warning:
+        warnings.warn("tau_ref_epoch default for kepler.calc_orbit is 58849 now instead of 0 MJD. "
+                      "Please check that this does not break your code. You can turn off this warning by setting "
+                      "tau_warning=False when you call kepler.calc_orbit.")
 
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz

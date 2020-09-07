@@ -30,7 +30,7 @@ def test_scale_and_rotate():
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -55,9 +55,8 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
     assert np.max(lan) > np.pi
-
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -76,7 +75,7 @@ def test_scale_and_rotate():
     assert np.max(lan) < np.pi
     assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
