@@ -92,9 +92,12 @@ class System(object):
         # ... return the parameter labels for each table
         # ...
 
+        self.fit_astrometry=True
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
+        if len(radec_indices[0])==0 and len(seppa_indices[0])==0:
+            self.fit_astrometry=False
         rv_indices = np.where(self.data_table['quant_type'] == 'rv')
 
         # Rob and Lea:

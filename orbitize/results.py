@@ -13,8 +13,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
+import pandas as pd
 
 import corner
+import pdb
 
 import orbitize.kepler as kepler
 import orbitize.system
@@ -56,13 +58,14 @@ class Results(object):
     Written: Henry Ngo, Sarah Blunt, 2018
     """
 
-    def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None):
+    def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,data=None):
 
         self.sampler_name = sampler_name
         self.post = post
         self.lnlike = lnlike
         self.tau_ref_epoch = tau_ref_epoch
-        self.labels = labels
+        self.data=data
+        self.labels=labels
 
     def add_samples(self, orbital_params, lnlikes, labels):
         """
@@ -232,8 +235,8 @@ class Results(object):
             'pan': '$\\Omega$ [$^{\\circ}$]',
             'tau': '$\\tau$',
             'plx': '$\\pi$ [mas]',
-            'gam': '$\\gamma$ [m/s]',
-            'sig': '$\\sigma$ [m/s]',
+            'gam': '$\\gamma$ [km/s]',
+            'sig': '$\\sigma$ [km/s]',
             'mtot': '$M_T$ [M$_{\\odot}$]',
             'm0': '$M_0$ [M$_{\\odot}$]',
             'm1': '$M_1$ [M$_{\\odot}$]',
@@ -359,11 +362,19 @@ class Results(object):
                 m0 = self.post[:, -1]
                 m1 = self.post[:, -2]
                 mtot = m0 + m1
-            if 'gamma' in self.labels:
-                dict_of_indices['gamma'] = 7
-                dict_of_indices['sigma'] = 8
-                gamma = self.post[:, dict_of_indices['gamma']]
-
+            
+            # ##OG CHECK##
+            # # if 'gamma' in self.labels:
+            # if any('gamma' in label for label in self.labels):
+            #     gams = [label for label in self.labels if label[:5].lower() == 'gamma']
+            #     sigs = [label for label in self.labels if label[:5].lower() == 'sigma']
+            #     comp_gamma=np.zeros(len(self.post[:,0].flatten()))
+            #     for i in range(len(gams)):
+            #         dict_of_indices[gams[i]] = (6*1)+1+(2*i)
+            #         dict_of_indices[sigs[i]] = (6*1)+1+(2*i+1)
+            #         comp_gamma+=self.post[:, dict_of_indices[gams[i]]]
+            #     print(comp_gamma.shape)
+                
             # Select random indices for plotted orbit
             if num_orbits_to_plot > len(sma):
                 num_orbits_to_plot = len(sma)
@@ -485,8 +496,6 @@ class Results(object):
 
                     raoff[i, :] = raoff0
                     deoff[i, :] = deoff0
-                    vz_star[i, :] = vzoff0*-(m1[orb_ind]/m0[orb_ind]) + gamma[orb_ind]
-
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
@@ -508,12 +517,43 @@ class Results(object):
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
 
-                if rv_time_series:
-                    plt.sca(ax3)
-                    plt.plot(yr_epochs, vz_star[i, :], color=sep_pa_color)
-                    ax3.locator_params(axis='x', nbins=6)
-                    ax3.locator_params(axis='y', nbins=6)
-                    fig.tight_layout()
+            if rv_time_series:
+                plt.sca(ax3)
+                data=self.data
+                print(data)
+                # get list of instruments
+                insts=np.unique(data['instrument'])
+                insts=[i for i in insts if 'def' not in i]
+                # get gamma/sigma labels and corresponding positions in the posterior
+                gams=['gamma_'+inst for inst in insts]
+                # get the indices correspinding to each gamma within self.labels
+                gam_idx=[np.where(np.array(self.labels)==inst_gamma)[0][0] for inst_gamma in gams]
+                # indices corresponding to each instrument in the datafile
+                inds={}
+                # pdb.set_trace()
+                for i in range(len(insts)):
+                    inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
+                # get best term from the best fitting orbit 
+                med_ga=[np.median(self.post[-1000:,i]) for i in gam_idx]
+                # get rvs and plot them
+                for i,name in enumerate(inds.keys()):
+                    inst_data=data[inds[name]]
+                    rvs=inst_data['quant1']
+                    print(rvs)
+                    print(med_ga[i])
+                    epochs=inst_data['epoch']
+                    epochs=Time(epochs, format='mjd').decimalyear
+                    rvs-=med_ga[i]
+                    plt.scatter(epochs,rvs,marker='o',s=5)
+                #overplot best fit 
+                raa, decc, vz = kepler.calc_orbit(
+                    epochs_seppa[i, :], np.median(sma[-1000:]), np.median(ecc[-1000:]), np.median(inc[-1000:]), np.median(aop[-1000:]), np.median(pan[-1000:]),
+                    np.median(tau[-1000:]), np.median(plx[-1000:]), np.median(mtot[-1000:]), tau_ref_epoch=self.tau_ref_epoch,
+                    mass_for_Kamp=np.median(m0[-1000:])
+                )
+                vz=vz*-(np.median(m1[-1000:])/np.median(m0[-1000:]))
+                plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
+
 
             # add colorbar
             if show_colorbar:

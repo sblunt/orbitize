@@ -16,9 +16,7 @@ import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 import copy
-
 import matplotlib.pyplot as plt
-
 
 class Sampler(abc.ABC):
     """
@@ -147,11 +145,13 @@ class OFTI(Sampler,):
                                  np.argmax(self.rv_observed)]
 
         # create an empty results object
+        print(self.system.data_table)
         self.results = orbitize.results.Results(
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=self.system.tau_ref_epoch
+            tau_ref_epoch=self.system.tau_ref_epoch,
+            data=self.system.data_table
         )
 
     def prepare_samples(self, num_samples):
@@ -472,7 +472,8 @@ class MCMC(Sampler):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=system.tau_ref_epoch
+            tau_ref_epoch=system.tau_ref_epoch,
+            data=self.system.data_table
         )
 
         if self.num_temps > 1:
