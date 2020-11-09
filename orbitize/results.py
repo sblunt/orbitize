@@ -524,10 +524,13 @@ class Results(object):
                 # get list of instruments
                 insts=np.unique(data['instrument'])
                 insts=[i for i in insts if 'def' not in i]
+
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
+
                 # get the indices correspinding to each gamma within self.labels
                 gam_idx=[np.where(np.array(self.labels)==inst_gamma)[0][0] for inst_gamma in gams]
+
                 # indices corresponding to each instrument in the datafile
                 inds={}
                 # pdb.set_trace()
@@ -544,8 +547,12 @@ class Results(object):
                     epochs=inst_data['epoch']
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
-                    plt.scatter(epochs,rvs,marker='o',s=5)
+                    print(name)
+                    plt.scatter(epochs,rvs,marker='o',s=5,label=name)
+                plt.legend()
                 #overplot best fit 
+
+                ## LEGEND 
                 raa, decc, vz = kepler.calc_orbit(
                     epochs_seppa[i, :], np.median(sma[-1000:]), np.median(ecc[-1000:]), np.median(inc[-1000:]), np.median(aop[-1000:]), np.median(pan[-1000:]),
                     np.median(tau[-1000:]), np.median(plx[-1000:]), np.median(mtot[-1000:]), tau_ref_epoch=self.tau_ref_epoch,
