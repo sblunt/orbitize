@@ -10,3 +10,4 @@ deprecation
 cython
 pytest
 pandas
+radvel
