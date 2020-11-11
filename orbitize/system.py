@@ -267,7 +267,7 @@ class System(object):
 
             # vz_i is the ith companion radial velocity
             if self.fit_secondary_mass:
-                vz0 = vz_i*-(mass/mtot)  # calculating stellar velocity due to ith companion
+                vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
             # for the model points that correspond to this planet's orbit, add the model prediction
