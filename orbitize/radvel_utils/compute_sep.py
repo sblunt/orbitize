@@ -14,13 +14,15 @@ def compute_sep(
 
     Args:
         df (pd.DataFrame): Radvel-computed posterior (in any orbital basis)
-        epochs: 
+        epochs (np.array of astropy.time.Time): epochs at which to compute 
+            separations
         basis (str): basis string of input posterior (see 
             radvel.basis.BASIS_NAMES` for the full list of possibilities). 
-        mtot:
-        mtot_err:
-        plx:
-        plx_err: 
+        mtot (float): median of total mass distribution (assumed Gaussian).
+        mtot_err (float): 1sigma error of total mass distribution 
+            (assumed Gaussian).
+        plx (float): median of parallax distribution (assumed Gaussian).
+        plx_err: 1sigma error of parallax distribution (assumed Gaussian).
         n_planets (int): total number of planets in RadVel posterior
         pl_num (int): planet number used in RadVel fits (e.g. a RadVel label of 
             'per1' implies `pl_num` == 1) 
@@ -35,7 +37,7 @@ def compute_sep(
 
     Returns:
         tuple of:
-            np.array of size n_epochs x len(df): sky-projected angular 
+            np.array of size (len(epochs) x len(df)): sky-projected angular 
                 separations [mas] at each input epoch
             pd.DataFrame: corresponding orbital posterior in orbitize basis
     """
@@ -43,6 +45,7 @@ def compute_sep(
     myBasis = Basis(basis, n_planets)
     df = myBasis.to_synth(df)
     chain_len = len(df)
+    tau_ref_epoch = 58849
 
     # convert RadVel parameters
     per_day = df['per{}'.format(pl_num)].values
@@ -50,7 +53,7 @@ def compute_sep(
     ecc = df['e{}'.format(pl_num)].values
     omega_st_rad = df['w{}'.format(pl_num)].values
     tp_mjd = df['tp{}'.format(pl_num)].values - 2400000.5
-    tau = t0_to_tau(tp_mjd, 58849, period_yr)
+    tau = t0_to_tau(tp_mjd, tau_ref_epoch, period_yr)
 
     # generate 
     mtot = np.random.normal(mtot, mtot_err, size = chain_len)
@@ -65,7 +68,7 @@ def compute_sep(
     raoff, deoff, _ = calc_orbit(
         epochs.mjd, sma, ecc, inc, 
         omega_pl_rad, lan, tau, 
-        parallax, mtot, tau_ref_epoch=58849
+        parallax, mtot, tau_ref_epoch=tau_ref_epoch
     )
     seps = np.sqrt(raoff**2 + deoff**2)
 
