@@ -70,8 +70,8 @@ class Sampler(abc.ABC):
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
 
-        # TODO: THIS ONLY WORKS FOR 1 PLANET. Make this a for loop to work for multiple planets.
-        seppa_indices = np.union1d(self.system.seppa[0], self.system.seppa[1])
+        # grab all seppa indices
+        seppa_indices = self.system.all_seppa
 
         # compute lnlike
         lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
@@ -109,10 +109,14 @@ class OFTI(Sampler,):
         self.priors = self.system.sys_priors
 
         # convert RA/Dec rows to sep/PA
-        body_num = 1  # the first planet; MODIFY THIS LATER FOR MULTIPLE PLANETS
-        if len(self.system.radec[body_num]) > 0:
-            print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
-            self.system.convert_data_table_radec2seppa(body_num=body_num)
+        convert_warning_print = False
+        for body_num in np.arange(self.system.num_secondary_bodies) + 1:
+            if len(self.system.radec[body_num]) > 0:
+                # only print the warning once. 
+                if not convert_warning_print:
+                    print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                    convert_warning_print = True
+                self.system.convert_data_table_radec2seppa(body_num=body_num)
 
         # these are of type astropy.table.column
         self.sep_observed = self.system.data_table[np.where(
@@ -123,6 +127,8 @@ class OFTI(Sampler,):
             self.system.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
         self.pa_err = self.system.data_table[np.where(
             self.system.data_table['quant_type'] == 'seppa')]['quant2_err'].copy()
+        self.meas_object = self.system.data_table[np.where(
+            self.system.data_table['quant_type'] == 'seppa')]['object'].copy()
 
         # this is OK, ONLY IF we are only using self.epochs for computing RA/Dec from Keplerian elements
         self.epochs = np.array(self.system.data_table['epoch']) - self.system.tau_ref_epoch
@@ -135,8 +141,22 @@ class OFTI(Sampler,):
             self.system.data_table['quant_type'] == 'rv')]['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
-        self.epoch_idx = np.argmin(self.sep_err)  # epoch with smallest error
-
+        # for multiplanet support, this is now a list. 
+        # For each planet, we find the measurment for it that corresponds to the smallest astrometric error
+        self.epoch_idx = []
+        min_sep_indices = np.argsort(self.sep_err) # indices of sep err sorted from smallest to higheset
+        min_sep_indices_body = self.meas_object[min_sep_indices] # the corresponding body_num that these sorted measurements correspond to
+        for i in range(self.system.num_secondary_bodies):
+            body_num = i + 1
+            this_object_meas = np.where(min_sep_indices_body == body_num)[0]
+            if np.size(this_object_meas) == 0:
+                # no data, no scaling
+                self.epoch_idx.append(None)
+                continue
+            # get the smallest measurement belonging to this body
+            best_epoch = min_sep_indices[this_object_meas][0] # already sorted by argsort
+            self.epoch_idx.append(best_epoch)
+        
         if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:  # checking for RV data
             self.rv_observed = self.system.data_table[np.where(
                 self.system.data_table['quant_type'] == 'rv')]['quant1'].copy()
@@ -151,7 +171,8 @@ class OFTI(Sampler,):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=self.system.tau_ref_epoch
+            tau_ref_epoch=self.system.tau_ref_epoch,
+            num_secondary_bodies=self.system.num_secondary_bodies
         )
 
     def draw_from_priors(self, num_samples):
@@ -181,55 +202,90 @@ class OFTI(Sampler,):
 
         samples = self.draw_from_priors(num_samples)
 
-        # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
-        sma = samples[0,:]
-        ecc = samples[1,:]
-        inc = samples[2,:]
-        argp = samples[3,:]
-        lan = samples[4,:]
-        tau = samples[5,:]
-        plx = samples[6,:]
-        if self.system.fit_secondary_mass:
-            m0 = samples[-1,:]
-            m1 = samples[-2,:]
-            mtot = m0 + m1
-        else:
-            mtot = samples[-1,:]
-            m1 = None
-        period_prescale = np.sqrt(
-            4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
-        )
-        period_prescale = period_prescale.to(u.day).value
-        meananno = self.epochs[self.epoch_idx]/period_prescale - tau
-        # compute sep/PA of generated orbits
-        ra, dec, vc = orbitize.kepler.calc_orbit(
-            self.epochs[self.epoch_idx], sma, ecc, inc, argp, lan, tau, plx, mtot, 
-            mass_for_Kamp=m1
-        )
-        sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
-        # generate Gaussian offsets from observational uncertainties
-        sep_offset = np.random.normal(
-            0, self.sep_err[self.epoch_idx], size=num_samples
-        )
-        pa_offset =  np.random.normal(
-            0, self.pa_err[self.epoch_idx], size=num_samples
-        )
-        # calculate correction factors
-        sma_corr = (sep_offset + self.sep_observed[self.epoch_idx])/sep
-        lan_corr = (pa_offset + self.pa_observed[self.epoch_idx] - pa)
-        # perform scale-and-rotate
-        sma *= sma_corr # [AU]
-        lan += np.radians(lan_corr) # [rad]
-        lan = lan % (2*np.pi)
-        period_new = np.sqrt(
-            4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
-        )
-        period_new = period_new.to(u.day).value
-        tau = (self.epochs[self.epoch_idx]/period_new - meananno) % 1
-        # updates samples with new values of sma, pan, tau
-        samples[0,:] = sma
-        samples[4,:] = lan
-        samples[5,:] = tau
+        # generate sample orbits
+        samples = np.empty([len(self.priors), num_samples])
+        for i in range(len(self.priors)):
+            if hasattr(self.priors[i], "draw_samples"):
+                samples[i, :] = self.priors[i].draw_samples(num_samples)
+            else: # param is fixed & has no prior
+                samples[i, :] = self.priors[i] * np.ones(num_samples)
+
+        for body_num in np.arange(self.system.num_secondary_bodies):
+            # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+            ref_ind = 6 * body_num
+            sma = samples[ref_ind,:]
+            ecc = samples[ref_ind + 1,:]
+            inc = samples[ref_ind + 2,:]
+            argp = samples[ref_ind + 3,:]
+            lan = samples[ref_ind + 4,:]
+            tau = samples[ref_ind + 5,:]
+            plx = samples[6 * self.system.num_secondary_bodies,:]
+            if self.system.fit_secondary_mass:
+                m0 = samples[-1,:]
+                m1 = samples[-1-self.system.num_secondary_bodies+body_num,:]
+                mtot = m0 + m1
+            else:
+                mtot = samples[-1,:]
+                m1 = None
+            
+            if "gamma" in self.system.labels:
+                gamma = samples[6 * self.system.num_secondary_bodies + 1, :]  # Rob: added gamma and sigma parameters
+            if "sigma" in self.system.labels:
+                sigma = samples[6 * self.system.num_secondary_bodies + 2, :]
+
+            min_epoch = self.epoch_idx[body_num]
+            if min_epoch is None:
+                # Don't need to rotate and scale if no astrometric measurments for this body. Brute force rejection sampling
+                continue
+
+            period_prescale = np.sqrt(
+                4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
+            )
+            period_prescale = period_prescale.to(u.day).value
+            meananno = self.epochs[min_epoch]/period_prescale - tau
+
+            # compute sep/PA of generated orbits
+            ra, dec, vc = orbitize.kepler.calc_orbit(
+                self.epochs[min_epoch], sma, ecc, inc, argp, lan, tau, plx, mtot, 
+                tau_ref_epoch=0, mass_for_Kamp=m1, tau_warning=False
+            )
+            sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
+
+            # generate Gaussian offsets from observational uncertainties
+            sep_offset = np.random.normal(
+                0, self.sep_err[min_epoch], size=num_samples
+            )
+            pa_offset =  np.random.normal(
+                0, self.pa_err[min_epoch], size=num_samples
+            )
+
+            # calculate correction factors
+            sma_corr = (sep_offset + self.sep_observed[min_epoch])/sep
+            lan_corr = (pa_offset + self.pa_observed[min_epoch] - pa)
+
+            # perform scale-and-rotate
+            sma *= sma_corr # [AU]
+            lan += np.radians(lan_corr) # [rad]
+            lan = (lan + 2 * np.pi) % (2 * np.pi)
+
+            if self.system.restrict_angle_ranges:
+                argp[lan >= np.pi] += np.pi
+                argp = argp % (2 * np.pi)
+                lan[lan >= np.pi] -= np.pi
+
+            period_new = np.sqrt(
+                4*np.pi**2*(sma*u.AU)**3/(consts.G*(mtot*u.Msun))
+            )
+            period_new = period_new.to(u.day).value
+
+            tau = (self.epochs[min_epoch]/period_new - meananno) % 1
+
+            # updates samples with new values of sma, pan, tau
+            samples[ref_ind,:] = sma
+            samples[ref_ind + 3,:] = argp
+            samples[ref_ind + 4,:] = lan
+            samples[ref_ind + 5,:] = tau
+
         return samples
 
     def reject(self, samples):
@@ -481,7 +537,8 @@ class MCMC(Sampler):
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=system.tau_ref_epoch
+            tau_ref_epoch=system.tau_ref_epoch,
+            num_secondary_bodies=system.num_secondary_bodies
         )
 
         if self.num_temps > 1:
@@ -615,44 +672,40 @@ class MCMC(Sampler):
                 ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
             )
         else:
+            if self.num_threads != 1:
+                print('Setting num_threads=1. If you want parallel processing for emcee implemented in orbitize, let us know.')
+                self.num_threads = 1
+
             sampler = emcee.EnsembleSampler(
                 self.num_walkers, self.num_params, self._logl,
-                threads=self.num_threads, kwargs={'include_logp': True}
+                kwargs={'include_logp': True}
             )
-
-        for pos, lnprob, lnlike in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
-            # numw = pos.shape[1]
-            # w = np.random.randint(0,numw)
-            # print('******************')
-            # print('pos = '+str(pos[0][w][:]))
-            # print('lnprob = '+str(lnprob[0][w])+' / lnlike = '+ str(lnlike[0][w])+' / lnprob-lnlike = '+ str(lnprob[0][w]-lnlike[0][w]))
-            pass
+                
+        
+        for state in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+            if self.use_pt:
+                self.curr_pos = state[0]
+            else:
+                self.curr_pos = state.coords
 
         sampler.reset()
-        try:
-            self.curr_pos = pos
-        except UnboundLocalError:  # 0 step burn-in (pos is not defined)
-            pass
         print('Burn in complete')
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
 
         assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
 
-        i = 0
-        for pos, lnprob, lnlike in sampler.sample(p0=self.curr_pos, iterations=nsteps, thin=thin):
-            i += 1
-            # numw = pos.shape[1]
-            # w = np.random.randint(0,numw)
-            # print('******************')
-            # print('pos = '+str(pos[0][w][:]))
-            # print('lnprob = '+str(lnprob[0][w])+' / lnlike = '+ str(lnlike[0][w])+' / lnprob-lnlike = '+ str(lnprob[0][w]-lnlike[0][w]))
+        i=0
+        for state in sampler.sample(self.curr_pos, iterations=nsteps, thin=thin):
+            if self.use_pt:
+                self.curr_pos = state[0]
+            else:
+                self.curr_pos = state.coords
+            i+=1
             # print progress statement
             if i % 5 == 0:
                 print(str(i)+'/'+str(nsteps)+' steps completed', end='\r')
         print('')
-
-        self.curr_pos = pos
 
         # TODO: Need something here to pick out temperatures, just using lowest one for now
         self.chain = sampler.chain
@@ -682,7 +735,7 @@ class MCMC(Sampler):
 
         return sampler
 
-    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None):
+    def examine_chains(self, param_list=None, walker_list=None, n_walkers=None, step_range=None, transparency = 1):
         """
         Plots position of walkers at each step from Results object. Returns list of figures, one per parameter
         Args:
@@ -695,6 +748,8 @@ class MCMC(Sampler):
                 If None (default), walkers selected as per `walker_list`
             step_range (array or tuple): Start and end values of step numbers to plot
                 If None (default), all the steps are plotted
+            transparency (int or float): Determines visibility of the plotted function
+                If 1 (default) results plot at 100% opacity
 
         Returns:
             List of ``matplotlib.pyplot.Figure`` objects:
@@ -735,12 +790,12 @@ class MCMC(Sampler):
         for pp in params_to_plot:
             fig, ax = plt.subplots()
             for ww in walkers_to_plot:
-                ax.plot(chn[ww, :, pp], 'k-')
+                ax.plot(chn[ww, :, pp], 'k-', alpha = transparency)
             ax.set_xlabel('Step')
             if step_range is not None:  # Limit range shown if step_range is set
                 ax.set_xlim(step_range)
             output_figs.append(fig)
-
+        
         # Return
         return output_figs
 
@@ -795,7 +850,8 @@ class MCMC(Sampler):
             post=flat_chopped_chain,
             lnlike=flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch,
-            labels=self.system.labels
+            labels=self.system.labels,
+            num_secondary_bodies=self.system.num_secondary_bodies
         )
 
         # Print a confirmation

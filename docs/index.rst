@@ -59,12 +59,45 @@ you on our team!
 
 **Some major planned updates:**
 
-- fit orbits of multiple objects in one system
-- fit Gaia astrometry & RVs
+- fit Gaia astrometry
 - marginalize over instrumental uncertainties
 
 Changelog:
 ++++++++++
+
+**1.12.1 (2020-9-6)**
+
+- ``tau_ref_epoch`` is now set to Jan 1, 2020 throughout the code (@semaphoreP)
+- ``restrict_angle_ranges`` keyword now works as expected for OFTI (@sblunt)
+
+**1.12.0 (2020-8-28)**
+
+- Compatibility with ``emcee>=3`` (@sblunt)
+
+**1.11.3 (2020-8-20)**
+
+- Save results section of OFTI tutorial now current (@rferrerc)
+- Modifying MCMC initial positions tutorial documentation now uses correct orbital elements (@rferrerc)
+
+**1.11.2 (2020-8-10)**
+
+- Added transparency option for plotting MCMC chains (@sofiacovarrubias)
+- Removed some redundant code (@MissingBrainException)
+
+**1.11.1 (2020-6-11)**
+
+- Fixed a string formatting bug causing corner plots to fail for RV+astrometry fits
+
+**1.11.0 (2020-4-14)**
+
+- Multiplanet support!
+- Changes to directory structure of sample data files
+- Fixed a bug that was causing corner plots to fail on loaded results objects
+
+**1.10.0 (2020-3-6)**
+
+- Joint RV + relative astrometry fitting capabilities! 
+- New tutorial added
 
 **1.9.0 (2020-1-24)**
 
