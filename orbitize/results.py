@@ -115,6 +115,7 @@ class Results(object):
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
+        hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
@@ -141,6 +142,8 @@ class Results(object):
         sampler_name = np.str(hf.attrs['sampler_name'])
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
+        data=np.array(hf.get('data'))
+        self.data=data
 
         # get the tau reference epoch
         try:
@@ -362,18 +365,6 @@ class Results(object):
                 m0 = self.post[:, -1]
                 m1 = self.post[:, -2]
                 mtot = m0 + m1
-            
-            # ##OG CHECK##
-            # # if 'gamma' in self.labels:
-            # if any('gamma' in label for label in self.labels):
-            #     gams = [label for label in self.labels if label[:5].lower() == 'gamma']
-            #     sigs = [label for label in self.labels if label[:5].lower() == 'sigma']
-            #     comp_gamma=np.zeros(len(self.post[:,0].flatten()))
-            #     for i in range(len(gams)):
-            #         dict_of_indices[gams[i]] = (6*1)+1+(2*i)
-            #         dict_of_indices[sigs[i]] = (6*1)+1+(2*i+1)
-            #         comp_gamma+=self.post[:, dict_of_indices[gams[i]]]
-            #     print(comp_gamma.shape)
                 
             # Select random indices for plotted orbit
             if num_orbits_to_plot > len(sma):
@@ -518,9 +509,11 @@ class Results(object):
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
 
             if rv_time_series:
+                
+                # switch current axis to rv panel
                 plt.sca(ax3)
                 data=self.data
-                print(data)
+        
                 # get list of instruments
                 insts=np.unique(data['instrument'])
                 insts=[i for i in insts if 'def' not in i]
@@ -528,37 +521,53 @@ class Results(object):
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
 
-                # get the indices correspinding to each gamma within self.labels
+                # get the indices corresponding to each gamma within self.labels
                 gam_idx=[np.where(np.array(self.labels)==inst_gamma)[0][0] for inst_gamma in gams]
 
                 # indices corresponding to each instrument in the datafile
                 inds={}
-                # pdb.set_trace()
                 for i in range(len(insts)):
                     inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
+
                 # get best term from the best fitting orbit 
-                med_ga=[np.median(self.post[-1000:,i]) for i in gam_idx]
+
+                # # MEDIAN APPROACH
+                # med_ga=[np.median(self.post[-1000:,i]) for i in gam_idx]
+                # LNLIKES APPROACH
+                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
+                med_ga=[self.post[best_like,i] for i in gam_idx]
+
                 # get rvs and plot them
                 for i,name in enumerate(inds.keys()):
                     inst_data=data[inds[name]]
                     rvs=inst_data['quant1']
-                    print(rvs)
-                    print(med_ga[i])
                     epochs=inst_data['epoch']
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
-                    print(name)
                     plt.scatter(epochs,rvs,marker='o',s=5,label=name)
                 plt.legend()
-                #overplot best fit 
 
-                ## LEGEND 
+                # # overplot best fit
+
+                # Median approach
+
+                # raa, decc, vz = kepler.calc_orbit(
+                #     epochs_seppa[i, :], np.median(sma[-1000:]), np.median(ecc[-1000:]), np.median(inc[-1000:]), np.median(aop[-1000:]), np.median(pan[-1000:]),
+                #     np.median(tau[-1000:]), np.median(plx[-1000:]), np.median(mtot[-1000:]), tau_ref_epoch=self.tau_ref_epoch,
+                #     mass_for_Kamp=np.median(m0[-1000:])
+                # )
+                # vz=vz*-(np.median(m1[-1000:])/np.median(m0[-1000:]))
+
+                
+                # best like approach
                 raa, decc, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :], np.median(sma[-1000:]), np.median(ecc[-1000:]), np.median(inc[-1000:]), np.median(aop[-1000:]), np.median(pan[-1000:]),
-                    np.median(tau[-1000:]), np.median(plx[-1000:]), np.median(mtot[-1000:]), tau_ref_epoch=self.tau_ref_epoch,
-                    mass_for_Kamp=np.median(m0[-1000:])
+                    epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
+                    tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
+                    mass_for_Kamp=m0[best_like]
                 )
-                vz=vz*-(np.median(m1[-1000:])/np.median(m0[-1000:]))
+                
+                vz=vz*-(m1[best_like])/np.median(m0[best_like])
+
                 plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
 

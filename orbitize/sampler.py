@@ -145,7 +145,6 @@ class OFTI(Sampler,):
                                  np.argmax(self.rv_observed)]
 
         # create an empty results object
-        print(self.system.data_table)
         self.results = orbitize.results.Results(
             sampler_name=self.__class__.__name__,
             post=None,
