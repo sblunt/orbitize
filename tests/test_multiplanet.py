@@ -108,9 +108,9 @@ def test_fit_selfconsist():
     ra_model_b += mass_c/m0 * ra_model_c
     dec_model_b += mass_c/m0 * dec_model_c
 
-    # perturb b due to c
-    ra_model_c += mass_b/m0 * ra_model_b_orig
-    dec_model_c += mass_b/m0 * dec_model_b_orig
+    # # perturb c due to b
+    # ra_model_c += mass_b/m0 * ra_model_b_orig
+    # dec_model_c += mass_b/m0 * dec_model_b_orig
 
     # generate some fake measurements to fit to. Make it with b first
     t = table.Table([epochs, np.ones(epochs.shape, dtype=int), ra_model_b, 0.00001 * np.ones(epochs.shape, dtype=int), dec_model_b, 0.00001 * np.ones(epochs.shape, dtype=int)], 
