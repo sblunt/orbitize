@@ -140,7 +140,7 @@ def test_fit_selfconsist():
     sys.sys_priors[sys.param_idx['m1']] = priors.LogUniformPrior(mass_b*0.01, mass_b*100)
     sys.sys_priors[sys.param_idx['m2']] = priors.LogUniformPrior(mass_c*0.01, mass_c*100)
 
-    n_walkers = 50
+    n_walkers = 30
     samp = sampler.MCMC(sys, num_temps=1, num_walkers=n_walkers, num_threads=1)
     # should have 8 parameters
     assert samp.num_params == 6
@@ -159,7 +159,7 @@ def test_fit_selfconsist():
     samp.curr_pos[0,4] = mass_b
     samp.curr_pos[0,5] = mass_c
 
-    samp.run_sampler(n_walkers*100, burn_steps=200)
+    samp.run_sampler(n_walkers*50, burn_steps=600)
 
     res = samp.results
 
