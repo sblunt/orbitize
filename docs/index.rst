@@ -65,6 +65,11 @@ you on our team!
 Changelog:
 ++++++++++
 
+**1.13.0 (2020-11-8)**
+
+- Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
+- Bugfix for multiplanet perturbation approximation: now only account for inner planets only when computing perturbations (@semaphoreP)
+
 **1.12.1 (2020-9-6)**
 
 - ``tau_ref_epoch`` is now set to Jan 1, 2020 throughout the code (@semaphoreP)
