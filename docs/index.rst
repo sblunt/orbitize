@@ -59,14 +59,23 @@ you on our team!
 
 **Some major planned updates:**
 
-- fit orbits of multiple objects in one system
-- fit Gaia astrometry & RVs
+- fit Gaia astrometry
 - marginalize over instrumental uncertainties
 
 Changelog:
 ++++++++++
 
-**1.11.4 (2020-8-28)**
+**1.13.0 (2020-11-8)**
+
+- Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
+- Bugfix for multiplanet perturbation approximation: now only account for inner planets only when computing perturbations (@semaphoreP)
+
+**1.12.1 (2020-9-6)**
+
+- ``tau_ref_epoch`` is now set to Jan 1, 2020 throughout the code (@semaphoreP)
+- ``restrict_angle_ranges`` keyword now works as expected for OFTI (@sblunt)
+
+**1.12.0 (2020-8-28)**
 
 - Compatibility with ``emcee>=3`` (@sblunt)
 

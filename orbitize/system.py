@@ -60,6 +60,7 @@ class System(object):
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
+        self.restrict_angle_ranges = restrict_angle_ranges
 
         #
         # Group the data in some useful ways
@@ -252,7 +253,7 @@ class System(object):
 
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
             )
 
             # raoff, decoff, vz are scalers if the length of epochs is 1. 
@@ -266,7 +267,7 @@ class System(object):
 
             # vz_i is the ith companion radial velocity
             if self.fit_secondary_mass:
-                vz0 = vz_i*-(mass/mtot)  # calculating stellar velocity due to ith companion
+                vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
             # for the model points that correspond to this planet's orbit, add the model prediction
@@ -290,13 +291,21 @@ class System(object):
             # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
+            # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
             if self.track_planet_perturbs:
-                for other_body_num in range(self.num_secondary_bodies+1):
+                if body_num > 0:
+                    # for companions, only track perturbations from planets within the orbit of this one
+                    which_perturb_bodies = within_orbit[0]
+                else:
+                    # for the star, what we are measuring is it's position relative to the system barycenter
+                    # so we want to account for all of the bodies.  
+                    which_perturb_bodies = range(self.num_secondary_bodies+1)
+                for other_body_num in which_perturb_bodies:
                     # skip itself since the the 2-body problem is measuring the planet-star separation already
-                    if body_num == other_body_num:
+                    if (body_num == other_body_num) | (body_num == 0):
                         continue
                     ## NOTE: we are only handling ra/dec and sep/pa right now
-                    ## TOOD: integrate RV into this
+                    ## TODO: integrate RV into this
                     if len(self.radec[other_body_num]) > 0:
                         radec_perturb[self.radec[other_body_num], 0] += -(mass/mtot) * raoff[self.radec[other_body_num]]
                         radec_perturb[self.radec[other_body_num], 1] += -(mass/mtot) * decoff[self.radec[other_body_num]] 
