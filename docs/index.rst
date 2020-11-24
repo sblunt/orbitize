@@ -68,6 +68,7 @@ Changelog:
 **1.13.0 (2020-11-8)**
 
 - Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
+- Fixed a total mass/primary mass mixup bug that was causing problems for equal-mass binary RV+astrometry joint fits (@sblunt)
 - Bugfix for multiplanet perturbation approximation: now only account for inner planets only when computing perturbations (@semaphoreP)
 
 **1.12.1 (2020-9-6)**
