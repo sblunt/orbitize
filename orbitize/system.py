@@ -300,6 +300,7 @@ class System(object):
                     # for the star, what we are measuring is it's position relative to the system barycenter
                     # so we want to account for all of the bodies.  
                     which_perturb_bodies = range(self.num_secondary_bodies+1)
+                    
                 for other_body_num in which_perturb_bodies:
                     # skip itself since the the 2-body problem is measuring the planet-star separation already
                     if (body_num == other_body_num) | (body_num == 0):
