@@ -6,6 +6,7 @@ This document should grow and change with our code base. Please revise & add any
 - Learn about [Markov Chain Monte Carlo algorithms](https://jeremykun.com/2015/04/06/markov-chain-monte-carlo-without-all-the-bullshit/). Ask Jason when you have questions.
 - Learn about [Orbits for the Impatient (OFTI)](http://adsabs.harvard.edu/abs/2017AJ....153..229B). Ask Sarah when you have questions.
 - Learn about [Git and GitHub](https://product.hubspot.com/blog/git-and-github-tutorial-for-beginners)
+- Read our [community agreement](https://docs.google.com/document/d/1ZzjkoB20vVTlg2wbNpS7sRjmcSrECdh8kQ11-waZQhw/edit) and (optionally) suggest changes. 
 
 
 # Best Practices for Contributing:
