@@ -29,6 +29,53 @@ class Prior(ABC):
     def compute_lnprob(self, element_array):
         pass
 
+class NearestNDInterpPrior(Prior):
+    """
+    NEarest Neighbor interp. This class is
+    a wrapper for scipy.interpolate.NearestNDInterpolator.
+    Args:
+    """
+    def __init__(self, interp_fct,total_params):
+        self.interp_fct = interp_fct
+        self.total_params = total_params
+        self.param_num = 0
+        self.correlated_drawn_samples = None 
+        self.correlated_input_samples = None
+        # Some numbers fror this method
+        self.num_priorsFromArr = interp_fct.values.size
+        self.ind_draw = None
+    def increment_param_num(self):
+        self.param_num += 1
+        self.param_num = self.param_num % (self.total_params + 1)
+        self.param_num = self.param_num % self.total_params
+    def draw_samples(self, num_samples):
+        if self.param_num == 0:
+            ind_draw = np.random.randint(self.num_priorsFromArr,size=num_samples)
+            self.ind_draw = ind_draw
+            return_me = self.interp_fct.points[self.ind_draw,self.param_num]
+            self.increment_param_num()
+            return return_me
+        else:
+            return_me = self.interp_fct.points[self.ind_draw,self.param_num]
+            self.increment_param_num()
+            return return_me
+    def compute_lnprob(self, element_array):
+        if self.param_num == 0:
+            self.correlated_input_samples = element_array
+        else:
+            self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+        if self.param_num == self.total_params-1:
+            lnlike = self.interp_fct(self.correlated_input_samples)
+            # print('logparam_corr'+str(self.logparam_corr))
+            # like = (10**lnlike)/self.logparam_corr
+            # lnlike = np.log10(like)
+            self.increment_param_num()
+            self.logparam_corr = 1
+            return lnlike
+        else:
+            self.increment_param_num()
+            return 0
+
 class KDEPrior(Prior):
     """
     Gaussian kernel density estimation (KDE) prior. This class is
