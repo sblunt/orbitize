@@ -529,11 +529,7 @@ class Results(object):
                 for i in range(len(insts)):
                     inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
 
-                # get best term from the best fitting orbit 
-
-                # # MEDIAN APPROACH
-                # med_ga=[np.median(self.post[-1000:,i]) for i in gam_idx]
-                # LNLIKES APPROACH
+                # choose the orbit with the best log probability
                 best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
@@ -547,19 +543,8 @@ class Results(object):
                     plt.scatter(epochs,rvs,marker='o',s=5,label=name)
                 plt.legend()
 
-                # # overplot best fit
-
-                # Median approach
-
-                # raa, decc, vz = kepler.calc_orbit(
-                #     epochs_seppa[i, :], np.median(sma[-1000:]), np.median(ecc[-1000:]), np.median(inc[-1000:]), np.median(aop[-1000:]), np.median(pan[-1000:]),
-                #     np.median(tau[-1000:]), np.median(plx[-1000:]), np.median(mtot[-1000:]), tau_ref_epoch=self.tau_ref_epoch,
-                #     mass_for_Kamp=np.median(m0[-1000:])
-                # )
-                # vz=vz*-(np.median(m1[-1000:])/np.median(m0[-1000:]))
-
                 
-                # best like approach
+                # calculate the predicted rv trend using the best orbit 
                 raa, decc, vz = kepler.calc_orbit(
                     epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
                     tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
@@ -568,6 +553,8 @@ class Results(object):
                 
                 vz=vz*-(m1[best_like])/np.median(m0[best_like])
 
+                # plot rv trend
+                
                 plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
 

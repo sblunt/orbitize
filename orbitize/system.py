@@ -100,17 +100,6 @@ class System(object):
             self.fit_astrometry=False
         rv_indices = np.where(self.data_table['quant_type'] == 'rv')
 
-        # Rob and Lea:
-
-        # list of instruments of unique values:
-        # instrument_list = [inst1,inst2, inst3, ] inst1 astr, inst2 and ins3 rv
-        # inst_indices_all = [] list of lists
-        # for inst in instrument_list:
-        # inst_indices = np.where(self.data_table['instruments'] == inst) list of indices for instruments
-        # inst_indices_all.append(inst_indices)
-        # rv_instruments = np.unique(self.data_table['instruments'].iloc[rv_indices]) gives all instruments belonging to the rv data
-        # do same for ra,dec and sep,pa and append these together to get the astr_instruments
-
         # Rob: defining all indices to loop through the unique rv instruments to get different offsets and jitters
         instrument_list = np.unique(self.data_table['instrument'])
         inst_indices_all = []
