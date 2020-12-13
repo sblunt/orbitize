@@ -278,7 +278,7 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='epochs', mod180=False, rv_time_series=False):
+                    cbar_param='epochs', mod180=False, rv_time_series=False,plot_astrometry=True):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -305,6 +305,7 @@ class Results(object):
                 arcs with PAs that cross 360 deg during observations (default: False)
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
                 display time series, set to True.
+            astrometry (Boolean): set to True by default. Plots the astrometric data.
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -421,6 +422,18 @@ class Results(object):
                 fig = plt.figure(figsize=(14, 6))
                 ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
 
+            
+            data=self.data
+            astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
+            astr_epochs=data['epoch'][astr_inds]
+            sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
+            pa_data,pa_err=data['quant2'][astr_inds],data['quant2_err'][astr_inds]
+
+            # overplot data points if plot_astrometry is true
+            if plot_astrometry:
+                ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
+                ax.scatter(ra_data,dec_data,marker='*',c='orange')
+                
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -433,6 +446,7 @@ class Results(object):
                 elif cbar_param == 'epochs':
                     lc.set_array(epochs[i, :])
                 ax.add_collection(lc)
+
 
             # modify the axes
             if square_plot:
@@ -458,6 +472,7 @@ class Results(object):
                 ax3.set_ylabel('RV [km/s]')
                 ax3.set_xlabel('Epoch')
                 ax2.set_xlabel('Epoch')
+                plt.subplots_adjust(hspace=0.3)
             else:
                 ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
                 ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
@@ -504,30 +519,35 @@ class Results(object):
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
+                # plot separations from data points                
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple')
 
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple')
+
+
 
             if rv_time_series:
                 
                 # switch current axis to rv panel
                 plt.sca(ax3)
-                data=self.data
         
                 # get list of instruments
                 insts=np.unique(data['instrument'])
+                insts=[i.decode() for i in insts]
                 insts=[i for i in insts if 'def' not in i]
 
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
 
                 # get the indices corresponding to each gamma within self.labels
-                gam_idx=[np.where(np.array(self.labels)==inst_gamma)[0][0] for inst_gamma in gams]
+                gam_idx=[np.where(self.labels[0]==inst_gamma)[0][0] for inst_gamma in gams]
 
                 # indices corresponding to each instrument in the datafile
                 inds={}
                 for i in range(len(insts)):
-                    inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
+                    inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
 
                 # choose the orbit with the best log probability
                 best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
@@ -535,12 +555,15 @@ class Results(object):
 
                 # get rvs and plot them
                 for i,name in enumerate(inds.keys()):
+                    rv_inds=np.where((np.isnan(data['quant2'])))
                     inst_data=data[inds[name]]
                     rvs=inst_data['quant1']
                     epochs=inst_data['epoch']
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
                     plt.scatter(epochs,rvs,marker='o',s=5,label=name)
+                
+                inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
                 plt.legend()
 
                 

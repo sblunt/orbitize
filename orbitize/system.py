@@ -382,3 +382,18 @@ def radec2seppa(ra, dec, mod180=False):
         pa[pa < 180] += 360
 
     return sep, pa
+
+
+def seppa2radec(sep, pa):
+    """
+    Convenience function to convert sep/pa to ra/dec
+    Args:
+        sep (np.array of float): array of separation in mas
+        pa (np.array of float): array of position angles in degrees
+    Returns:
+        tuple: (ra [mas], dec [mas])
+    """
+    ra = sep * np.sin(np.radians(pa))
+    dec = sep * np.cos(np.radians(pa))
+
+    return ra, dec
