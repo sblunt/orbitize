@@ -239,6 +239,7 @@ class System(object):
                 # We need to select all planets with sma < this planet. 
                 all_smas = params_arr[0:6*self.num_secondary_bodies:6]
                 within_orbit = np.where(all_smas <= sma)
+                outside_orbit = np.where(all_smas > sma)
                 all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
                 inside_masses = all_pl_masses[within_orbit]
                 mtot = np.sum(inside_masses) + m0
@@ -293,8 +294,9 @@ class System(object):
             # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
             if self.track_planet_perturbs:
                 if body_num > 0:
-                    # for companions, only track perturbations from planets within the orbit of this one
-                    which_perturb_bodies = within_orbit[0]
+                    # for companions, only perturb companion orbits at larger SMAs than this one. 
+                    # note the +1, since the 0th planet is body_num 1. 
+                    which_perturb_bodies = outside_orbit[0] + 1
                 else:
                     # for the star, what we are measuring is it's position relative to the system barycenter
                     # so we want to account for all of the bodies.  
