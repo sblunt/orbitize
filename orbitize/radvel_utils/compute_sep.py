@@ -80,10 +80,10 @@ def compute_sep(
     seps = np.sqrt(raoff**2 + deoff**2)
 
     df_orb = pd.DataFrame(
-        np.transpose([sma, ecc, inc, omega_pl_rad, lan, tau, parallax, mtot, m_pl]), 
+        np.transpose([sma, ecc, inc, omega_pl_rad, lan, tau, parallax, m0, m_pl]), 
         columns=[
             'sma', 'ecc', 'inc_rad', 'omega_pl_rad', 'lan_rad', 'tau_58849', 
-            'plx', 'mtot', 'mp'
+            'plx', 'm_st', 'mp'
         ]
     )
 
