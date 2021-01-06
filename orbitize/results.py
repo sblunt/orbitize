@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 import h5py
 import copy
+import pdb
 
 import astropy.units as u
 import astropy.constants as consts
@@ -152,7 +153,7 @@ class Results(object):
             # probably a old results file when reference epoch was fixed at MJD = 0
             tau_ref_epoch = 0
         try:
-            labels = np.array([hf.attrs['parameter_labels']])
+            labels = np.array([hf.attrs['parameter_labels']])[0]
         except KeyError:
             # again, probably an old file without saved parameter labels
             labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
@@ -424,6 +425,7 @@ class Results(object):
 
             
             data=self.data
+            print(data)
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
             sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
@@ -535,14 +537,19 @@ class Results(object):
         
                 # get list of instruments
                 insts=np.unique(data['instrument'])
-                insts=[i.decode() for i in insts]
+                insts=[i if isinstance(i,str) else i.decode() for i in insts]
                 insts=[i for i in insts if 'def' not in i]
-
+                
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
 
+                if isinstance(self.labels,list):
+                    labels=np.array(self.labels)
+                else:
+                    labels=self.labels
+                
                 # get the indices corresponding to each gamma within self.labels
-                gam_idx=[np.where(self.labels[0]==inst_gamma)[0][0] for inst_gamma in gams]
+                gam_idx=[np.where(labels==inst_gamma)[0][0] for inst_gamma in gams]
 
                 # indices corresponding to each instrument in the datafile
                 inds={}
