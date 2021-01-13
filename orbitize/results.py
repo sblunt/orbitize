@@ -425,16 +425,11 @@ class Results(object):
 
             
             data=self.data
-            print(data)
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
             sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
             pa_data,pa_err=data['quant2'][astr_inds],data['quant2_err'][astr_inds]
 
-            # overplot data points if plot_astrometry is true
-            if plot_astrometry:
-                ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
-                ax.scatter(ra_data,dec_data,marker='*',c='orange')
                 
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
@@ -449,7 +444,9 @@ class Results(object):
                     lc.set_array(epochs[i, :])
                 ax.add_collection(lc)
 
-
+            if plot_astrometry:
+                ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
+                ax.scatter(ra_data,dec_data,marker='*',c='#FF7F11',zorder=10,s=60)
             # modify the axes
             if square_plot:
                 adjustable_param = 'datalim'
@@ -522,11 +519,11 @@ class Results(object):
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
                 # plot separations from data points                
-                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple')
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
 
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
-                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple')
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
 
 
@@ -560,6 +557,10 @@ class Results(object):
                 best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
+                # colour/shape scheme scheme for rv data points
+                clrs=['0496FF','372554','FF1053','3A7CA5','143109']
+                symbols=['o','^','v','s']
+                
                 # get rvs and plot them
                 for i,name in enumerate(inds.keys()):
                     rv_inds=np.where((np.isnan(data['quant2'])))
@@ -568,7 +569,7 @@ class Results(object):
                     epochs=inst_data['epoch']
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
-                    plt.scatter(epochs,rvs,marker='o',s=5,label=name)
+                    plt.scatter(epochs,rvs,marker=symbols[i],s=5,label=name,c=f'#{clrs[i]}',zorder=5)
                 
                 inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
                 plt.legend()
