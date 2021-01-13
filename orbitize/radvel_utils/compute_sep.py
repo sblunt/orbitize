@@ -62,7 +62,7 @@ def compute_sep(
     cosi = (2. * np.random.random(size = chain_len)) - 1.
     inc = np.arccos(cosi)
     m_pl = msini / np.sin(inc)
-    mtot = m0 + m_pl
+    mtot = m_st + m_pl
     sma = (period_yr**2 * mtot)**(1/3)
     omega_st_rad = df['w{}'.format(pl_num)].values
     omega_pl_rad = omega_st_rad + np.pi
@@ -80,7 +80,7 @@ def compute_sep(
     seps = np.sqrt(raoff**2 + deoff**2)
 
     df_orb = pd.DataFrame(
-        np.transpose([sma, ecc, inc, omega_pl_rad, lan, tau, parallax, m0, m_pl]), 
+        np.transpose([sma, ecc, inc, omega_pl_rad, lan, tau, parallax, m_st, m_pl]), 
         columns=[
             'sma', 'ecc', 'inc_rad', 'omega_pl_rad', 'lan_rad', 'tau_58849', 
             'plx', 'm_st', 'mp'
