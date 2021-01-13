@@ -44,6 +44,7 @@ class Results(object):
             the orbits described in ``post`` (default: None).
         tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
         labels (list of str): parameter labels in same order as `post`
+        num_secondary_bodies (int): number of companions fit 
 
     The ``post`` array is in the following order::
 
@@ -59,7 +60,8 @@ class Results(object):
     Written: Henry Ngo, Sarah Blunt, 2018
     """
 
-    def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,data=None):
+    def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
+                 data=None, num_secondary_bodies=None):
 
         self.sampler_name = sampler_name
         self.post = post
@@ -67,6 +69,7 @@ class Results(object):
         self.tau_ref_epoch = tau_ref_epoch
         self.data=data
         self.labels=labels
+        self.num_secondary_bodies=num_secondary_bodies
 
     def add_samples(self, orbital_params, lnlikes, labels):
         """
@@ -122,6 +125,9 @@ class Results(object):
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
         hf.attrs['parameter_labels'] = self.labels  # Rob: added this to account for the RV labels
+        if self.num_secondary_bodies is not None:
+            hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
+
         hf.close()  # Closes file object, which writes file to disk
 
     def load_results(self, filename, append=False):
@@ -156,7 +162,13 @@ class Results(object):
             labels = np.array([hf.attrs['parameter_labels']])[0]
         except KeyError:
             # again, probably an old file without saved parameter labels
+            # old files only fit single planets
             labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+        try:
+            num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
+        except KeyError:
+            # old, has to be single planet fit
+            num_secondary_bodies = 1
 
         hf.close()  # Closes file object
 
@@ -181,6 +193,11 @@ class Results(object):
             elif self.labels.any() != labels.any():
                 raise ValueError("Loaded data has parameter labels {} while Results object has already been initialized to {}.".format(
                     labels, self.labels))
+            if self.num_secondary_bodies == 0:
+                self.num_secondary_bodies = num_secondary_bodies
+            elif self.num_secondary_bodies != num_secondary_bodies:
+                raise ValueError("Loaded data has {} number of secondary bodies while Results object has already been initialized to {}.".format(
+                    num_secondary_bodies, self.num_secondary_bodies))
 
             # Now append post and lnlike
             self.add_samples(post, lnlike, self.labels)
@@ -191,6 +208,7 @@ class Results(object):
                 self.add_samples(post, lnlike, self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
                 self.labels = labels
+                self.num_secondary_bodies = num_secondary_bodies
             else:
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
@@ -234,9 +252,9 @@ class Results(object):
         default_labels = {
             'sma': 'a [au]',
             'ecc': 'ecc',
-            'inc': 'inc [$^{\\circ}$]',
-            'aop': '$\\omega$ [$^{\\circ}$]',
-            'pan': '$\\Omega$ [$^{\\circ}$]',
+            'inc': 'inc [$^\\circ$]',
+            'aop': '$\\omega$ [$^\\circ$]',
+            'pan': '$\\Omega$ [$^\\circ$]',
             'tau': '$\\tau$',
             'plx': '$\\pi$ [mas]',
             'gam': '$\\gamma$ [km/s]',
@@ -250,26 +268,35 @@ class Results(object):
             param_list = self.labels
         param_indices = []
         angle_indices = []
+        secondary_mass_indices = []
         for i, param in enumerate(param_list):
             index_num = np.where(np.array(self.labels) == param)[0][0]
             param_indices.append(index_num)
-            label_key = param_list[i]
+            label_key = param
             if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
-                angle_indices.append(index_num)
+                angle_indices.append(i)
+            if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
+                secondary_mass_indices.append(i)
 
         samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
             self.post[:, angle_indices])  # convert angles from rad to deg
+        samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions
 
         if 'labels' not in corner_kwargs:  # use default labels if user didn't already supply them
             reduced_labels_list = []
             for i in np.arange(len(param_indices)):
                 label_key = param_list[i]
-                if label_key.startswith('m') or label_key.startswith('plx'):
-                    pass
+                if label_key.startswith("m") and label_key != 'm0' and label_key != 'mtot':
+                    body_num = label_key[1]
+                    label_key = "m"
+                elif label_key == 'm0' or label_key == 'mtot' or label_key.startswith('plx'):
+                    body_num = ""
+                    # maintain original label key
                 else:
+                    body_num = label_key[3]
                     label_key = label_key[0:3]
-                reduced_labels_list.append(default_labels[label_key])
+                reduced_labels_list.append(default_labels[label_key].format(body_num))
             corner_kwargs['labels'] = reduced_labels_list
 
         figure = corner.corner(samples, **corner_kwargs)
@@ -318,8 +345,13 @@ class Results(object):
         """
 
         if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
-            raise Exception(
-                'start_mjd keyword date must be less than sep_pa_end_year keyword date.')
+            raise ValueError('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
+
+        if object_to_plot > self.num_secondary_bodies:
+            raise ValueError("Only {0} secondary bodies being fit. Requested to plot body {1} which is out of range".format(self.num_secondary_bodies, object_to_plot))
+
+        if object_to_plot == 0:
+            raise ValueError("Plotting the primary's orbit is currently unsupported. Stay tuned..")
 
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
@@ -331,7 +363,7 @@ class Results(object):
                 'aop': 3,
                 'pan': 4,
                 'tau': 5,
-                'plx': 6,
+                'plx': 6 * self.num_secondary_bodies,
             }
 
             if cbar_param == 'epochs':
@@ -347,17 +379,15 @@ class Results(object):
                 raise Exception(
                     'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
 
-            # Split the 2-D post array into series of 1-D arrays for each orbital parameter
-            num_objects, remainder = np.divmod(self.post.shape[1], 6)
-            if object_to_plot > num_objects:
-                return None
+            
+            start_index = (object_to_plot - 1) * 6
 
-            sma = self.post[:, dict_of_indices['sma']]
-            ecc = self.post[:, dict_of_indices['ecc']]
-            inc = self.post[:, dict_of_indices['inc']]
-            aop = self.post[:, dict_of_indices['aop']]
-            pan = self.post[:, dict_of_indices['pan']]
-            tau = self.post[:, dict_of_indices['tau']]
+            sma = self.post[:, start_index + dict_of_indices['sma']]
+            ecc = self.post[:, start_index + dict_of_indices['ecc']]
+            inc = self.post[:, start_index + dict_of_indices['inc']]
+            aop = self.post[:, start_index + dict_of_indices['aop']]
+            pan = self.post[:, start_index + dict_of_indices['pan']]
+            tau = self.post[:, start_index + dict_of_indices['tau']]
             plx = self.post[:, dict_of_indices['plx']]
 
             # Then, get the other parameters
@@ -365,7 +395,7 @@ class Results(object):
                 mtot = self.post[:, -1]
             elif 'm0' in self.labels:
                 m0 = self.post[:, -1]
-                m1 = self.post[:, -2]
+                m1 = self.post[:, -(self.num_secondary_bodies+1) + (object_to_plot-1)]
                 mtot = m0 + m1
                 
             # Select random indices for plotted orbit
@@ -392,7 +422,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                 )
 
                 raoff[i, :] = raoff0
@@ -499,7 +529,7 @@ class Results(object):
                     raoff0, deoff0, vzoff0 = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
                         tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
-                        mass_for_Kamp=m0[orb_ind]
+                        mass_for_Kamp=m0[orb_ind], tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
@@ -507,15 +537,13 @@ class Results(object):
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
                     deoff[i, :] = deoff0
 
                 yr_epochs = Time(epochs_seppa[i, :], format='mjd').decimalyear
-                plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
-                yr_epochs = yr_epochs[plot_epochs]
 
                 seps, pas = orbitize.system.radec2seppa(raoff[i, :], deoff[i, :], mod180=mod180)
 

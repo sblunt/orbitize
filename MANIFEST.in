@@ -1,3 +1,4 @@
 global-include orbitize/*.pyx
 global-include orbitize/*.c
 include requirements.txt
+include orbitize/example_data/*
