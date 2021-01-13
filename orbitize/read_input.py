@@ -45,11 +45,6 @@ def read_file(filename):
         taken at the same epoch), ``read_file()`` will generate a separate output row for
         each valid set.
 
-    .. Warning:: For now, ``orbitize`` only accepts astrometric measurements for one
-        secondary body. In a future release, it will also handle astrometric measurements for
-        multiple secondaries, RV measurements of the primary and secondar(ies), and astrometric
-        measurements of the primary. Stay tuned!
-
     Alternatively, you can also supply a data file with the columns already corresponding to
     the orbitize format (see the example in description of what this method returns). This may
     be useful if you are wanting to use the output of the `write_orbitize_input` method.

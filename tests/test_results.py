@@ -57,7 +57,7 @@ def test_init_and_add_samples():
     # Create object
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels
+        labels=std_labels, num_secondary_bodies=1
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -85,7 +85,7 @@ def test_init_and_add_samples():
 def results_to_test():
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels
+        labels=std_labels, num_secondary_bodies=1
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -129,7 +129,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     original_length = results_to_save.post.shape[0]
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
-    assert loaded_results.labels[0].tolist() == std_labels
+    assert loaded_results.labels.tolist() == std_labels
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
 

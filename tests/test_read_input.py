@@ -2,6 +2,7 @@ import pytest
 import deprecation
 import numpy as np
 import os
+import orbitize
 from orbitize.read_input import read_file, write_orbitize_input, read_formatted_file, read_orbitize_input
 
 
@@ -61,12 +62,11 @@ def test_read_file():
     """
     Test the read_file function using the test_val.csv file and test_val_radec.csv
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
     # Check that main test input is read in with correct values
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     _compare_table(read_file(input_file))
     # Check that an input value with all valid entries and only ra/dec columns can be read
-    input_file_radec = os.path.join(testdir, 'test_val_radec.csv')
+    input_file_radec = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
     read_file(input_file_radec)
 
 
@@ -77,12 +77,11 @@ def test_read_formatted_file():
 
     This test exists with the fail_if_not_removed decorator as a reminder to remove in v2.0
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
     # Check that main test input is read in with correct values
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     _compare_table(read_formatted_file(input_file))
     # Check that an input value with all valid entries and only ra/dec columns can be read
-    input_file_radec = os.path.join(testdir, 'test_val_radec.csv')
+    input_file_radec = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
     read_file(input_file_radec)
 
 
@@ -90,10 +89,9 @@ def test_write_orbitize_input():
     """
     Test the write_orbitize_input and the read_file functions
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     test_table = read_file(input_file)
-    output_file = os.path.join(testdir, 'temp_test_orbitize_input.csv')
+    output_file = os.path.join(orbitize.DATADIR, 'temp_test_orbitize_input.csv')
     # If temp output file already exists, delete it
     if os.path.isfile(output_file):
         os.remove(output_file)
@@ -116,10 +114,9 @@ def test_write_orbitize_input_2():
 
     This test exists with the fail_if_not_removed decorator as a reminder to remove in v2.0
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     test_table = read_file(input_file)
-    output_file = os.path.join(testdir, 'temp_test_orbitize_input.csv')
+    output_file = os.path.join(orbitize.DATADIR, 'temp_test_orbitize_input.csv')
     # If temp output file already exists, delete it
     if os.path.isfile(output_file):
         os.remove(output_file)
