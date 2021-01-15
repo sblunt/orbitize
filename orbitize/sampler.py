@@ -304,9 +304,15 @@ class OFTI(Sampler,):
 
         """
         lnp = self._logl(samples)
+
+        # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
-        lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
+        if self.has_corr:
+            corrs = self.system.data_table['quant12_corr']
+        else:
+            corrs = None
+        lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))

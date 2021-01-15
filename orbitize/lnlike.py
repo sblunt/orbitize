@@ -5,7 +5,7 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices):
+def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_only=False):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -23,6 +23,8 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices):
             rvs.
         seppa_indices (list): list of epoch numbers whose observations are
             given in sep/PA. This list is located in System.seppa.
+        chi2_only (bool): if True, returns only -0.5 * ((data - model)/error)^2 
+            ignoring the other normalization terms in the Gaussian likelihood. 
 
     Returns:
         np.array: Nobsx2xM array of chi-squared values.
@@ -54,6 +56,7 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices):
 
     if corrs is None:
         # including the second term of chi2
+        # the sqrt() in the log() means we don't need to multiply by 0.5
         chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
     else:
         has_no_corr = np.isnan(corrs)
@@ -90,8 +93,8 @@ def _chi2_2x2cov(residual, var, corrs):
         corrs (np.array): Nobs array of off axis Pearson corr coeffs
                           between the two quantities. 
 
-    Returns
-        chi2 (np.array): MxNobsx2 array of chi2. Becuase of x/y coariance, it's impossible to
+    Returns:
+        np.array: MxNobsx2 array of chi2. Becuase of x/y coariance, it's impossible to
                          spearate the quant1/quant2 chi2. Thus, all the chi2 is in the first term
                          and the second dimension is 0
     """
@@ -101,10 +104,41 @@ def _chi2_2x2cov(residual, var, corrs):
     covs = corrs * np.sqrt(var[:,:,0]) * np.sqrt(var[:,:,1])
     chi2 = (residual[:,:,0]**2 * var[:,:,1] + residual[:,:,1]**2 * var[:,:,0] - 2 * residual[:,:,0] * residual[:,:,1] * covs)/det_C
 
-    chi2 += np.log(det_C)
+    chi2 += np.log(det_C) + 2 * np.log(2*np.pi) # extra factor of 2 since quant1 and quant2 in each element of chi2. 
 
     chi2 *= -0.5
 
     chi2 = np.stack([chi2, np.zeros(chi2.shape)], axis=2)
 
     return chi2
+
+def chi2_norm_term(errors, corrs):
+    """
+    Return only the normalization term of the Gaussian likelihood: 
+    -log(sqrt(2pi*error^2)) or -0.5 * (log(det(C)) + N * log(2pi))
+
+    Args:
+        errors (np.array): Nobsx2 array of errors for each data point. Same
+                format as ``data``.
+        corrs (np.array): Nobs array of Pearson correlation coeffs
+                between the two quantities. If there is none, can be None.
+
+    Returns:
+        float: sum of the normalization terms
+    """
+    sigma2 = errors**2
+
+    if corrs is None:
+        norm = -np.log(np.sqrt(2*np.pi*sigma2))
+    else:
+        has_no_corr = np.isnan(corrs)
+        yes_corr = np.where(~has_no_corr)[0]
+        no_corr = np.where(has_no_corr)[0]
+
+        norm = np.zeros(errors.shape)
+        norm[:,no_corr] = -np.log(np.sqrt(2*np.pi*sigma2[:,no_corr]))
+
+        det_C = sigma2[yes_corr[0], 0] * sigma2[yes_corr[0],1] * (1 - corrs[yes_corr]**2) 
+        norm[:,yes_corr] = -0.5 * (det_C + 2 * np.log(2 * np.pi)) # extra factor of 2 since quant1 and quant2 in each element of chi2. 
+
+    return np.sum(norm)
