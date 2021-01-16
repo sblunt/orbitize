@@ -52,7 +52,7 @@ def test_chi2lnlike_withcov():
         cov_inv_dot_diff = np.dot(cov_inv, res)
         logdet = np.linalg.slogdet(cov_matrix)[1]
         res_cov_res = res.dot(cov_inv_dot_diff)
-        numpy_chi2 = -0.5 * (res_cov_res + logdet) 
+        numpy_chi2 = -0.5 * (res_cov_res + logdet + 2 * np.log(2 * np.pi)) 
 
         assert np.sum(chi2) == numpy_chi2
 
@@ -83,7 +83,7 @@ def test_2x2_analytical_solution():
         cov_inv_dot_diff = np.dot(cov_inv, res)
         logdet = np.linalg.slogdet(cov_matrix)[1]
         res_cov_res = res.dot(cov_inv_dot_diff)
-        numpy_chi2 = -0.5 * (res_cov_res + logdet + np.size(residuals) * np.log(2 * np.pi)) 
+        numpy_chi2 = -0.5 * (res_cov_res + logdet + 2 * np.log(2 * np.pi)) 
 
         assert np.sum(chi2) == numpy_chi2
 
