@@ -371,7 +371,7 @@ class System(object):
             self.data_table['quant1_err'][i] = sep_err
             self.data_table['quant2'][i] = pa
             self.data_table['quant2_err'][i] = pa_err
-            self.data_table['quant12_err'][i] = seppa_corr
+            self.data_table['quant12_corr'][i] = seppa_corr
             self.data_table['quant_type'][i] = 'seppa'
             # Update self.radec and self.seppa arrays
             self.radec[body_num] = np.delete(
