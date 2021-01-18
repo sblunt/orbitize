@@ -260,8 +260,8 @@ class Results(object):
             'gam': '$\\gamma$ [km/s]',
             'sig': '$\\sigma$ [km/s]',
             'mtot': '$M_T$ [M$_{\\odot}$]',
-            'm0': '$M_0$ [M$_{\\odot}$]',
-            'm1': '$M_1$ [M$_{\\odot}$]',
+            'm0': '$M_0$ [M$_\\odot$]',
+            'm': '$M_{0}$ [M$_\{{Jup\}}$]',
         }
 
         if param_list is None:
@@ -297,6 +297,7 @@ class Results(object):
                     body_num = label_key[3]
                     label_key = label_key[0:3]
                 reduced_labels_list.append(default_labels[label_key].format(body_num))
+
             corner_kwargs['labels'] = reduced_labels_list
 
         figure = corner.corner(samples, **corner_kwargs)
