@@ -57,6 +57,10 @@ look over our `issues list <https://github.com/sblunt/orbitize/issues>`_, and/or
 `Sarah <https://sites.google.com/g.harvard.edu/sarah/contact?authuser=0>`_. We'd love to have
 you on our team!
 
+Members of our team have collectively drafted `this community agreement <https://docs.google.com/document/d/1ZzjkoB20vVTlg2wbNpS7sRjmcSrECdh8kQ11-waZQhw/edit>`_ stating both our values and ground rules. 
+In joining our team, we ask that you read and (optionally) suggest changes to this document. 
+
+
 **Some major planned updates:**
 
 - fit Gaia astrometry
@@ -68,6 +72,7 @@ Changelog:
 **1.13.0 (2020-11-8)**
 
 - Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
+- Fixed a total mass/primary mass mixup bug that was causing problems for equal-mass binary RV+astrometry joint fits (@sblunt)
 - Bugfix for multiplanet perturbation approximation: now only account for inner planets only when computing perturbations (@semaphoreP)
 
 **1.12.1 (2020-9-6)**

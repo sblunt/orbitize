@@ -32,6 +32,19 @@ environment. Install ``anaconda`` or ``miniconda``
 `here <https://conda.io/docs/user-guide/tasks/manage-environments.html>`_
 to learn more about ``conda`` virtual environments.
 
+For Windows Users
++++++++++++++++++
+
+There is a bug with the ``ptemcee`` installation that, as far as we know, only affects Windows users. 
+To work around this, download ``ptemcee`` from `its pypi page <https://pypi.org/project/ptemcee/>`_. 
+Navigate to the root ``ptemcee`` folder, remove the ``README.md`` file, then install:
+
+.. code-block:: bash
+
+	$ cd ptemcee
+	$ rm README.md
+	$ pip install . --upgrade
+
 For Developers
 ++++++++++++++
 
