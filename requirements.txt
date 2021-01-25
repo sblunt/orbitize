@@ -9,3 +9,6 @@ h5py
 deprecation
 cython
 pytest
+pandas
+radvel
+pyerfa

@@ -7,7 +7,7 @@ import astropy.units as u
 import astropy.constants as consts
 from astropy.io import fits
 from astropy.time import Time
-from astropy._erfa.core import ErfaWarning
+from erfa import ErfaWarning
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -418,7 +418,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                 )
 
                 raoff[i, :] = raoff0
@@ -515,7 +515,7 @@ class Results(object):
                     raoff0, deoff0, vzoff0 = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
                         tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
-                        mass_for_Kamp=m0[orb_ind]
+                        mass_for_Kamp=m0[orb_ind], tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
@@ -525,7 +525,7 @@ class Results(object):
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                     )
 
                     raoff[i, :] = raoff0

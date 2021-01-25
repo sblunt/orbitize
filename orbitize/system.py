@@ -60,6 +60,7 @@ class System(object):
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
+        self.restrict_angle_ranges = restrict_angle_ranges
 
         #
         # Group the data in some useful ways
@@ -253,7 +254,7 @@ class System(object):
 
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
             )
 
             # raoff, decoff, vz are scalers if the length of epochs is 1. 
@@ -267,7 +268,7 @@ class System(object):
 
             # vz_i is the ith companion radial velocity
             if self.fit_secondary_mass:
-                vz0 = vz_i*-(mass/mtot)  # calculating stellar velocity due to ith companion
+                vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
             # for the model points that correspond to this planet's orbit, add the model prediction
