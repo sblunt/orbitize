@@ -69,6 +69,11 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
+**1.13.1 (2020-01-25)**
+
+- ``compute_sep`` in ``radvel_utils`` submodule now returns ``mp`` (@sblunt)
+- ``astropy._erfa`` was deprecated (now in separate package). Dependencies updated. (@sblunt)
+
 **1.13.0 (2020-11-8)**
 
 - Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
