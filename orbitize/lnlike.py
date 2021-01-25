@@ -5,7 +5,7 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_only=False):
+def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -23,8 +23,6 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_only=Fal
             rvs.
         seppa_indices (list): list of epoch numbers whose observations are
             given in sep/PA. This list is located in System.seppa.
-        chi2_only (bool): if True, returns only -0.5 * ((data - model)/error)^2 
-            ignoring the other normalization terms in the Gaussian likelihood. 
 
     Returns:
         np.array: Nobsx2xM array of chi-squared values.
