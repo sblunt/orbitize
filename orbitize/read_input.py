@@ -8,6 +8,7 @@ import orbitize
 from astropy.table import Table
 from astropy.io.ascii import read, write
 
+
 def read_file(filename):
     """ Reads data from any file for use in orbitize
     readable by ``astropy.io.ascii.read()``, including csv format.
@@ -44,11 +45,6 @@ def read_file(filename):
         taken at the same epoch), ``read_file()`` will generate a separate output row for
         each valid set.
 
-    .. Warning:: For now, ``orbitize`` only accepts astrometric measurements for one
-        secondary body. In a future release, it will also handle astrometric measurements for
-        multiple secondaries, RV measurements of the primary and secondar(ies), and astrometric
-        measurements of the primary. Stay tuned!
-
     Alternatively, you can also supply a data file with the columns already corresponding to
     the orbitize format (see the example in description of what this method returns). This may
     be useful if you are wanting to use the output of the `write_orbitize_input` method.
@@ -80,14 +76,20 @@ def read_file(filename):
     Written: Henry Ngo, 2018
     """
     # initialize output table
-    output_table = Table(names=('epoch','object','quant1','quant1_err','quant2','quant2_err','quant_type'),
-                         dtype=(float,int,float,float,float,float,'S5'))
+    output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant_type'),
+                         dtype=(float, int, float, float, float, float, 'S5'))
 
     # read file
     try:
         input_table = read(filename)
+
+        # convert to masked table
+        if input_table.has_masked_columns:
+            input_table = Table(input_table, masked=True, copy=False)
+
     except:
-        raise Exception('Unable to read file: {}. \n Please check file path and format.'.format(filename))
+        raise Exception(
+            'Unable to read file: {}. \n Please check file path and format.'.format(filename))
     num_measurements = len(input_table)
 
     # Decide if input was given in the orbitize style
@@ -109,66 +111,67 @@ def read_file(filename):
                 raise Exception("Invalid input format: missing some object entries")
         else:
             raise Exception("Input table MUST have object id!")
-        if orbitize_style: # proper orbitize style should NEVER have masked entries (nan required)
+        if orbitize_style:  # proper orbitize style should NEVER have masked entries (nan required)
             raise Exception("Input table in orbitize style may NOT have empty cells")
-        else: # Check for these things when not orbitize style
+        else:  # Check for these things when not orbitize style
             if 'raoff' in input_table.columns:
                 have_ra = ~input_table['raoff'].mask
             else:
-                have_ra = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_ra = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'decoff' in input_table.columns:
                 have_dec = ~input_table['decoff'].mask
             else:
-                have_dec = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_dec = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'sep' in input_table.columns:
                 have_sep = ~input_table['sep'].mask
             else:
-                have_sep = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_sep = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'pa' in input_table.columns:
                 have_pa = ~input_table['pa'].mask
             else:
-                have_pa = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_pa = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'rv' in input_table.columns:
                 have_rv = ~input_table['rv'].mask
             else:
-                have_rv = np.zeros(num_measurements, dtype=bool) # zeros are False
-    else: # no masked entries, just check for required columns
+                have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
+    else:  # no masked entries, just check for required columns
         if 'epoch' not in input_table.columns:
             raise Exception("Input table MUST have epoch!")
         if 'object' not in input_table.columns:
             raise Exception("Input table MUST have object id!")
-        if not orbitize_style: # Set these flags only when not already in orbitize style
+        if not orbitize_style:  # Set these flags only when not already in orbitize style
             if 'raoff' in input_table.columns:
-                have_ra = np.ones(num_measurements, dtype=bool) # ones are False
+                have_ra = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_ra = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_ra = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'decoff' in input_table.columns:
-                have_dec = np.ones(num_measurements, dtype=bool) # ones are False
+                have_dec = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_dec = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_dec = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'sep' in input_table.columns:
-                have_sep = np.ones(num_measurements, dtype=bool) # ones are False
+                have_sep = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_sep = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_sep = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'pa' in input_table.columns:
-                have_pa = np.ones(num_measurements, dtype=bool) # ones are False
+                have_pa = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_pa = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_pa = np.zeros(num_measurements, dtype=bool)  # zeros are False
             if 'rv' in input_table.columns:
-                have_rv = np.ones(num_measurements, dtype=bool) # ones are False
+                have_rv = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_rv = np.zeros(num_measurements, dtype=bool) # zeros are False
+                have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
     # loop through each row and format table
-    index=0
+    index = 0
     for row in input_table:
         # First check if epoch is a number
         try:
             float_epoch = np.float(row['epoch'])
         except:
-            raise Exception('Problem reading epoch in the input file. Epoch should be given in MJD.')
+            raise Exception(
+                'Problem reading epoch in the input file. Epoch should be given in MJD.')
         # check epoch format and put in MJD
-        if row['epoch'] > 2400000.5: # assume this is in JD
+        if row['epoch'] > 2400000.5:  # assume this is in JD
             print('Converting input epochs from JD to MJD.\n')
             MJD = row['epoch'] - 2400000.5
         else:
@@ -180,23 +183,29 @@ def read_file(filename):
 
         # determine input quantity type (RA/DEC, SEP/PA, or RV)
         if orbitize_style:
-            if row['quant_type'] == 'rv': # special format for rv rows
-                output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'], None, None, row['quant_type']])
-            elif row['quant_type'] == 'radec' or row['quant_type'] == 'seppa': # other allowed formats
-                output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'], row['quant2'], row['quant2_err'], row['quant_type']])
-            else: # catch wrong formats
+            if row['quant_type'] == 'rv':  # special format for rv rows
+                output_table.add_row([MJD, row['object'], row['quant1'],
+                                      row['quant1_err'], None, None, row['quant_type']])
+            elif row['quant_type'] == 'radec' or row['quant_type'] == 'seppa':  # other allowed formats
+                output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'],
+                                      row['quant2'], row['quant2_err'], row['quant_type']])
+            else:  # catch wrong formats
                 raise Exception("Invalid 'quant_type'. Valid values are 'radec', 'seppa' or 'rv'")
-        else: # When not in orbitize style
+        else:  # When not in orbitize style
             if have_ra[index] and have_dec[index]:
-                output_table.add_row([MJD, row['object'], row['raoff'], row['raoff_err'], row['decoff'], row['decoff_err'], "radec"])
+                output_table.add_row([MJD, row['object'], row['raoff'],
+                                      row['raoff_err'], row['decoff'], row['decoff_err'], "radec"])
             elif have_sep[index] and have_pa[index]:
-                output_table.add_row([MJD, row['object'], row['sep'], row['sep_err'], row['pa'], row['pa_err'], "seppa"])
+                output_table.add_row([MJD, row['object'], row['sep'],
+                                      row['sep_err'], row['pa'], row['pa_err'], "seppa"])
             if have_rv[index]:
-                output_table.add_row([MJD, row['object'], row['rv'], row['rv_err'], None, None, "rv"])
+                output_table.add_row([MJD, row['object'], row['rv'],
+                                      row['rv_err'], None, None, "rv"])
 
-        index=index+1
+        index = index+1
 
     return output_table
+
 
 @deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
                         current_version=orbitize.__version__,
@@ -211,7 +220,8 @@ def read_formatted_file(filename):
 
     return read_file(filename)
 
-def write_orbitize_input(table,output_filename,file_type='csv'):
+
+def write_orbitize_input(table, output_filename, file_type='csv'):
     """ Writes orbitize-readable input as an ASCII file
 
     Args:
@@ -233,7 +243,8 @@ def write_orbitize_input(table,output_filename,file_type='csv'):
         raise Exception('Invalid output format specified.')
 
     # write file
-    write(table,output=output_filename,format=file_type)
+    write(table, output=output_filename, format=file_type)
+
 
 @deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
                         current_version=orbitize.__version__,

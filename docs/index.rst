@@ -31,13 +31,12 @@ create an `issue on GitHub <https://github.com/sblunt/orbitize/issues>`_.
 Attribution:
 ++++++++++++
 
-If you use ``orbitize`` in your work, please cite our forthcoming
-paper and the following DOI: 
+- If you use ``orbitize`` in your work, please cite `Blunt et al (2019) <https://ui.adsabs.harvard.edu/abs/2019arXiv191001756B/abstract>`_.
+- If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
+- If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
+- If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3337378.svg
-   :target: https://zenodo.org/record/3337378#.XUHT3ZNKjUJ
 
-If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_.
 
 User Guide:
 +++++++++++
@@ -58,13 +57,86 @@ look over our `issues list <https://github.com/sblunt/orbitize/issues>`_, and/or
 `Sarah <https://sites.google.com/g.harvard.edu/sarah/contact?authuser=0>`_. We'd love to have
 you on our team!
 
-Some major planned updates:
-	- fit orbits of multiple objects in one system
-	- fit Gaia astrometry & RVs
-	- marginalize over instrumental uncertainties
+Members of our team have collectively drafted `this community agreement <https://docs.google.com/document/d/1ZzjkoB20vVTlg2wbNpS7sRjmcSrECdh8kQ11-waZQhw/edit>`_ stating both our values and ground rules. 
+In joining our team, we ask that you read and (optionally) suggest changes to this document. 
+
+
+**Some major planned updates:**
+
+- fit Gaia astrometry
+- marginalize over instrumental uncertainties
 
 Changelog:
 ++++++++++
+
+**1.13.1 (2020-01-25)**
+
+- ``compute_sep`` in ``radvel_utils`` submodule now returns ``mp`` (@sblunt)
+- ``astropy._erfa`` was deprecated (now in separate package). Dependencies updated. (@sblunt)
+
+**1.13.0 (2020-11-8)**
+
+- Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
+- Fixed a total mass/primary mass mixup bug that was causing problems for equal-mass binary RV+astrometry joint fits (@sblunt)
+- Bugfix for multiplanet perturbation approximation: now only account for inner planets only when computing perturbations (@semaphoreP)
+
+**1.12.1 (2020-9-6)**
+
+- ``tau_ref_epoch`` is now set to Jan 1, 2020 throughout the code (@semaphoreP)
+- ``restrict_angle_ranges`` keyword now works as expected for OFTI (@sblunt)
+
+**1.12.0 (2020-8-28)**
+
+- Compatibility with ``emcee>=3`` (@sblunt)
+
+**1.11.3 (2020-8-20)**
+
+- Save results section of OFTI tutorial now current (@rferrerc)
+- Modifying MCMC initial positions tutorial documentation now uses correct orbital elements (@rferrerc)
+
+**1.11.2 (2020-8-10)**
+
+- Added transparency option for plotting MCMC chains (@sofiacovarrubias)
+- Removed some redundant code (@MissingBrainException)
+
+**1.11.1 (2020-6-11)**
+
+- Fixed a string formatting bug causing corner plots to fail for RV+astrometry fits
+
+**1.11.0 (2020-4-14)**
+
+- Multiplanet support!
+- Changes to directory structure of sample data files
+- Fixed a bug that was causing corner plots to fail on loaded results objects
+
+**1.10.0 (2020-3-6)**
+
+- Joint RV + relative astrometry fitting capabilities! 
+- New tutorial added
+
+**1.9.0 (2020-1-24)**
+
+- Require astropy>=4
+- Minor documentation upgrades
+- **This is the first Python 2 noncompliant version**
+
+**1.8.0 (2020-1-24)**
+
+- Bugfixes related to numpy and astropy upgrades
+- **This is the last version that will support Python 2**
+
+**1.7.0 (2019-11-10)**
+
+- Default corner plots now display angles in degrees instead of radians
+- Add a keyword for plotting orbits that cross PA=360
+
+**1.6.0 (2019-10-1)**
+
+- Mikkola solver now implemented in C-Kepler solver
+- Fixed a bug with parallel processing for OFTI
+- Added orbit vizualisation jupyter nb show-me-the-orbit to docs/tutorials
+- New methods for viewing/chopping MCMC chains
+- Require ``emcee<3`` for now
 
 **1.5.0 (2019-9-9)**
 

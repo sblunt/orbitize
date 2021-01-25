@@ -4,6 +4,7 @@ Test the different Driver class creation options
 
 import pytest
 import numpy as np
+import orbitize
 from orbitize import driver
 from orbitize.read_input import read_file
 import os
@@ -59,8 +60,7 @@ def test_create_driver_from_filename():
     """
     Test creation of Driver object from filename as input
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     myDriver = driver.Driver(input_file, # path to data file
                              'MCMC', # name of algorith for orbit-fitting
                              1, # number of secondary bodies in system
@@ -75,8 +75,7 @@ def test_create_driver_from_table():
     """
     Test creation of Driver object from Table as input
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     input_table = read_file(input_file)
     myDriver = driver.Driver(input_table, # astropy.table Table of input
                              'MCMC', # name of algorithm for orbit-fitting
@@ -91,8 +90,7 @@ def test_system_kwargs():
     """
     Test additional arguments to the system class
     """
-    testdir = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.join(testdir, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
     myDriver = driver.Driver(input_file, # path to data file
                              'MCMC', # name of algorith for orbit-fitting
                              1, # number of secondary bodies in system

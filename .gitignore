@@ -115,3 +115,6 @@ build.sh
 *.fits
 *.png
 !docs/orbitize_logo_500.png
+.vscode/settings.json
+tests/test_results.h5
+tests/multiplanet*test.csv
