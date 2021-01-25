@@ -47,11 +47,13 @@ def read_file(filename):
 
     For RA/Dec and Sep/PA, you can also specify a correlation term. This is useful when your error ellipse
     is tilted with respect to the RA/Dec or Sep/PA. The correlation term is the Pearson correlation coefficient (ρ),
-    which corresponds to the normalized off diagonal term of the covariance matrix. If we define the 
+    which corresponds to the normalized off diagonal term of the covariance matrix. Let's define the 
     covariance matrix as ``C = [[C_11, C_12], [C_12, C_22]]``. Here C_11 = quant1_err^2 and C_22 = quant2_err^2
     and C_12 is the off diagonal term. Then ``ρ = C_12/(sqrt(C_11)sqrt(C_22))``. Essentially it is the covariance 
     normalized by the variance. As such, -1 ≤ ρ ≤ 1. You can specify either as radec_corr or seppa_corr. By definition,
-    both are dimensionless, but one will correspond to RA/Dec and the other to Sep/PA. 
+    both are dimensionless, but one will correspond to RA/Dec and the other to Sep/PA. An example of real world data
+    that reports correlations is `this GRAVITY paper <https://arxiv.org/abs/2101.04187>`_ where table 2 reports the
+    correlation values and figure 4 shows how the error ellipses are tilted. 
 
     Alternatively, you can also supply a data file with the columns already corresponding to
     the orbitize format (see the example in description of what this method returns). This may
@@ -72,9 +74,9 @@ def read_file(filename):
            float64  int   float64  float64   float64  float64     float64       str5
            ------- ------ ------- ---------- ------- ---------- ------------ ----------
            1234.0      1    0.01      0.005     0.5       0.05      0.025        radec
-           1235.0      1     1.0      0.005    89.0        0.1        0.0        seppa
-           1236.0      1     1.0      0.005    89.3        0.3        0.0        seppa
-           1237.0      0    10.0        0.1     nan        nan        0.0           rv
+           1235.0      1     1.0      0.005    89.0        0.1        nan        seppa
+           1236.0      1     1.0      0.005    89.3        0.3        nan        seppa
+           1237.0      0    10.0        0.1     nan        nan        nan           rv
 
         where ``quant_type`` is one of "radec", "seppa", or "rv".
 

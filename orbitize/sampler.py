@@ -73,6 +73,7 @@ class Sampler(abc.ABC):
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
         # covariances/correlations, if applicable
+        # we're doing this check now because the likelihood computation is much faster if we can skip it.
         if self.has_corr:
             corrs = self.system.data_table['quant12_corr']
         else:
