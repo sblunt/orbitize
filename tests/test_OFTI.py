@@ -8,7 +8,7 @@ import os
 import pytest
 import matplotlib.pyplot as plt
 import time
-
+import orbitize
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
@@ -17,9 +17,9 @@ from orbitize import kepler
 import orbitize.system
 
 
-testdir = os.path.dirname(os.path.abspath(__file__))
-input_file = os.path.join(testdir, 'GJ504.csv')
-input_file_1epoch = os.path.join(testdir, 'GJ504_1epoch.csv')
+input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+input_file_1epoch = os.path.join(orbitize.DATADIR, 'GJ504_1epoch.csv')
+
 
 def test_scale_and_rotate():
 
@@ -30,9 +30,10 @@ def test_scale_and_rotate():
     s = myDriver.sampler
     samples = s.prepare_samples(100)
 
-    sma,ecc,inc,argp,lan,tau,plx,mtot = [samp for samp in samples]
+    sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc = kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -48,16 +49,17 @@ def test_scale_and_rotate():
     s.results.plot_orbits(start_mjd=s.epochs[0])
 
     samples = s.results.post
-    sma = samples[:,0]
-    ecc = samples[:,1]
-    inc = samples[:,2]
-    argp = samples[:,3]
-    lan = samples[:,4]
-    tau = samples[:,5]
-    plx = samples[:,6]
-    mtot = samples[:,7]
+    sma = samples[:, 0]
+    ecc = samples[:, 1]
+    inc = samples[:, 2]
+    argp = samples[:, 3]
+    lan = samples[:, 4]
+    tau = samples[:, 5]
+    plx = samples[:, 6]
+    mtot = samples[:, 7]
 
-    ra, dec, vc = kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot)
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    assert np.max(lan) > np.pi
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -65,8 +67,29 @@ def test_scale_and_rotate():
     assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
+    # test scale-and-rotate with restricted upper limits on PAN
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26, system_kwargs={'restrict_angle_ranges':True})
+    s = myDriver.sampler
+    samples = s.prepare_samples(100)
+
+    sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
+
+    assert np.max(lan) < np.pi
+    assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
+
+    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    sep, pa = orbitize.system.radec2seppa(ra, dec)
+    sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
+
+    sar_epoch = s.system.data_table[s.epoch_idx]
+    assert sep_sar == pytest.approx(sar_epoch['quant1'], abs=sar_epoch['quant1_err'])
+    assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
+
+
+
 def test_run_sampler():
-    
+
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
     1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
@@ -115,15 +138,16 @@ def test_run_sampler():
 
     # test with only one epoch
     myDriver = orbitize.driver.Driver(input_file_1epoch, 'OFTI',
-    1, 1.22, 56.95,mass_err=0.08, plx_err=0.26)
+                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
     s = myDriver.sampler
     s.run_sampler(1)
     print()
 
+
 def test_fixed_sys_params_sampling():
     # test in case of fixed mass and parallax
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-    1, 1.22, 56.95)
+                                      1, 1.22, 56.95)
 
     s = myDriver.sampler
     samples = s.prepare_samples(100)
@@ -179,8 +203,36 @@ def profile_system():
     print()
     print(orbits[0])
 
+def test_OFTI_multiplanet():
+    # initialize sampler
+    input_file = os.path.join(orbitize.DATADIR, "test_val_multi.csv")
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+                                      2, 1.52, 24.76, mass_err=0.15, plx_err=0.64)
+
+    s = myDriver.sampler
+    # change eccentricity prior for b
+    myDriver.system.sys_priors[1] = priors.UniformPrior(0.0, 0.1)
+    # change eccentricity prior for c
+    myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
+
+    orbits = s.run_sampler(500)
+
+    idx = s.system.param_idx
+    sma1 = np.median(orbits[:,idx['sma1']])
+    sma2 = np.median(orbits[:,idx['sma2']])
+
+    sma1_exp = 66
+    sma2_exp = 40
+    print(sma1, sma2)
+    assert sma1 == pytest.approx(sma1_exp, abs=0.3*sma1_exp)
+    assert sma2 == pytest.approx(sma2_exp, abs=0.3*sma2_exp)
+    assert np.all(orbits[:, idx['ecc1']] < 0.1)
+    assert np.all(orbits[:, idx['ecc2']] < 0.1)
+
+
 if __name__ == "__main__":
     # test_scale_and_rotate()
     # test_run_sampler()
+    # test_OFTI_multiplanet()
     profile_system()
     print("Done!")

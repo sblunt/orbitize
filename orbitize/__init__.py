@@ -13,11 +13,11 @@ import os
 
 # print ('I am being imported by', frames)
 
-
-__version__ = '1.5.0'
+__version__ = '1.13.1'
 
 # set Python env variable to keep track of example data dir
-DATADIR = os.path.join(sys.prefix, 'orbitize_example_data')
+orbitize_dir = os.path.dirname(__file__)
+DATADIR = os.path.join(orbitize_dir, 'example_data/')
 
 # define functions for pickling class methods
 def _pickle_method(method):

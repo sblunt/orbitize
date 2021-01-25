@@ -24,8 +24,6 @@ You may mix and match these three valid measurement formats in the same input fi
 If you have, for example, one RV measurement of a star and three astrometric
 measurements of an orbiting planet, you should put ``0`` in the ``object`` column for the RV point, and ``1`` in the columns for the astrometric measurements.
 
-.. Warning:: For now, ``orbitize`` only accepts astrometric measurements    for one secondary body. In a future release, it will also handle            astrometric measurements for multiple secondaries, RV measurements of the primary and secondar(ies), and astrometric measurements of the primary. Stay tuned!
-
 This method will look for columns with the above labels in whatever file format you choose so if you encounter errors, be sure to double check the column labels in your input file.
 
 Putting it all together, here an example of a valid .csv input file::

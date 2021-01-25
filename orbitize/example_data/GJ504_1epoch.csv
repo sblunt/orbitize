@@ -1,0 +1,4 @@
+# Table 12 of Blunt et al 2017
+# One-epoch Observation of GJ 504 b
+epoch,object,sep,sep_err,pa,pa_err
+55645.95,1,2479,16,327.94,0.39
