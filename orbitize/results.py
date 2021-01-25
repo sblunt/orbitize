@@ -8,7 +8,7 @@ import astropy.units as u
 import astropy.constants as consts
 from astropy.io import fits
 from astropy.time import Time
-from astropy._erfa.core import ErfaWarning
+from erfa import ErfaWarning
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

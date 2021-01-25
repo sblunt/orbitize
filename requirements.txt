@@ -11,3 +11,4 @@ cython
 pytest
 pandas
 radvel
+pyerfa
