@@ -136,9 +136,9 @@ def chi2_norm_term(errors, corrs):
         no_corr = np.where(has_no_corr)[0]
 
         norm = np.zeros(errors.shape)
-        norm[:,no_corr] = -np.log(np.sqrt(2*np.pi*sigma2[:,no_corr]))
+        norm[no_corr] = -np.log(np.sqrt(2*np.pi*sigma2[no_corr]))
 
         det_C = sigma2[yes_corr[0], 0] * sigma2[yes_corr[0],1] * (1 - corrs[yes_corr]**2) 
-        norm[:,yes_corr] = -0.5 * (det_C + 2 * np.log(2 * np.pi)) # extra factor of 2 since quant1 and quant2 in each element of chi2. 
+        norm[yes_corr,0] = -0.5 * (det_C + 2 * np.log(2 * np.pi)) # extra factor of 2 since quant1 and quant2 in each element of chi2. 
 
     return np.sum(norm)
