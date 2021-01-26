@@ -8,6 +8,13 @@ import orbitize.system as system
 import orbitize.read_input as read_input
 import matplotlib.pyplot as plt
 
+std_param_idx_fixed_mtot_plx = {
+    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5
+}
+
+std_param_idx = {
+    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
+}
 
 def test_mcmc_runs(num_temps=0, num_threads=1):
     """
@@ -116,6 +123,34 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     assert mcmc.results.post.shape[0] == expected_total_orbits
 
 
+def test_mcmc_param_idx():
+
+    # use the test_csv dir
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    data_table = read_input.read_formatted_file(input_file)
+
+    # Manually set 'object' column of data table
+    data_table['object'] = 1
+
+    # construct Driver with fixed mass and plx
+    n_walkers = 100
+    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
+                      mcmc_kwargs={'num_temps': 0, 'num_threads': 1,
+                                   'num_walkers': n_walkers}
+                      )
+
+    # check that sampler.param_idx behaves as expected
+    assert myDriver.sampler.sampled_param_idx == std_param_idx_fixed_mtot_plx
+
+    # construct Driver with no fixed params
+    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01, mass_err=0.1, plx_err=0.2,
+                      mcmc_kwargs={'num_temps': 0, 'num_threads': 1,
+                                   'num_walkers': n_walkers}
+                      )
+
+    assert myDriver.sampler.sampled_param_idx == std_param_idx
+
+
 if __name__ == "__main__":
     # Parallel Tempering tests
     test_mcmc_runs(num_temps=2, num_threads=1)
@@ -126,3 +161,5 @@ if __name__ == "__main__":
     # Test examine/chop chains
     test_examine_chop_chains(num_temps=5)  # PT
     test_examine_chop_chains(num_temps=0)  # Ensemble
+    # param_idx utility tests
+    test_mcmc_param_idx()

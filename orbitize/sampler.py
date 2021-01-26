@@ -523,6 +523,9 @@ class MCMC(Sampler):
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
         self.fixed_params = []
+
+        self.sampled_param_idx = {}
+        sampled_param_counter = 0
         for i, prior in enumerate(system.sys_priors):
 
             # check for fixed parameters
@@ -530,6 +533,8 @@ class MCMC(Sampler):
                 self.fixed_params.append((i, prior))
             else:
                 self.priors.append(prior)
+                self.sampled_param_idx[self.system.labels[i]] = sampled_param_counter
+                sampled_param_counter += 1
 
         # initialize walkers initial postions
         self.num_params = len(self.priors)
