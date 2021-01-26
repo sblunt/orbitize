@@ -308,7 +308,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='epochs', mod180=False, rv_time_series=False,plot_astrometry=True):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
+                    fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -336,6 +337,8 @@ class Results(object):
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
                 display time series, set to True.
             astrometry (Boolean): set to True by default. Plots the astrometric data.
+            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+                Most users will not need this keyword. 
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -447,14 +450,20 @@ class Results(object):
                 )
 
             # Create figure for orbit plots
-            fig = plt.figure(figsize=(14, 6))
-            if rv_time_series:
-                fig = plt.figure(figsize=(14, 9))
-                ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
-            else:
+            if fig is None:
                 fig = plt.figure(figsize=(14, 6))
-                ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-
+                if rv_time_series:
+                    fig = plt.figure(figsize=(14, 9))
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    fig = plt.figure(figsize=(14, 6))
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+            else:
+                plt.set_current_figure(fig)
+                if rv_time_series:
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
             
             data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
