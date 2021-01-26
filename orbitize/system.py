@@ -306,7 +306,7 @@ class System(object):
 
 
             # vz_i is the ith companion radial velocity
-            if self.fit_secondary_mass:
+            if len(self.rv[0]) > 0 and self.fit_secondary_mass:
                 vz0 = vz_i*-(mass/m0)  # calculating stellar velocity due to ith companion
                 total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
 
@@ -353,7 +353,7 @@ class System(object):
                         radec_perturb[self.seppa[other_body_num], 0] += -(mass/mtot) * raoff[self.seppa[other_body_num]]
                         radec_perturb[self.seppa[other_body_num], 1] += -(mass/mtot) * decoff[self.seppa[other_body_num]]
 
-        if self.fit_secondary_mass:
+        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
             if len(total_rv0[self.rv[0]]) > 0:
                 model[self.rv[0], 0] = total_rv0[self.rv[0]]
                 model[self.rv[0], 1] = np.nan  # nans only for rv indices

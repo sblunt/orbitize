@@ -87,9 +87,13 @@ def test_init_and_add_samples():
 
 @pytest.fixture()
 def results_to_test():
+
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data = orbitize.read_input.read_file(input_file)
+
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1
+        labels=std_labels, num_secondary_bodies=1, data=data
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
