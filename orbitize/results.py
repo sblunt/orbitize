@@ -267,17 +267,22 @@ class Results(object):
 
         if param_list is None:
             param_list = self.labels
+
         param_indices = []
         angle_indices = []
         secondary_mass_indices = []
         for i, param in enumerate(param_list):
             index_num = np.where(np.array(self.labels) == param)[0][0]
-            param_indices.append(index_num)
-            label_key = param
-            if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
-                angle_indices.append(i)
-            if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
-                secondary_mass_indices.append(i)
+
+            # only plot non-fixed parameters
+            if np.std(self.post[:, i]) > 0:
+                param_indices.append(index_num)
+                label_key = param
+                if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
+                    angle_indices.append(i)
+                if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
+                    secondary_mass_indices.append(i)
+
 
         samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
@@ -371,7 +376,7 @@ class Results(object):
                 'plx': 6 * self.num_secondary_bodies,
             }
 
-            if cbar_param == 'epochs':
+            if cbar_param == 'Epoch [year]':
                 pass
             elif cbar_param[0:3] in dict_of_indices:
                 try:
@@ -434,14 +439,14 @@ class Results(object):
                 deoff[i, :] = deoff0
 
             # Create a linearly increasing colormap for our range of epochs
-            if cbar_param != 'epochs':
+            if cbar_param != 'Epoch [year]':
                 cbar_param_arr = self.post[:, index]
                 norm = mpl.colors.Normalize(vmin=np.min(cbar_param_arr),
                                             vmax=np.max(cbar_param_arr))
                 norm_yr = mpl.colors.Normalize(vmin=np.min(
                     cbar_param_arr), vmax=np.max(cbar_param_arr))
 
-            elif cbar_param == 'epochs':
+            elif cbar_param == 'Epoch [year]':
                 norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1, :]))
 
                 norm_yr = mpl.colors.Normalize(
@@ -479,9 +484,9 @@ class Results(object):
                 lc = LineCollection(
                     segments, cmap=cmap, norm=norm, linewidth=1.0
                 )
-                if cbar_param != 'epochs':
+                if cbar_param != 'Epoch [year]':
                     lc.set_array(np.ones(len(epochs[0]))*cbar_param_arr[i])
-                elif cbar_param == 'epochs':
+                elif cbar_param == 'Epoch [year]':
                     lc.set_array(epochs[i, :])
                 ax.add_collection(lc)
 

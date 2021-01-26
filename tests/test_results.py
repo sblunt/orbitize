@@ -157,7 +157,16 @@ def test_plot_corner(results_to_test):
     assert Figure1 is not None
     Figure2 = results_to_test.plot_corner(param_list=['sma1', 'ecc1', 'inc1', 'mtot'])
     assert Figure2 is not None
-    return Figure1, Figure2
+
+    mass_vals = results_to_test.post[:,-1].copy()
+
+    # test that fixing parameters doesn't crash corner plot code
+    results_to_test.post[:,-1] = np.ones(len(results_to_test.post[:,-1]))
+    Figure3 = results_to_test.plot_corner()
+
+    results_to_test.post[:,-1] = mass_vals
+
+    return Figure1, Figure2, Figure3
 
 
 def test_plot_orbits(results_to_test):
@@ -188,10 +197,11 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
     test_save_and_load_results(test_results, has_lnlike=False)
-    test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
+    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     test_corner_fig1.savefig('test_corner1.png')
     test_corner_fig2.savefig('test_corner2.png')
+    test_corner_fig3.savefig('test_corner3.png')
     test_orbit_figs[0].savefig('test_orbit1.png')
     test_orbit_figs[1].savefig('test_orbit2.png')
     test_orbit_figs[2].savefig('test_orbit3.png')
@@ -199,4 +209,4 @@ if __name__ == "__main__":
     test_orbit_figs[4].savefig('test_orbit5.png')
 
     # clean up
-    os.system('rm test_*.png')
+    # os.system('rm test_*.png')
