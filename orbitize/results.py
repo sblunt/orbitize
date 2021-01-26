@@ -44,6 +44,7 @@ class Results(object):
             the orbits described in ``post`` (default: None).
         tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
         labels (list of str): parameter labels in same order as `post`
+        data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
         num_secondary_bodies (int): number of companions fit 
 
     The ``post`` array is in the following order::
@@ -259,8 +260,8 @@ class Results(object):
             'plx': '$\\pi$ [mas]',
             'gam': '$\\gamma$ [km/s]',
             'sig': '$\\sigma$ [km/s]',
-            'mtot': '$M_T$ [M$_{\\odot}$]',
-            'm0': '$M_0$ [M$_\\odot$]',
+            'mtot': '$M_T$ [M$_{{\\odot}}$]',
+            'm0': '$M_0$ [M$_{{\\odot}}$]',
             'm': '$M_{0}$ [M$_\{{Jup\}}$]',
         }
 
