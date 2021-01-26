@@ -1,8 +1,8 @@
 """
 Test the routines in the orbitize.Results module
 """
-# Based on driver.py
 
+import orbitize
 from orbitize import results
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,10 +54,14 @@ def test_init_and_add_samples():
     Tests object creation and add_samples() with some simulated posterior samples
     Returns results.Results object
     """
+
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data = orbitize.read_input.read_file(input_file)
+
     # Create object
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1
+        labels=std_labels, num_secondary_bodies=1, data=data
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -175,6 +179,7 @@ def test_plot_orbits(results_to_test):
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
+    
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
@@ -188,3 +193,6 @@ if __name__ == "__main__":
     test_orbit_figs[2].savefig('test_orbit3.png')
     test_orbit_figs[3].savefig('test_orbit4.png')
     test_orbit_figs[4].savefig('test_orbit5.png')
+
+    # clean up
+    os.system('rm test_*.png')
