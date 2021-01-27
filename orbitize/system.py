@@ -307,13 +307,22 @@ class System(object):
             # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
+            # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
+            # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
             if self.track_planet_perturbs:
-                for other_body_num in range(self.num_secondary_bodies+1):
+                if body_num > 0:
+                    # for companions, only track perturbations from planets within the orbit of this one
+                    which_perturb_bodies = within_orbit[0]
+                else:
+                    # for the star, what we are measuring is it's position relative to the system barycenter
+                    # so we want to account for all of the bodies.  
+                    which_perturb_bodies = range(self.num_secondary_bodies+1)
+                for other_body_num in which_perturb_bodies:
                     # skip itself since the the 2-body problem is measuring the planet-star separation already
-                    if body_num == other_body_num:
+                    if (body_num == other_body_num) | (body_num == 0):
                         continue
                     ## NOTE: we are only handling ra/dec and sep/pa right now
-                    ## TOOD: integrate RV into this
+                    ## TODO: integrate RV into this
                     if len(self.radec[other_body_num]) > 0:
                         radec_perturb[self.radec[other_body_num], 0] += -(mass/mtot) * raoff[self.radec[other_body_num]]
                         radec_perturb[self.radec[other_body_num], 1] += -(mass/mtot) * decoff[self.radec[other_body_num]] 
