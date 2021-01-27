@@ -42,6 +42,8 @@ class Results(object):
         tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
         labels (list of str): parameter labels in same order as `post`
         num_secondary_bodies (int): number of companions fit 
+        curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
+            that is used for restarting a MCMC sampler. 
 
     The ``post`` array is in the following order::
 
@@ -58,7 +60,7 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-                 num_secondary_bodies=None):
+                 num_secondary_bodies=None, curr_pos=None):
 
         self.sampler_name = sampler_name
         self.post = post
@@ -66,8 +68,9 @@ class Results(object):
         self.tau_ref_epoch = tau_ref_epoch
         self.labels = labels
         self.num_secondary_bodies=num_secondary_bodies
+        self.curr_pos = curr_pos
 
-    def add_samples(self, orbital_params, lnlikes, labels):
+    def add_samples(self, orbital_params, lnlikes, labels, curr_pos=None):
         """
         Add accepted orbits and their likelihoods to the results
 
@@ -75,6 +78,7 @@ class Results(object):
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
             labels (list of str): list of parameter labels specifying the order in ``orbital_params``
+            curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
 
         Written: Henry Ngo, 2018
         """
@@ -87,6 +91,9 @@ class Results(object):
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
+
+        if curr_pos is not None:
+            self.curr_pos = curr_pos
 
     def _set_sampler_name(self, sampler_name):
         """
@@ -122,6 +129,8 @@ class Results(object):
         hf.attrs['parameter_labels'] = self.labels  # Rob: added this to account for the RV labels
         if self.num_secondary_bodies is not None:
             hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
+        if self.curr_pos is not None:
+            hf.create_dataset("curr_pos", data=self.curr_pos)
 
         hf.close()  # Closes file object, which writes file to disk
 
@@ -162,8 +171,16 @@ class Results(object):
         except KeyError:
             # old, has to be single planet fit
             num_secondary_bodies = 1
+        try:
+            curr_pos = np.array(hf.get('curr_pos'))
+        except KeyError:
+            curr_pos = None
 
         hf.close()  # Closes file object
+
+        # doesn't matter if append or not. Overwrite curr_pos if not None
+        if curr_pos is not None:
+            self.curr_pos = curr_pos
 
         # Adds loaded data to object as per append keyword
         if append:

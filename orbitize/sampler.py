@@ -616,7 +616,40 @@ class MCMC(Sampler):
 
         return super(MCMC, self)._logl(full_params) + logp
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False):
+    def _update_chains_from_sampler(self, sampler, num_steps=None):
+        """
+        Updates self.post, self.chain, and self.lnlike from the MCMC sampler
+
+        Args:
+            sampler (emcee.EnsembleSampler or ptemcee.Sampler): sampler object.
+            num_steps (int): if not None, only stores the first num_steps number of steps
+        """
+        if num_steps is None:
+            # use all the steps, grab total number of steps from dimension of chains
+            num_steps = sampler.chain.shape[-2]
+
+        self.chain = sampler.chain
+        num_params = self.chain.shape[-1]
+
+        if self.use_pt:
+            # chain is shape: Ntemp x Nwalkers x Nsteps x Nparams
+            self.post = sampler.chain[0, :, :num_steps].reshape(-1, num_params) # the reshaping flattens the chain
+            # should also be picking out the lowest temperature logps
+            self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
+            self.lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
+        else:
+            # chain is shape: Nwalkers x Nsteps x Nparams
+            self.post = sampler.chain[:, :num_steps].reshape(-1, num_params)
+            self.lnlikes = sampler.flatlnprobability[:, :num_steps]
+
+            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
+            for i, orb in enumerate(self.post):
+                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
+
+        # include fixed parameters in posterior
+        self.post = self._fill_in_fixed_params(self.post)
+
+    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False, output_filename=None, periodic_save_freq=None):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -634,10 +667,22 @@ class MCMC(Sampler):
                 by to remove correlations in the walker steps
             examine_chains (boolean): Displays plots of walkers at each step by
                 running `examine_chains` after `total_orbits` sampled.
+            output_filename (str): Optional filepath for where results file can be saved.
+            periodic_save_freq (int): Optionally, save the current results into ``output_filename``
+                every nth step while running, where n is value passed into this variable. 
 
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
         """
+
+        if periodic_save_freq is not None and output_filename is None:
+            raise ValueError("output_filename must be defined for periodic saving of the chains")
+        if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
+            raise TypeError("periodic_save_freq must be an integer")
+        
+        nsteps = int(np.ceil(total_orbits / self.num_walkers))
+        if nsteps <= 0:
+            raise ValueError("Total_orbits must be greater than num_walkers.")
 
         if self.use_pt:
             sampler = ptemcee.Sampler(
@@ -654,52 +699,79 @@ class MCMC(Sampler):
                 kwargs={'include_logp': True}
             )
                 
-        
-        for state in sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin):
+        print("Starting Burn in")
+        for i, state in enumerate(sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)):
             if self.use_pt:
                 self.curr_pos = state[0]
             else:
                 self.curr_pos = state.coords
+
+            if (i+1) % 5 == 0:
+                print(str(i+1)+'/'+str(burn_steps)+' steps of burn-in complete', end='\r')
+
+            if periodic_save_freq is not None:
+                if (i+1) % periodic_save_freq == 0: # we've completed i+1 steps
+                    self.results.curr_pos = self.curr_pos
+                    self.results.save_results(output_filename)
 
         sampler.reset()
-        print('Burn in complete')
+        print('')
+        print('Burn in complete. Sampling posterior now.')
 
-        nsteps = int(np.ceil(total_orbits / self.num_walkers))
-
-        assert (nsteps > 0), 'Total_orbits must be greater than num_walkers.'
-
-        i=0
-        for state in sampler.sample(self.curr_pos, iterations=nsteps, thin=thin):
+        saved_upto = 0 # keep track of how many steps of this chain we've saved. this is the next index that needs to be saved 
+        for i, state in enumerate(sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)):
             if self.use_pt:
                 self.curr_pos = state[0]
             else:
                 self.curr_pos = state.coords
-            i+=1
+                
             # print progress statement
-            if i % 5 == 0:
-                print(str(i)+'/'+str(nsteps)+' steps completed', end='\r')
+            if (i+1) % 5 == 0:
+                print(str(i+1)+'/'+str(nsteps)+' steps completed', end='\r')
+
+            if periodic_save_freq is not None:
+                if (i+1) % periodic_save_freq == 0: # we've completed i+1 steps
+                    self._update_chains_from_sampler(sampler, num_steps=i+1)
+
+                    # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
+                    # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
+                    post_shape = self.post.shape
+                    curr_chain_shape = (self.num_walkers, post_shape[0]//self.num_walkers, post_shape[-1])
+                    curr_chain = self.post.reshape(curr_chain_shape)
+                    curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                    # use the reshaped arrays and find the new steps we computed
+                    curr_chunk = curr_chain[:, saved_upto:i+1]
+                    curr_chunk = curr_chunk.reshape(-1, curr_chunk.shape[-1]) # flatten nwalkers x nsteps dim
+                    curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:i+1].flatten()
+
+                    # add this current chunk to the results object (which already has all the previous chunks saved)
+                    self.results.add_samples(curr_chunk, curr_lnlike_chunk, 
+                                                labels=self.system.labels, curr_pos=self.curr_pos)
+                    self.results.save_results(output_filename)
+                    saved_upto = i+1
+
         print('')
+        self._update_chains_from_sampler(sampler)
 
-        # TODO: Need something here to pick out temperatures, just using lowest one for now
-        self.chain = sampler.chain
+        if periodic_save_freq is None:
+            # need to save everything
+            self.results.add_samples(self.post, self.lnlikes, labels=self.system.labels, curr_pos=self.curr_pos)
+        elif saved_upto < nsteps:
+            # just need to save the last few
+            # same code as above except we just need to grab the last few
+            post_shape = self.post.shape
+            curr_chain_shape = (self.num_walkers, post_shape[0]//self.num_walkers, post_shape[-1])
+            curr_chain = self.post.reshape(curr_chain_shape)
+            curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+            curr_chunk = curr_chain[:, saved_upto:]
+            curr_chunk = curr_chunk.reshape(-1, curr_chunk.shape[-1]) # flatten nwalkers x nsteps dim
+            curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
 
-        if self.use_pt:
-            self.post = sampler.flatchain[0, :, :]
-            # should also be picking out the lowest temperature logps
-            self.lnlikes = sampler.loglikelihood[0, :, :].flatten()
-            self.lnlikes_alltemps = sampler.loglikelihood
-        else:
-            self.post = sampler.flatchain
-            self.lnlikes = sampler.flatlnprobability
+            self.results.add_samples(curr_chunk, curr_lnlike_chunk, 
+                                                labels=self.system.labels, curr_pos=self.curr_pos)
 
-            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
-            for i, orb in enumerate(self.post):
-                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
-
-        # include fixed parameters in posterior
-        self.post = self._fill_in_fixed_params(self.post)
-
-        self.results.add_samples(self.post, self.lnlikes, labels=self.system.labels)
+        if output_filename is not None:
+            self.results.save_results(output_filename)
 
         print('Run complete')
 
