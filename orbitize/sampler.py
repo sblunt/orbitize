@@ -493,18 +493,20 @@ class MCMC(Sampler):
             of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
             and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
             length M, or it can be a single float if M = 1.
+        prev_result_filename (str): if passed a filename to an HDF5 file containing a orbitize.Result data,
+            MCMC will restart from where it left off. 
 
     Written: Jason Wang, Henry Ngo, 2018
     """
 
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None):
 
         super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
-
+        
         # create an empty results object
         self.results = orbitize.results.Results(
             sampler_name=self.__class__.__name__,
@@ -513,7 +515,7 @@ class MCMC(Sampler):
             tau_ref_epoch=system.tau_ref_epoch,
             num_secondary_bodies=system.num_secondary_bodies
         )
-
+        
         if self.num_temps > 1:
             self.use_pt = True
         else:
@@ -530,29 +532,45 @@ class MCMC(Sampler):
                 self.fixed_params.append((i, prior))
             else:
                 self.priors.append(prior)
-
-        # initialize walkers initial postions
         self.num_params = len(self.priors)
-        init_positions = []
-        for prior in self.priors:
-            # draw them uniformly becase we don't know any better right now
-            # TODO: be smarter in the future
-            random_init = prior.draw_samples(num_walkers*self.num_temps)
-            if self.num_temps > 1:
-                random_init = random_init.reshape([self.num_temps, num_walkers])
 
-            init_positions.append(random_init)
+        if prev_result_filename is None:
+            # initialize walkers initial postions
 
-        # save this as the current position for the walkers
-        if self.use_pt:
-            # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
-            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
-            self.curr_pos = np.dstack(init_positions)
+            init_positions = []
+            for prior in self.priors:
+                # draw them uniformly becase we don't know any better right now
+                # TODO: be smarter in the future
+                random_init = prior.draw_samples(num_walkers*self.num_temps)
+                if self.num_temps > 1:
+                    random_init = random_init.reshape([self.num_temps, num_walkers])
+
+                init_positions.append(random_init)
+
+            # save this as the current position for the walkers
+            if self.use_pt:
+                # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+                # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
+                self.curr_pos = np.dstack(init_positions)
+            else:
+                # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
+                # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
+                # We need to make nparams the second dimension, so we have to transpose the stacked array
+                self.curr_pos = np.stack(init_positions).T
         else:
-            # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
-            # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
-            # We need to make nparams the second dimension, so we have to transpose the stacked array
-            self.curr_pos = np.stack(init_positions).T
+            # restart from previous walker positions
+            self.results.load_results(prev_result_filename, append=True)
+
+            prev_pos = self.results.curr_pos
+
+            # check previous positions has the correct dimensions as we need given how this sampler was created. 
+            expected_shape = (self.num_walkers, len(self.priors))
+            if self.use_pt:
+                expected_shape = (self.num_temps,) + expected_shape
+            if prev_pos.shape != expected_shape:
+                raise ValueError("Unable to restart chain. Saved walker positions has shape {0}, while current sampler needs {1}".format(prev_pos.shape, expected_shape))
+
+            self.curr_pos = prev_pos
 
     def _fill_in_fixed_params(self, sampled_params):
         """
@@ -640,7 +658,7 @@ class MCMC(Sampler):
         else:
             # chain is shape: Nwalkers x Nsteps x Nparams
             self.post = sampler.chain[:, :num_steps].reshape(-1, num_params)
-            self.lnlikes = sampler.flatlnprobability[:, :num_steps]
+            self.lnlikes = sampler.lnprobability[:, :num_steps].flatten()
 
             # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
             for i, orb in enumerate(self.post):

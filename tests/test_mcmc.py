@@ -57,8 +57,8 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     assert myDriver.sampler.results.post.shape[0] == 1500 
 
     # run it a little more testing that everything gets saved even if prediodic_save_freq is not a multiple of the number of steps
-    output_filename = os.path.join(orbitize.DATADIR, 'test_mcmc.hdf5')
-    myDriver.sampler.run_sampler(500, burn_steps=1, output_filename=output_filename, periodic_save_freq=3)
+    output_filename_2 = os.path.join(orbitize.DATADIR, 'test_mcmc_v1.hdf5')
+    myDriver.sampler.run_sampler(500, burn_steps=1, output_filename=output_filename_2, periodic_save_freq=3)
     assert myDriver.sampler.results.post.shape[0] == 2000 
 
     # test that lnlikes being saved are correct
@@ -66,6 +66,14 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
+
+    # test resuming and restarting from a prevous save
+    new_sampler = sampler.MCMC(myDriver.system, num_temps=num_temps, num_walkers=n_walkers, 
+                                num_threads=num_threads, prev_result_filename=output_filename)
+    assert new_sampler.results.post.shape[0] == 1500
+    new_sampler.run_sampler(500, burn_steps=1)
+    assert new_sampler.results.post.shape[0] == 2000
+    assert new_sampler.results.post[0,0] == myDriver.sampler.results.post[0,0]
 
 
 def test_examine_chop_chains(num_temps=0, num_threads=1):
