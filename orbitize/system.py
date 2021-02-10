@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input, kepler
+from orbitize import priors, read_input, kepler, hipparcos
 
 
 class System(object):
@@ -28,7 +28,6 @@ class System(object):
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class.
 
-
     Users should initialize an instance of this class, then overwrite
     priors they wish to customize.
 
@@ -52,7 +51,8 @@ class System(object):
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
+                 hipparcos_number=None, hipparcos_filename):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -156,8 +156,35 @@ class System(object):
         else:
             self.sys_priors.append(plx)
 
-        # checking for rv data to include appropriate rv priors:
+        if hipparcos_IAD is not None:
+            self.hipparcos_IAD = hipparcos.HipparcosLogProb(hipparcos_filename, hipparcos_number)
 
+            # for now, set broad uniform priors on astrometric params relevant for Hipparcos
+            self.sys_priors.append(priors.UniformPrior(
+                self.hipparcos_IAD.pm_ra0 - 10 * self.hipparcos_IAD.pm_ra0_err,
+                self.hipparcos_IAD.pm_ra0 + 10 * self.hipparcos_IAD.pm_ra0_err)
+            )
+            self.labels.append('pm_ra')
+
+            self.sys_priors.append(priors.UniformPrior(
+                self.hipparcos_IAD.pm_dec0 - 10 * self.hipparcos_IAD.pm_dec0_err,
+                self.hipparcos_IAD.pm_dec0 + 10 * self.hipparcos_IAD.pm_dec0_err)
+            )
+            self.labels.append('pm_dec')
+
+            self.sys_priors.append(priors.UniformPrior(
+                - 10 * self.hipparcos_IAD.alpha0_err,
+                10 * self.hipparcos_IAD.alpha0_err)
+            )
+            self.labels.append('alpha0')
+
+            self.sys_priors.append(priors.UniformPrior(
+                - 10 * self.hipparcos_IAD.delta0_err,
+                10 * self.hipparcos_IAD.delta0_err)
+            )
+            self.labels.append('delta0')
+
+        # checking for rv data to include appropriate rv priors:
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
             self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
             self.labels.append('gamma')
@@ -182,7 +209,12 @@ class System(object):
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
-    def compute_model(self, params_arr):
+
+    # TODO: split compute_model into two subfunctions. 
+    # Function 1 solves kepler's eq for the given params arr and set of epochs, returns ra/dec/rv for all bodies (does total RV + astrometry offset calcs)
+    # Function 2 converts this into a model array
+
+    def compute_model(self, params_arr, epochs=None):
         """
         Compute model predictions for an array of fitting parameters.
 
@@ -222,7 +254,8 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
             # we're going to compute at all epochs for convenience of indexing right now
             # self.radec, and self.seppa index into the entire data table, not just the values for a particular body
-            epochs = self.data_table['epoch']#[self.body_indices[body_num]] 
+            if epochs is None:
+                epochs = self.data_table['epoch']#[self.body_indices[body_num]] 
             startindex = 6 * (body_num - 1)
             sma = params_arr[startindex]
             ecc = params_arr[startindex + 1]
