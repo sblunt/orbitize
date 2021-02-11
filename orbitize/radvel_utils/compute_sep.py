@@ -4,7 +4,7 @@ from astropy import units as u
 
 from radvel.basis import Basis
 from radvel.utils import Msini
-from orbitize.basis import t0_to_tau
+from orbitize.basis import tp_to_tau
 from orbitize.kepler import calc_orbit
 
 def compute_sep(
@@ -69,7 +69,7 @@ def compute_sep(
     parallax = np.random.normal(plx, plx_err, size = chain_len)
     lan = np.random.random_sample(size = chain_len) * 2. * np.pi
     tp_mjd = df['tp{}'.format(pl_num)].values - 2400000.5
-    tau = t0_to_tau(tp_mjd, tau_ref_epoch, period_yr)
+    tau = tp_to_tau(tp_mjd, tau_ref_epoch, period_yr)
 
     # compute projected separation in mas
     raoff, deoff, _ = calc_orbit(

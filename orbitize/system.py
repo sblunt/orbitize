@@ -332,6 +332,7 @@ class System(object):
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
             # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
+            # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
             if self.track_planet_perturbs:
                 if body_num > 0:
                     # for companions, only track perturbations from planets within the orbit of this one

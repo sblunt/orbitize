@@ -128,6 +128,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     loaded_results.load_results(save_filename, append=False)
     # Check if loaded results equal saved results
     assert results_to_save.sampler_name == loaded_results.sampler_name
+    assert results_to_save.version_number == loaded_results.version_number
     assert np.array_equal(results_to_save.post, loaded_results.post)
     if has_lnlike:
         assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)

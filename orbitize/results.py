@@ -22,6 +22,7 @@ import pdb
 import orbitize.kepler as kepler
 import orbitize.system
 
+
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
@@ -62,7 +63,7 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-                 data=None, num_secondary_bodies=None):
+                 data=None, num_secondary_bodies=None, version_number=None):
 
         self.sampler_name = sampler_name
         self.post = post
@@ -71,10 +72,12 @@ class Results(object):
         self.data=data
         self.labels=labels
         self.num_secondary_bodies=num_secondary_bodies
+        self.version_number = version_number
+
 
     def add_samples(self, orbital_params, lnlikes, labels):
         """
-        Add accepted orbits and their likelihoods to the results
+        Add accepted orbits, their likelihoods, and the orbitize version number to the results
 
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
@@ -83,6 +86,8 @@ class Results(object):
 
         Written: Henry Ngo, 2018
         """
+        # Adding the orbitize version number to the results
+        self.version_number = orbitize.__version__
         # If no exisiting results then it is easy
         if self.post is None:
             self.post = orbital_params
@@ -99,6 +104,12 @@ class Results(object):
         """
         self.sampler_name = sampler_name
 
+    def _set_version_number(self, version_number):
+        """
+        internal method to set object's version_number attribute
+        """
+        self.version_number = version_number
+
     def save_results(self, filename):
         """
         Save results.Results object to an hdf5 file
@@ -108,16 +119,18 @@ class Results(object):
 
         Save attributes from the ``results.Results`` object.
 
-        ``sampler_name``, ``tau_ref_epcoh`` are attributes of the root group.
+        ``sampler_name``, ``tau_ref_epcoh``, ``version_number`` are attributes of the root group.
         ``post``, ``lnlike``, and ``parameter_labels`` are datasets
         that are members of the root group.
 
         Written: Henry Ngo, 2018
         """
+
         hf = h5py.File(filename, 'w')  # Creates h5py file object
         # Add sampler_name as attribute of the root group
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
+        hf.attrs['version_number'] = self.version_number
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
         hf.create_dataset('data', data=self.data)
@@ -148,6 +161,7 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = np.str(hf.attrs['sampler_name'])
+        version_number = np.str(hf.attrs['version_number'])
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
         data=np.array(hf.get('data'))
@@ -182,6 +196,13 @@ class Results(object):
             elif self.sampler_name != sampler_name:
                 raise Exception(
                     'Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+            # if no version_number set, use the input file's value
+            if self.version_number is None:
+                self._set_version_number(version_number)
+            # otherwise only proceed if the version_numbers match
+            elif self.version_number != version_number:
+                raise Exception(
+                    'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
             # if no tau reference epoch is set, use input file's value
             if self.tau_ref_epoch is None:
                 self.tau_ref_epoch = tau_ref_epoch
@@ -204,8 +225,9 @@ class Results(object):
             self.add_samples(post, lnlike, self.labels)
         else:
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None:
+            if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None and self.version_number is None:
                 self._set_sampler_name(sampler_name)
+                self._set_version_number(version_number)
                 self.add_samples(post, lnlike, self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
                 self.labels = labels
@@ -389,7 +411,7 @@ class Results(object):
                 raise Exception(
                     'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
 
-            
+
             start_index = (object_to_plot - 1) * 6
 
             sma = self.post[:, start_index + dict_of_indices['sma']]
