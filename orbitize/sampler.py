@@ -323,9 +323,8 @@ class OFTI(Sampler,):
         """
 
         # if the semimajor axis prior is standard, do scale-and-rotate
-        if self.priors[0].__repr__() == "Jeffreys":
-            samples = self.draw_from_priors(num_samples)
-            samples = self.scale_and_rotate(samples, num_samples)
+        if self.priors[0].__repr__() == "Log Uniform":
+            samples = self.scale_and_rotate(num_samples)
             
         # otherwise, don't scale and rotate. Just do rejection sampling
         else:
