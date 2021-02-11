@@ -187,12 +187,11 @@ class OFTI(Sampler,):
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
         return samples
 
-    def scale_and_rotate(self, samples, num_samples):
+    def scale_and_rotate(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
         Args:
-            samples ():
             num_samples (int): number of orbits to draw and scale & rotate for
                 OFTI to run rejection sampling on
         Return:
@@ -295,7 +294,7 @@ class OFTI(Sampler,):
         Args:
             samples (np.array): array of prepared samples. The first dimension \
                 has size ``num_samples``. This should be the output of \
-                ``prepare_samples()``.
+                ``scale_and_rotate()`` or ``draw_from_priors()``.
 
         Return:
             tuple:
