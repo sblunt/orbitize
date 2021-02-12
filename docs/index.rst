@@ -70,7 +70,17 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
-**1.13.1 (2020-01-25)**
+**1.14.0 (2021-02012)**
+
+- Version number now saved in results object (@hgallamore)
+- Joint RV+astrometry fits can now handle different RV instruments! (@vighnesh-nagpal, @Rob685 @lhirsch238)
+- New “FAQ” section added to docs (@semaphoreP)
+- Bugfix for multiplanet code (@semaphoreP) introduced in PR #192 
+- now you can pass a preexisting Figure object into ``results.plot_orbit`` (@sblunt)
+- colorbar label is now "Epoch [year]" (@sblunt)
+- corner plot maker can now handle fixed parameters without crashing (@sblunt)
+
+**1.13.1 (2021-01-25)**
 
 - ``compute_sep`` in ``radvel_utils`` submodule now returns ``mp`` (@sblunt)
 - ``astropy._erfa`` was deprecated (now in separate package). Dependencies updated. (@sblunt)
