@@ -16,9 +16,7 @@ import orbitize.kepler
 from orbitize.system import radec2seppa
 import orbitize.results
 import copy
-
 import matplotlib.pyplot as plt
-
 
 class Sampler(abc.ABC):
     """
@@ -172,6 +170,7 @@ class OFTI(Sampler,):
             post=None,
             lnlike=None,
             tau_ref_epoch=self.system.tau_ref_epoch,
+            data=self.system.data_table,
             num_secondary_bodies=self.system.num_secondary_bodies
         )
 
@@ -513,6 +512,7 @@ class MCMC(Sampler):
             post=None,
             lnlike=None,
             tau_ref_epoch=system.tau_ref_epoch,
+            data=self.system.data_table,
             num_secondary_bodies=system.num_secondary_bodies
         )
         
