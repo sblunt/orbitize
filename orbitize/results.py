@@ -289,17 +289,22 @@ class Results(object):
 
         if param_list is None:
             param_list = self.labels
+
         param_indices = []
         angle_indices = []
         secondary_mass_indices = []
         for i, param in enumerate(param_list):
             index_num = np.where(np.array(self.labels) == param)[0][0]
-            param_indices.append(index_num)
-            label_key = param
-            if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
-                angle_indices.append(i)
-            if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
-                secondary_mass_indices.append(i)
+
+            # only plot non-fixed parameters
+            if np.std(self.post[:, i]) > 0:
+                param_indices.append(index_num)
+                label_key = param
+                if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
+                    angle_indices.append(i)
+                if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
+                    secondary_mass_indices.append(i)
+
 
         samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
@@ -330,7 +335,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='epochs', mod180=False, rv_time_series=False,plot_astrometry=True):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
+                    fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -358,6 +364,8 @@ class Results(object):
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
                 display time series, set to True.
             astrometry (Boolean): set to True by default. Plots the astrometric data.
+            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+                Most users will not need this keyword. 
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -390,7 +398,7 @@ class Results(object):
                 'plx': 6 * self.num_secondary_bodies,
             }
 
-            if cbar_param == 'epochs':
+            if cbar_param == 'Epoch [year]':
                 pass
             elif cbar_param[0:3] in dict_of_indices:
                 try:
@@ -453,14 +461,14 @@ class Results(object):
                 deoff[i, :] = deoff0
 
             # Create a linearly increasing colormap for our range of epochs
-            if cbar_param != 'epochs':
+            if cbar_param != 'Epoch [year]':
                 cbar_param_arr = self.post[:, index]
                 norm = mpl.colors.Normalize(vmin=np.min(cbar_param_arr),
                                             vmax=np.max(cbar_param_arr))
                 norm_yr = mpl.colors.Normalize(vmin=np.min(
                     cbar_param_arr), vmax=np.max(cbar_param_arr))
 
-            elif cbar_param == 'epochs':
+            elif cbar_param == 'Epoch [year]':
                 norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1, :]))
 
                 norm_yr = mpl.colors.Normalize(
@@ -469,14 +477,20 @@ class Results(object):
                 )
 
             # Create figure for orbit plots
-            fig = plt.figure(figsize=(14, 6))
-            if rv_time_series:
-                fig = plt.figure(figsize=(14, 9))
-                ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
-            else:
+            if fig is None:
                 fig = plt.figure(figsize=(14, 6))
-                ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-
+                if rv_time_series:
+                    fig = plt.figure(figsize=(14, 9))
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    fig = plt.figure(figsize=(14, 6))
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+            else:
+                plt.set_current_figure(fig)
+                if rv_time_series:
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
             
             data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
@@ -492,9 +506,9 @@ class Results(object):
                 lc = LineCollection(
                     segments, cmap=cmap, norm=norm, linewidth=1.0
                 )
-                if cbar_param != 'epochs':
+                if cbar_param != 'Epoch [year]':
                     lc.set_array(np.ones(len(epochs[0]))*cbar_param_arr[i])
-                elif cbar_param == 'epochs':
+                elif cbar_param == 'Epoch [year]':
                     lc.set_array(epochs[i, :])
                 ax.add_collection(lc)
 
@@ -576,8 +590,6 @@ class Results(object):
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
-
-
 
             if rv_time_series:
                 
