@@ -210,4 +210,4 @@ if __name__ == "__main__":
     test_orbit_figs[4].savefig('test_orbit5.png')
 
     # clean up
-    # os.system('rm test_*.png')
+    os.system('rm test_*.png')

@@ -591,8 +591,6 @@ class Results(object):
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
-
-
             if rv_time_series:
                 
                 # switch current axis to rv panel
