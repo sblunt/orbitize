@@ -67,7 +67,8 @@ def test_compute_model():
     dec_diff = dec_2body - dec_1body
     total_diff = np.sqrt(ra_diff**2 + dec_diff**2)
 
-    import pdb; pdb.set_trace()
+    print(total_diff[0])
+    print(mass_c/m0 * c_params[0] * plx)
 
     # the expected influence of c is mass_c/m0 * sma_c * plx in amplitude
     # just test the first value, because of the face on orbit, we should see it immediately. 

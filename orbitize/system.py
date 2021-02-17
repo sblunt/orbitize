@@ -364,23 +364,29 @@ class System(object):
         if self.track_planet_perturbs:
             for body_num in np.arange(self.num_secondary_bodies+1):
                 if body_num > 0:
-                    # for companions, only track perturbations from planets within the orbit of this one
+                    # for companions, only perturb companion orbits at larger SMAs than this one. 
+                    # note the +1, since the 0th planet is body_num 1. 
+                    startindex = 6 * (body_num - 1)
+                    sma = params_arr[startindex]
+                    all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                    outside_orbit = np.where(all_smas > sma)
+
                     which_perturb_bodies = outside_orbit[0] + 1
+
                 else:
                     # for the star, what we are measuring is its position relative to the system barycenter
                     # so we want to account for all of the bodies.  
                     which_perturb_bodies = np.arange(self.num_secondary_bodies+1)
+
                 for other_body_num in which_perturb_bodies:
                     # skip itself since the the 2-body problem is measuring the planet-star separation already
                     if (body_num == other_body_num) | (body_num == 0):
                         continue
 
-                    # import pdb; pdb.set_trace()
                     ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
-                    ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, other_body_num, :]
+                    ra_perturb[:, other_body_num, :] += (masses[other_body_num]/mtots[other_body_num]) * ra_kepler[:, other_body_num, :]
                     dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, other_body_num, :] 
 
-            # import pdb; pdb.set_trace()
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
