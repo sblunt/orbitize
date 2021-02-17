@@ -67,6 +67,8 @@ def test_compute_model():
     dec_diff = dec_2body - dec_1body
     total_diff = np.sqrt(ra_diff**2 + dec_diff**2)
 
+    import pdb; pdb.set_trace()
+
     # the expected influence of c is mass_c/m0 * sma_c * plx in amplitude
     assert np.max(total_diff) == pytest.approx(mass_c/m0 * c_params[0] * plx, abs=0.01 * mass_c/m0 * b_params[0] * plx)
 
@@ -172,4 +174,4 @@ def test_fit_selfconsist():
 
 if __name__ == "__main__":
     test_compute_model()
-    test_fit_selfconsist()
+    # test_fit_selfconsist()

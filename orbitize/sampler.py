@@ -83,6 +83,7 @@ class Sampler(abc.ABC):
             lnlikes_sum += self.custom_lnlike(params)
         
         if hipparcos:
+            pass
             # TODO: compute model, feed to Hipparcos compute_lnprob and add to lnlikes sum!
 
         return lnlikes_sum
