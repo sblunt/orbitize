@@ -244,16 +244,10 @@ class System(object):
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
-
-    # TODO: split compute_model into two subfunctions. 
-    # Function 1 solves kepler's eq for the given params arr and set of epochs, returns ra/dec/rv for all bodies (does total RV + astrometry offset calcs)
-    # Function 2 converts this into a model array
-
-
     def compute_all_orbits(self, params_arr):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
-        interactions, as well as computes total quantities like RV (without jitter)
+        interactions, as well as computes total quantities like RV (without jitter/gamma)
 
         Args:
             params_arr (np.array of float): RxM array
@@ -264,9 +258,12 @@ class System(object):
         
         Returns:
             tuple of:
-                ra (np.array of float): 
-                dec (np.array of float):
-                rv (np.array of float):
+                raoff (np.array of float): N_epochs x N_bodies x N_orbits array of
+                    RA offsets from barycenter at each epoch.
+                decoff (np.array of float): N_epochs x N_bodies x N_orbits array of
+                    Dec offsets from barycenter at each epoch.
+                vz (np.array of float): N_epochs x N_bodies x N_orbits array of
+                    radial velocities at each epoch.
 
         """
 
@@ -362,7 +359,7 @@ class System(object):
         # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
         # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
         if self.track_planet_perturbs:
-            for body_num in np.arange(self.num_secondary_bodies+1):
+            for body_num in np.arange(self.num_secondary_bodies) + 1:
                 if body_num > 0:
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
                     # note the +1, since the 0th planet is body_num 1. 
@@ -384,24 +381,22 @@ class System(object):
                         continue
 
                     ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
-                    ra_perturb[:, other_body_num, :] += (masses[other_body_num]/mtots[other_body_num]) * ra_kepler[:, other_body_num, :]
-                    dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, other_body_num, :] 
+                    ra_perturb[:, other_body_num, :] += (masses[other_body_num]/mtots[other_body_num]) * ra_kepler[:, body_num, :]
+                    dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
 
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
 
-        # TODO: debug multiplanet (mass must persist through function)
-        # TODO: document this and below function
-
         return raoff, deoff, vz
 
     def compute_model(self, params_arr):
         """
-        Compute model predictions for an array of fitting parameters.
-
-        ADDS JITTER AND PROPAGATES ORBIT PREDICTIONS FROM ABOVE TO MODEL ARRAY
-
+        Compute model predictions for an array of fitting parameters. 
+        Calls the above compute_all_orbits() function, adds jitter/gamma to
+        RV measurements, and propagates these predictions to a model array that
+        can be subtracted from a data array to compute chi2. 
+        
         Args:
             params_arr (np.array of float): RxM array
                 of fitting parameters, where R is the number of

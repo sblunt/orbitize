@@ -32,7 +32,7 @@ def test_compute_model():
     period_c = np.sqrt(c_params[0]**3/mtot)
     period_b = np.sqrt(b_params[0]**3/mtot)
 
-    epochs = np.linspace(0, period_c*365.25, 100) + tau_ref_epoch # the full period of c, MJD
+    epochs = np.linspace(0, period_c*365.25, 5) + tau_ref_epoch # the full period of c, MJD
 
     ra_model, dec_model, vz_model = kepler.calc_orbit(epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], b_params[5], plx, mtot, tau_ref_epoch=tau_ref_epoch)
 
@@ -66,9 +66,6 @@ def test_compute_model():
     ra_diff = ra_2body - ra_1body
     dec_diff = dec_2body - dec_1body
     total_diff = np.sqrt(ra_diff**2 + dec_diff**2)
-
-    print(total_diff[0])
-    print(mass_c/m0 * c_params[0] * plx)
 
     # the expected influence of c is mass_c/m0 * sma_c * plx in amplitude
     # just test the first value, because of the face on orbit, we should see it immediately. 
@@ -175,4 +172,4 @@ def test_fit_selfconsist():
 
 if __name__ == "__main__":
     test_compute_model()
-    # test_fit_selfconsist()
+    test_fit_selfconsist()
