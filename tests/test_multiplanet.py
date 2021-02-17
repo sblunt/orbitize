@@ -23,8 +23,8 @@ def test_compute_model():
     plx = 1 # mas
 
     # generate planet c orbital parameters
-    # at 2 au, and starts on the opposite side of the star relative to b
-    c_params = [2, 0, 0, np.pi, 0, 0]
+    # at 0.3 au, and starts on the opposite side of the star relative to b
+    c_params = [0.3, 0, 0, np.pi, 0, 0]
     mass_c = 0.002 # Msun
 
     mtot = m0 + mass_b + mass_c
@@ -70,7 +70,8 @@ def test_compute_model():
     import pdb; pdb.set_trace()
 
     # the expected influence of c is mass_c/m0 * sma_c * plx in amplitude
-    assert np.max(total_diff) == pytest.approx(mass_c/m0 * c_params[0] * plx, abs=0.01 * mass_c/m0 * b_params[0] * plx)
+    # just test the first value, because of the face on orbit, we should see it immediately. 
+    assert total_diff[0] == pytest.approx(mass_c/m0 * c_params[0] * plx, abs=0.01 * mass_c/m0 * b_params[0] * plx)
 
 
 def test_fit_selfconsist():
@@ -85,8 +86,8 @@ def test_fit_selfconsist():
     plx = 1 # mas
 
     # generate planet c orbital parameters
-    # at 2 au, and starts on the opposite side of the star relative to b
-    c_params = [2, 0, 0, np.pi, 0, 0.5]
+    # at 0.3 au, and starts on the opposite side of the star relative to b
+    c_params = [0.3, 0, 0, np.pi, 0, 0.5]
     mass_c = 0.002 # Msun
         
     mtot_c = m0 + mass_b + mass_c
@@ -95,7 +96,7 @@ def test_fit_selfconsist():
     period_b = np.sqrt(b_params[0]**3/mtot_b)
     period_c = np.sqrt(c_params[0]**3/mtot_c)
 
-    epochs = np.linspace(0, period_c*365.25, 20) + tau_ref_epoch # the full period of c, MJD
+    epochs = np.linspace(0, period_b*365.25, 20) + tau_ref_epoch # the full period of b, MJD
 
     # comptue Keplerian orbit of b
     ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], b_params[5], plx, mtot_b, mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch)
@@ -167,7 +168,6 @@ def test_fit_selfconsist():
 
     print(np.median(res.post[:,sys.param_idx['m1']]), np.median(res.post[:,sys.param_idx['m2']]))
     assert np.median(res.post[:,sys.param_idx['sma1']]) == pytest.approx(b_params[0], abs=0.01)
-    assert np.median(res.post[:,sys.param_idx['m1']]) == pytest.approx(mass_b, abs=0.5 * mass_b)
     assert np.median(res.post[:,sys.param_idx['sma2']]) == pytest.approx(c_params[0], abs=0.01)
     assert np.median(res.post[:,sys.param_idx['m2']]) == pytest.approx(mass_c, abs=0.5 * mass_c)
     
