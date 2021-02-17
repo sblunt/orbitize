@@ -86,8 +86,8 @@ def read_file(filename):
     Written: Henry Ngo, 2018
     """
     # initialize output table
-    output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type'),
-                         dtype=(float, int, float, float, float, float, float, 'S5'))
+    output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type', 'instrument'),
+                         dtype=(float, int, float, float, float, float, float, 'S5', 'S5'))
 
     # read file
     try:
@@ -152,6 +152,14 @@ def read_file(filename):
                 have_rv = ~input_table['rv'].mask
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
+
+            if 'instrument' in input_table.columns:
+
+                # Vighnesh: establishes which rows have instrument names provided
+                have_inst = ~input_table['instrument'].mask
+            else:
+                have_inst = np.zeros(num_measurements, dtype=bool)  # zeros are false
+
     else:  # no masked entries, just check for required columns
         if 'epoch' not in input_table.columns:
             raise Exception("Input table MUST have epoch!")
@@ -187,6 +195,12 @@ def read_file(filename):
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
+            # Rob: not sure if we need this but adding just in case
+            if 'instrument' in input_table.columns:
+                have_inst = np.ones(num_measurements, dtype=bool)
+            else:
+                have_inst = np.zeros(num_measurements, dtype=bool)
+
     # loop through each row and format table
     for index, row in enumerate(input_table):
         # First check if epoch is a number
@@ -210,7 +224,7 @@ def read_file(filename):
         if orbitize_style:
             if row['quant_type'] == 'rv':  # special format for rv rows
                 output_table.add_row([MJD, row['object'], row['quant1'],
-                                      row['quant1_err'], None, None, None, row['quant_type']])
+                                      row['quant1_err'], None, None, None, row['quant_type'], row['instrument']])
             
             elif row['quant_type'] == 'radec' or row['quant_type'] == 'seppa':  # other allowed 
                 # backwards compatability whether it has the covariance term or not
@@ -221,7 +235,7 @@ def read_file(filename):
                 else:
                     quant12_corr = None
                 output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'],
-                                      row['quant2'], row['quant2_err'], quant12_corr, row['quant_type']])
+                                      row['quant2'], row['quant2_err'], quant12_corr, row['quant_type'], row['instrument']])
             else:  # catch wrong formats
                 raise Exception("Invalid 'quant_type'. Valid values are 'radec', 'seppa' or 'rv'")
 
@@ -235,9 +249,16 @@ def read_file(filename):
                         raise ValueError("Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(index, quant12_corr))
                 else:
                     quant12_corr = None
+                
+                if have_inst[index]:
+                    this_inst = row['instrument']
+                else:
+                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    this_inst = 'defrd'
+
                 output_table.add_row([MJD, row['object'], row['raoff'],
                                       row['raoff_err'], row['decoff'], row['decoff_err'], 
-                                      quant12_corr, "radec"])
+                                      quant12_corr, "radec", this_inst])
 
             elif have_sep[index] and have_pa[index]:
                 # check if there's a covariance term
@@ -247,13 +268,25 @@ def read_file(filename):
                         raise ValueError("Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(index, quant12_corr))
                 else:
                     quant12_corr = None
+
+                if have_inst[index]:
+                    this_inst = row['instrument']
+                else:
+                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    this_inst = 'defsp'
+
                 output_table.add_row([MJD, row['object'], row['sep'],
                                       row['sep_err'], row['pa'], row['pa_err'],
-                                      quant12_corr, "seppa"])
+                                      quant12_corr, "seppa", this_inst])
 
             if have_rv[index]:
-                output_table.add_row([MJD, row['object'], row['rv'],
-                                      row['rv_err'], None, None, None, "rv"])
+                if have_inst[index]:
+                    output_table.add_row([MJD, row['object'], row['rv'],
+                                          row['rv_err'], None, None, None, "rv", row['instrument']])
+                else:
+                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    output_table.add_row([MJD, row['object'], row['rv'],
+                                          row['rv_err'], None, None, None, "rv", "defrv"])
 
     return output_table
 
