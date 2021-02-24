@@ -70,7 +70,11 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
-**1.14.0 (2021-02012)**
+**1.15.0 (2021-02-23)**
+
+- Handle covariances in input astrometry (@semaphoreP)
+
+**1.14.0 (2021-02-12)**
 
 - Version number now saved in results object (@hgallamore)
 - Joint RV+astrometry fits can now handle different RV instruments! (@vighnesh-nagpal, @Rob685 @lhirsch238)
