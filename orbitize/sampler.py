@@ -37,6 +37,9 @@ class Sampler(abc.ABC):
 
         self.custom_lnlike = custom_lnlike
 
+        # check if need to handle covariances
+        self.has_corr = np.any(~np.isnan(self.system.data_table['quant12_corr']))
+
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
         pass
@@ -67,12 +70,18 @@ class Sampler(abc.ABC):
         # errors below required for lnlike function below
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
+        # covariances/correlations, if applicable
+        # we're doing this check now because the likelihood computation is much faster if we can skip it.
+        if self.has_corr:
+            corrs = self.system.data_table['quant12_corr']
+        else:
+            corrs = None
 
         # grab all seppa indices
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
-        lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
+        lnlikes = self.lnlike(data, errs, corrs, model, jitter, seppa_indices)
 
         # return sum of lnlikes (aka product of likeliehoods)
         lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
@@ -295,9 +304,15 @@ class OFTI(Sampler,):
 
         """
         lnp = self._logl(samples)
+
+        # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
-        lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
+        if self.has_corr:
+            corrs = self.system.data_table['quant12_corr']
+        else:
+            corrs = None
+        lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
