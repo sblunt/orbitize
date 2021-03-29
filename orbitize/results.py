@@ -169,7 +169,10 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = np.str(hf.attrs['sampler_name'])
-        version_number = np.str(hf.attrs['version_number'])
+        try:
+            version_number = np.str(hf.attrs['version_number'])
+        except KeyError:
+            version_number = "<= 1.13"
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
         data=np.array(hf.get('data'))
