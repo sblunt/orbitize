@@ -374,7 +374,7 @@ class System(object):
                     sma = params_arr[startindex]
                     all_smas = params_arr[0:6*self.num_secondary_bodies:6]
                     outside_orbit = np.where(all_smas > sma)[0]
-                    which_perturb_bodies = outside_orbit
+                    which_perturb_bodies = outside_orbit + 1
 
                     # the planet will also perturb the star
                     which_perturb_bodies = np.append([0], which_perturb_bodies)
@@ -468,8 +468,9 @@ class System(object):
                 model[self.rv[body_num], 1] = np.nan
 
         if n_orbits == 1:
-            model.reshape((n_epochs, 2))
-            jitter.reshape((n_epochs, 2))
+            model = model.reshape((n_epochs, 2))
+            jitter = jitter.reshape((n_epochs, 2))
+            gamma = gamma.reshape((n_epochs, 2))
 
         if self.fit_secondary_mass:
             return model + gamma, jitter

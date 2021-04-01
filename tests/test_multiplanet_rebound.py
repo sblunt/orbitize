@@ -411,11 +411,11 @@ def test_2planet_nomass():
 
 
 if __name__ == "__main__":
-    #test_1planet()
+    test_1planet()
     test_2planet_massive()
     test_2planet_massive_reverse_order()
-    #test_2planet_nomass()
-    #test_OFTI_multiplanet()
+    test_2planet_nomass()
+    test_OFTI_multiplanet()
 
 
 
