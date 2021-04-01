@@ -41,7 +41,7 @@ class Sampler(abc.ABC):
     def run_sampler(self, total_orbits):
         pass
 
-    def _logl(self, params, hipparcos=False):
+    def _logl(self, params):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -80,9 +80,18 @@ class Sampler(abc.ABC):
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
         
-        if hipparcos:
-            pass
-            # TODO: compute model, feed to Hipparcos compute_lnprob and add to lnlikes sum!
+        if self.system.hipparcos_number is not None:
+
+            # compute Ra/Dec predictions at the Hipparcos IAD epochs
+            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+                params, epochs=self.system.hipparcos_IAD.epochs_mjd
+            ) 
+
+            # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
+            lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
+                raoff_model[:,0,:], deoff_model[:,0,:], params
+            )
+
 
         return lnlikes_sum
 

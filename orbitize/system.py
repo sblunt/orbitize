@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input, kepler# , hipparcos
+from orbitize import priors, read_input, kepler, hipparcos
 
 
 class System(object):
@@ -61,6 +61,7 @@ class System(object):
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
         self.restrict_angle_ranges = restrict_angle_ranges
+        self.hipparcos_number = hipparcos_number
 
         #
         # Group the data in some useful ways
@@ -144,6 +145,9 @@ class System(object):
                                      ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
                                       (self.num_secondary_bodies > 1))
 
+        if self.hipparcos_number is not None:
+            self.track_planet_perturbs = True
+
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
@@ -187,37 +191,39 @@ class System(object):
         else:
             self.sys_priors.append(plx)
 
-        # if hipparcos_IAD is not None:
-        #     self.hipparcos_IAD = hipparcos.HipparcosLogProb(hipparcos_filename, hipparcos_number)
+        # instantiate a HipparcosLogProb object to precompute & hold params relevant to IAD
+        if hipparcos_number is not None:
+            self.hipparcos_IAD = hipparcos.HipparcosLogProb(
+                hipparcos_filename, hipparcos_number, self.num_secondary_bodies
+            )
 
-        #     # for now, set broad uniform priors on astrometric params relevant for Hipparcos
-        #     self.sys_priors.append(priors.UniformPrior(
-        #         self.hipparcos_IAD.pm_ra0 - 10 * self.hipparcos_IAD.pm_ra0_err,
-        #         self.hipparcos_IAD.pm_ra0 + 10 * self.hipparcos_IAD.pm_ra0_err)
-        #     )
-        #     self.labels.append('pm_ra')
+            # for now, set broad uniform priors on astrometric params relevant for Hipparcos
+            self.sys_priors.append(priors.UniformPrior(
+                self.hipparcos_IAD.pm_ra0 - 10 * self.hipparcos_IAD.pm_ra0_err,
+                self.hipparcos_IAD.pm_ra0 + 10 * self.hipparcos_IAD.pm_ra0_err)
+            )
+            self.labels.append('pm_ra')
 
-        #     self.sys_priors.append(priors.UniformPrior(
-        #         self.hipparcos_IAD.pm_dec0 - 10 * self.hipparcos_IAD.pm_dec0_err,
-        #         self.hipparcos_IAD.pm_dec0 + 10 * self.hipparcos_IAD.pm_dec0_err)
-        #     )
-        #     self.labels.append('pm_dec')
+            self.sys_priors.append(priors.UniformPrior(
+                self.hipparcos_IAD.pm_dec0 - 10 * self.hipparcos_IAD.pm_dec0_err,
+                self.hipparcos_IAD.pm_dec0 + 10 * self.hipparcos_IAD.pm_dec0_err)
+            )
+            self.labels.append('pm_dec')
 
-        #     self.sys_priors.append(priors.UniformPrior(
-        #         - 10 * self.hipparcos_IAD.alpha0_err,
-        #         10 * self.hipparcos_IAD.alpha0_err)
-        #     )
-        #     self.labels.append('alpha0')
+            self.sys_priors.append(priors.UniformPrior(
+                - 10 * self.hipparcos_IAD.alpha0_err,
+                10 * self.hipparcos_IAD.alpha0_err)
+            )
+            self.labels.append('alpha0')
 
-        #     self.sys_priors.append(priors.UniformPrior(
-        #         - 10 * self.hipparcos_IAD.delta0_err,
-        #         10 * self.hipparcos_IAD.delta0_err)
-        #     )
-        #     self.labels.append('delta0')
+            self.sys_priors.append(priors.UniformPrior(
+                - 10 * self.hipparcos_IAD.delta0_err,
+                10 * self.hipparcos_IAD.delta0_err)
+            )
+            self.labels.append('delta0')
 
         # checking for rv data to include appropriate rv priors:
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
-            # Rob and Lea:
             # for instrument in rv_instruments:
                 # add gamma and sigma for each and label each unique gamma and sigma per instrument name (gamma+instrument1, ...)
             for instrument in self.rv_instruments:
@@ -244,7 +250,7 @@ class System(object):
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
-    def compute_all_orbits(self, params_arr):
+    def compute_all_orbits(self, params_arr, epochs=None):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
         interactions, as well as computes total quantities like RV (without jitter/gamma)
@@ -267,7 +273,9 @@ class System(object):
 
         """
 
-        epochs = self.data_table['epoch']
+        if epochs is None:
+            epochs = self.data_table['epoch']
+        
         n_epochs = len(epochs)
 
         if len(params_arr.shape) == 1:
@@ -359,16 +367,17 @@ class System(object):
         # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
         # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
         if self.track_planet_perturbs:
-            for body_num in np.arange(self.num_secondary_bodies) + 1:
+            for body_num in np.arange(self.num_secondary_bodies + 1):
                 if body_num > 0:
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
-                    # note the +1, since the 0th planet is body_num 1. 
-                    startindex = 6 * (body_num - 1)
+                    startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
                     sma = params_arr[startindex]
                     all_smas = params_arr[0:6*self.num_secondary_bodies:6]
-                    outside_orbit = np.where(all_smas > sma)
+                    outside_orbit = np.where(all_smas > sma)[0]
+                    which_perturb_bodies = outside_orbit
 
-                    which_perturb_bodies = outside_orbit[0] + 1
+                    # the planet will also perturb the star
+                    which_perturb_bodies = np.append([0], which_perturb_bodies)
 
                 else:
                     # for the star, what we are measuring is its position relative to the system barycenter
@@ -376,13 +385,13 @@ class System(object):
                     which_perturb_bodies = np.arange(self.num_secondary_bodies+1)
 
                 for other_body_num in which_perturb_bodies:
-                    # skip itself since the the 2-body problem is measuring the planet-star separation already
+                    # skip itself & skip the star since the the 2-body problem is measuring the planet-star separation already
                     if (body_num == other_body_num) | (body_num == 0):
                         continue
-
+                    
                     ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
-                    ra_perturb[:, other_body_num, :] += (masses[other_body_num]/mtots[other_body_num]) * ra_kepler[:, body_num, :]
-                    dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+                    ra_perturb[:, other_body_num, :] -= (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
+                    dec_perturb[:, other_body_num, :] -= (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
 
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
@@ -417,6 +426,7 @@ class System(object):
             n_orbits = params_arr.shape[1]
 
         n_epochs = len(self.data_table)
+
         model = np.zeros((n_epochs, 2, n_orbits))
         jitter = np.zeros((n_epochs, 2, n_orbits))
         gamma = np.zeros((n_epochs, 2, n_orbits))

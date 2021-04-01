@@ -301,6 +301,10 @@ class Results(object):
             'mtot': '$M_T$ [M$_{{\\odot}}$]',
             'm0': '$M_0$ [M$_{{\\odot}}$]',
             'm': '$M_{0}$ [M$_\{{Jup\}}$]',
+            'pm_ra': 'PM RA',
+            'pm_dec': 'PM Dec',
+            'alpha0': 'alpha0',
+            'delta0': 'delta0',
         }
 
         if param_list is None:
@@ -313,7 +317,7 @@ class Results(object):
             index_num = np.where(np.array(self.labels) == param)[0][0]
 
             # only plot non-fixed parameters
-            if np.std(self.post[:, i]) > 0:
+            if np.std(self.post[:, i]) > 1e-10:
                 param_indices.append(index_num)
                 label_key = param
                 if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
@@ -321,15 +325,15 @@ class Results(object):
                 if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
                     secondary_mass_indices.append(i)
 
-
-        samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
+        samples = copy.copy(self.post)  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
             self.post[:, angle_indices])  # convert angles from rad to deg
         samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions
+        samples = samples[:, param_indices]
 
         if 'labels' not in corner_kwargs:  # use default labels if user didn't already supply them
             reduced_labels_list = []
-            for i in np.arange(len(param_indices)):
+            for i in param_indices:
                 label_key = param_list[i]
                 if label_key.startswith("m") and label_key != 'm0' and label_key != 'mtot':
                     body_num = label_key[1]
@@ -337,6 +341,8 @@ class Results(object):
                 elif label_key == 'm0' or label_key == 'mtot' or label_key.startswith('plx'):
                     body_num = ""
                     # maintain original label key
+                elif label_key in ['pm_ra', 'pm_dec', 'alpha0', 'delta0']:
+                    body_num = ""
                 else:
                     body_num = label_key[3]
                     label_key = label_key[0:3]

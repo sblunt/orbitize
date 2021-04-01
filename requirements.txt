@@ -12,3 +12,4 @@ pytest
 pandas
 radvel
 pyerfa
+astroquery

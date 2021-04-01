@@ -13,20 +13,17 @@ class HipparcosLogProb(object):
     Hipparcos Intermediate Astrometric Data (IAD). Queries Vizier for 
     all metadata relevant to the IAD, and reads in the IAD themselves from
     a specified location. Follows Nielsen+ 2020
-    (studying the orbit of beta Pic).
+    (studying the orbit of beta Pic b).
 
     Args:
+        iad_file (str): 
         hip_num (str): the Hipparcos number of your target. Accessible on Simbad.
-
-    Caveats:
-        Currently only treats 2-body systems. i.e. I haven't worked through the
-            case where you have two massive planets that simultaneously influence the
-            IAD.
     """
 
-    def __init__(self, iad_file, hip_num):
+    def __init__(self, iad_file, hip_num, num_secondary_bodies):
 
         self.hip_num = hip_num
+        self.num_secondary_bodies = num_secondary_bodies
 
         # load best-fit astrometric solution from van Leeuwen catalog
         Vizier.ROW_LIMIT = -1
@@ -87,7 +84,7 @@ class HipparcosLogProb(object):
         self.alpha_abs_st = self.R * self.cos_phi + changein_alpha_st
         self.delta_abs = self.R * self.sin_phi + changein_delta
 
-    def compute_lnprob(self, raoff_model, deoff_model, astr_samples, negative=False):
+    def compute_lnlike(self, raoff_model, deoff_model, samples, negative=False):
         """
         Computes the log probability of an orbit model with respect to the Hipparcos 
         IAD. 
@@ -97,24 +94,24 @@ class HipparcosLogProb(object):
 
         Returns:
             np.array of length M, where M is the number of input orbits (same as def'n
-                in description of `samples` arg above) representing the log probaility
+                in description of `samples` arg above) representing the log probability
                 for each orbit with respect to the Hipparcos IAD
         """
         n_params = len(samples)
 
         # variables for each of the astrometric fitting parameters
-        # TODO: check order of these params
-        pm_ra = samples[0]
-        pm_dec = samples[1]
-        alpha_H0 = samples[2]
-        delta_H0 = samples[3]
-        plx = samples[4]
+        plx = samples[6 * self.num_secondary_bodies]
+        pm_ra = samples[6 * self.num_secondary_bodies + 1]
+        pm_dec = samples[6 * self.num_secondary_bodies + 2]
+        alpha_H0 = samples[6 * self.num_secondary_bodies + 3]
+        delta_H0 = samples[6 * self.num_secondary_bodies + 4]
 
-        else:
-            print('Incorrect number of fitting params in `samples`.')
-            return
 
-        n_samples = len(pm_ra)
+        try:
+            n_samples = len(pm_ra)
+        except TypeError:
+            n_samples = 1
+
         n_epochs = len(self.epochs)
         dist = np.empty((n_epochs, n_samples))
 
@@ -133,8 +130,8 @@ class HipparcosLogProb(object):
             ) + (self.epochs[i] - 1991.25) * pm_dec
 
             # add in pre-computed secondary perturbations
-            alpha_C_st += raoff
-            delta_C += decoff
+            alpha_C_st += raoff_model[i]
+            delta_C += deoff_model[i]
 
             # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
             dist[i, :] = np.abs(
@@ -144,98 +141,6 @@ class HipparcosLogProb(object):
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum([(dist[:,i] / self.eps)**2 for i in np.arange(n_samples)], axis=1)
-        lnprob = -0.5 * chi2
+        lnlike = -0.5 * chi2
 
-        return lnprob
-
-
-if __name__ == '__main__':
-
-    # instantiate an object for HR 5183
-    PlanetPi = HipparcosLogProb(hip_num='027321')
-
-    # load legacy posterior
-    df_rv = pd.read_csv(
-        '/data/user/lrosenth/legacy/run_final/{}/chains.csv.tar.bz2'.format(
-            '120066'
-        )
-    )
-
-    # subsample posterior
-    n_to_sample = int(1e5)
-    df_rv_subsamp = df_rv.sample(n_to_sample)
-
-    # convert radvel posterior to orbitize basis
-    _, df_orb = compute_sep(
-        df_rv_subsamp, Time(np.array([0]), format='decimalyear'), 
-        'per tc secosw sesinw k', 1.07, 0.04, 31.757, 0.039, 1, pl_num=1
-    )
-
-    n_samples = len(df_orb['mp'].values)
-
-    # create an orbit model for which to calculate chi2
-    pm_ra_samples = np.random.normal(PlanetPi.pm_ra0, PlanetPi.pm_ra0_err, size=n_samples)
-    pm_dec_samples = np.random.normal(PlanetPi.pm_dec0, PlanetPi.pm_dec0_err, size=n_samples)
-    alpha_H0_samples = np.random.normal(0, 0.1, size=n_samples)
-    dec_H0_samples = np.random.normal(0, 0.1, size=n_samples)
-    mtot_samples = df_orb['m_st'].values + df_orb['mp'].values
-
-    samples = np.array([
-        pm_ra_samples, pm_dec_samples, alpha_H0_samples, dec_H0_samples, 
-        df_orb['plx'].values, df_orb['sma'].values, df_orb['ecc'].values,
-        df_orb['inc_rad'].values, df_orb['omega_pl_rad'].values, 
-        df_orb['lan_rad'].values, df_orb['tau_58849'].values, 
-        mtot_samples, df_orb['mp'].values
-    ])
-
-    # compute chi2
-    print('Computing lnprobs!')
-    logprobs = PlanetPi.compute_lnprob(samples)
-
-    # plot parameters for some best fitting orbits out of legacy posterior, as a sanity check
-    best_orbit_indices = logprobs.argsort()[-1000:]
-
-    fig, ax = plt.subplots(1, 5, figsize=(20, 5))
-
-    # semimajor axis
-    ax[0].hist(samples[5], bins=50, density=True, color='grey', alpha=0.5, label='Legacy')
-    ax[0].hist(
-        samples[5][best_orbit_indices], bins=50, density=True, color='red', 
-        histtype='step', label='best fits incl. Hip IAD'
-    )
-    ax[0].set_xlabel('sma [au]')
-    ax[0].legend()
-
-    # parallax
-    ax[1].hist(samples[4], bins=50, density=True, color='grey', alpha=0.5)
-    ax[1].hist(
-        samples[4][best_orbit_indices], bins=50, density=True, color='red', 
-        histtype='step'
-    )
-    ax[1].set_xlabel('$\pi$ [mas]')
-
-    # ecc
-    ax[2].hist(samples[6], bins=50, density=True, color='grey', alpha=0.5)
-    ax[2].hist(
-        samples[6][best_orbit_indices], bins=50, density=True, color='red', 
-        histtype='step'
-    )
-    ax[2].set_xlabel('ecc')
-
-    # pm_RA
-    ax[3].hist(samples[0], bins=50, density=True, color='grey', alpha=0.5)
-    ax[3].hist(
-        samples[0][best_orbit_indices], bins=50, density=True, color='red', 
-        histtype='step'
-    )
-    ax[3].set_xlabel('$\\mu_{{\\alpha}}$ [mas/yr]')
-
-    # ra_H0
-    ax[4].hist(samples[3], bins=50, density=True, color='grey', alpha=0.5)
-    ax[4].hist(
-        samples[3][best_orbit_indices], bins=50, density=True, color='red', 
-        histtype='step'
-    )
-    ax[4].set_xlabel('$\\alpha_{{\\rm H0}}$ [mas]')
-
-    plt.savefig('planetpi_test.png', dpi=250)
+        return lnlike
