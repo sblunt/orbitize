@@ -35,8 +35,8 @@ betaPic_system = system.System(
 betaPic_system.sys_priors[-1] = priors.UniformPrior(1.5, 2.0)
 
 # run MCMC
-betaPic_sampler = sampler.MCMC(betaPic_system, num_threads=1, num_temps=10, num_walkers=100)
-betaPic_sampler.run_sampler(500, burn_steps=0)
+betaPic_sampler = sampler.MCMC(betaPic_system, num_threads=20, num_temps=20, num_walkers=1000)
+betaPic_sampler.run_sampler(50000000, burn_steps=10000, thin=10)
 
 # save chains
 betaPic_sampler.results.save_results('betaPic_IAD{}.hdf5'.format(fit_IAD))
