@@ -10,6 +10,7 @@ import orbitize
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
+import orbitize.system as system
 from orbitize.lnlike import chi2_lnlike
 from orbitize.kepler import calc_orbit
 import orbitize.system
@@ -84,8 +85,10 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
 
-
+sma_seppa = 0
+seppa_lnprob_compare = None
 def test_run_sampler():
+    global sma_seppa, seppa_lnprob_compare # use for covariances test
 
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
@@ -114,6 +117,8 @@ def test_run_sampler():
     computed_lnlike_test = s._logl(orbits[0])
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
+    seppa_lnprob_compare = (orbits[0], computed_lnlike_test) # one set of params and associated lnlike saved. 
+
     print()
     idx = s.system.param_idx
     sma = np.median([x[idx['sma1']] for x in orbits])
@@ -129,6 +134,8 @@ def test_run_sampler():
     assert sma == pytest.approx(sma_exp, abs=0.2*sma_exp)
     assert ecc == pytest.approx(ecc_exp, abs=0.2*ecc_exp)
     assert inc == pytest.approx(inc_exp, abs=0.2*inc_exp)
+
+    sma_seppa = sma # use for covarinaces test
 
     # test with only one core
     orbits = s.run_sampler(100, num_cores=1)
@@ -178,8 +185,74 @@ def test_OFTI_multiplanet():
     assert np.all(orbits[:, idx['ecc1']] < 0.1)
     assert np.all(orbits[:, idx['ecc2']] < 0.1)
 
+@pytest.hookimpl(trylast=True)
+def test_OFTI_covariances():
+    """
+    Test OFTI fits by turning sep/pa measurements to RA/Dec measurements with covariances
+
+    Needs to be run after test_run_sampler()!!
+    """
+    # only run if these variables are set. 
+    if sma_seppa == 0 or seppa_lnprob_compare is None:
+        print("Skipping OFTI covariances test because reference data not initalized. Please make sure test_run_sampler is run first.")
+        return
+
+    # read in seppa data table and turn into raddec data table
+    data_table = orbitize.read_input.read_file(input_file)
+    data_ra, data_dec = system.seppa2radec(data_table['quant1'], data_table['quant2'])
+    data_raerr, data_decerr, data_radeccorr = [], [], []
+
+    for row in data_table:
+        
+        raerr, decerr, radec_corr = system.transform_errors(row['quant1'], row['quant2'], 
+                                                            row['quant1_err'], row['quant2_err'],
+                                                            0, system.seppa2radec, nsamps=10000000)
+        data_raerr.append(raerr)
+        data_decerr.append(decerr)
+        data_radeccorr.append(radec_corr)
+
+    data_table['quant1'] = data_ra
+    data_table['quant2'] = data_dec
+    data_table['quant1_err'] = np.array(data_raerr)
+    data_table['quant2_err'] = np.array(data_decerr)
+    data_table['quant12_corr'] = np.array(data_radeccorr)
+    data_table['quant_type'] = np.array(['radec' for _ in data_table])
+
+    # initialize system
+    my_sys = system.System(1, data_table, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+    # initialize sampler
+    s = sampler.OFTI(my_sys)
+
+    # change eccentricity prior
+    my_sys.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
+
+    # test num_samples=1
+    s.run_sampler(0, num_samples=1)
+
+    # test to make sure outputs are reasonable
+    orbits = s.run_sampler(1000, num_cores=4)
+
+    # test that lnlikes being saved are correct
+    returned_lnlike_test = s.results.lnlike[0]
+    computed_lnlike_test = s._logl(orbits[0])
+    assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
+
+    # test that the lnlike is very similar to the values computed in seppa space
+    ref_params, ref_lnlike = seppa_lnprob_compare
+    computed_lnlike_ref = s._logl(ref_params)
+    assert ref_lnlike == pytest.approx(computed_lnlike_ref, abs=0.05) # 5% differencesin lnprob is allowable. 
+
+    idx = s.system.param_idx
+    sma = np.median([x[idx['sma1']] for x in orbits])
+    ecc = np.median([x[idx['ecc1']] for x in orbits])
+    inc = np.median([x[idx['inc1']] for x in orbits])
+
+    # test against seppa fits to see they are similar
+    assert sma_seppa == pytest.approx(sma, abs=0.2 * sma_seppa)
+
 
 if __name__ == "__main__":
+
     # test_scale_and_rotate()
     # test_run_sampler()
     test_OFTI_multiplanet()

@@ -496,16 +496,24 @@ class System(object):
             ra_err = self.data_table['quant1_err'][i]
             dec = self.data_table['quant2'][i]
             dec_err = self.data_table['quant2_err'][i]
+            radec_corr = self.data_table['quant12_corr'][i]
             # Convert to sep/PA
             sep, pa = radec2seppa(ra, dec)
-            sep_err = 0.5*(ra_err+dec_err)
-            pa_err = np.degrees(sep_err/sep)
+
+            if np.isnan(radec_corr): 
+                # E-Z
+                sep_err = 0.5*(ra_err+dec_err)
+                pa_err = np.degrees(sep_err/sep)
+                seppa_corr = np.nan
+            else:
+                sep_err, pa_err, seppa_corr = transform_errors(ra, dec, ra_err, dec_err, radec_corr, radec2seppa)
 
             # Update data_table
             self.data_table['quant1'][i] = sep
             self.data_table['quant1_err'][i] = sep_err
             self.data_table['quant2'][i] = pa
             self.data_table['quant2_err'][i] = pa_err
+            self.data_table['quant12_corr'][i] = seppa_corr
             self.data_table['quant_type'][i] = 'seppa'
             # Update self.radec and self.seppa arrays
             self.radec[body_num] = np.delete(
@@ -570,3 +578,34 @@ def seppa2radec(sep, pa):
     dec = sep * np.cos(np.radians(pa))
 
     return ra, dec
+
+
+def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=100000):
+    """
+    Transform errors and covariances from one basis to another using a Monte Carlo apporach
+
+    Args:
+        x1 (float): planet location in first coordinate (e.g., RA, sep) before transformation
+        x2 (float): planet location in the second coordinate (e.g., Dec, PA) before transformation)
+        x1_err (float): error in x1
+        x2_err (float): error in x2
+        x12_corr (float): correlation between x1 and x2
+        transform_func (function): function that transforms between (x1, x2) and (x1p, x2p) (the transformed coordinates)
+                                    The function signature should look like: `x1p, x2p = transform_func(x1, x2)`
+        nsamps (int): number of samples to draw more the Monte Carlo approach. More is slower but more accurate. 
+
+    Returns:
+        tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
+    """
+    # construct covariance matrix from the terms provided
+    cov = np.array([[x1_err**2, x1_err*x2_err*x12_corr], [x1_err*x2_err*x12_corr, x2_err**2]])
+
+    samps = np.random.multivariate_normal([x1, x2], cov, size=nsamps)
+
+    x1p, x2p = transform_func(samps[:,0], samps[:, 1])
+
+    x1p_err = np.std(x1p)
+    x2p_err = np.std(x2p)
+    x12_corr = np.corrcoef([x1p, x2p])[0,1]
+
+    return x1p_err, x2p_err, x12_corr

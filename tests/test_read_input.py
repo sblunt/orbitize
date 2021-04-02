@@ -131,9 +131,29 @@ def test_write_orbitize_input_2():
         # Remove temporary file
         os.remove(output_file)
 
+def test_cov_input():
+    """
+    Test including radec and seppa covariances/correlations.
+    """
+    testdir = orbitize.DATADIR
+    # Check that main test input is read in with correct values
+    input_file = os.path.join(testdir, 'test_val_cov.csv')
+    input_data = read_file(input_file)
+    _compare_table(input_data)
+    print(input_data)
+    # Check the covariance column
+    quant12_corr_truth = [0.25, np.nan, -0.5, np.nan]
+    assert 'quant12_corr' in input_data.columns
+    for row, truth in zip(input_data, quant12_corr_truth):
+        meas = row['quant12_corr']
+        if np.isnan(truth):
+            assert np.isnan(meas)
+        else:
+            assert truth == pytest.approx(meas)
 
 if __name__ == "__main__":
     test_read_file()
     test_read_formatted_file()
     test_write_orbitize_input()
     test_write_orbitize_input_2()
+    test_cov_input()

@@ -70,10 +70,19 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
-**1.14.0 (2021-02012)**
+**1.15.1 (2021-03-29)**
+
+- Fixed bug where users with Results objects from v<14.0 couldn't load using v>=14.0 (@semaphoreP, @wbalmer)
+- Fixed order of Axes objects in Advanced Plotting tutorial (@wbalmer, @sblunt)
+
+**1.15.0 (2021-02-23)**
+
+- Handle covariances in input astrometry (@semaphoreP)
+
+**1.14.0 (2021-02-12)**
 
 - Version number now saved in results object (@hgallamore)
-- Joint RV+astrometry fits can now handle different RV instruments! (@vighnesh-nagpal, @Rob685 @lhirsch238)
+- Joint RV+astrometry fits can now handle different RV instruments! (@vighnesh-nagpal, @Rob685, @lhirsch238)
 - New “FAQ” section added to docs (@semaphoreP)
 - Bugfix for multiplanet code (@semaphoreP) introduced in PR #192 
 - now you can pass a preexisting Figure object into ``results.plot_orbit`` (@sblunt)
