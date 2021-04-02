@@ -19,14 +19,14 @@ class Driver(object):
             Markov Chain Monte Carlo, "OFTI" for Orbits for the Impatient
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        system_mass (float): mean total mass of the system [M_sol]
+        stellar_mass (float): mass of the primary star [M_sol]
         plx (float): mean parallax of the system [mas]
-        mass_err (float, optional): uncertainty on ``system_mass`` [M_sol]
+        mass_err (float, optional): uncertainty on ``stellar_mass`` [M_sol]
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
         system_kwargs (dict, optional): ``restrict_angle_ranges``, ``ref_tau_epoch``,
-            ``results`` for ``orbitize.system.System``.
+            ``results``, ``fit_secondary_mass`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
 
@@ -34,7 +34,7 @@ class Driver(object):
     """
 
     def __init__(self, input_data, sampler_str,
-                 num_secondary_bodies, system_mass, plx,
+                 num_secondary_bodies, stellar_mass, plx,
                  mass_err=0, plx_err=0, lnlike='chi2_lnlike',
                  system_kwargs=None, mcmc_kwargs=None):
 
@@ -57,7 +57,7 @@ class Driver(object):
             raise Exception('Run Astrometry+RV in MCMC for now.')
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
-            num_secondary_bodies, data_table, system_mass,
+            num_secondary_bodies, data_table, stellar_mass,
             plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
         )
 
