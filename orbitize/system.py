@@ -393,6 +393,11 @@ class System(object):
                     ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
                     dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
 
+                    # star is perturbed in opposite direction
+                    if other_body_num == 0:
+                        ra_perturb[:, other_body_num, :] *= -1
+                        dec_perturb[:, other_body_num, :] *= -1
+
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
