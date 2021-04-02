@@ -44,4 +44,5 @@ You should test as much of your code as possible (ideally all of it). To check h
     - Update docs changelog (remember to give credit to contributors)
     - GitHub release
     - Upload new code to PyPi
+    - Check that new docs are being built
     
