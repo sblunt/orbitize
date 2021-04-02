@@ -180,7 +180,7 @@ def test_OFTI_multiplanet():
 
 
 if __name__ == "__main__":
-    test_scale_and_rotate()
-    test_run_sampler()
+    # test_scale_and_rotate()
+    # test_run_sampler()
     test_OFTI_multiplanet()
     print("Done!")
