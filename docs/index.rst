@@ -46,6 +46,7 @@ User Guide:
 
    installation
    tutorials
+   faq
    api
 
 Contributing:
