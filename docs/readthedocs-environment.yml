@@ -2,11 +2,11 @@ channels:
   - conda-forge
 dependencies:
   - python==3.8
-  - Sphinx==3.5.3
+  - sphinx>=3.5.3
   - numpy
   - pandoc
   - nbconvert
   - ipykernel
   - pip:
-    - nbsphinx
+    - nbsphinx==0.8.2
     - prompt-toolkit==2.0.1
