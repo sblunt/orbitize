@@ -151,9 +151,30 @@ def test_cov_input():
         else:
             assert truth == pytest.approx(meas)
 
+def test_read_old_orbitize_format():
+    """
+    Test the read_file function when using an old orbitize data file without `quant12_corr` and `instrument` fields. 
+    """
+    # Check that main test input is read in with correct values
+    input_file = os.path.join(orbitize.DATADIR, 'old_orbitize_format.csv')
+    input_data = read_file(input_file)
+    
+    # check correlation and instrument are defualts
+    assert np.isnan(input_data['quant12_corr'][0])
+    assert input_data['instrument'][0] == 'defsp'
+
+    assert np.isnan(input_data['quant12_corr'][1])
+    assert input_data['instrument'][1] == 'defrd'
+
+    assert np.isnan(input_data['quant12_corr'][2])
+    assert input_data['instrument'][2] == 'defrv'
+
+
+
 if __name__ == "__main__":
     test_read_file()
     test_read_formatted_file()
     test_write_orbitize_input()
     test_write_orbitize_input_2()
     test_cov_input()
+    test_read_old_orbitize_format()

@@ -201,6 +201,25 @@ def read_file(filename):
             else:
                 have_inst = np.zeros(num_measurements, dtype=bool)
 
+    # orbitize! backwards compatability since we added new columns, some old data formats may not have them
+    # fill in with default values
+    if orbitize_style:
+        if 'quant12_corr' not in input_table.keys():
+            default_corrs = np.nan * np.ones(len(input_table))
+            input_table.add_column(default_corrs, name="quant12_corr")
+        if 'instrument' not in input_table.keys():
+            default_insts = []
+            for this_quant_type in input_table['quant_type']:
+                if this_quant_type == "radec":
+                    default_insts.append("defrd")
+                elif this_quant_type == "seppa":
+                    default_insts.append("defsp")
+                elif this_quant_type == "rv":
+                    default_insts.append("defrv")
+                else:
+                    raise Exception("Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(this_quant_type))
+            input_table.add_column(default_insts, name="instrument")
+
     # loop through each row and format table
     for index, row in enumerate(input_table):
         # First check if epoch is a number
@@ -237,7 +256,7 @@ def read_file(filename):
                 output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'],
                                       row['quant2'], row['quant2_err'], quant12_corr, row['quant_type'], row['instrument']])
             else:  # catch wrong formats
-                raise Exception("Invalid 'quant_type'. Valid values are 'radec', 'seppa' or 'rv'")
+                raise Exception("Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(row['quant_type']))
 
         else:  # When not in orbitize style
 
