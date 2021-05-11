@@ -14,7 +14,7 @@ imaged planets. A detailed description of how τ is related to other quantities 
 .. toctree::
    :maxdepth: 1
 
-   faq/Time_Of_Periastron.ipynb
+   faq/Quick-Start.ipynb
 
 
 
