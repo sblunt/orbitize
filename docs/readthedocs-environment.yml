@@ -2,7 +2,7 @@ channels:
   - conda-forge
 dependencies:
   - python==3.8
-  - sphinx==3.5.3
+  - Sphinx==3.5.3
   - numpy
   - pandoc
   - nbconvert
