@@ -12,3 +12,4 @@ pytest
 pandas
 radvel
 pyerfa
+sphinx==3.5.3
