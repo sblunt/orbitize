@@ -1,6 +1,7 @@
 import numpy as np
-from orbitize import priors, read_input, kepler, hipparcos
-
+from orbitize import priors, read_input, kepler, conversions, hipparcos
+import astropy.units as u
+import astropy.constants as consts
 
 class System(object):
     """
@@ -52,7 +53,7 @@ class System(object):
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
-                 hipparcos_number=None, hipparcos_filename=None):
+                 hipparcos_number=None, fitting_basis='standard', hipparcos_filename=None):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -62,6 +63,7 @@ class System(object):
         self.tau_ref_epoch = tau_ref_epoch
         self.restrict_angle_ranges = restrict_angle_ranges
         self.hipparcos_number = hipparcos_number
+        self.fitting_basis = fitting_basis
 
         #
         # Group the data in some useful ways
@@ -157,30 +159,120 @@ class System(object):
         # Set priors for each orbital element
         #
 
-        for body in np.arange(num_secondary_bodies):
-            # Add semimajor axis prior
-            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
-            self.labels.append('sma{}'.format(body+1))
+        if fitting_basis == 'standard':
+            for body in np.arange(num_secondary_bodies):
+                # Add semimajor axis prior
+                self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
+                self.labels.append('sma{}'.format(body+1))
 
-            # Add eccentricity prior
-            self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('ecc{}'.format(body+1))
+                # Add eccentricity prior
+                self.sys_priors.append(priors.UniformPrior(0., 1.))
+                self.labels.append('ecc{}'.format(body+1))
 
-            # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior())
-            self.labels.append('inc{}'.format(body+1))
+                # Add inclination angle prior
+                self.sys_priors.append(priors.SinPrior())
+                # self.sys_priors.append(priors.UniformPrior(0., np.pi))# TEST TO COMPARE, CHANGE LATER
+                self.labels.append('inc{}'.format(body+1))
 
-            # Add argument of periastron prior
-            self.sys_priors.append(priors.UniformPrior(0., 2.*np.pi))
-            self.labels.append('aop{}'.format(body+1))
+                # Add argument of periastron prior
+                self.sys_priors.append(priors.UniformPrior(0., 2.*np.pi))
+                self.labels.append('aop{}'.format(body+1))
 
-            # Add position angle of nodes prior
-            self.sys_priors.append(priors.UniformPrior(0., angle_upperlim))
-            self.labels.append('pan{}'.format(body+1))
+                # Add position angle of nodes prior
+                self.sys_priors.append(priors.UniformPrior(0., angle_upperlim))
+                self.labels.append('pan{}'.format(body+1))
 
-            # Add epoch of periastron prior.
-            self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('tau{}'.format(body+1))
+                # Add epoch of periastron prior.
+                self.sys_priors.append(priors.UniformPrior(0., 1.))
+                self.labels.append('tau{}'.format(body+1))
+
+        elif fitting_basis == 'XYZ':
+            # Test idea with ra/dec only for now: priors on x and y
+            epochs = self.data_table['epoch']
+            for body in np.arange(num_secondary_bodies):
+                
+                # Get the epoch with the least uncertainty
+                curr_idx = self.body_indices[body_num]
+                radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
+                min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))[0]
+                best_idx = curr_idx[0][min_uncert[0]]
+                best_epochs = epochs[best_idx:(best_idx+3)] # 0 is best, the others are for fitting velocity
+
+                # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY
+                best_ras = self.data_table['quant1'][best_idx:(best_idx+3)]
+                best_ras_err = self.data_table['quant1_err'][best_idx:(best_idx+3)]
+                best_decs =self.data_table['quant2'][best_idx:(best_idx+3)]
+                best_decs_err = self.data_table['quant2_err'][best_idx:(best_idx+3)]
+
+                # Convert to AU for prior limits
+                best_xs = best_ras / plx 
+                best_ys = best_decs / plx 
+                best_xs_err = np.sqrt((best_ras_err / best_ras)**2 + (plx_err / plx)**2)*np.absolute(best_xs)
+                best_ys_err = np.sqrt((best_decs_err / best_decs)**2 + (plx_err / plx)**2)*np.absolute(best_ys)
+
+                # Least-squares fit on velocity for prior limits
+                A = np.vander(best_epochs, 2)
+
+                ATA_x = np.dot(A.T, A / (best_xs_err ** 2)[:, None])
+                cov_x = np.linalg.inv(ATA_x)
+                w_x = np.linalg.solve(ATA_x, np.dot(A.T, best_xs / best_xs_err ** 2))
+
+                ATA_y = np.dot(A.T, A / (best_ys_err ** 2)[:, None])
+                cov_y = np.linalg.inv(ATA_y)
+                w_y = np.linalg.solve(ATA_y, np.dot(A.T, best_ys / best_ys_err ** 2))
+
+                x_vel = w_x[0]
+                x_vel_err = np.sqrt(cov_x[0, 0])
+                y_vel = w_y[0]
+                y_vel_err = np.sqrt(cov_y[0, 0])
+
+                x_vel = (( x_vel* u.AU / u.day).to(u.km / u.s)).value
+                x_vel_err = ((x_vel_err * u.AU / u.day).to(u.km / u.s)).value
+                y_vel = ((y_vel * u.AU / u.day).to(u.km / u.s)).value
+                y_vel_err = ((y_vel_err * u.AU / u.day).to(u.km / u.s)).value
+
+                # Propose bounds on absolute Z and Z dot given the energy equation
+                mu = consts.G * stellar_mass * u.Msun
+
+                mu_vel = 2 * mu / ((x_vel**2 + y_vel**2) * (u.km / u.s * u.km / u.s))
+                z_bound = (np.sqrt(mu_vel**2 - (best_xs[0]**2 + best_ys[0]**2)*u.AU *u.AU)).to(u.AU)
+                z_bound = z_bound.value
+
+                mu_pos = 2 * mu / np.sqrt((best_xs[0]**2 + best_ys[0]**2) * (u.AU *u.AU))
+                z_vel_bound = (np.sqrt(mu_pos - (x_vel**2 + y_vel**2)*(u.km / u.s * u.km / u.s))).to(u.km / u.s)
+                z_vel_bound = z_vel_bound.value
+
+                # Add x-coordinate prior
+                num_uncerts_x = 5
+                self.sys_priors.append(priors.UniformPrior(best_xs[0] - num_uncerts_x*best_xs_err[0], best_xs[0] + num_uncerts_x*best_xs_err[0]))
+                self.labels.append('x{}'.format(body+1))
+                
+                # Add y-coordinate prior
+                num_uncerts_y = 5
+                self.sys_priors.append(priors.UniformPrior(best_ys[0] - num_uncerts_y*best_ys_err[0], best_ys[0] + num_uncerts_y*best_ys_err[0]))
+                self.labels.append('y{}'.format(body+1))
+
+                # Add z-coordinate prior
+                # self.sys_priors.append(priors.UniformPrior(-z_bound,z_bound))
+                # self.sys_priors.append(priors.LogUniformPrior(0.0001,z_bound))
+                self.sys_priors.append(priors.GaussianPrior(0.,z_bound / 4, no_negatives=False))
+                self.labels.append('z{}'.format(body+1))
+
+                # Add x-velocity prior
+                num_uncerts_xvel = 5
+                self.sys_priors.append(priors.UniformPrior(x_vel - num_uncerts_xvel*x_vel_err, x_vel + num_uncerts_xvel*x_vel_err))
+                self.labels.append('xdot{}'.format(body+1))
+
+                # Add y-velocity prior
+                num_uncerts_yvel = 5
+                self.sys_priors.append(priors.UniformPrior(y_vel - num_uncerts_yvel*y_vel_err, y_vel + num_uncerts_yvel*y_vel_err))
+                self.labels.append('ydot{}'.format(body+1))
+
+                # Add z-velocity prior
+                # self.sys_priors.append(priors.UniformPrior(-z_vel_bound,z_vel_bound))
+                # self.sys_priors.append(priors.LogUniformPrior(0.0001,z_vel_bound))
+                self.sys_priors.append(priors.GaussianPrior(0.,z_vel_bound / 4, no_negatives=False))
+                self.labels.append('zdot{}'.format(body+1))
 
         #
         # Set priors on total mass and parallax
@@ -224,6 +316,7 @@ class System(object):
 
         # checking for rv data to include appropriate rv priors:
         if len(self.rv[0]) > 0 and self.fit_secondary_mass:
+         
             # for instrument in rv_instruments:
                 # add gamma and sigma for each and label each unique gamma and sigma per instrument name (gamma+instrument1, ...)
             for instrument in self.rv_instruments:
@@ -275,7 +368,7 @@ class System(object):
 
         if epochs is None:
             epochs = self.data_table['epoch']
-        
+
         n_epochs = len(epochs)
 
         if len(params_arr.shape) == 1:
@@ -301,12 +394,32 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             startindex = 6 * (body_num - 1)
-            sma = params_arr[startindex]
-            ecc = params_arr[startindex + 1]
-            inc = params_arr[startindex + 2]
-            argp = params_arr[startindex + 3]
-            lan = params_arr[startindex + 4]
-            tau = params_arr[startindex + 5]
+            if self.fitting_basis == 'standard':
+
+                sma = params_arr[startindex]
+                ecc = params_arr[startindex + 1]
+                inc = params_arr[startindex + 2]
+                argp = params_arr[startindex + 3]
+                lan = params_arr[startindex + 4]
+                tau = params_arr[startindex + 5]
+            
+            elif self.fitting_basis == 'XYZ':
+                
+                curr_idx = self.body_indices[body_num]
+                radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
+                min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))
+                constrained_epoch = epochs[min_uncert[0][0]]
+
+                to_convert = np.array([*params_arr[startindex:(startindex+6)],params_arr[6 * self.num_secondary_bodies],params_arr[-1]])
+                standard_params = conversions.xyz_to_standard(constrained_epoch, to_convert)
+
+                sma = standard_params[0] 
+                ecc = standard_params[1]
+                inc = standard_params[2]
+                argp = standard_params[3]
+                lan = standard_params[4]
+                tau = standard_params[5]
+
             plx = params_arr[6 * self.num_secondary_bodies]
 
             if self.fit_secondary_mass:
@@ -385,14 +498,14 @@ class System(object):
                     which_perturb_bodies = np.arange(self.num_secondary_bodies+1)
 
                 for other_body_num in which_perturb_bodies:
-                    # skip itself & skip the star since the the 2-body problem is measuring the planet-star separation already
+                    # skip itself since the the 2-body problem is measuring the planet-star separation already
                     if (body_num == other_body_num) | (body_num == 0):
                         continue
-                    
-                    ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
-                    ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
-                    dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
 
+                    ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
+                    ra_perturb[:, other_body_num, :] += (masses[other_body_num]/mtots[other_body_num]) * ra_kepler[:, body_num, :]
+                    dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+                    
                     # star is perturbed in opposite direction
                     if other_body_num == 0:
                         ra_perturb[:, other_body_num, :] *= -1
@@ -401,8 +514,18 @@ class System(object):
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
+        if self.fitting_basis == 'XYZ':
+            # To filter out unbound orbits
+            if ((ecc >= 1.) | (ecc < 0.)):
+                raoff[:,:,:] = np.inf
+                deoff[:,:,:] = np.inf 
+                vz[:,:,:] = np.inf
+                return raoff, deoff, vz
+            else: 
+                return raoff, deoff, vz 
+        elif self.fitting_basis == 'standard':
+            return raoff, deoff, vz
 
-        return raoff, deoff, vz
 
     def compute_model(self, params_arr):
         """
@@ -431,7 +554,6 @@ class System(object):
             n_orbits = params_arr.shape[1]
 
         n_epochs = len(self.data_table)
-
         model = np.zeros((n_epochs, 2, n_orbits))
         jitter = np.zeros((n_epochs, 2, n_orbits))
         gamma = np.zeros((n_epochs, 2, n_orbits))
@@ -583,8 +705,8 @@ def seppa2radec(sep, pa):
 def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=100000):
     """
     Transform errors and covariances from one basis to another using a Monte Carlo apporach
-
-    Args:
+    
+   Args:
         x1 (float): planet location in first coordinate (e.g., RA, sep) before transformation
         x2 (float): planet location in the second coordinate (e.g., Dec, PA) before transformation)
         x1_err (float): error in x1
@@ -593,7 +715,6 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
         transform_func (function): function that transforms between (x1, x2) and (x1p, x2p) (the transformed coordinates)
                                     The function signature should look like: `x1p, x2p = transform_func(x1, x2)`
         nsamps (int): number of samples to draw more the Monte Carlo approach. More is slower but more accurate. 
-
     Returns:
         tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
     """
