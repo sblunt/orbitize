@@ -38,6 +38,9 @@ class Sampler(abc.ABC):
 
         self.custom_lnlike = custom_lnlike
 
+        # check if need to handle covariances
+        self.has_corr = np.any(~np.isnan(self.system.data_table['quant12_corr']))
+
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
         pass
@@ -68,22 +71,37 @@ class Sampler(abc.ABC):
         # errors below required for lnlike function below
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
+        # covariances/correlations, if applicable
+        # we're doing this check now because the likelihood computation is much faster if we can skip it.
+        if self.has_corr:
+            corrs = self.system.data_table['quant12_corr']
+        else:
+            corrs = None
 
         # grab all seppa indices
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
-        lnlikes = self.lnlike(data, errs, model, jitter, seppa_indices)
-        # print("LN LIKES IS ", np.where(lnlikes == np.inf))
+        lnlikes = self.lnlike(data, errs, corrs, model, jitter, seppa_indices)
+
         # return sum of lnlikes (aka product of likeliehoods)
         lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
 
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
         
-        if hipparcos:
-            pass
-            # TODO: compute model, feed to Hipparcos compute_lnprob and add to lnlikes sum!
+
+        if self.system.hipparcos_number is not None:
+
+            # compute Ra/Dec predictions at the Hipparcos IAD epochs
+            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+                params, epochs=self.system.hipparcos_IAD.epochs_mjd
+            ) 
+
+            # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
+            lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
+                raoff_model[:,0,:], deoff_model[:,0,:], params
+            )
 
         return lnlikes_sum
 
@@ -300,9 +318,16 @@ class OFTI(Sampler,):
 
         """
         lnp = self._logl(samples)
+
+        # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array([self.system.data_table['quant1_err'],
                          self.system.data_table['quant2_err']]).T
-        lnp_scaled = lnp + np.sum(np.log(np.sqrt(2*np.pi*errs**2)))
+
+        if self.has_corr:
+            corrs = self.system.data_table['quant12_corr']
+        else:
+            corrs = None
+        lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
@@ -665,22 +690,9 @@ class MCMC(Sampler):
             self.post = sampler.chain[:, :num_steps].reshape(-1, num_params)
             self.lnlikes = sampler.lnprobability[:, :num_steps].flatten()
 
-            # nans = np.where(np.isnan(self.lnlikes))[0]
-            # print('in lnlikes num nans is ', np.sum(nans))
-
-            # # notinf = np.where(np.isfinite(self.lnlikes))[0]
-            # print('in lnlikes num not nans is ', len(self.lnlikes) - np.sum(nans))
-
-            # notinfs = np.where(np.isfinite(self.lnlikes))[0]
-            # print('in lnlikes num finites is ', np.sum(notinfs))
-
-            # print('in lnlikes num infs is ', len(self.lnlikes) - np.sum(notinfs))
-            
             # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
             for i, orb in enumerate(self.post):
                 self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
-                # infs2 = np.where(np.isinf(orbitize.priors.all_lnpriors(orb, self.priors)))[0]
-                # print('in lnprior num infs is ', np.sum(infs2))
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)

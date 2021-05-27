@@ -1,3 +1,8 @@
+# Added by orbitize! Developers
+orbitize/example_data/rebound*.csv
+orbitize/example_data/*test.hdf5
+*.vscode
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -117,3 +122,4 @@ build.sh
 !docs/orbitize_logo_500.png
 .vscode/settings.json
 tests/test_results.h5
+tests/multiplanet*test.csv

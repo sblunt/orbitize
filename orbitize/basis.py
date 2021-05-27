@@ -1,45 +1,61 @@
 import numpy as np
 import astropy.units as u
 
+import warnings # remove when functions are depreciated
+
 def tau_to_t0(tau, ref_epoch, period, after_date=None):
     """
+    DEPRECATING!! Repalced by tau_to_tp
+    """
+    warnings.warn('DEPRECATION: tau_to_t0 is being deprecated in the next orbitize! release. Please use tau_to_tp instead!', FutureWarning)
+    return tau_to_tp(tau, ref_epoch, period, after_date=after_date)
+
+def t0_to_tau(tp, ref_epoch, period):
+    """
+    DEPRECATING!! Repalced by tp_to_tau
+    """
+    warnings.warn('DEPRECATION: t0_to_tau is being deprecated in the next orbitize! release. Please use t0_to_tau instead!', FutureWarning)
+    return tp_to_tau(tp, ref_epoch, period)
+
+def tau_to_tp(tau, ref_epoch, period, after_date=None):
+    """
     Convert tau (epoch of periastron in fractional orbital period after ref epoch) to
-    T0 (date in days, usually MJD, but works with whatever system ref_epoch is given in)
+    t_p (date in days, usually MJD, but works with whatever system ref_epoch is given in)
 
     Args:
         tau (float or np.array): value of tau to convert
         ref_epoch (float or np.array): date (in days, typically MJD) that tau is defined relative to
         period (float or np.array): period (in years) that tau is noralized with
-        after_date (float): T0 will be the first periastron after this date. If None, use ref_epoch.
+        after_date (float): tp will be the first periastron after this date. If None, use ref_epoch.
 
     Returns:
-        t0 (float or np.array): corresponding T0 of the taus
+        tp (float or np.array): corresponding t_p of the taus
     """
     period_days = period * u.year.to(u.day)
 
-    t0 = tau * (period_days) + ref_epoch
+    tp = tau * (period_days) + ref_epoch
 
     if after_date is not None:
-        num_periods = (after_date - t0)/period_days
+        num_periods = (after_date - tp)/period_days
         num_periods = int(np.ceil(num_periods))
         
-        t0 += num_periods * period_days
+        tp += num_periods * period_days
 
-    return t0
+    return tp
 
-def t0_to_tau(t0, ref_epoch, period):
+def tp_to_tau(tp, ref_epoch, period):
     """
-    Convert T0 to tau
+    Convert t_p to tau
 
     Args:
-        t0 (float or np.array): value to T0 to convert (days, typically MJD)
-        ref_epoch (float or np.array): reference epoch (in days) that tau is defined from. Same system as t0 (e.g., MJD)
+        tp (float or np.array): value to t_p to convert (days, typically MJD)
+        ref_epoch (float or np.array): reference epoch (in days) that tau is defined from. Same system as tp (e.g., MJD)
         period (float or np.array): period (in years) that tau is defined by
 
     Returns:
         tau (float or np.array): corresponding taus
     """
-    tau = (t0 - ref_epoch)/(period * u.year.to(u.day))
+    tau = (tp - ref_epoch)/(period * u.year.to(u.day))
     tau %= 1
 
     return tau
@@ -59,8 +75,8 @@ def switch_tau_epoch(old_tau, old_epoch, new_epoch, period):
     """
     period_days = period * u.year.to(u.day)
 
-    t0 = tau_to_t0(old_tau, old_epoch, period)
-    new_tau = t0_to_tau(t0, new_epoch, period)
+    tp = tau_to_tp(old_tau, old_epoch, period)
+    new_tau = tp_to_tau(tp, new_epoch, period)
 
     return new_tau
 

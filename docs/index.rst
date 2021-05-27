@@ -46,6 +46,7 @@ User Guide:
 
    installation
    tutorials
+   faq
    api
 
 Contributing:
@@ -57,14 +58,66 @@ look over our `issues list <https://github.com/sblunt/orbitize/issues>`_, and/or
 `Sarah <https://sites.google.com/g.harvard.edu/sarah/contact?authuser=0>`_. We'd love to have
 you on our team!
 
+Members of our team have collectively drafted `this community agreement <https://docs.google.com/document/d/1ZzjkoB20vVTlg2wbNpS7sRjmcSrECdh8kQ11-waZQhw/edit>`_ stating both our values and ground rules. 
+In joining our team, we ask that you read and (optionally) suggest changes to this document. 
+
+
 **Some major planned updates:**
 
-- fit orbits of multiple objects in one system
-- fit Gaia astrometry & RVs
+- fit Gaia astrometry
 - marginalize over instrumental uncertainties
 
 Changelog:
 ++++++++++
+
+**1.15.1 (2021-03-29)**
+
+- Fixed bug where users with Results objects from v<14.0 couldn't load using v>=14.0 (@semaphoreP, @wbalmer)
+- Fixed order of Axes objects in Advanced Plotting tutorial (@wbalmer, @sblunt)
+
+**1.15.0 (2021-02-23)**
+
+- Handle covariances in input astrometry (@semaphoreP)
+
+**1.14.0 (2021-02-12)**
+
+- Version number now saved in results object (@hgallamore)
+- Joint RV+astrometry fits can now handle different RV instruments! (@vighnesh-nagpal, @Rob685, @lhirsch238)
+- New “FAQ” section added to docs (@semaphoreP)
+- Bugfix for multiplanet code (@semaphoreP) introduced in PR #192 
+- now you can pass a preexisting Figure object into ``results.plot_orbit`` (@sblunt)
+- colorbar label is now "Epoch [year]" (@sblunt)
+- corner plot maker can now handle fixed parameters without crashing (@sblunt)
+
+**1.13.1 (2021-01-25)**
+
+- ``compute_sep`` in ``radvel_utils`` submodule now returns ``mp`` (@sblunt)
+- ``astropy._erfa`` was deprecated (now in separate package). Dependencies updated. (@sblunt)
+
+**1.13.0 (2020-11-8)**
+
+- Added ``radvel-utils`` submodule which allows users to calculate projected separation posteriors given RadVel chains (@sblunt)
+- Fixed a total mass/primary mass mixup bug that was causing problems for equal-mass binary RV+astrometry joint fits (@sblunt)
+- Bugfix for multiplanet perturbation approximation: now only account for inner planets only when computing perturbations (@semaphoreP)
+
+**1.12.1 (2020-9-6)**
+
+- ``tau_ref_epoch`` is now set to Jan 1, 2020 throughout the code (@semaphoreP)
+- ``restrict_angle_ranges`` keyword now works as expected for OFTI (@sblunt)
+
+**1.12.0 (2020-8-28)**
+
+- Compatibility with ``emcee>=3`` (@sblunt)
+
+**1.11.3 (2020-8-20)**
+
+- Save results section of OFTI tutorial now current (@rferrerc)
+- Modifying MCMC initial positions tutorial documentation now uses correct orbital elements (@rferrerc)
+
+**1.11.2 (2020-8-10)**
+
+- Added transparency option for plotting MCMC chains (@sofiacovarrubias)
+- Removed some redundant code (@MissingBrainException)
 
 **1.11.1 (2020-6-11)**
 
