@@ -316,7 +316,7 @@ class Results(object):
             index_num = np.where(np.array(self.labels) == param)[0][0]
 
             # only plot non-fixed parameters
-            if np.std(self.post[:, i]) > 0:
+            if np.std(self.post[:, index_num]) > 0:
                 param_indices.append(index_num)
                 label_key = param
                 if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
@@ -325,9 +325,9 @@ class Results(object):
                     secondary_mass_indices.append(i)
 
 
-        samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
+        samples = np.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
-            self.post[:, angle_indices])  # convert angles from rad to deg
+            samples[:, angle_indices])  # convert angles from rad to deg
         samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions
 
         if 'labels' not in corner_kwargs:  # use default labels if user didn't already supply them
