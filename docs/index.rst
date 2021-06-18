@@ -70,6 +70,10 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
+**1.14.4 (2021-06-18)**
+
+- Bugfix for issue #234 (@semaphoreP, @adj-smith)
+
 **1.13.3 (2021-06-07)**
 
 - Add codeastro mode to pytest that prints out a SECRET CODE if tests pass omgomg (@semaphoreP)
