@@ -28,6 +28,7 @@ def test_compute_model():
 
     params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 10])
     model, jitter = testSystem_parsing.compute_model(params_arr)
+
     assert model.shape == (4, 2)
 
 
@@ -83,36 +84,6 @@ def test_systeminit():
     ]
 
 
-def test_chi2lnlike():
-    """
-    Test the ability of ``orbitize.lnlike.chi2_lnlike()``
-    to work properly on arrays.
-    """
-    # test with a single model
-    model = np.zeros((3, 2))
-    jitter = np.zeros((3, 2))
-    data = np.ones((3, 2))
-    errors = np.ones((3, 2))
-
-    seppa_indices = [np.array([1])]
-
-    chi2 = lnlike.chi2_lnlike(data, errors, model, jitter, seppa_indices)
-    assert chi2.shape == (3, 2)
-    assert (chi2 == -0.5 * np.ones((3, 2)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2))))).all()
-
-    # test with multiple models
-    model = np.zeros((3, 2, 5))
-    jitter = np.zeros((3, 2, 5))
-    data = np.ones((3, 2))
-    errors = np.ones((3, 2))
-
-    seppa_indices = [np.array([1])]
-
-    chi2 = lnlike.chi2_lnlike(data, errors, model, jitter, seppa_indices)
-    assert chi2.shape == (3, 2, 5)
-    assert (chi2 == -0.5 * np.ones((3, 2, 5)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2, 5))))).all()
-
-
 def test_custom_likelihood():
     """
     Tests the inclusion of a custom likelihood function in the code
@@ -156,4 +127,8 @@ def test_radec2seppa():
 
 
 if __name__ == "__main__":
+    test_compute_model()
+    test_systeminit()
+    test_chi2lnlike()
     test_custom_likelihood()
+    test_radec2seppa()

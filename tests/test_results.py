@@ -1,8 +1,8 @@
 """
 Test the routines in the orbitize.Results module
 """
-# Based on driver.py
 
+import orbitize
 from orbitize import results
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,10 +54,14 @@ def test_init_and_add_samples():
     Tests object creation and add_samples() with some simulated posterior samples
     Returns results.Results object
     """
+
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data = orbitize.read_input.read_file(input_file)
+
     # Create object
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1
+        labels=std_labels, num_secondary_bodies=1, data=data
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -83,9 +87,13 @@ def test_init_and_add_samples():
 
 @pytest.fixture()
 def results_to_test():
+
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data = orbitize.read_input.read_file(input_file)
+
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1
+        labels=std_labels, num_secondary_bodies=1, data=data
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -120,6 +128,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     loaded_results.load_results(save_filename, append=False)
     # Check if loaded results equal saved results
     assert results_to_save.sampler_name == loaded_results.sampler_name
+    assert results_to_save.version_number == loaded_results.version_number
     assert np.array_equal(results_to_save.post, loaded_results.post)
     if has_lnlike:
         assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
@@ -149,7 +158,16 @@ def test_plot_corner(results_to_test):
     assert Figure1 is not None
     Figure2 = results_to_test.plot_corner(param_list=['sma1', 'ecc1', 'inc1', 'mtot'])
     assert Figure2 is not None
-    return Figure1, Figure2
+
+    mass_vals = results_to_test.post[:,-1].copy()
+
+    # test that fixing parameters doesn't crash corner plot code
+    results_to_test.post[:,-1] = np.ones(len(results_to_test.post[:,-1]))
+    Figure3 = results_to_test.plot_corner()
+
+    results_to_test.post[:,-1] = mass_vals
+
+    return Figure1, Figure2, Figure3
 
 
 def test_plot_orbits(results_to_test):
@@ -175,16 +193,21 @@ def test_plot_orbits(results_to_test):
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
+    
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
     test_save_and_load_results(test_results, has_lnlike=False)
-    test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
+    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     test_corner_fig1.savefig('test_corner1.png')
     test_corner_fig2.savefig('test_corner2.png')
+    test_corner_fig3.savefig('test_corner3.png')
     test_orbit_figs[0].savefig('test_orbit1.png')
     test_orbit_figs[1].savefig('test_orbit2.png')
     test_orbit_figs[2].savefig('test_orbit3.png')
     test_orbit_figs[3].savefig('test_orbit4.png')
     test_orbit_figs[4].savefig('test_orbit5.png')
+
+    # clean up
+    os.system('rm test_*.png')
