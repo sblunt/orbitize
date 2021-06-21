@@ -1,23 +1,28 @@
+from plistlib import Data
 import numpy as np
 import warnings
 import h5py
 import copy
+import pdb
 
 import astropy.units as u
 import astropy.constants as consts
 from astropy.io import fits
 from astropy.time import Time
-from astropy._erfa.core import ErfaWarning
+from erfa import ErfaWarning
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
+import pandas as pd
 
 import corner
+import pdb
 
 import orbitize.kepler as kepler
 import orbitize.system
+
 
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
@@ -41,7 +46,10 @@ class Results(object):
             the orbits described in ``post`` (default: None).
         tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
         labels (list of str): parameter labels in same order as `post`
+        data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
         num_secondary_bodies (int): number of companions fit 
+        curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
+            that is used for restarting a MCMC sampler. 
 
     The ``post`` array is in the following order::
 
@@ -58,26 +66,34 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-                 num_secondary_bodies=None):
+                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='standard', xyz_epochs=None):
 
         self.sampler_name = sampler_name
         self.post = post
         self.lnlike = lnlike
         self.tau_ref_epoch = tau_ref_epoch
-        self.labels = labels
+        self.data=data
+        self.labels=labels
         self.num_secondary_bodies=num_secondary_bodies
+        self.curr_pos = curr_pos
+        self.version_number = version_number
+        self.fitting_basis = fitting_basis
+        self.xyz_epochs = xyz_epochs
 
-    def add_samples(self, orbital_params, lnlikes, labels):
+    def add_samples(self, orbital_params, lnlikes, labels, curr_pos=None):
         """
-        Add accepted orbits and their likelihoods to the results
+        Add accepted orbits, their likelihoods, and the orbitize version number to the results
 
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) to results
             lnlike (np.array): add corresponding lnlike values to results
             labels (list of str): list of parameter labels specifying the order in ``orbital_params``
+            curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
 
         Written: Henry Ngo, 2018
         """
+        # Adding the orbitize version number to the results
+        self.version_number = orbitize.__version__
         # If no exisiting results then it is easy
         if self.post is None:
             self.post = orbital_params
@@ -88,11 +104,20 @@ class Results(object):
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
 
+        if curr_pos is not None:
+            self.curr_pos = curr_pos
+
     def _set_sampler_name(self, sampler_name):
         """
         internal method to set object's sampler_name attribute
         """
         self.sampler_name = sampler_name
+
+    def _set_version_number(self, version_number):
+        """
+        internal method to set object's version_number attribute
+        """
+        self.version_number = version_number
 
     def save_results(self, filename):
         """
@@ -103,18 +128,24 @@ class Results(object):
 
         Save attributes from the ``results.Results`` object.
 
-        ``sampler_name``, ``tau_ref_epcoh`` are attributes of the root group.
+        ``sampler_name``, ``tau_ref_epcoh``, ``version_number`` are attributes of the root group.
         ``post``, ``lnlike``, and ``parameter_labels`` are datasets
         that are members of the root group.
 
         Written: Henry Ngo, 2018
         """
+
         hf = h5py.File(filename, 'w')  # Creates h5py file object
         # Add sampler_name as attribute of the root group
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
+        hf.attrs['version_number'] = self.version_number
+        hf.attrs['fitting_basis'] = self.fitting_basis
+        if self.fitting_basis == 'XYZ':
+            hf.create_dataset('xyz_epochs', data= self.xyz_epochs)
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
+        hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
@@ -122,6 +153,8 @@ class Results(object):
         hf.attrs['parameter_labels'] = self.labels  # Rob: added this to account for the RV labels
         if self.num_secondary_bodies is not None:
             hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
+        if self.curr_pos is not None:
+            hf.create_dataset("curr_pos", data=self.curr_pos)
 
         hf.close()  # Closes file object, which writes file to disk
 
@@ -142,8 +175,11 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = np.str(hf.attrs['sampler_name'])
+        version_number = np.str(hf.attrs['version_number'])
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
+        data=np.array(hf.get('data'))
+        self.data=data
 
         # get the tau reference epoch
         try:
@@ -152,7 +188,7 @@ class Results(object):
             # probably a old results file when reference epoch was fixed at MJD = 0
             tau_ref_epoch = 0
         try:
-            labels = hf.attrs['parameter_labels']
+            labels = np.array([hf.attrs['parameter_labels']])[0]
         except KeyError:
             # again, probably an old file without saved parameter labels
             # old files only fit single planets
@@ -162,9 +198,29 @@ class Results(object):
         except KeyError:
             # old, has to be single planet fit
             num_secondary_bodies = 1
+        try:
+            curr_pos = np.array(hf.get('curr_pos'))
+        except KeyError:
+            curr_pos = None
+
+        try:
+            fitting_basis = np.str(hf.attrs['fitting_basis'])
+        except KeyError:
+            # if key does not exist, then it was fit in the standard basis
+            fitting_basis == 'standard'
+        try:
+            xyz_epochs = np.array(hf.get('xyz_epochs'))
+        except KeyError:
+            # if KeyError, this was not fit in xyz
+            xyz_epochs = None
 
         hf.close()  # Closes file object
 
+        # doesn't matter if append or not. Overwrite curr_pos if not None
+        if curr_pos is not None:
+            self.curr_pos = curr_pos
+
+        # TODO: Check if this part is consistent with xyz_epoch
         # Adds loaded data to object as per append keyword
         if append:
             # if no sampler_name set, use the input file's value
@@ -174,6 +230,13 @@ class Results(object):
             elif self.sampler_name != sampler_name:
                 raise Exception(
                     'Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+            # if no version_number set, use the input file's value
+            if self.version_number is None:
+                self._set_version_number(version_number)
+            # otherwise only proceed if the version_numbers match
+            elif self.version_number != version_number:
+                raise Exception(
+                    'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
             # if no tau reference epoch is set, use input file's value
             if self.tau_ref_epoch is None:
                 self.tau_ref_epoch = tau_ref_epoch
@@ -196,12 +259,15 @@ class Results(object):
             self.add_samples(post, lnlike, self.labels)
         else:
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None:
+            if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None and self.version_number is None:
                 self._set_sampler_name(sampler_name)
+                self._set_version_number(version_number)
                 self.add_samples(post, lnlike, self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
                 self.labels = labels
                 self.num_secondary_bodies = num_secondary_bodies
+                self.fitting_basis = fitting_basis
+                self.xyz_epochs = xyz_epochs
             else:
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
@@ -250,26 +316,31 @@ class Results(object):
             'pan': '$\\Omega$ [$^\\circ$]',
             'tau': '$\\tau$',
             'plx': '$\\pi$ [mas]',
-            'gam': '$\\gamma$ [m/s]',
-            'sig': '$\\sigma$ [m/s]',
-            'mtot': '$M_T$ [M$_\\odot$]',
-            'm0': '$M_0$ [M$_\\odot$]',
+            'gam': '$\\gamma$ [km/s]',
+            'sig': '$\\sigma$ [km/s]',
+            'mtot': '$M_T$ [M$_{{\\odot}}$]',
+            'm0': '$M_0$ [M$_{{\\odot}}$]',
             'm': '$M_{0}$ [M$_\{{Jup\}}$]',
         }
 
         if param_list is None:
             param_list = self.labels
+
         param_indices = []
         angle_indices = []
         secondary_mass_indices = []
         for i, param in enumerate(param_list):
             index_num = np.where(np.array(self.labels) == param)[0][0]
-            param_indices.append(index_num)
-            label_key = param
-            if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
-                angle_indices.append(i)
-            if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
-                secondary_mass_indices.append(i)
+
+            # only plot non-fixed parameters
+            if np.std(self.post[:, i]) > 0:
+                param_indices.append(index_num)
+                label_key = param
+                if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
+                    angle_indices.append(i)
+                if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
+                    secondary_mass_indices.append(i)
+
 
         samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
@@ -290,6 +361,7 @@ class Results(object):
                     body_num = label_key[3]
                     label_key = label_key[0:3]
                 reduced_labels_list.append(default_labels[label_key].format(body_num))
+
             corner_kwargs['labels'] = reduced_labels_list
 
         figure = corner.corner(samples, **corner_kwargs)
@@ -299,7 +371,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='epochs', mod180=False, rv_time_series=False):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
+                    fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -326,6 +399,9 @@ class Results(object):
                 arcs with PAs that cross 360 deg during observations (default: False)
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
                 display time series, set to True.
+            astrometry (Boolean): set to True by default. Plots the astrometric data.
+            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+                Most users will not need this keyword. 
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -358,7 +434,7 @@ class Results(object):
                 'plx': 6 * self.num_secondary_bodies,
             }
 
-            if cbar_param == 'epochs':
+            if cbar_param == 'Epoch [year]':
                 pass
             elif cbar_param[0:3] in dict_of_indices:
                 try:
@@ -371,7 +447,7 @@ class Results(object):
                 raise Exception(
                     'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
 
-            
+
             start_index = (object_to_plot - 1) * 6
 
             sma = self.post[:, start_index + dict_of_indices['sma']]
@@ -389,11 +465,7 @@ class Results(object):
                 m0 = self.post[:, -1]
                 m1 = self.post[:, -(self.num_secondary_bodies+1) + (object_to_plot-1)]
                 mtot = m0 + m1
-            if 'gamma' in self.labels:
-                dict_of_indices['gamma'] = 6 * self.num_secondary_bodies + 1
-                dict_of_indices['sigma'] = 6 * self.num_secondary_bodies + 2
-                gamma = self.post[:, dict_of_indices['gamma']]
-
+                
             # Select random indices for plotted orbit
             if num_orbits_to_plot > len(sma):
                 num_orbits_to_plot = len(sma)
@@ -418,21 +490,21 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                 )
 
                 raoff[i, :] = raoff0
                 deoff[i, :] = deoff0
 
             # Create a linearly increasing colormap for our range of epochs
-            if cbar_param != 'epochs':
+            if cbar_param != 'Epoch [year]':
                 cbar_param_arr = self.post[:, index]
                 norm = mpl.colors.Normalize(vmin=np.min(cbar_param_arr),
                                             vmax=np.max(cbar_param_arr))
                 norm_yr = mpl.colors.Normalize(vmin=np.min(
                     cbar_param_arr), vmax=np.max(cbar_param_arr))
 
-            elif cbar_param == 'epochs':
+            elif cbar_param == 'Epoch [year]':
                 norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1, :]))
 
                 norm_yr = mpl.colors.Normalize(
@@ -441,14 +513,28 @@ class Results(object):
                 )
 
             # Create figure for orbit plots
-            fig = plt.figure(figsize=(14, 6))
-            if rv_time_series:
-                fig = plt.figure(figsize=(14, 9))
-                ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
-            else:
+            if fig is None:
                 fig = plt.figure(figsize=(14, 6))
-                ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+                if rv_time_series:
+                    fig = plt.figure(figsize=(14, 9))
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    fig = plt.figure(figsize=(14, 6))
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+            else:
+                plt.set_current_figure(fig)
+                if rv_time_series:
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+            
+            data=self.data
+            astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
+            astr_epochs=data['epoch'][astr_inds]
+            sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
+            pa_data,pa_err=data['quant2'][astr_inds],data['quant2_err'][astr_inds]
 
+                
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -456,12 +542,15 @@ class Results(object):
                 lc = LineCollection(
                     segments, cmap=cmap, norm=norm, linewidth=1.0
                 )
-                if cbar_param != 'epochs':
+                if cbar_param != 'Epoch [year]':
                     lc.set_array(np.ones(len(epochs[0]))*cbar_param_arr[i])
-                elif cbar_param == 'epochs':
+                elif cbar_param == 'Epoch [year]':
                     lc.set_array(epochs[i, :])
                 ax.add_collection(lc)
 
+            if plot_astrometry:
+                ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
+                ax.scatter(ra_data,dec_data,marker='*',c='#FF7F11',zorder=10,s=60)
             # modify the axes
             if square_plot:
                 adjustable_param = 'datalim'
@@ -472,14 +561,9 @@ class Results(object):
             ax.set_ylabel('$\\Delta$Dec [mas]')
             ax.locator_params(axis='x', nbins=6)
             ax.locator_params(axis='y', nbins=6)
-            ax.invert_xaxis() # To go to a left-handed coordinate system
+            ax.invert_xaxis()  # To go to a left-handed coordinate system
 
-            # add colorbar
-            if show_colorbar:
-                # xpos, ypos, width, height, in fraction of figure size
-                cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
-                cbar = mpl.colorbar.ColorbarBase(
-                    cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
+            # Rob: Moved colorbar size to the bottom after tight_layout() because the cbar scaling was not compatible with tight_layout()
 
             # plot sep/PA and/or rv zoom-in panels
             if rv_time_series:
@@ -491,6 +575,7 @@ class Results(object):
                 ax3.set_ylabel('RV [km/s]')
                 ax3.set_xlabel('Epoch')
                 ax2.set_xlabel('Epoch')
+                plt.subplots_adjust(hspace=0.3)
             else:
                 ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
                 ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
@@ -515,40 +600,110 @@ class Results(object):
                     raoff0, deoff0, vzoff0 = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
                         tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
-                        mass_for_Kamp=m0[orb_ind]
+                        mass_for_Kamp=m0[orb_ind], tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
                     deoff[i, :] = deoff0
-                    vz_star[i, :] = vzoff0*-(m1[orb_ind]/m0[orb_ind]) + gamma[orb_ind]
-
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
+                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
                     deoff[i, :] = deoff0
 
                 yr_epochs = Time(epochs_seppa[i, :], format='mjd').decimalyear
-                plot_epochs = np.where(yr_epochs <= sep_pa_end_year)[0]
-                yr_epochs = yr_epochs[plot_epochs]
 
                 seps, pas = orbitize.system.radec2seppa(raoff[i, :], deoff[i, :], mod180=mod180)
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
+                # plot separations from data points                
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
 
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
+            if rv_time_series:
+                
+                # switch current axis to rv panel
+                plt.sca(ax3)
+        
+                # get list of instruments
+                insts=np.unique(data['instrument'])
+                insts=[i if isinstance(i,str) else i.decode() for i in insts]
+                insts=[i for i in insts if 'def' not in i]
+                
+                # get gamma/sigma labels and corresponding positions in the posterior
+                gams=['gamma_'+inst for inst in insts]
+
+                if isinstance(self.labels,list):
+                    labels=np.array(self.labels)
+                else:
+                    labels=self.labels
+                
+                # get the indices corresponding to each gamma within self.labels
+                gam_idx=[np.where(labels==inst_gamma)[0][0] for inst_gamma in gams]
+
+                # indices corresponding to each instrument in the datafile
+                inds={}
+                for i in range(len(insts)):
+                    inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
+
+                # choose the orbit with the best log probability
+                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
+                med_ga=[self.post[best_like,i] for i in gam_idx]
+
+                # colour/shape scheme scheme for rv data points
+                clrs=['0496FF','372554','FF1053','3A7CA5','143109']
+                symbols=['o','^','v','s']
+                
+                # get rvs and plot them
+                for i,name in enumerate(inds.keys()):
+                    rv_inds=np.where((np.isnan(data['quant2'])))
+                    inst_data=data[inds[name]]
+                    rvs=inst_data['quant1']
+                    epochs=inst_data['epoch']
+                    epochs=Time(epochs, format='mjd').decimalyear
+                    rvs-=med_ga[i]
+                    plt.scatter(epochs,rvs,marker=symbols[i],s=5,label=name,c=f'#{clrs[i]}',zorder=5)
+                
+                inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
+                plt.legend()
+
+                
+                # calculate the predicted rv trend using the best orbit 
+                raa, decc, vz = kepler.calc_orbit(
+                    epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
+                    tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
+                    mass_for_Kamp=m0[best_like]
+                )
+                
+                vz=vz*-(m1[best_like])/np.median(m0[best_like])
+
+                # plot rv trend
+                
+                plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
+
+
+            # add colorbar
+            if show_colorbar:
                 if rv_time_series:
-                    plt.sca(ax3)
-                    plt.plot(yr_epochs, vz_star[i, :], color=sep_pa_color)
-                    ax3.locator_params(axis='x', nbins=6)
-                    ax3.locator_params(axis='y', nbins=6)
-                    plt.tight_layout()
+                    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+                    # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
+                    # You can change 0.02 to adjust the width of the colorbar.
+                    cbar_ax = fig.add_axes(
+                        [ax.get_position().x1+0.005, ax.get_position().y0, 0.02, ax.get_position().height])
+                    cbar = mpl.colorbar.ColorbarBase(
+                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
+                else:
+                    # xpos, ypos, width, height, in fraction of figure size
+                    cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
+                    cbar = mpl.colorbar.ColorbarBase(
+                        cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
 
             ax1.locator_params(axis='x', nbins=6)
             ax1.locator_params(axis='y', nbins=6)

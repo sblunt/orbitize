@@ -64,14 +64,6 @@ class System(object):
         self.restrict_angle_ranges = restrict_angle_ranges
         self.fitting_basis = fitting_basis
 
-        # if fitting_basis == 'XYZ':
-        #     self.x = x
-        #     self.y = y
-        #     self.z = z
-        #     self.x_vel = x_vel
-        #     self.y_vel = y_vel
-        #     self.z_vel = z_vel 
-
         #
         # Group the data in some useful ways
         #
@@ -164,6 +156,7 @@ class System(object):
         #
 
         if fitting_basis == 'standard':
+            self.best_epochs = None
             for body in np.arange(num_secondary_bodies):
                 # Add semimajor axis prior
                 self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
@@ -191,22 +184,55 @@ class System(object):
                 self.labels.append('tau{}'.format(body+1))
 
         elif fitting_basis == 'XYZ':
-            # Test idea with ra/dec only for now: priors on x and y
             epochs = self.data_table['epoch']
-            for body in np.arange(num_secondary_bodies):
-                
-                # Get the epoch with the least uncertainty
-                curr_idx = self.body_indices[body_num]
-                radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
-                min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))[0]
-                best_idx = curr_idx[0][min_uncert[0]]
-                best_epochs = epochs[best_idx:(best_idx+3)] # 0 is best, the others are for fitting velocity
+            # Get epochs with least uncertainty, as is done in sampler.py
+            convert_warning_print = False
+            for body_num in np.arange(self.num_secondary_bodies) + 1:
+                if len(self.radec[body_num]) > 0:
+                    # only print the warning once. 
+                    if not convert_warning_print:
+                        print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                        convert_warning_print = True
+                    self.convert_data_table_radec2seppa(body_num=body_num)
 
-                # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY
-                best_ras = self.data_table['quant1'][best_idx:(best_idx+3)]
-                best_ras_err = self.data_table['quant1_err'][best_idx:(best_idx+3)]
-                best_decs =self.data_table['quant2'][best_idx:(best_idx+3)]
-                best_decs_err = self.data_table['quant2_err'][best_idx:(best_idx+3)]
+            sep_err = self.data_table[np.where(
+                self.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
+            meas_object = self.data_table[np.where(
+                self.data_table['quant_type'] == 'seppa')]['object'].copy()
+
+            self.best_epochs = []
+            self.best_epoch_idx = []
+            min_sep_indices = np.argsort(sep_err) # indices of sep err sorted from smallest to higheset
+            min_sep_indices_body = meas_object[min_sep_indices] # the corresponding body_num that these sorted measurements correspond to
+            for i in range(self.num_secondary_bodies):
+                body_num = i + 1
+                this_object_meas = np.where(min_sep_indices_body == body_num)[0]
+                if np.size(this_object_meas) == 0:
+                    # no data, no scaling
+                    self.best_epochs.append(None)
+                    continue
+                # get the smallest measurement belonging to this body
+                this_best_epoch_idx = min_sep_indices[this_object_meas][0] # already sorted by argsort
+                self.best_epoch_idx.append(this_best_epoch_idx)
+                this_best_epoch = epochs[this_best_epoch_idx]
+                self.best_epochs.append(this_best_epoch)
+
+            for body in np.arange(num_secondary_bodies):
+                # Get the epoch with the least uncertainty for this body
+                # curr_idx = self.body_indices[body_num]
+                # radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
+                # min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))[0]
+                # best_idx = curr_idx[0][min_uncert[0]]
+                datapoints_to_take = 3
+                best_idx = self.best_epoch_idx[body]
+                best_epochs = epochs[best_idx:(best_idx+datapoints_to_take)] # 0 is best, the others are for fitting velocity
+
+                # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY,
+                # also assuming this is in radec
+                best_ras = self.input_table['quant1'][best_idx:(best_idx+datapoints_to_take)].copy()
+                best_ras_err = self.input_table['quant1_err'][best_idx:(best_idx+datapoints_to_take)].copy()
+                best_decs =self.input_table['quant2'][best_idx:(best_idx+datapoints_to_take)].copy()
+                best_decs_err = self.input_table['quant2_err'][best_idx:(best_idx+datapoints_to_take)].copy()
 
                 # Convert to AU for prior limits
                 best_xs = best_ras / plx 
@@ -404,10 +430,11 @@ class System(object):
             
             elif self.fitting_basis == 'XYZ':
                 
-                curr_idx = self.body_indices[body_num]
-                radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
-                min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))
-                constrained_epoch = epochs[min_uncert[0][0]]
+                # curr_idx = self.body_indices[body_num]
+                # radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
+                # min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))
+                best_idx = self.best_epoch_idx[body_num-1]
+                constrained_epoch = epochs[best_idx]
 
                 to_convert = np.array([*params_arr[startindex:(startindex+6)],params_arr[6 * self.num_secondary_bodies],params_arr[-1]])
                 standard_params = conversions.xyz_to_standard(constrained_epoch, to_convert)
@@ -507,7 +534,7 @@ class System(object):
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
-        if self.fitting_basis == 'XYZ':
+        if self.fitting_basis == 'XYZ' or self.fitting_basis == 'RRdot':
             if ((ecc >= 1.) | (ecc < 0.)):
                 # print("bad stuff")
                 # print("raoff is ", raoff)
