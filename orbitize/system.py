@@ -549,12 +549,8 @@ class System(object):
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
-<<<<<<< HEAD
-        if self.fitting_basis == 'XYZ' or self.fitting_basis == 'RRdot':
-=======
         if self.fitting_basis == 'XYZ':
             # To filter out unbound orbits
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
             if ((ecc >= 1.) | (ecc < 0.)):
                 raoff[:,:,:] = np.inf
                 deoff[:,:,:] = np.inf 
