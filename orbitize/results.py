@@ -66,11 +66,8 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-<<<<<<< HEAD
                  data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='standard', xyz_epochs=None):
-=======
-                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None):
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
+
 
         self.sampler_name = sampler_name
         self.post = post
@@ -81,11 +78,9 @@ class Results(object):
         self.num_secondary_bodies=num_secondary_bodies
         self.curr_pos = curr_pos
         self.version_number = version_number
-<<<<<<< HEAD
         self.fitting_basis = fitting_basis
         self.xyz_epochs = xyz_epochs
-=======
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
+
 
     def add_samples(self, orbital_params, lnlikes, labels, curr_pos=None):
         """
@@ -147,12 +142,10 @@ class Results(object):
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
         hf.attrs['version_number'] = self.version_number
-<<<<<<< HEAD
         hf.attrs['fitting_basis'] = self.fitting_basis
         if self.fitting_basis == 'XYZ':
             hf.create_dataset('xyz_epochs', data= self.xyz_epochs)
-=======
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
+            
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
         hf.create_dataset('data', data=self.data)
@@ -185,14 +178,10 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = np.str(hf.attrs['sampler_name'])
-<<<<<<< HEAD
-        version_number = np.str(hf.attrs['version_number'])
-=======
         try:
             version_number = np.str(hf.attrs['version_number'])
         except KeyError:
             version_number = "<= 1.13"
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
         data=np.array(hf.get('data'))
@@ -219,7 +208,6 @@ class Results(object):
             curr_pos = np.array(hf.get('curr_pos'))
         except KeyError:
             curr_pos = None
-<<<<<<< HEAD
 
         try:
             fitting_basis = np.str(hf.attrs['fitting_basis'])
@@ -231,8 +219,6 @@ class Results(object):
         except KeyError:
             # if KeyError, this was not fit in xyz
             xyz_epochs = None
-=======
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
 
         hf.close()  # Closes file object
 
@@ -240,10 +226,7 @@ class Results(object):
         if curr_pos is not None:
             self.curr_pos = curr_pos
 
-<<<<<<< HEAD
         # TODO: Check if this part is consistent with xyz_epoch
-=======
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
         # Adds loaded data to object as per append keyword
         if append:
             # if no sampler_name set, use the input file's value
@@ -360,24 +343,15 @@ class Results(object):
             index_num = np.where(np.array(self.labels) == param)[0][0]
 
             # only plot non-fixed parameters
-<<<<<<< HEAD
             if np.std(self.post[:, i]) > 0:
-=======
-            if np.std(self.post[:, i]) > 1e-10:
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
                 param_indices.append(index_num)
                 label_key = param
                 if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
                     angle_indices.append(i)
                 if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
                     secondary_mass_indices.append(i)
-
-<<<<<<< HEAD
-
+                    
         samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
-=======
-        samples = copy.copy(self.post)  # keep only chains for selected parameters
->>>>>>> 235e60b582756c5438a40a28ac4ccbd3440c01b4
         samples[:, angle_indices] = np.degrees(
             self.post[:, angle_indices])  # convert angles from rad to deg
         samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions
