@@ -929,7 +929,8 @@ class MCMC(Sampler):
             lnlike=flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch,
             labels=self.system.labels,
-            num_secondary_bodies=self.system.num_secondary_bodies
+            num_secondary_bodies=self.system.num_secondary_bodies,
+            data = self.results.data
         )
 
         # Print a confirmation
