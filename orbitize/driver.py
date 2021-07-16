@@ -25,6 +25,7 @@ class Driver(object):
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
+        chi2_type (str, optional): either  "standard", or "log"
         system_kwargs (dict, optional): ``restrict_angle_ranges``, ``ref_tau_epoch``,
             ``results`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
@@ -35,7 +36,7 @@ class Driver(object):
 
     def __init__(self, input_data, sampler_str,
                  num_secondary_bodies, system_mass, plx,
-                 mass_err=0, plx_err=0, lnlike='chi2_lnlike',
+                 mass_err=0, plx_err=0, lnlike='chi2_lnlike', chi2_type = 'standard',
                  system_kwargs=None, mcmc_kwargs=None):
 
         # Read in data
@@ -68,4 +69,4 @@ class Driver(object):
             kwargs = {}
 
         sampler_func = getattr(orbitize.sampler, sampler_str)
-        self.sampler = sampler_func(self.system, like=lnlike, **kwargs)
+        self.sampler = sampler_func(self.system, like=lnlike, chi2_type=chi2_type, **kwargs)
