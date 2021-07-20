@@ -71,8 +71,12 @@ class Results(object):
         self.post = post
         self.lnlike = lnlike
         self.tau_ref_epoch = tau_ref_epoch
+        self.labels = labels
+        if self.labels is not None:
+            self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
+        else:
+            self.param_idx = None
         self.data=data
-        self.labels=labels
         self.num_secondary_bodies=num_secondary_bodies
         self.curr_pos = curr_pos
         self.version_number = version_number
@@ -89,13 +93,17 @@ class Results(object):
 
         Written: Henry Ngo, 2018
         """
+        
         # Adding the orbitize version number to the results
         self.version_number = orbitize.__version__
+
         # If no exisiting results then it is easy
         if self.post is None:
             self.post = orbital_params
             self.lnlike = lnlikes
             self.labels = labels
+            self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
+
         # Otherwise, need to append properly
         else:
             self.post = np.vstack((self.post, orbital_params))
@@ -144,7 +152,7 @@ class Results(object):
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
-        hf.attrs['parameter_labels'] = self.labels  # Rob: added this to account for the RV labels
+        hf.attrs['parameter_labels'] = self.labels 
         if self.num_secondary_bodies is not None:
             hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
         if self.curr_pos is not None:
@@ -190,6 +198,10 @@ class Results(object):
             # again, probably an old file without saved parameter labels
             # old files only fit single planets
             labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+        
+        # rebuild parameter dictionary
+        self.param_idx = dict(zip(labels, np.arange(len(labels))))
+
         try:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
         except KeyError:
@@ -246,10 +258,10 @@ class Results(object):
             # Only proceed if object is completely empty
             if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None and self.version_number is None:
                 self._set_sampler_name(sampler_name)
+                self.labels = labels
                 self._set_version_number(version_number)
                 self.add_samples(post, lnlike, self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
-                self.labels = labels
                 self.num_secondary_bodies = num_secondary_bodies
             else:
                 raise Exception(

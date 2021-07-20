@@ -10,6 +10,9 @@ import pytest
 import os
 
 std_labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+std_param_idx = {
+    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
+}
 
 
 def simulate_orbit_sampling(n_sim_orbits):
@@ -139,6 +142,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
     assert loaded_results.labels.tolist() == std_labels
+    assert loaded_results.param_idx == std_param_idx
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
 
