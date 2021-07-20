@@ -526,10 +526,37 @@ class Results(object):
             data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
-            sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
-            pa_data,pa_err=data['quant2'][astr_inds],data['quant2_err'][astr_inds]
 
-                
+            radec_inds = np.where(data['quant_type'] == 'radec')
+            seppa_inds = np.where(data['quant_type'] == 'seppa')
+
+            sep_data, sep_err=data['quant1'][seppa_inds],data['quant1_err'][seppa_inds]
+            pa_data, pa_err=data['quant2'][seppa_inds],data['quant2_err'][seppa_inds]
+
+            if len(radec_inds[0] > 0):
+
+
+                sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
+                    data['quant1'][radec_inds], data['quant2'][radec_inds]
+                )
+
+                num_radec_pts = len(radec_inds[0])
+                sep_err_from_ra_data = np.empty(num_radec_pts)
+                pa_err_from_dec_data = np.empty(num_radec_pts)
+                for j in np.arange(num_radec_pts):
+
+                    sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = orbitize.system.transform_errors(
+                        np.array(data['quant1'][radec_inds][j]), np.array(data['quant2'][radec_inds][j]), 
+                        np.array(data['quant1_err'][radec_inds][j]), np.array(data['quant2_err'][radec_inds][j]), 
+                        np.array(data['quant12_corr'][radec_inds][j]), orbitize.system.radec2seppa
+                    )
+
+                sep_data = np.append(sep_data, sep_from_ra_data)
+                sep_err = np.append(sep_err, sep_err_from_ra_data)
+
+                pa_data = np.append(pa_data, pa_from_dec_data)
+                pa_err = np.append(pa_err, pa_err_from_dec_data)
+
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)

@@ -52,13 +52,17 @@ def simulate_orbit_sampling(n_sim_orbits):
     return sim_post
 
 
-def test_init_and_add_samples():
+def test_init_and_add_samples(radec_input=False):
     """
     Tests object creation and add_samples() with some simulated posterior samples
     Returns results.Results object
     """
 
-    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    if radec_input:
+        input_file = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
+    else:
+        input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+
     data = orbitize.read_input.read_file(input_file)
 
     # Create object
@@ -194,9 +198,9 @@ def test_plot_orbits(results_to_test):
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
-
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
+    test_results_radec = test_init_and_add_samples(radec_input=True)
     
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
@@ -204,6 +208,7 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results, has_lnlike=False)
     test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
+    test_orbit_figs = test_plot_orbits(test_results_radec)
     test_corner_fig1.savefig('test_corner1.png')
     test_corner_fig2.savefig('test_corner2.png')
     test_corner_fig3.savefig('test_corner3.png')
