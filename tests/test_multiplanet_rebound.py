@@ -147,7 +147,7 @@ def test_2planet_massive():
     b_dec_orb_noc = radec_orb_noc[:,1]
 
     # check that planet c's perturbation is imprinted (nonzero))
-    #assert np.all(b_ra_orb_noc != b_ra_orb)
+    assert np.all(b_ra_orb_noc != b_ra_orb)
 
     # now project the orbit with rebound
     b_manom = basis.tau_to_manom(epochs[0], params[0], params[-1]+params[-3], params[5], tau_ref_epoch)
@@ -411,11 +411,10 @@ def test_2planet_nomass():
 
 
 if __name__ == "__main__":
-    #test_1planet()
+    test_1planet()
     test_2planet_massive()
     test_2planet_massive_reverse_order()
-    #test_2planet_nomass()
-    #test_OFTI_multiplanet()
+    test_2planet_nomass()
 
 
 

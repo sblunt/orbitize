@@ -12,4 +12,5 @@ pytest
 pandas
 radvel
 pyerfa
+astroquery
 sphinx==3.5.3

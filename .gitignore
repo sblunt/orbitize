@@ -1,3 +1,8 @@
+# Added by orbitize! Developers
+orbitize/example_data/rebound*.csv
+orbitize/example_data/*test.hdf5
+*.vscode
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

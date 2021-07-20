@@ -252,8 +252,8 @@ def test_OFTI_covariances():
 
 
 if __name__ == "__main__":
-    #test_scale_and_rotate()
-    test_run_sampler()
-    test_OFTI_covariances()
-    # test_OFTI_multiplanet()
-    # print("Done!")
+
+    # test_scale_and_rotate()
+    # test_run_sampler()
+    test_OFTI_multiplanet()
+    print("Done!")

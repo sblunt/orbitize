@@ -32,7 +32,7 @@ def test_compute_model():
     period_c = np.sqrt(c_params[0]**3/mtot)
     period_b = np.sqrt(b_params[0]**3/mtot)
 
-    epochs = np.linspace(0, period_c*365.25, 100) + tau_ref_epoch # the full period of c, MJD
+    epochs = np.linspace(0, period_c*365.25, 5) + tau_ref_epoch # the full period of c, MJD
 
     ra_model, dec_model, vz_model = kepler.calc_orbit(epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], b_params[5], plx, mtot, tau_ref_epoch=tau_ref_epoch)
 
@@ -172,4 +172,4 @@ def test_fit_selfconsist():
 
 if __name__ == "__main__":
     test_compute_model()
-    #test_fit_selfconsist()
+    test_fit_selfconsist()
