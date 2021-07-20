@@ -1,3 +1,4 @@
+from plistlib import Data
 import numpy as np
 import warnings
 import h5py
@@ -65,7 +66,8 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None):
+                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='standard', xyz_epochs=None):
+
 
         self.sampler_name = sampler_name
         self.post = post
@@ -76,6 +78,9 @@ class Results(object):
         self.num_secondary_bodies=num_secondary_bodies
         self.curr_pos = curr_pos
         self.version_number = version_number
+        self.fitting_basis = fitting_basis
+        self.xyz_epochs = xyz_epochs
+
 
     def add_samples(self, orbital_params, lnlikes, labels, curr_pos=None):
         """
@@ -137,6 +142,10 @@ class Results(object):
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
         hf.attrs['version_number'] = self.version_number
+        hf.attrs['fitting_basis'] = self.fitting_basis
+        if self.fitting_basis == 'XYZ':
+            hf.create_dataset('xyz_epochs', data= self.xyz_epochs)
+            
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
         hf.create_dataset('data', data=self.data)
@@ -200,12 +209,24 @@ class Results(object):
         except KeyError:
             curr_pos = None
 
+        try:
+            fitting_basis = np.str(hf.attrs['fitting_basis'])
+        except KeyError:
+            # if key does not exist, then it was fit in the standard basis
+            fitting_basis == 'standard'
+        try:
+            xyz_epochs = np.array(hf.get('xyz_epochs'))
+        except KeyError:
+            # if KeyError, this was not fit in xyz
+            xyz_epochs = None
+
         hf.close()  # Closes file object
 
         # doesn't matter if append or not. Overwrite curr_pos if not None
         if curr_pos is not None:
             self.curr_pos = curr_pos
 
+        # TODO: Check if this part is consistent with xyz_epoch
         # Adds loaded data to object as per append keyword
         if append:
             # if no sampler_name set, use the input file's value
@@ -251,6 +272,8 @@ class Results(object):
                 self.tau_ref_epoch = tau_ref_epoch
                 self.labels = labels
                 self.num_secondary_bodies = num_secondary_bodies
+                self.fitting_basis = fitting_basis
+                self.xyz_epochs = xyz_epochs
             else:
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
@@ -320,15 +343,15 @@ class Results(object):
             index_num = np.where(np.array(self.labels) == param)[0][0]
 
             # only plot non-fixed parameters
-            if np.std(self.post[:, i]) > 1e-10:
+            if np.std(self.post[:, i]) > 0:
                 param_indices.append(index_num)
                 label_key = param
                 if label_key.startswith('aop') or label_key.startswith('pan') or label_key.startswith('inc'):
                     angle_indices.append(i)
                 if label_key.startswith('m') and label_key != 'm0' and label_key != 'mtot':
                     secondary_mass_indices.append(i)
-
-        samples = copy.copy(self.post)  # keep only chains for selected parameters
+                    
+        samples = copy.copy(self.post[:, param_indices])  # keep only chains for selected parameters
         samples[:, angle_indices] = np.degrees(
             self.post[:, angle_indices])  # convert angles from rad to deg
         samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions

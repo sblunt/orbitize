@@ -5,6 +5,7 @@ import sys
 import abc
 import math
 import time
+import orbitize.conversions
 
 import emcee
 import ptemcee
@@ -194,7 +195,9 @@ class OFTI(Sampler,):
             lnlike=None,
             tau_ref_epoch=self.system.tau_ref_epoch,
             data=self.system.data_table,
-            num_secondary_bodies=self.system.num_secondary_bodies
+            num_secondary_bodies=self.system.num_secondary_bodies,
+            fitting_basis=self.system.fitting_basis,
+            xyz_epochs= self.system.best_epochs
         )
 
     def prepare_samples(self, num_samples):
@@ -543,7 +546,9 @@ class MCMC(Sampler):
             lnlike=None,
             tau_ref_epoch=system.tau_ref_epoch,
             data=self.system.data_table,
-            num_secondary_bodies=system.num_secondary_bodies
+            num_secondary_bodies=system.num_secondary_bodies,
+            fitting_basis=self.system.fitting_basis,
+            xyz_epochs= self.system.best_epochs
         )
         
         if self.num_temps > 1:
@@ -696,6 +701,47 @@ class MCMC(Sampler):
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
+
+    def validate_xyz_positions(self):
+        """
+        If using the XYZ basis, walkers might be initialized in an invalid region of parameter space. This function fixes that
+        by replacing invalid positions by new randomly generated positions until all are valid.
+        """
+        if self.system.fitting_basis == 'XYZ':
+            if self.use_pt:
+                all_valid = False
+                while not all_valid:
+                    total_invalids = 0
+                    for temp in range(self.num_temps):
+                        to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[temp,:,:])
+                        invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+                        if len(invalids) > 0:
+                            newpos = []
+                            for prior in self.priors:
+                                randompos = prior.draw_samples(len(invalids))
+                                newpos.append(randompos)
+                            self.curr_pos[temp, invalids, :] = np.stack(newpos).T 
+                            total_invalids += len(invalids)
+                    if total_invalids == 0:
+                        all_valid = True
+                        print('All walker positions validated.')
+            else:
+                all_valid = False
+                while not all_valid:
+                    total_invalids = 0
+                    to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[:,:])
+                    invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+                    if len(invalids) > 0:
+                        newpos = []
+                        for prior in self.priors:
+                            randompos = prior.draw_samples(len(invalids))
+                            newpos.append(randompos)
+                        self.curr_pos[invalids, :] = np.stack(newpos).T 
+                        total_invalids += len(invalids)
+                    if total_invalids == 0:
+                        all_valid = True
+                        print('All walker positions validated.')
+
 
     def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False, output_filename=None, periodic_save_freq=None):
         """
@@ -945,7 +991,9 @@ class MCMC(Sampler):
             lnlike=flat_chopped_lnlikes,
             tau_ref_epoch=self.system.tau_ref_epoch,
             labels=self.system.labels,
-            num_secondary_bodies=self.system.num_secondary_bodies
+            num_secondary_bodies=self.system.num_secondary_bodies,
+            fitting_basis=self.system.fitting_basis,
+            xyz_epochs= self.system.best_epochs
         )
 
         # Print a confirmation
