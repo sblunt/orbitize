@@ -70,6 +70,18 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
+**1.14.4 (2021-06-18)**
+
+- Bugfix for issue #234 (@semaphoreP, @adj-smith)
+
+**1.13.3 (2021-06-07)**
+
+- Add codeastro mode to pytest that prints out a SECRET CODE if tests pass omgomg (@semaphoreP)
+
+**1.15.2 (2021-05-11)**
+
+- Fixed backwards-compatibility bug with version numbers and saving/loading (@semaphoreP, @wbalmer)
+
 **1.15.1 (2021-03-29)**
 
 - Fixed bug where users with Results objects from v<14.0 couldn't load using v>=14.0 (@semaphoreP, @wbalmer)

@@ -9,6 +9,8 @@ Orbit-fitting for directly imaged objects. For installation instructions, tutori
 [![Documentation Status](https://readthedocs.org/projects/orbitize/badge/?version=latest)](http://orbitize.readthedocs.io/en/latest/?badge=latest)
 [![Requirements Status](https://requires.io/github/sblunt/orbitize/requirements.svg?branch=main)](https://requires.io/github/sblunt/orbitize/requirements/?branch=main)
 [![PyPI version](https://badge.fury.io/py/orbitize.svg)](https://badge.fury.io/py/orbitize)
+[![PyPI downloads](https://img.shields.io/pypi/dm/orbitize.svg)](https://pypistats.org/packages/orbitize)
+
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3337378.svg)](https://zenodo.org/record/3337378#.XUHT3ZNKjUJ)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
