@@ -70,6 +70,11 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
+**1.14.5 (2021-07-20)**
+
+- Addressed issue #177, giving `Results` and `Sampler` classes a parameter label array (@sblunt)
+- Fixed a bug that was causing RA/Dec data points to display wrong in orbit plots (@sblunt)
+
 **1.14.4 (2021-06-18)**
 
 - Bugfix for issue #234 (@semaphoreP, @adj-smith)
