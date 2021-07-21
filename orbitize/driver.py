@@ -19,9 +19,9 @@ class Driver(object):
             Markov Chain Monte Carlo, "OFTI" for Orbits for the Impatient
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        stellar_mass (float): mass of the primary star [M_sol]
+        stellar_or_system_mass (float): mass of the primary star or system mass [M_sol]
         plx (float): mean parallax of the system [mas]
-        mass_err (float, optional): uncertainty on ``stellar_mass`` [M_sol]
+        mass_err (float, optional): uncertainty on ``stellar_or_system_mass`` [M_sol]
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
