@@ -7,7 +7,6 @@ Orbit-fitting for directly imaged objects. For installation instructions, tutori
 [![Build Status](https://travis-ci.org/sblunt/orbitize.svg?branch=master)](https://travis-ci.org/sblunt/orbitize/)
 [![Coverage Status](https://coveralls.io/repos/github/sblunt/orbitize/badge.svg?branch=master&service=github)](https://coveralls.io/github/sblunt/orbitize?branch=master&service=github)
 [![Documentation Status](https://readthedocs.org/projects/orbitize/badge/?version=latest)](http://orbitize.readthedocs.io/en/latest/?badge=latest)
-[![Requirements Status](https://requires.io/github/sblunt/orbitize/requirements.svg?branch=main)](https://requires.io/github/sblunt/orbitize/requirements/?branch=main)
 [![PyPI version](https://badge.fury.io/py/orbitize.svg)](https://badge.fury.io/py/orbitize)
 [![PyPI downloads](https://img.shields.io/pypi/dm/orbitize.svg)](https://pypistats.org/packages/orbitize)
 
