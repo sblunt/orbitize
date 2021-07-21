@@ -46,9 +46,9 @@ class Results(object):
         tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
         labels (list of str): parameter labels in same order as `post`
         data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        num_secondary_bodies (int): number of companions fit 
+        num_secondary_bodies (int): number of companions fit
         curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
-            that is used for restarting a MCMC sampler. 
+            that is used for restarting a MCMC sampler.
 
     The ``post`` array is in the following order::
 
@@ -384,7 +384,7 @@ class Results(object):
                 display time series, set to True.
             astrometry (Boolean): set to True by default. Plots the astrometric data.
             fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
-                Most users will not need this keyword. 
+                Most users will not need this keyword.
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -448,7 +448,7 @@ class Results(object):
                 m0 = self.post[:, -1]
                 m1 = self.post[:, -(self.num_secondary_bodies+1) + (object_to_plot-1)]
                 mtot = m0 + m1
-                
+
             # Select random indices for plotted orbit
             if num_orbits_to_plot > len(sma):
                 num_orbits_to_plot = len(sma)
@@ -478,7 +478,7 @@ class Results(object):
 
                 raoff[i, :] = raoff0
                 deoff[i, :] = deoff0
-
+                
             # Create a linearly increasing colormap for our range of epochs
             if cbar_param != 'Epoch [year]':
                 cbar_param_arr = self.post[:, index]
@@ -510,14 +510,14 @@ class Results(object):
                     ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
                 else:
                     ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-            
+
             data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
             sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
             pa_data,pa_err=data['quant2'][astr_inds],data['quant2_err'][astr_inds]
 
-                
+
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -603,7 +603,7 @@ class Results(object):
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
-                # plot separations from data points                
+                # plot separations from data points
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
 
                 plt.sca(ax2)
@@ -611,15 +611,15 @@ class Results(object):
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
             if rv_time_series:
-                
+
                 # switch current axis to rv panel
                 plt.sca(ax3)
-        
+
                 # get list of instruments
                 insts=np.unique(data['instrument'])
                 insts=[i if isinstance(i,str) else i.decode() for i in insts]
                 insts=[i for i in insts if 'def' not in i]
-                
+
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
 
@@ -627,7 +627,7 @@ class Results(object):
                     labels=np.array(self.labels)
                 else:
                     labels=self.labels
-                
+
                 # get the indices corresponding to each gamma within self.labels
                 gam_idx=[np.where(labels==inst_gamma)[0][0] for inst_gamma in gams]
 
@@ -637,13 +637,13 @@ class Results(object):
                     inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
 
                 # choose the orbit with the best log probability
-                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
+                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0]
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
                 # colour/shape scheme scheme for rv data points
                 clrs=['0496FF','372554','FF1053','3A7CA5','143109']
                 symbols=['o','^','v','s']
-                
+
                 # get rvs and plot them
                 for i,name in enumerate(inds.keys()):
                     rv_inds=np.where((np.isnan(data['quant2'])))
@@ -653,22 +653,22 @@ class Results(object):
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
                     plt.scatter(epochs,rvs,marker=symbols[i],s=5,label=name,c=f'#{clrs[i]}',zorder=5)
-                
+
                 inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
                 plt.legend()
 
-                
-                # calculate the predicted rv trend using the best orbit 
+                # calculate the predicted rv trend using the best orbit
+                pdb.set_trace()
                 raa, decc, vz = kepler.calc_orbit(
                     epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
                     tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
                     mass_for_Kamp=m0[best_like]
                 )
-                
+
                 vz=vz*-(m1[best_like])/np.median(m0[best_like])
 
                 # plot rv trend
-                
+
                 plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
 

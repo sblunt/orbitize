@@ -53,6 +53,10 @@ class Driver(object):
         if system_kwargs is None:
             system_kwargs = {}
 
+        #Check if RV data is included, make sure fit_secondary_mass=True
+        if 'rv' in data_table['quant_type'] and ('fit_secondary_mass' not in system_kwargs or system_kwargs['fit_secondary_mass'] == False):
+            raise Exception('If including RV data in orbit fit, set fit_secondary_mass=True')
+
         if sampler_str == 'OFTI' and ('fit_secondary_mass' in system_kwargs and True == system_kwargs['fit_secondary_mass']):
             raise Exception('Run Astrometry+RV in MCMC for now.')
         # Initialize System object which stores data & sets priors
