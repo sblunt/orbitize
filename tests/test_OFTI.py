@@ -250,10 +250,42 @@ def test_OFTI_covariances():
     # test against seppa fits to see they are similar
     assert sma_seppa == pytest.approx(sma, abs=0.2 * sma_seppa)
 
+def test_OFTI_pan_priors():
+
+    # initialize sampler
+    myDriver = orbitize.driver.Driver(
+        input_file, 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+
+    s = myDriver.sampler
+
+    # change PAN prior
+    new_min = 0.05
+    new_max = np.pi - 0.05
+    myDriver.system.sys_priors[4] = priors.UniformPrior(new_min, new_max)
+
+    # run sampler
+    orbits = s.run_sampler(100)
+
+    # check that bounds were applied correctly
+    assert np.max(orbits[:,4]) < new_max
+    assert np.min(orbits[:,4]) > new_min
+
+    # change PAN prior again
+    mu = np.pi / 2
+    sigma = 0.05
+    myDriver.system.sys_priors[4] = priors.GaussianPrior(mu, sigma = sigma)
+
+    # run sampler again
+    orbits = s.run_sampler(100)
+
+    # check that bounds were applied correctly
+    assert mu == pytest.approx(np.mean(orbits[:,4]), abs=0.01) 
+    assert sigma == pytest.approx(np.std(orbits[:,4]), abs=0.01)
 
 if __name__ == "__main__":
-    #test_scale_and_rotate()
-    test_run_sampler()
-    test_OFTI_covariances()
+    
+    # test_scale_and_rotate()
+    # test_run_sampler()
     # test_OFTI_multiplanet()
-    # print("Done!")
+    test_OFTI_pan_priors()
+    print("Done!")
