@@ -70,16 +70,21 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
-**1.14.5 (2021-07-20)**
+**1.16.0 (2021-06-23)**
+
+* User-defined prior on PAN were not being applied if OFTI is used; fixed (@sblunt)
+* Dates in HD 4747 data file were incorrect; fixed (@lhirsch238)
+
+**1.15.5 (2021-07-20)**
 
 * Addressed issue #177, giving `Results` and `Sampler` classes a parameter label array (@sblunt)
 * Fixed a bug that was causing RA/Dec data points to display wrong in orbit plots (@sblunt)
 
-**1.14.4 (2021-06-18)**
+**1.15.4 (2021-06-18)**
 
 * Bugfix for issue #234 (@semaphoreP, @adj-smith)
 
-**1.13.3 (2021-06-07)**
+**1.15.3 (2021-06-07)**
 
 * Add codeastro mode to pytest that prints out a SECRET CODE if tests pass omgomg (@semaphoreP)
 
@@ -214,7 +219,6 @@ Changelog:
 
 * Add sep/PA panels to orbit plot.
 * ``GaussianPrior`` now operates on only positive numbers by default.
-
 
 **1.0.2 (2018-12-4)**
 
