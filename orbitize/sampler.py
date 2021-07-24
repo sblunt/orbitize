@@ -314,6 +314,27 @@ class OFTI(Sampler,):
             corrs = None
         lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
+        # account for user-set priors on PAN that were destroyed by scale-and-rotate
+        pan_prior = self.system.sys_priors[
+            self.system.param_idx['pan1']
+        ]
+        if pan_prior is not orbitize.priors.UniformPrior:
+
+            # apply PAN prior
+            lnp_scaled += pan_prior.compute_lnprob(samples[4,:])
+
+        # prior is uniform but with different bounds that OFTI expects
+        elif (pan_prior.minval != 0) or (
+            (pan_prior.maxval != np.pi) or (pan_prior.maxval != 2*np.pi)
+        ):
+            
+            samples_outside_pan_prior = np.where(
+                (samples[4,:] < pan_prior.minval) or 
+                (samples[4,:] > pan_prior.maxval)
+            )[0]
+
+            lnp_scaled[samples_outside_pan_prior] = -np.inf
+
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
@@ -540,6 +561,9 @@ class MCMC(Sampler):
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
         self.fixed_params = []
+
+        self.sampled_param_idx = {}
+        sampled_param_counter = 0
         for i, prior in enumerate(system.sys_priors):
 
             # check for fixed parameters
@@ -547,6 +571,10 @@ class MCMC(Sampler):
                 self.fixed_params.append((i, prior))
             else:
                 self.priors.append(prior)
+                self.sampled_param_idx[self.system.labels[i]] = sampled_param_counter
+                sampled_param_counter += 1
+
+        # initialize walkers initial postions
         self.num_params = len(self.priors)
 
         if prev_result_filename is None:

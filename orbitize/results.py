@@ -71,8 +71,12 @@ class Results(object):
         self.post = post
         self.lnlike = lnlike
         self.tau_ref_epoch = tau_ref_epoch
+        self.labels = labels
+        if self.labels is not None:
+            self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
+        else:
+            self.param_idx = None
         self.data=data
-        self.labels=labels
         self.num_secondary_bodies=num_secondary_bodies
         self.curr_pos = curr_pos
         self.version_number = version_number
@@ -89,13 +93,17 @@ class Results(object):
 
         Written: Henry Ngo, 2018
         """
+        
         # Adding the orbitize version number to the results
         self.version_number = orbitize.__version__
+
         # If no exisiting results then it is easy
         if self.post is None:
             self.post = orbital_params
             self.lnlike = lnlikes
             self.labels = labels
+            self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
+
         # Otherwise, need to append properly
         else:
             self.post = np.vstack((self.post, orbital_params))
@@ -144,7 +152,7 @@ class Results(object):
             hf.create_dataset('lnlike', data=self.lnlike)
         if self.labels is not None:
             hf['col_names'] = np.array(self.labels).astype('S')
-        hf.attrs['parameter_labels'] = self.labels  # Rob: added this to account for the RV labels
+        hf.attrs['parameter_labels'] = self.labels 
         if self.num_secondary_bodies is not None:
             hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
         if self.curr_pos is not None:
@@ -190,6 +198,10 @@ class Results(object):
             # again, probably an old file without saved parameter labels
             # old files only fit single planets
             labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+        
+        # rebuild parameter dictionary
+        self.param_idx = dict(zip(labels, np.arange(len(labels))))
+
         try:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
         except KeyError:
@@ -246,10 +258,10 @@ class Results(object):
             # Only proceed if object is completely empty
             if self.sampler_name is None and self.post is None and self.lnlike is None and self.tau_ref_epoch is None and self.version_number is None:
                 self._set_sampler_name(sampler_name)
+                self.labels = labels
                 self._set_version_number(version_number)
                 self.add_samples(post, lnlike, self.labels)
                 self.tau_ref_epoch = tau_ref_epoch
-                self.labels = labels
                 self.num_secondary_bodies = num_secondary_bodies
             else:
                 raise Exception(
@@ -514,10 +526,37 @@ class Results(object):
             data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
-            sep_data,sep_err=data['quant1'][astr_inds],data['quant1_err'][astr_inds]
-            pa_data,pa_err=data['quant2'][astr_inds],data['quant2_err'][astr_inds]
 
-                
+            radec_inds = np.where(data['quant_type'] == 'radec')
+            seppa_inds = np.where(data['quant_type'] == 'seppa')
+
+            sep_data, sep_err=data['quant1'][seppa_inds],data['quant1_err'][seppa_inds]
+            pa_data, pa_err=data['quant2'][seppa_inds],data['quant2_err'][seppa_inds]
+
+            if len(radec_inds[0] > 0):
+
+
+                sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
+                    data['quant1'][radec_inds], data['quant2'][radec_inds]
+                )
+
+                num_radec_pts = len(radec_inds[0])
+                sep_err_from_ra_data = np.empty(num_radec_pts)
+                pa_err_from_dec_data = np.empty(num_radec_pts)
+                for j in np.arange(num_radec_pts):
+
+                    sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = orbitize.system.transform_errors(
+                        np.array(data['quant1'][radec_inds][j]), np.array(data['quant2'][radec_inds][j]), 
+                        np.array(data['quant1_err'][radec_inds][j]), np.array(data['quant2_err'][radec_inds][j]), 
+                        np.array(data['quant12_corr'][radec_inds][j]), orbitize.system.radec2seppa
+                    )
+
+                sep_data = np.append(sep_data, sep_from_ra_data)
+                sep_err = np.append(sep_err, sep_err_from_ra_data)
+
+                pa_data = np.append(pa_data, pa_from_dec_data)
+                pa_err = np.append(pa_err, pa_err_from_dec_data)
+
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)
