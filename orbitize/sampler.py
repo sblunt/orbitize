@@ -548,7 +548,7 @@ class MCMC(Sampler):
             data=self.system.data_table,
             num_secondary_bodies=system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            xyz_epochs=self.system.best_epochs
         )
         
         if self.num_temps > 1:

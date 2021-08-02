@@ -66,7 +66,7 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='standard', xyz_epochs=None):
+                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='Standard', xyz_epochs=None):
 
 
         self.sampler_name = sampler_name
@@ -225,7 +225,7 @@ class Results(object):
             fitting_basis = np.str(hf.attrs['fitting_basis'])
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
-            fitting_basis == 'standard'
+            fitting_basis == 'Standard'
         try:
             xyz_epochs = np.array(hf.get('xyz_epochs'))
         except KeyError:
@@ -326,13 +326,14 @@ class Results(object):
         """
 
         # Define array of default axis labels (overwritten if user specifies list)
+        # TODO: Add XYZ basis labels
         default_labels = {
-            'sma': 'a [au]',
-            'ecc': 'ecc',
-            'inc': 'inc [$^\\circ$]',
-            'aop': '$\\omega$ [$^\\circ$]',
-            'pan': '$\\Omega$ [$^\\circ$]',
-            'tau': '$\\tau$',
+            'sma': '$a_{0}$ [au]',
+            'ecc': '$ecc_{0}$',
+            'inc': '$inc_{0}$ [$^\\circ$]',
+            'aop': '$\\omega_{0}$ [$^\\circ$]',
+            'pan': '$\\Omega_{0}$ [$^\\circ$]',
+            'tau': '$\\tau_{0}$',
             'plx': '$\\pi$ [mas]',
             'gam': '$\\gamma$ [km/s]',
             'sig': '$\\sigma$ [km/s]',
@@ -343,6 +344,8 @@ class Results(object):
             'pm_dec': 'PM Dec',
             'alpha0': 'alpha0',
             'delta0': 'delta0',
+            'per' : '$P_{0}$ [yr]',
+            'K' : '$K_{0}$ [km/s]'
         }
 
         if param_list is None:
@@ -381,9 +384,12 @@ class Results(object):
                     # maintain original label key
                 elif label_key in ['pm_ra', 'pm_dec', 'alpha0', 'delta0']:
                     body_num = ""
-                else:
-                    body_num = label_key[3]
+                elif label_key.startswith("gamma") or label_key.startswith("sigma"):
+                    body_num = ""
                     label_key = label_key[0:3]
+                else:
+                    body_num = label_key[-1]
+                    label_key = label_key[0:-1]
                 reduced_labels_list.append(default_labels[label_key].format(body_num))
 
             corner_kwargs['labels'] = reduced_labels_list
