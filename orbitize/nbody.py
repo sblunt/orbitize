@@ -39,7 +39,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m
     ps = sim.particles              #for easier calls
 
     tx = len(epochs)                #keeping track of how many time steps
-    te = epochs-epochs[0]
+    te = epochs-epochs[0]           #days
 
     indv = len(sma)                 #number of planets orbiting the star
     num_planets = np.arange(0,indv) #creates an array of indeces for each planet that exists
@@ -58,7 +58,8 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m
     #for each planet, create a body in the Rebound sim
     for i in num_planets:
         #calculating mean anomaly
-        mnm = basis.tau_to_manom(epochs[0], sma[i], mtot, tau[i], tau_ref_epoch) 
+        m_interior = m_star + sum(m_pl[0:i+1])
+        mnm = basis.tau_to_manom(epochs[0], sma[i], m_interior, tau[i], tau_ref_epoch) 
         #adding each planet
         sim.add(m = m_pl[i], a = sma[i], e = ecc[i], inc = inc[i], Omega = pan[i] + np.pi/2, omega =aop[i], M =mnm)
     
@@ -112,7 +113,7 @@ plx = np.array([7])
 mtot = np.array([1.49])
 tau_ref_epoch = 0
 years = 365.25*5
-epoch = np.linspace(0,years,1000)
+#epoch = np.linspace(0,years,1000)
 
 import orbitize.kepler
 from astropy.time import Time
@@ -128,7 +129,6 @@ num_secondary_bodies = 4
 
 epochs = Time(np.linspace(2020, 2025, num=int(1000)), format='decimalyear').mjd
 
-# TODO: define the parameters of the 8799 system
 sma1 = sma[0]
 ecc1 = ecc[0]
 inc1 = inc[0]
@@ -161,7 +161,7 @@ m_st = mtot-sum(m_pl)
 
 hr8799_sys = System(
     num_secondary_bodies, data_table, m_st,
-    plx, fit_secondary_mass=True
+    plx, fit_secondary_mass=True, tau_ref_epoch=tau_ref_epoch
 )
 
 params_arr = np.array([
@@ -183,46 +183,47 @@ dec_planet1 = dec[:,1,:].flatten()
 ra_star = ra[:,0,:].flatten()
 
 
-
-
 def calc_diff():
-    #import orbitize.kepler
+    import orbitize.kepler
     import matplotlib.pyplot as plt
     
-    rra, rde, rvz = calc_orbit(epoch, sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch, m_pl)
+    rra, rde, rvz = calc_orbit(epochs, sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch, m_pl)
     ora = ra[:,1:5,0]
     odec = dec[:,1:5,0]
-        
+    
+
     delta_ra = abs(rra-ora)
     delta_de = abs(rde-odec)
     #delta_vz = abs(rvz-_)
-    yepochs = epoch/365.25
+    #yepochs = epoch/365.25
 
     if len(sma)==1:
-        plt.plot(yepochs, delta_ra, label = 'Planet X: RA offsets')
-        plt.plot(yepochs, delta_de, label = 'Planet X: Dec offsets')
-        #plt.plot(yepochs, delta_vz, label = 'Planet X: RV offsets')
+        plt.plot(epochs, delta_ra, label = 'Planet X: RA offsets')
+        plt.plot(epochs, delta_de, label = 'Planet X: Dec offsets')
+        #plt.plot(epochs, delta_vz, label = 'Planet X: RV offsets')
 
     elif len(sma)==4:
         
         fig, (ax1, ax2) = plt.subplots(2)
         fig.suptitle('Massive Orbits in Rebound vs. Orbitize approx.')
 
-        ax1.plot(yepochs, delta_ra[:,0], 'brown', label = 'Planet E: RA offsets') #first planet
-        ax2.plot(yepochs, delta_de[:,0], 'red', label = 'Planet E: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,0], 'pink', label = 'Planet B: RV offsets')
+        ax1.plot(epochs, delta_ra[:,0], 'brown', label = 'Planet E: RA offsets') #first planet
+        ax2.plot(epochs, delta_de[:,0], 'red', label = 'Planet E: Dec offsets')
+        #plt.plot(epochs, delta_vz[:,0], 'pink', label = 'Planet B: RV offsets')
 
-        ax1.plot(yepochs, delta_ra[:,1], 'coral', label = 'Planet D: RA offsets') #second planet
-        ax2.plot(yepochs, delta_de[:,1], 'orange', label = 'Planet D: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,1], 'gold', label = 'Planet C: RV offsets')
+        ax1.plot(epochs, delta_ra[:,1], 'coral', label = 'Planet D: RA offsets') #second planet
+        ax2.plot(epochs, delta_de[:,1], 'orange', label = 'Planet D: Dec offsets')
+        #plt.plot(epochs, delta_vz[:,1], 'gold', label = 'Planet C: RV offsets')
 
-        ax1.plot(yepochs, delta_ra[:,2], 'greenyellow', label = 'Planet C: RA offsets') #third planet
-        ax2.plot(yepochs, delta_de[:,2], 'green', label = 'Planet C: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,2], 'darkgreen', label = 'Planet D: RV offsets')            
+        ax1.plot(epochs, delta_ra[:,2], 'greenyellow', label = 'Planet C: RA offsets') #third planet
+        ax2.plot(epochs, delta_de[:,2], 'green', label = 'Planet C: Dec offsets')
+        #plt.plot(epochs, delta_vz[:,2], 'darkgreen', label = 'Planet D: RV offsets')        
 
-        ax1.plot(yepochs, delta_ra[:,3], 'dodgerblue', label = 'Planet B: RA offsets') #fourth planet
-        ax2.plot(yepochs, delta_de[:,3], 'blue', label = 'Planet B: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,3], 'indigo', label = 'Planet E: RV offsets')
+
+        ax1.plot(epochs, delta_ra[:,3], 'dodgerblue', label = 'Planet B: RA offsets') #fourth planet
+        ax2.plot(epochs, delta_de[:,3], 'blue', label = 'Planet B: Dec offsets')
+        #plt.plot(epochs, delta_vz[:,3], 'indigo', label = 'Planet E: RV offsets')
+        
 
     else:
         print('I dont feel like it')
@@ -235,13 +236,13 @@ def calc_diff():
 
 def plot_orbit():
 
-    rra, rdec, rvz = calc_orbit(epoch, sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch, m_pl)
+    rra, rdec, rvz = calc_orbit(epochs, sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch, m_pl)
     
     plt.plot(ra[:,1:5,0], dec[:,1:5,0], 'indigo', label = 'Orbitize approx.')
     plt.plot(ra[-1,1:5,0], dec[-1,1:5,0],'o')
     
-    plt.plot(rra, rdec, 'r', label = 'Rebound')
-    plt.plot(rra[-1], rdec[-1], 'o')
+    plt.plot(rra, rdec, 'r', label = 'Rebound', alpha = 0.25)
+    plt.plot(rra[-1], rdec[-1], 'o', alpha = 0.25)
         
     plt.plot(0, 0, '*')
     plt.legend()
