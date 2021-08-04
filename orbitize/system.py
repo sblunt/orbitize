@@ -55,6 +55,8 @@ class System(object):
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
                  hipparcos_number=None, fitting_basis='standard', hipparcos_filename=None):
 
+        # TODO SOFIA: add a keyword ``rebound`` here
+
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
@@ -580,6 +582,10 @@ class System(object):
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
+
+        # TODO SOFIA: add keyword rebound=False (and document in the docstring)
+        # TODO SOFIA: add some code that converts `params_arr` to a format nbody.calc_orbit can read in
+        # (look at how compute_all_orbits() does this)
 
         raoff, decoff, vz = self.compute_all_orbits(params_arr)
 
