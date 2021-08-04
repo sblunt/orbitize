@@ -1,5 +1,5 @@
 import numpy as np
-import astropy.units as u
+import astropy.units as u, astropy.constants as cst
 
 import warnings # remove when functions are depreciated
 
@@ -94,9 +94,14 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     Returns:
         mean_anom (float or np.array): mean anomaly on that date [0, 2pi)
     """
-    period = sma**(1.5)/np.sqrt(mtot) # years
 
-    frac_date = (date - tau_ref_epoch)/365.25/period
+    period = np.sqrt(
+        4 * np.pi**2.0 * (sma * u.AU)**3 /
+        (cst.G * (mtot * u.Msun))
+    )
+    period = period.to(u.day).value
+
+    frac_date = (date - tau_ref_epoch)/period
     frac_date %= 1
 
     mean_anom = (frac_date - tau) * 2 * np.pi
