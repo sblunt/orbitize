@@ -22,7 +22,7 @@ import pdb
 
 import orbitize.kepler as kepler
 import orbitize.system
-
+import orbitize.basis
 
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
@@ -50,6 +50,10 @@ class Results(object):
         num_secondary_bodies (int): number of companions fit 
         curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
             that is used for restarting a MCMC sampler. 
+        fitting_basis (string): name of the basis that the sampler fit into (default: 'Standard').
+        basis (orbitize.Basis): basis object corresponding to the fitting basis being used (default: None).
+        extra_basis_args (dict): additional arguments needed to initialize the basis class and make
+            necessary conversions (default: None).
 
     The ``post`` array is in the following order::
 
@@ -66,7 +70,8 @@ class Results(object):
     """
 
     def __init__(self, sampler_name=None, post=None, lnlike=None, tau_ref_epoch=None, labels=None,
-                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='Standard', xyz_epochs=None):
+                 data=None, num_secondary_bodies=None, version_number=None, curr_pos=None, fitting_basis='Standard', 
+                 basis=None, extra_basis_args=None):
 
 
         self.sampler_name = sampler_name
@@ -83,7 +88,13 @@ class Results(object):
         self.curr_pos = curr_pos
         self.version_number = version_number
         self.fitting_basis = fitting_basis
-        self.xyz_epochs = xyz_epochs
+        self.basis = basis
+
+        # Params necessary for constructing a basis object
+        self.required_basis_attrs = ['stellar_mass', 'mass_err', 'plx', 'plx_err', 'fit_secondary_mass']
+
+        # Additional params necessary for making conversions
+        self.extra_basis_args = extra_basis_args
 
 
     def add_samples(self, orbital_params, lnlikes, labels, curr_pos=None):
@@ -151,9 +162,15 @@ class Results(object):
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
         hf.attrs['version_number'] = self.version_number
         hf.attrs['fitting_basis'] = self.fitting_basis
-        if self.fitting_basis == 'XYZ':
-            hf.create_dataset('xyz_epochs', data= self.xyz_epochs)
-            
+
+        # For the basis object, we only need to save attributes relevant for conversions
+        if self.basis is not None:
+            basis_attr = vars(self.basis)
+            for attribute in self.required_basis_attrs:
+                hf.attrs[attribute] = basis_attr[attribute]
+            for attribute in self.extra_basis_args:
+                hf.attrs[attribute + "_extra_arg"] = self.extra_basis_args[attribute]
+
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
         hf.create_dataset('data', data=self.data)
@@ -226,11 +243,24 @@ class Results(object):
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
             fitting_basis == 'Standard'
+
+        # Rebuild Basis Object
+        keys = [item for item in hf.attrs if item.endswith('_extra_arg') or item in self.required_basis_attrs]
+        args = {}
+        extra_args = {}
         try:
-            xyz_epochs = np.array(hf.get('xyz_epochs'))
+            for item in keys:
+                if (item.endswith('_extra_arg')):
+                    args[item[:-10]] = hf.attrs[item]
+                    extra_args[item] = hf.attrs[item]
+                else:
+                    args[item] = hf.attrs[item]
+            args['num_secondary_bodies'] = num_secondary_bodies
+            basis_obj = getattr(orbitize.basis, fitting_basis)
+            basis = basis_obj(**args)
         except KeyError:
-            # if KeyError, this was not fit in xyz
-            xyz_epochs = None
+            # If some key does not exist, then we cannot build basis object
+            basis = None
 
         hf.close()  # Closes file object
 
@@ -238,7 +268,6 @@ class Results(object):
         if curr_pos is not None:
             self.curr_pos = curr_pos
 
-        # TODO: Check if this part is consistent with xyz_epoch
         # Adds loaded data to object as per append keyword
         if append:
             # if no sampler_name set, use the input file's value
@@ -285,7 +314,8 @@ class Results(object):
                 self.tau_ref_epoch = tau_ref_epoch
                 self.num_secondary_bodies = num_secondary_bodies
                 self.fitting_basis = fitting_basis
-                self.xyz_epochs = xyz_epochs
+                self.basis = basis
+                self.extra_basis_args = extra_args
             else:
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
@@ -304,6 +334,8 @@ class Results(object):
                     aop1: argument of periastron
                     pan1: position angle of nodes
                     tau1: epoch of periastron passage, expressed as fraction of orbital period
+                    per1: period
+                    K1: stellar radial velocity semi-amplitude
                     [repeat for 2, 3, 4, etc if multiple objects]
                     plx:  parallax
                     gamma: rv offset
@@ -326,7 +358,6 @@ class Results(object):
         """
 
         # Define array of default axis labels (overwritten if user specifies list)
-        # TODO: Add XYZ basis labels
         default_labels = {
             'sma': '$a_{0}$ [au]',
             'ecc': '$ecc_{0}$',
@@ -345,7 +376,13 @@ class Results(object):
             'alpha0': 'alpha0',
             'delta0': 'delta0',
             'per' : '$P_{0}$ [yr]',
-            'K' : '$K_{0}$ [km/s]'
+            'K' : '$K_{0}$ [km/s]',
+            'x' : '$X_{0}$ [AU]',
+            'y' : '$Y_{0}$ [AU]',
+            'z' : '$Z_{0}$ [AU]',
+            'xdot' : '$xdot_{0}$ [km/s]',
+            'ydot' : '$ydot_{0}$ [km/s]',
+            'zdot' : '$zdot_{0}$ [km/s]'
         }
 
         if param_list is None:
@@ -477,29 +514,39 @@ class Results(object):
                 raise Exception(
                     'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
 
+            # Select random indices for plotted orbit
+            num_orbits = len(self.post[:, 0])
+            if num_orbits_to_plot > num_orbits:
+                num_orbits_to_plot = num_orbits
+            choose = np.random.randint(0, high=num_orbits, size=num_orbits_to_plot)
+
+            # Convert the randomly chosen posteriors to standard keplerian set
+            standard_post = []
+            for i in np.arange(num_orbits_to_plot):
+                orb_ind = choose[i]
+                param_set = self.post[orb_ind]
+                standard_post.append(self.basis.to_standard_basis(param_set))
+
+            standard_post = np.array(standard_post)
+
 
             start_index = (object_to_plot - 1) * 6
 
-            sma = self.post[:, start_index + dict_of_indices['sma']]
-            ecc = self.post[:, start_index + dict_of_indices['ecc']]
-            inc = self.post[:, start_index + dict_of_indices['inc']]
-            aop = self.post[:, start_index + dict_of_indices['aop']]
-            pan = self.post[:, start_index + dict_of_indices['pan']]
-            tau = self.post[:, start_index + dict_of_indices['tau']]
-            plx = self.post[:, dict_of_indices['plx']]
+            sma = standard_post[:, start_index + dict_of_indices['sma']]
+            ecc = standard_post[:, start_index + dict_of_indices['ecc']]
+            inc = standard_post[:, start_index + dict_of_indices['inc']]
+            aop = standard_post[:, start_index + dict_of_indices['aop']]
+            pan = standard_post[:, start_index + dict_of_indices['pan']]
+            tau = standard_post[:, start_index + dict_of_indices['tau']]
+            plx = standard_post[:, dict_of_indices['plx']]
 
             # Then, get the other parameters
             if 'mtot' in self.labels:
-                mtot = self.post[:, -1]
+                mtot = standard_post[:, -1]
             elif 'm0' in self.labels:
-                m0 = self.post[:, -1]
-                m1 = self.post[:, -(self.num_secondary_bodies+1) + (object_to_plot-1)]
+                m0 = standard_post[:, -1]
+                m1 = standard_post[:, -(self.num_secondary_bodies+1) + (object_to_plot-1)]
                 mtot = m0 + m1
-                
-            # Select random indices for plotted orbit
-            if num_orbits_to_plot > len(sma):
-                num_orbits_to_plot = len(sma)
-            choose = np.random.randint(0, high=len(sma), size=num_orbits_to_plot)
 
             raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
             deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -509,18 +556,17 @@ class Results(object):
             # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
             # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
             for i in np.arange(num_orbits_to_plot):
-                orb_ind = choose[i]
                 # Compute period (from Kepler's third law)
                 period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
                 period = period.to(u.day).value
                 # Create an epochs array to plot num_epochs_to_plot points over one orbital period
                 epochs[i, :] = np.linspace(start_mjd, float(
-                    start_mjd+period[orb_ind]), num_epochs_to_plot)
+                    start_mjd+period[i]), num_epochs_to_plot)
 
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
-                    epochs[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                    tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                    epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
+                    tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                 )
 
                 raoff[i, :] = raoff0
@@ -644,8 +690,6 @@ class Results(object):
 
             for i in np.arange(num_orbits_to_plot):
 
-                orb_ind = choose[i]
-
                 epochs_seppa[i, :] = np.linspace(
                     start_mjd,
                     Time(sep_pa_end_year, format='decimalyear').mjd,
@@ -655,17 +699,17 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 if rv_time_series:
                     raoff0, deoff0, vzoff0 = kepler.calc_orbit(
-                        epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch,
-                        mass_for_Kamp=m0[orb_ind], tau_warning=False
+                        epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
+                        tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch,
+                        mass_for_Kamp=m0[i], tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
                     deoff[i, :] = deoff0
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
-                        epochs_seppa[i, :], sma[orb_ind], ecc[orb_ind], inc[orb_ind], aop[orb_ind], pan[orb_ind],
-                        tau[orb_ind], plx[orb_ind], mtot[orb_ind], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                        epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
+                        tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
                     )
 
                     raoff[i, :] = raoff0
@@ -714,6 +758,15 @@ class Results(object):
                 best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
+                # Get the posteriors for this index and convert to standard basis
+                best_post = self.post[best_like]
+                best_post = self.basis.to_standard_basis(best_post)
+
+                # Get the masses for the best posteriors:
+                best_m0 = best_post[-1]
+                best_m1 = best_post[-(self.num_secondary_bodies+1)+(object_to_plot-1)]
+                best_mtot = best_m0 + best_m1
+
                 # colour/shape scheme scheme for rv data points
                 clrs=['0496FF','372554','FF1053','3A7CA5','143109']
                 symbols=['o','^','v','s']
@@ -734,12 +787,12 @@ class Results(object):
                 
                 # calculate the predicted rv trend using the best orbit 
                 raa, decc, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
-                    tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
-                    mass_for_Kamp=m0[best_like]
+                    epochs_seppa[i, :], best_post[dict_of_indices['sma']], best_post[dict_of_indices['ecc']], best_post[dict_of_indices['inc']], 
+                    best_post[dict_of_indices['aop']], best_post[dict_of_indices['pan']], best_post[dict_of_indices['tau']], 
+                    best_post[dict_of_indices['plx']], best_mtot, tau_ref_epoch=self.tau_ref_epoch, mass_for_Kamp=best_m0
                 )
                 
-                vz=vz*-(m1[best_like])/np.median(m0[best_like])
+                vz=vz*-(best_m1)/np.median(best_m0)
 
                 # plot rv trend
                 

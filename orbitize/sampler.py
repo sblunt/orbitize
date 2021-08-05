@@ -197,7 +197,8 @@ class OFTI(Sampler,):
             data=self.system.data_table,
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
 
     def prepare_samples(self, num_samples):
@@ -548,7 +549,8 @@ class MCMC(Sampler):
             data=self.system.data_table,
             num_secondary_bodies=system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs=self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
         
         if self.num_temps > 1:
@@ -1000,7 +1002,8 @@ class MCMC(Sampler):
             labels=self.system.labels,
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
 
         # Print a confirmation

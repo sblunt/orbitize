@@ -3,8 +3,9 @@ import astropy.units as u
 import astropy.constants as consts
 import warnings # remove when functions are depreciated
 import abc
+import pdb
 
-from orbitize import priors, hipparcos
+from orbitize import priors
 from scipy.optimize import fsolve
 
 class Basis(abc.ABC):
@@ -14,8 +15,8 @@ class Basis(abc.ABC):
     and how conversions are made from the basis sets to the standard keplarian set.
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
-        angle_upperlim, fit_secondary_mass, hipparcos_IAD, rv, rv_instruments):
+    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+        angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
         self.stellar_mass = stellar_mass
         self.mass_err=mass_err
@@ -130,30 +131,29 @@ class Standard(Basis):
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
-        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
             'stellar_mass' is taken to be total mass
-        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
+        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
-            is no radial velocity data and radial velocity priors are not assigned
-        rv_instruments (np.array): array of unique rv instruments from the originally supplied data
+            is no radial velocity data and radial velocity priors are not assigned (default: False)
+        rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-        fit_secondary_mass, hipparcos_IAD, rv, rv_instruments):
+    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+        angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(Standard, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-            fit_secondary_mass, hipparcos_IAD, rv, rv_instruments)
-
-        self.init_basis_arr = ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau']
+        super(Standard, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+            fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
+        base_labels = ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
         basis_labels = []
 
         # Add the priors common to each companion
         for body in np.arange(self.num_secondary_bodies):
-            for elem in self.init_basis_arr:
+            for elem in base_labels:
                 basis_priors.append(self.default_priors[elem])
                 basis_labels.append(elem + str(body+1))
 
@@ -193,30 +193,29 @@ class Period(Basis):
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
-        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
             'stellar_mass' is taken to be total mass
-        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
+        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
-            is no radial velocity data and radial velocity priors are not assigned
-        rv_instruments (np.array): array of unique rv instruments from the originally supplied data
+            is no radial velocity data and radial velocity priors are not assigned (default: False)
+        rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-        fit_secondary_mass, hipparcos_IAD, rv, rv_instruments):
+    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+        angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(Period, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-            fit_secondary_mass, hipparcos_IAD, rv, rv_instruments)
-
-        self.init_basis_arr = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau']
+        super(Period, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+            fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
+        base_labels = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
         basis_labels = []
 
         # Add the priors common to each companion
         for body in np.arange(self.num_secondary_bodies):
-            for elem in self.init_basis_arr:
+            for elem in base_labels:
                 basis_priors.append(self.default_priors[elem])
                 basis_labels.append(elem + str(body+1))
 
@@ -273,30 +272,29 @@ class SemiAmp(Basis):
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
-        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
             'stellar_mass' is taken to be total mass
-        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
+        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
-            is no radial velocity data and radial velocity priors are not assigned (rv data will be ignored)
-        rv_instruments (np.array): array of unique rv instruments from the originally supplied data
+            is no radial velocity data and radial velocity priors are not assigned (default: False)
+        rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-        fit_secondary_mass, hipparcos_IAD, rv, rv_instruments):
+    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+        angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(SemiAmp, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-            fit_secondary_mass, hipparcos_IAD, rv, rv_instruments)
-
-        self.init_basis_arr = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau', 'K']
+        super(SemiAmp, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+            fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
+        base_labels = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau', 'K']
         basis_priors = []
         basis_labels = []
 
         # Add the priors common to each companion
         for body in np.arange(self.num_secondary_bodies):
-            for elem in self.init_basis_arr:
+            for elem in base_labels:
                 basis_priors.append(self.default_priors[elem])
                 basis_labels.append(elem + str(body+1))
 
@@ -329,21 +327,21 @@ class SemiAmp(Basis):
     def to_standard_basis(self, param_arr):
         indices_to_remove = []  # Keep track of where semi-amp values are for removal
         m0 = param_arr[-1]
-        init_basis_len = len(self.init_basis_arr)
+        base_labels_len = 7
 
         # Compute each companion's mass and sma
         for body in np.arange(self.num_secondary_bodies):
-            period = param_arr[body * init_basis_len]
-            ecc = param_arr[(body * init_basis_len) + 1]
-            inc = param_arr[(body * init_basis_len) + 2]
-            semi_amp = param_arr[(body * init_basis_len) + 6]
-            indices_to_remove.append((body * init_basis_len) + 6)
+            period = param_arr[body * base_labels_len]
+            ecc = param_arr[(body * base_labels_len) + 1]
+            inc = param_arr[(body * base_labels_len) + 2]
+            semi_amp = param_arr[(body * base_labels_len) + 6]
+            indices_to_remove.append((body * base_labels_len) + 6)
 
             # Add companion mass and replace period with sma
             companion_m = self.compute_companion_mass(period, ecc, inc, semi_amp, m0)
             param_arr = np.insert(param_arr, -1, companion_m)
             companion_sma = self.compute_companion_sma(period, m0, companion_m)
-            param_arr[body * init_basis_len] = companion_sma
+            param_arr[body * base_labels_len] = companion_sma
 
         # Remove semi-amplitude values
         param_arr = np.delete(param_arr, indices_to_remove)
@@ -383,24 +381,24 @@ class XYZ(Basis):
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
-        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
             'stellar_mass' is taken to be total mass
-        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data
-        rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
-            is no radial velocity data and radial velocity priors are not assigned
-        rv_instruments (np.array): array of unique rv instruments from the originally supplied data
         input_table (astropy.table.Table): output from 'orbitize.read_input.read_file()'
         best_epoch_idx (list): indices of the epochs corresponding to the smallest uncertainties
         epochs (list): all of the epochs from 'input_table'
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
+        hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
+        rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
+            is no radial velocity data and radial velocity priors are not assigned (default: False)
+        rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
 
     Author: Rodrigo
     '''
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-        fit_secondary_mass, hipparcos_IAD, rv, rv_instruments, input_table, best_epoch_idx, epochs):
+    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+        input_table, best_epoch_idx, epochs, angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(XYZ, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, angle_upperlim, 
-            fit_secondary_mass, hipparcos_IAD, rv, rv_instruments)
+        super(XYZ, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+            angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
         self.input_table = input_table
         self.best_epoch_idx = best_epoch_idx
@@ -738,24 +736,22 @@ class XYZ(Basis):
 
         return np.squeeze(result)
 
-
-###########################################################################
-###########################################################################
-def tau_to_t0(self, tau, ref_epoch, period, after_date=None):
+# Other conversions
+def tau_to_t0(tau, ref_epoch, period, after_date=None):
     """
     DEPRECATING!! Repalced by tau_to_tp
     """
     warnings.warn('DEPRECATION: tau_to_t0 is being deprecated in the next orbitize! release. Please use tau_to_tp instead!', FutureWarning)
     return tau_to_tp(tau, ref_epoch, period, after_date=after_date)
 
-def t0_to_tau(self, tp, ref_epoch, period):
+def t0_to_tau(tp, ref_epoch, period):
     """
     DEPRECATING!! Repalced by tp_to_tau
     """
     warnings.warn('DEPRECATION: t0_to_tau is being deprecated in the next orbitize! release. Please use t0_to_tau instead!', FutureWarning)
     return tp_to_tau(tp, ref_epoch, period)
 
-def tau_to_tp(self, tau, ref_epoch, period, after_date=None):
+def tau_to_tp(tau, ref_epoch, period, after_date=None):
     """
     Convert tau (epoch of periastron in fractional orbital period after ref epoch) to
     t_p (date in days, usually MJD, but works with whatever system ref_epoch is given in)
@@ -781,7 +777,7 @@ def tau_to_tp(self, tau, ref_epoch, period, after_date=None):
 
     return tp
 
-def tp_to_tau(self, tp, ref_epoch, period):
+def tp_to_tau(tp, ref_epoch, period):
     """
     Convert t_p to tau
 
@@ -798,7 +794,7 @@ def tp_to_tau(self, tp, ref_epoch, period):
 
     return tau
 
-def switch_tau_epoch(self, old_tau, old_epoch, new_epoch, period):
+def switch_tau_epoch(old_tau, old_epoch, new_epoch, period):
     """
     Convert tau to another tau that uses a different referench epoch
 

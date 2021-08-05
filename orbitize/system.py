@@ -164,7 +164,7 @@ class System(object):
 
 
         # Assign priors for the given basis set
-        extra_kwargs = {}
+        self.extra_basis_kwargs = {}
         basis_obj = getattr(basis, self.fitting_basis)
 
         # Obtain extra necessary data to assign priors for XYZ
@@ -202,11 +202,11 @@ class System(object):
                 this_best_epoch = epochs[this_best_epoch_idx]
                 self.best_epochs.append(this_best_epoch)
 
-            extra_kwargs = {'input_table':self.input_table, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
+            self.extra_basis_kwargs = {'input_table':self.input_table, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
 
-        self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
-            angle_upperlim, self.fit_secondary_mass, self.hipparcos_IAD, contains_rv, self.rv_instruments, **extra_kwargs)
+        self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, self.fit_secondary_mass,
+            angle_upperlim=angle_upperlim, hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, rv_instruments=self.rv_instruments, **self.extra_basis_kwargs)
         self.sys_priors, self.labels = self.basis.construct_priors()
 
         # add labels dictionary for parameter indexing
