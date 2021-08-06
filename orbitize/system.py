@@ -354,7 +354,7 @@ class System(object):
                         continue
 
                     ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
-                    ra_perturb[:, other_body_num, :] += (masses[other_body_num]/mtots[other_body_num]) * ra_kepler[:, body_num, :]
+                    ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
                     dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
                     
                     # star is perturbed in opposite direction
