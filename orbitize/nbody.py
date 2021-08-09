@@ -1,12 +1,6 @@
-import os
 import numpy as np
-import astropy
-import astropy.units as u
 import orbitize.basis as basis
-import orbitize.kepler
 import rebound
-import matplotlib.pyplot as plt
-
 
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m_pl=None):
     """

@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input, kepler, conversions, hipparcos
+from orbitize import nbody, priors, read_input, kepler, conversions, hipparcos
 import astropy.units as u
 import astropy.constants as consts
 
@@ -53,10 +53,9 @@ class System(object):
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
-                 hipparcos_number=None, fitting_basis='standard', hipparcos_filename=None):
+                 hipparcos_number=None, fitting_basis='standard', hipparcos_filename=None, use_rebound=False):
 
-        # TODO SOFIA: add a keyword ``rebound`` here
-
+        self.use_rebound = use_rebound
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
         self.labels = []
@@ -564,7 +563,7 @@ class System(object):
             return raoff, deoff, vz
 
 
-    def compute_model(self, params_arr):
+    def compute_model(self, params_arr, comp_rebound=False):
         """
         Compute model predictions for an array of fitting parameters. 
         Calls the above compute_all_orbits() function, adds jitter/gamma to
@@ -577,17 +576,49 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
+            comp_rebound (bool, optional): A secondary optional input for 
+                use of N-body solver Rebound; by default, this will be set
+                to false and a Kepler solver will be used instead. 
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
 
-        # TODO SOFIA: add keyword rebound=False (and document in the docstring)
-        # TODO SOFIA: add some code that converts `params_arr` to a format nbody.calc_orbit can read in
-        # (look at how compute_all_orbits() does this)
+        if comp_rebound or self.use_rebound:
+            #convert
+            for body_num in np.arange(0, self.num_secondary_bodies)+1:
+                #params_arr
+                startindex = 6 * (body_num - 1)
+                sma = params_arr[startindex]
+                ecc = params_arr[startindex + 1]
+                inc = params_arr[startindex + 2]
+                argp = params_arr[startindex + 3]
+                lan = params_arr[startindex + 4]
+                tau = params_arr[startindex + 5]
 
-        raoff, decoff, vz = self.compute_all_orbits(params_arr)
+            if self.fit_secondary_mass:
+                # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
+                m_pl = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                m0 = params_arr[-1]
+
+                # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
+                # We need to select all planets with sma < this planet. 
+                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                within_orbit = np.where(all_smas <= sma)
+                outside_orbit = np.where(all_smas > sma)
+                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
+                inside_masses = all_pl_masses[within_orbit]
+                mtot = np.sum(inside_masses) + m0
+
+            else:
+                # if not fitting for secondary mass, then total mass must be stellar mass
+                m_pl = np.zeros(len(sma))
+                mtot = params_arr[-1]
+            
+            raoff, decoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl)
+        else:
+            raoff, decoff, vz = self.compute_all_orbits(params_arr)
 
         if len(params_arr.shape) == 1:
             n_orbits = 1
