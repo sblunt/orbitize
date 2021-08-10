@@ -31,9 +31,12 @@ class Prior(ABC):
 
 class NearestNDInterpPrior(Prior):
     """
-    NEarest Neighbor interp. This class is
+    Nearest Neighbor interp. This class is
     a wrapper for scipy.interpolate.NearestNDInterpolator.
     Args:
+        interp_fct (scipy.interpolate.NearestNDInterpolator): scipy Interpolator object containing the NDInterpolator defined by the user
+        total_params (float): number of parameters 
+
     """
     def __init__(self, interp_fct,total_params):
         self.interp_fct = interp_fct
@@ -41,7 +44,6 @@ class NearestNDInterpPrior(Prior):
         self.param_num = 0
         self.correlated_drawn_samples = None 
         self.correlated_input_samples = None
-        # Some numbers fror this method
         self.num_priorsFromArr = interp_fct.values.size
         self.ind_draw = None
     def increment_param_num(self):
@@ -66,9 +68,6 @@ class NearestNDInterpPrior(Prior):
             self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
         if self.param_num == self.total_params-1:
             lnlike = self.interp_fct(self.correlated_input_samples)
-            # print('logparam_corr'+str(self.logparam_corr))
-            # like = (10**lnlike)/self.logparam_corr
-            # lnlike = np.log10(like)
             self.increment_param_num()
             self.logparam_corr = 1
             return lnlike
@@ -81,6 +80,10 @@ class KDEPrior(Prior):
     Gaussian kernel density estimation (KDE) prior. This class is
     a wrapper for scipy.stats.gaussian_kde.
     Args:
+        gaussian_kde (scipy.stats.gaussian_kde): scipy KDE object containing the KDE defined by the user
+        total_params (float): number of parameters in the KDE
+        bounds (array_like, optional): bounds for the KDE out of which the prob returned is -Inf
+        bounds (array_like of bool, optional): if True for a parameter the parameter is fit to the KDE in log-scale
     """
     def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
         self.gaussian_kde = gaussian_kde
@@ -115,10 +118,6 @@ class KDEPrior(Prior):
             self.increment_param_num()
             return return_me
     def compute_lnprob(self, element_array):
-#        print(self.param_num, self.total_params)
-        # if self.param_num==5:
-        #     import pdb
-        #     pdb.set_trace()
         if element_array<self.bounds[self.param_num][0] or element_array>self.bounds[self.param_num][1]:
             if self.log_scale_arr[self.param_num]:
                 element_array_lin = element_array
@@ -142,9 +141,6 @@ class KDEPrior(Prior):
             self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
         if self.param_num == self.total_params-1:
             lnlike = self.gaussian_kde.logpdf(self.correlated_input_samples)
-            # print('logparam_corr'+str(self.logparam_corr))
-            # like = (10**lnlike)/self.logparam_corr
-            # lnlike = np.log10(like)
             self.increment_param_num()
             self.logparam_corr = 1
             return lnlike
