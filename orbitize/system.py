@@ -237,7 +237,6 @@ class System(object):
                     radial velocities at each epoch.
 
         """
-        pdb.set_trace()
         # Only Make Conversion if MCMC (OFTI already converted)
         if self.sampler_str == 'MCMC':
             params_arr = self.basis.to_standard_basis(params_arr)
