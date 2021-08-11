@@ -70,6 +70,10 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
+**1.16.1 (2021-06-27)**
+
+* Fixed chop_chains() function to copy original data over when updating Results object (@TirthDS)
+
 **1.16.0 (2021-06-23)**
 
 * User-defined prior on PAN were not being applied if OFTI is used; fixed (@sblunt)
