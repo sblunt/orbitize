@@ -68,9 +68,6 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
-docs/_build/
-
 # PyBuilder
 target/
 
@@ -114,7 +111,6 @@ build.sh
 *.hdf5
 *.fits
 *.png
-!docs/orbitize_logo_500.png
 .vscode/settings.json
 tests/test_results.h5
 tests/multiplanet*test.csv
