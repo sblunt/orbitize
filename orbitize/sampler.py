@@ -187,12 +187,11 @@ class OFTI(Sampler,):
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
         return samples
 
-    def scale_and_rotate(self, samples, num_samples):
+    def scale_and_rotate(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
         Args:
-            samples ():
             num_samples (int): number of orbits to draw and scale & rotate for
                 OFTI to run rejection sampling on
         Return:
@@ -295,7 +294,7 @@ class OFTI(Sampler,):
         Args:
             samples (np.array): array of prepared samples. The first dimension \
                 has size ``num_samples``. This should be the output of \
-                ``prepare_samples()``.
+                ``scale_and_rotate()`` or ``draw_from_priors()``.
 
         Return:
             tuple:
@@ -324,9 +323,8 @@ class OFTI(Sampler,):
         """
 
         # if the semimajor axis prior is standard, do scale-and-rotate
-        if self.priors[0].__repr__() == "Jeffreys":
-            samples = self.draw_from_priors(num_samples)
-            samples = self.scale_and_rotate(samples, num_samples)
+        if self.priors[0].__repr__() == "Log Uniform":
+            samples = self.scale_and_rotate(num_samples)
             
         # otherwise, don't scale and rotate. Just do rejection sampling
         else:
