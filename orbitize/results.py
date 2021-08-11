@@ -406,7 +406,6 @@ class Results(object):
         Additions by Malena Rice, 2019
 
         """
-
         if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
             raise ValueError('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
 
@@ -419,6 +418,7 @@ class Results(object):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
 
+            data = self.data
             dict_of_indices = {
                 'sma': 0,
                 'ecc': 1,
@@ -441,7 +441,6 @@ class Results(object):
             else:
                 raise Exception(
                     'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
-
 
             start_index = (object_to_plot - 1) * 6
 
@@ -507,6 +506,12 @@ class Results(object):
                     vmax=np.max(Time(epochs, format='mjd').decimalyear)
                 )
 
+            # Before starting to plot rv data, make sure rv data exists:
+            rv_indices = np.where(data['quant_type'] == 'rv')
+            if rv_time_series and len(rv_indices) == 0:
+                warnings.warn("Unable to plot radial velocity data.")
+                rv_time_series = False
+
             # Create figure for orbit plots
             if fig is None:
                 fig = plt.figure(figsize=(14, 6))
@@ -523,7 +528,6 @@ class Results(object):
                 else:
                     ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
             
-            data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
 
@@ -650,15 +654,12 @@ class Results(object):
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
             if rv_time_series:
-                
                 # switch current axis to rv panel
                 plt.sca(ax3)
         
-                # get list of instruments
-                insts=np.unique(data['instrument'])
-                insts=[i if isinstance(i,str) else i.decode() for i in insts]
-                insts=[i for i in insts if 'def' not in i]
-                
+                # get list of rv instruments
+                insts = np.unique(data['instrument'][rv_indices])
+
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
 
@@ -676,7 +677,7 @@ class Results(object):
                     inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
 
                 # choose the orbit with the best log probability
-                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
+                best_like=np.where(self.lnlike==np.amax(self.lnlike))[0][0] 
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
                 # colour/shape scheme scheme for rv data points
@@ -699,7 +700,7 @@ class Results(object):
                 
                 # calculate the predicted rv trend using the best orbit 
                 raa, decc, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
+                    epochs_seppa[0, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
                     tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
                     mass_for_Kamp=m0[best_like]
                 )
@@ -708,7 +709,7 @@ class Results(object):
 
                 # plot rv trend
                 
-                plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
+                plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
 
             # add colorbar
