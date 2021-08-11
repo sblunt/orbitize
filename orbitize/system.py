@@ -17,6 +17,8 @@ class System(object):
         stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
             docstring below.
         plx (float): mean parallax of the system, in mas
+        sampler_str (string, optional): name of the sampler being used (either OFTI or MCMC),
+            default is OFTI
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
@@ -52,11 +54,12 @@ class System(object):
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
-                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 plx, sampler_str='OFTI', mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
                  hipparcos_number=None, fitting_basis='Standard', hipparcos_filename=None):
 
         self.num_secondary_bodies = num_secondary_bodies
+        self.sampler_str = sampler_str
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
@@ -234,8 +237,10 @@ class System(object):
                     radial velocities at each epoch.
 
         """
-
-        params_arr = self.basis.to_standard_basis(params_arr)
+        pdb.set_trace()
+        # Only Make Conversion if MCMC (OFTI already converted)
+        if self.sampler_str == 'MCMC':
+            params_arr = self.basis.to_standard_basis(params_arr)
 
         if epochs is None:
             epochs = self.data_table['epoch']
@@ -367,11 +372,12 @@ class System(object):
         vz[:, 0, :] = total_rv0
 
         if self.fitting_basis == 'XYZ':
-            # To filter out unbound orbits
-            if ((ecc >= 1.) | (ecc < 0.)):
-                raoff[:,:,:] = np.inf
-                deoff[:,:,:] = np.inf 
-                vz[:,:,:] = np.inf
+            # Find and filter out bad orbits
+            bad_orbits = np.where(np.logical_or(ecc >= 1., ecc < 0.))[0]
+            if (bad_orbits.size != 0):
+                raoff[:,:, bad_orbits] = np.inf
+                deoff[:,:, bad_orbits] = np.inf 
+                vz[:,:, bad_orbits] = np.inf
                 return raoff, deoff, vz
             else: 
                 return raoff, deoff, vz 

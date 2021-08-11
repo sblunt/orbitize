@@ -184,9 +184,6 @@ class Period(Basis):
     '''
     Modification of the standard basis, swapping our sma for period: (per, ecc, inc, aop, pan, tau).
 
-    NOTE: 
-        This class does not have support for OFTI yet.
-
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
         mass_err (float): uncertainty on 'stellar_mass', in M_sol
@@ -263,8 +260,7 @@ class SemiAmp(Basis):
     the stellar radial velocity semi-amplitude: (per, ecc, inc, aop, pan, tau, K).
 
     NOTES: 
-        This class does not have support for OFTI yet.
-        Ideally, 'fit_secondary_mass' is true and rv data is supplied.
+=        Ideally, 'fit_secondary_mass' is true and rv data is supplied.
 
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
@@ -311,7 +307,7 @@ class SemiAmp(Basis):
             self.set_hip_iad_priors()
 
         # Add rv priors
-        if self.rv:
+        if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
 
         # Add star mass prior (for now, regardless of whether 'fit_secondary_mass' is true)
@@ -339,12 +335,12 @@ class SemiAmp(Basis):
 
             # Add companion mass and replace period with sma
             companion_m = self.compute_companion_mass(period, ecc, inc, semi_amp, m0)
-            param_arr = np.insert(param_arr, -1, companion_m)
+            param_arr = np.insert(param_arr, -1, companion_m, 0)
             companion_sma = self.compute_companion_sma(period, m0, companion_m)
             param_arr[body * base_labels_len] = companion_sma
 
         # Remove semi-amplitude values
-        param_arr = np.delete(param_arr, indices_to_remove)
+        param_arr = np.delete(param_arr, indices_to_remove, 0)
 
         return param_arr
 
@@ -357,8 +353,16 @@ class SemiAmp(Basis):
         lhs = ((semi_amp*kms)*((1-ecc**2)**(1/2))*((period*u.yr)**(1/3))*(consts.G**(-1/3))*((4*np.pi**2)**(-1/6))) / (np.sin(inc))
         lhs = (lhs.to((u.solMass)**(1/3))).value
 
-        # Make guess at the middle of default prior space for companion mass (possibly iterative approach)
-        m_n = fsolve(self.func, x0=1e-3, args=(lhs, m0))
+        m_n = []
+
+        # Solve for companion mass numerically, making initial guess at center of uniform prior distribution (solar mass)
+        if (not hasattr(m0, '__len__')):
+            comp_mass = fsolve(self.func, x0=1e-3, args=(lhs, m0))
+            m_n.append(comp_mass[0])
+        else:
+            for orbit in range(len(m0)):
+                comp_mass = fsolve(self.func, x0=1e-3, args=(lhs[orbit], m0[orbit]))
+                m_n.append(comp_mass[0])
 
         return m_n
 
@@ -371,9 +375,6 @@ class SemiAmp(Basis):
 class XYZ(Basis):
     '''
     Defines an orbit using the companion's position and velocity components in XYZ space (x, y, z, xdot, ydot, zdot). 
-
-    NOTES: 
-        This class does not have support for OFTI yet.
 
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
@@ -526,7 +527,6 @@ class XYZ(Basis):
         Return:
             np.array: Orbital elements in the usual basis for all companions.
         '''
-
         for body in np.arange(self.num_secondary_bodies)+1:
             startindex = 6 * (body - 1)
             best_idx = self.best_epoch_idx[body - 1]
@@ -560,62 +560,61 @@ class XYZ(Basis):
         Return:
             np.array: Orbital elements in the usual basis (sma, ecc, inc, aop, pan, tau, plx, mtot)
         """
-
         if elems.ndim == 1:
-            elems = elems[np.newaxis, :]
+            elems = elems[:, np.newaxis]
         # Velocities and positions, with units
-        vel = elems[:,3:6] * u.km / u.s # velocities in km / s ?
-        pos = elems[:,0:3] * u.AU # positions in AU ?
-        vel_magnitude = np.linalg.norm(vel, axis=1)
-        pos_magnitude = np.linalg.norm(pos, axis=1)
+        vel = elems[3:6, :] * u.km / u.s # velocities in km / s ?
+        pos = elems[0:3, :] * u.AU # positions in AU ?
+        vel_magnitude = np.linalg.norm(vel, axis=0)
+        pos_magnitude = np.linalg.norm(pos, axis=0)
 
         # Mass
-        mtot = elems[:,7]*u.Msun
+        mtot = elems[7, :]*u.Msun
         mu = consts.G * mtot # G in m3 kg-1 s-2, mtot in msun
 
         # Angular momentum, making sure nodal vector is not exactly zero
-        h = (np.cross(pos, vel, axis=1)).si
+        h = (np.cross(pos, vel, axis=0)).si
         # if h[0].value == 0.0 and h[1].value == 0.0:
         #     pos[2] = 1e-8*u.AU
         #     h = (np.cross(pos, vel)).si
-        h_magnitude = np.linalg.norm(h, axis=1)
+        h_magnitude = np.linalg.norm(h, axis=0)
 
         sma = 1 / (2.0 / pos_magnitude - (vel_magnitude**2)/mu)
         sma = sma.to(u.AU)
 
         ecc = (np.sqrt(1 - h_magnitude**2 / (sma * mu))).value
-        e_vector = (np.cross(vel, h, axis=1) / mu[:, None] - pos / pos_magnitude[:, None]).si
-        e_vec_magnitude = np.linalg.norm(e_vector, axis=1)
+        e_vector = (np.cross(vel, h, axis=0) / mu - pos / pos_magnitude).si
+        e_vec_magnitude = np.linalg.norm(e_vector, axis=0)
 
-        unit_k = np.array((0,0,1))
-        cos_inc = (np.dot(h, unit_k) / h_magnitude).value
+        unit_k = np.array((0,0,1))[:, None]
+        cos_inc = (np.sum(h*unit_k, axis=0) / h_magnitude).value
         inc = np.arccos(-cos_inc)
 
         #Nodal vector
-        n = np.cross(unit_k, h)
-        n_magnitude = np.linalg.norm(n, axis=1)
+        n = np.cross(unit_k, h, axis=0)
+        n_magnitude = np.linalg.norm(n, axis=0)
 
         # Position angle of the nodes, checking for the right quadrant
         # np.arccos yields angles in [0, pi]
-        unit_i = np.array((1,0,0))
-        unit_j = np.array((0,1,0))
-        cos_pan = (np.dot(n, unit_j) / n_magnitude).value
+        unit_i = np.array((1,0,0))[:, None]
+        unit_j = np.array((0,1,0))[:, None]
+        cos_pan = (np.sum(n*unit_j, axis=0) / n_magnitude).value
         pan = np.arccos(cos_pan)
-        n_x = np.dot(n, unit_i)
+        n_x = np.sum(n*unit_i, axis=0)
         pan[n_x < 0.0] = 2*np.pi - pan[n_x < 0.0]
 
         # Argument of periastron, checking for the right quadrant
-        cos_aop = (np.sum(n*e_vector, axis=1) / (n_magnitude * e_vec_magnitude)).value
+        cos_aop = (np.sum(n*e_vector, axis=0) / (n_magnitude * e_vec_magnitude)).value
         aop = np.arccos(cos_aop)
-        e_vector_z = np.dot(e_vector, unit_k)
+        e_vector_z = np.sum(e_vector*unit_k, axis=0)
         aop[e_vector_z < 0.0] = 2.0*np.pi - aop[e_vector_z < 0.0]
 
         # True anomaly, checking for the right quadrant
-        cos_tanom = (np.sum(pos*e_vector, axis=1) / (pos_magnitude*e_vec_magnitude)).value
+        cos_tanom = (np.sum(pos*e_vector, axis=0) / (pos_magnitude*e_vec_magnitude)).value
         tanom = np.arccos(cos_tanom)
         # Check for places where tanom is nan, due to cos_tanom=1. (for some reason that was a problem)
         tanom = np.where((0.9999<cos_tanom ) & (cos_tanom<1.001), 0.0, tanom)
-        rdotv = np.sum(pos*vel, axis=1)
+        rdotv = np.sum(pos*vel, axis=0)
         tanom[rdotv < 0.0] = 2*np.pi - tanom[rdotv < 0.0]
 
         # Eccentric anomaly to get tau, checking for the right quadrant
@@ -639,8 +638,7 @@ class XYZ(Basis):
         mtot = mtot.value
         sma = sma.value
 
-        results = np.array((sma, ecc, inc, aop, pan, tau, elems[:,6], mtot)).T
-
+        results = np.stack([sma, ecc, inc, aop, pan, tau, elems[6, :], mtot])
         return np.squeeze(results)
 
     def standard_to_xyz(epoch, elems, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):

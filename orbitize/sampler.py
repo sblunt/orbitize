@@ -20,6 +20,8 @@ import orbitize.results
 import copy
 import matplotlib.pyplot as plt
 
+import pdb
+
 class Sampler(abc.ABC):
     """
     Abstract base class for sampler objects.
@@ -216,7 +218,6 @@ class OFTI(Sampler,):
         """
 
         # TODO: modify to work for multi-planet systems
-
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
         for i in range(len(self.priors)):
@@ -225,6 +226,9 @@ class OFTI(Sampler,):
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
+        # Make Converison to Standard Basis:
+        samples = self.system.basis.to_standard_basis(samples)
+        
         for body_num in np.arange(self.system.num_secondary_bodies):
             # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
             ref_ind = 6 * body_num

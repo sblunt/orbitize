@@ -520,14 +520,17 @@ class Results(object):
                 num_orbits_to_plot = num_orbits
             choose = np.random.randint(0, high=num_orbits, size=num_orbits_to_plot)
 
-            # Convert the randomly chosen posteriors to standard keplerian set
-            standard_post = []
-            for i in np.arange(num_orbits_to_plot):
-                orb_ind = choose[i]
-                param_set = self.post[orb_ind]
-                standard_post.append(self.basis.to_standard_basis(param_set))
+            if (self.sampler_name == 'MCMC'):
+                # Convert the randomly chosen posteriors to standard keplerian set
+                standard_post = []
+                for i in np.arange(num_orbits_to_plot):
+                    orb_ind = choose[i]
+                    param_set = self.post[orb_ind]
+                    standard_post.append(self.basis.to_standard_basis(param_set))
 
-            standard_post = np.array(standard_post)
+                standard_post = np.array(standard_post)
+            else: # For OFTI, posteriors are already converted
+                standard_post = self.post
 
 
             start_index = (object_to_plot - 1) * 6

@@ -58,7 +58,8 @@ class Driver(object):
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
             num_secondary_bodies, data_table, system_mass,
-            plx, mass_err=mass_err, plx_err=plx_err, fitting_basis=fitting_basis, **system_kwargs
+            plx, sampler_str, mass_err=mass_err, plx_err=plx_err, 
+            fitting_basis=fitting_basis, **system_kwargs
         )
 
         # Initialize Sampler object, which has System object as an attribute.
