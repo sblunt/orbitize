@@ -111,7 +111,7 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
-
+        # pdb.set_trace()
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -183,31 +183,21 @@ class OFTI(Sampler,):
             num_secondary_bodies=self.system.num_secondary_bodies
         )
 
-    def draw_from_priors(self, num_samples):
-        """
-        """
-        # generate sample orbits
-        samples = np.empty([len(self.priors), num_samples])
-        for i in range(len(self.priors)):
-            if hasattr(self.priors[i], "draw_samples"):
-                samples[i, :] = self.priors[i].draw_samples(num_samples)
-            else: # param is fixed & has no prior
-                samples[i, :] = self.priors[i] * np.ones(num_samples)
-        return samples
-
-    def scale_and_rotate(self, num_samples):
+    def prepare_samples(self, num_samples):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
+
         Args:
             num_samples (int): number of orbits to draw and scale & rotate for
                 OFTI to run rejection sampling on
+
         Return:
             np.array: array of prepared samples. The first dimension has size of
             num_samples. This should be passed into ``OFTI.reject()``
         """
 
-        samples = self.draw_from_priors(num_samples)
+        # TODO: modify to work for multi-planet systems
 
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
@@ -302,7 +292,7 @@ class OFTI(Sampler,):
         Args:
             samples (np.array): array of prepared samples. The first dimension \
                 has size ``num_samples``. This should be the output of \
-                ``scale_and_rotate()`` or ``draw_from_priors()``.
+                ``prepare_samples()``.
 
         Return:
             tuple:
@@ -353,22 +343,6 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
 
-    def _do_ofti(self, num_samples):
-        """
-        """
-
-        # if the semimajor axis prior is standard, do scale-and-rotate
-        if self.priors[0].__repr__() == "Log Uniform":
-            samples = self.scale_and_rotate(num_samples)
-            
-        # otherwise, don't scale and rotate. Just do rejection sampling
-        else:
-            samples = self.draw_from_priors(num_samples)   
-        
-        accepted_orbits, lnlikes = self.reject(samples)
-
-        return accepted_orbits, lnlikes
-
     def _sampler_process(self, output, total_orbits, num_cores, num_samples=10000, Value=0, lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
@@ -407,7 +381,8 @@ class OFTI(Sampler,):
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
 
-            accepted_orbits, lnlikes = self._do_ofti(num_samples)
+            samples = self.prepare_samples(num_samples)
+            accepted_orbits, lnlikes = self.reject(samples)
 
             if len(accepted_orbits) == 0:
                 pass
@@ -507,8 +482,8 @@ class OFTI(Sampler,):
 
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
-
-                accepted_orbits, lnlikes = self._do_ofti(num_samples)
+                samples = self.prepare_samples(num_samples)
+                accepted_orbits, lnlikes = self.reject(samples)
 
                 if len(accepted_orbits) == 0:
                     pass
