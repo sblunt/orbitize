@@ -172,7 +172,6 @@ class System(object):
 
         # Obtain extra necessary data to assign priors for XYZ
         if fitting_basis == 'XYZ':
-            epochs = self.data_table['epoch']
             # Get epochs with least uncertainty, as is done in sampler.py
             convert_warning_print = False
             for body_num in np.arange(self.num_secondary_bodies) + 1:
@@ -187,6 +186,10 @@ class System(object):
                 self.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
             meas_object = self.data_table[np.where(
                 self.data_table['quant_type'] == 'seppa')]['object'].copy()
+
+            astr_inds = np.where(self.input_table['object'] > 0)[0]
+            astr_data = self.input_table[astr_inds]
+            epochs = astr_data['epoch']
 
             self.best_epochs = []
             self.best_epoch_idx = []
@@ -205,7 +208,7 @@ class System(object):
                 this_best_epoch = epochs[this_best_epoch_idx]
                 self.best_epochs.append(this_best_epoch)
 
-            self.extra_basis_kwargs = {'input_table':self.input_table, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
+            self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
 
         self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, self.fit_secondary_mass,

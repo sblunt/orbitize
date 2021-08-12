@@ -165,7 +165,7 @@ class Standard(Basis):
 
         # Add hippparcos priors if necessary
         if self.hipparcos_IAD is not None:
-            self.set_hip_iad_priors()
+            self.set_hip_iad_priors(basis_priors, basis_labels)
 
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
@@ -224,7 +224,7 @@ class Period(Basis):
 
         # Add hipparcos priors if necessary
         if self.hipparcos_IAD is not None:
-            self.set_hip_iad_priors()
+            self.set_hip_iad_priors(basis_priors, basis_labels)
 
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
@@ -303,7 +303,7 @@ class SemiAmp(Basis):
 
         # Add hip_iad priors if necessary
         if self.hipparcos_IAD is not None:
-            self.set_hip_iad_priors()
+            self.set_hip_iad_priors(basis_priors, basis_labels)
 
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
@@ -375,6 +375,10 @@ class XYZ(Basis):
     '''
     Defines an orbit using the companion's position and velocity components in XYZ space (x, y, z, xdot, ydot, zdot). 
 
+    Notes:
+        Does not have support with multiple bodies yet.
+        Does not have support with sep,pa data yet.
+
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
         mass_err (float): uncertainty on 'stellar_mass', in M_sol
@@ -395,12 +399,12 @@ class XYZ(Basis):
     Author: Rodrigo
     '''
     def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
-        input_table, best_epoch_idx, epochs, angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
+        data_table, best_epoch_idx, epochs, angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
         super(XYZ, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
             angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
-        self.input_table = input_table
+        self.data_table = data_table
         self.best_epoch_idx = best_epoch_idx
         self.epochs = epochs
 
@@ -421,10 +425,10 @@ class XYZ(Basis):
 
             # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY,
             # also assuming this is in radec
-            best_ras = self.input_table['quant1'][best_idx:(best_idx+datapoints_to_take)].copy()
-            best_ras_err = self.input_table['quant1_err'][best_idx:(best_idx+datapoints_to_take)].copy()
-            best_decs = self.input_table['quant2'][best_idx:(best_idx+datapoints_to_take)].copy()
-            best_decs_err = self.input_table['quant2_err'][best_idx:(best_idx+datapoints_to_take)].copy()
+            best_ras = self.data_table['quant1'][best_idx:(best_idx+datapoints_to_take)].copy()
+            best_ras_err = self.data_table['quant1_err'][best_idx:(best_idx+datapoints_to_take)].copy()
+            best_decs = self.data_table['quant2'][best_idx:(best_idx+datapoints_to_take)].copy()
+            best_decs_err = self.data_table['quant2_err'][best_idx:(best_idx+datapoints_to_take)].copy()
 
             # Convert to AU for prior limits
             best_xs = best_ras / self.plx 
@@ -505,7 +509,7 @@ class XYZ(Basis):
 
         # Add hip_iad priors if necessary
         if self.hipparcos_IAD is not None:
-            self.set_hip_iad_priors()
+            self.set_hip_iad_priors(basis_priors, basis_labels)
 
         # Add rv priors
         if self.rv:
