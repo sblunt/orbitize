@@ -512,7 +512,7 @@ class XYZ(Basis):
             self.set_hip_iad_priors(basis_priors, basis_labels)
 
         # Add rv priors
-        if self.rv:
+        if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
 
         # Add mass priors

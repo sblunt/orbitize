@@ -726,7 +726,7 @@ class MCMC(Sampler):
                 while not all_valid:
                     total_invalids = 0
                     for temp in range(self.num_temps):
-                        to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[temp,:,:])
+                        to_stand = self.system.basis.to_standard_basis(self.curr_pos[temp,:,:].T.copy()).T
                         invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
                         if len(invalids) > 0:
                             newpos = []
@@ -742,7 +742,7 @@ class MCMC(Sampler):
                 all_valid = False
                 while not all_valid:
                     total_invalids = 0
-                    to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[:,:])
+                    to_stand = self.system.basis.to_standard_basis(self.curr_pos[:,:].T.copy()).T
                     invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
                     if len(invalids) > 0:
                         newpos = []
