@@ -44,6 +44,19 @@ def test_no_extra_data():
 		assert expected_labels == my_driver.system.labels	
 
 	# Multiple Companions
+	filename = "{}/test_val_multi.csv".format(DATADIR)
+	for basis in basis_names:
+		init_labels = [item + '1' for item in basis_names[basis]] + [item + '2' for item in basis_names[basis]]
+		if basis != 'SemiAmp':
+			expected_labels = init_labels + ['plx', 'm1', 'm2', 'm0']
+		else:
+			expected_labels = init_labels + ['plx', 'm0']
+
+		my_driver = driver.Driver(filename, 'MCMC', 2, 1.52, 24.76, mass_err=0.15, plx_err=0.64, fitting_basis=basis,
+			system_kwargs={'fit_secondary_mass':True, 'tau_ref_epoch':True}
+		)
+
+		assert expected_labels == my_driver.system.labels
 
 def test_with_rv():
 	filename = "{}/HD4747.csv".format(DATADIR)
@@ -98,3 +111,7 @@ if __name__ == '__main__':
 	test_no_extra_data()
 	test_with_rv()
 	test_with_hip_iad()
+
+
+# Convert to and forth
+# GR statistic, autocorrelation timescale (want low time), talk with rodrigo
