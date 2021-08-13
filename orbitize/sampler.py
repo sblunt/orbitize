@@ -740,6 +740,8 @@ class MCMC(Sampler):
             raise ValueError("output_filename must be defined for periodic saving of the chains")
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
+            
+        self.check_prior_support()
         
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
@@ -963,3 +965,41 @@ class MCMC(Sampler):
 
         # Print a confirmation
         print('Chains successfully chopped. Results object updated.')
+
+    def check_prior_support(self,):
+        """
+        Review the positions of all MCMC walkers, to verify that they are supported by the prior space.
+        This function will raise a descriptive ValueError if any positions lie outside prior support.
+        Otherwise, it will return nothing.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+
+        (written): Adam Smith, 2021
+        """
+
+        # Flatten the walker/temperature positions for ease of manipulation.
+        all_positions = self.curr_pos.reshape(self.num_walkers*self.num_temps,self.num_params)
+        
+        # Placeholder list to track any bad parameters that come up.
+        bad_parameters = []
+        
+        # Loop on each variable (this is why we transpose the walkers)
+        for i, x in enumerate(all_positions.T):
+            # Any issues with this parameter?
+            lnprob = self.priors[i].compute_lnprob(np.array(x))
+            supported = np.isfinite(lnprob).all() == True
+
+            if supported == False:
+                # Problem detected. Take note and continue the loop - we want to catch all the problem parameters.
+                bad_parameters.append(str(i))
+
+        # Throw our ValueError if necessary,
+        if len(bad_parameters) > 0:
+            raise ValueError("Attempting to start with walkers outside of prior support: check parameters "+', '.join(bad_parameters))
+        
+        # otherwise exit the function and continue.
+        return
