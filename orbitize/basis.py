@@ -146,6 +146,12 @@ class Standard(Basis):
             fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
+        '''
+        Generates the parameter label arrays and initializes the corresponding priors for each
+        parameter.
+
+        Returns:
+        '''
         base_labels = ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
         basis_labels = []
@@ -388,6 +394,45 @@ class SemiAmp(Basis):
         sma = sma.to(u.AU).value
 
         return sma
+
+    def to_semi_amp_basis(self, param_arr):
+        pdb.set_trace()
+        basis_labels_len = 6
+        indices_to_remove = []
+        indices_to_add = []
+        semi_amps = []
+
+        for body in np.arange(self.num_secondary_bodies):
+            # Grab necessary parameters for conversion
+            sma = param_arr[(body * basis_labels_len)]
+            ecc = param_arr[(body * basis_labels_len) + 1]
+            inc = param_arr[(body * basis_labels_len) + 2]
+            m_n = param_arr[-1-(self.num_secondary_bodies - body)]
+            m0 = param_arr[-1]
+            mtot = m_n + m0
+
+            # Get stellar semi-amplitude
+            K_n = (np.sqrt(consts.G / (1 - ecc**2)))*(m_n*u.Msun)*(np.sin(inc))*((mtot*u.Msun)**(-1/2))*((sma*u.AU)**(-1/2))
+            kms = u.km / u.s
+            K_n = K_n.to(kms).value
+
+            # Keep track of semi-amp values and locations
+            semi_amps.append(K_n)
+            indices_to_add.append((body * basis_labels_len) + basis_labels_len)
+            indices_to_remove.append(-1-(self.num_secondary_bodies - body))
+
+            # Compute Period and add to array
+            per = np.sqrt((4*(np.pi**2)*(sma*u.AU)**3) / (consts.G*(mtot*u.Msun)))
+            per = per.to(u.year).value
+            param_arr[body * basis_labels_len] = per
+
+        # Add semi-amplitude params
+        param_arr = np.insert(param_arr, indices_to_add, semi_amps, 0)
+
+        # Remove companion mass params
+        param_arr = np.delete(param_arr, indices_to_remove, 0)
+
+        return param_arr
 
 class XYZ(Basis):
     '''
