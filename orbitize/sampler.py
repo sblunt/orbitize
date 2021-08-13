@@ -781,7 +781,6 @@ class MCMC(Sampler):
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
         """
-
         if periodic_save_freq is not None and output_filename is None:
             raise ValueError("output_filename must be defined for periodic saving of the chains")
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):

@@ -242,17 +242,20 @@ class System(object):
         """
         # Only Make Conversion if MCMC (OFTI already converted)
         if self.sampler_str == 'MCMC':
-            params_arr = self.basis.to_standard_basis(params_arr)
+            to_convert = np.copy(params_arr)
+            standard_params_arr = self.basis.to_standard_basis(to_convert)
+        else:
+            standard_params_arr = params_arr
 
         if epochs is None:
             epochs = self.data_table['epoch']
 
         n_epochs = len(epochs)
 
-        if len(params_arr.shape) == 1:
+        if len(standard_params_arr.shape) == 1:
             n_orbits = 1
         else:
-            n_orbits = params_arr.shape[1]
+            n_orbits = standard_params_arr.shape[1]
 
         ra_kepler = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits)) # N_epochs x N_bodies x N_orbits
         dec_kepler = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
@@ -272,26 +275,26 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             startindex = 6 * (body_num - 1)
-            sma = params_arr[startindex]
-            ecc = params_arr[startindex + 1]
-            inc = params_arr[startindex + 2]
-            argp = params_arr[startindex + 3]
-            lan = params_arr[startindex + 4]
-            tau = params_arr[startindex + 5]
-            plx = params_arr[6 * self.num_secondary_bodies]
+            sma = standard_params_arr[startindex]
+            ecc = standard_params_arr[startindex + 1]
+            inc = standard_params_arr[startindex + 2]
+            argp = standard_params_arr[startindex + 3]
+            lan = standard_params_arr[startindex + 4]
+            tau = standard_params_arr[startindex + 5]
+            plx = standard_params_arr[6 * self.num_secondary_bodies]
 
             if self.fit_secondary_mass:
 
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
-                m0 = params_arr[-1]
+                mass = standard_params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                m0 = standard_params_arr[-1]
 
                 # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
                 # We need to select all planets with sma < this planet. 
-                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                all_smas = standard_params_arr[0:6*self.num_secondary_bodies:6]
                 within_orbit = np.where(all_smas <= sma)
                 outside_orbit = np.where(all_smas > sma)
-                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
+                all_pl_masses = standard_params_arr[-1-self.num_secondary_bodies:-1]
                 inside_masses = all_pl_masses[within_orbit]
                 mtot = np.sum(inside_masses) + m0
 
@@ -299,7 +302,7 @@ class System(object):
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
                 m0 = None
-                mtot = params_arr[-1]
+                mtot = standard_params_arr[-1]
             
             if self.track_planet_perturbs:
                 masses[body_num] = mass
@@ -342,8 +345,8 @@ class System(object):
                 if body_num > 0:
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
                     startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
-                    sma = params_arr[startindex]
-                    all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                    sma = standard_params_arr[startindex]
+                    all_smas = standard_params_arr[0:6*self.num_secondary_bodies:6]
                     outside_orbit = np.where(all_smas > sma)[0]
                     which_perturb_bodies = outside_orbit + 1
 

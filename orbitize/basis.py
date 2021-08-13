@@ -253,13 +253,31 @@ class Period(Basis):
 
         return param_arr
 
+    def to_period_basis(self, param_arr):
+        for i in np.arange(self.num_secondary_bodies)+1:
+            startindex = 6 * (i - 1)
+            sma = param_arr[startindex]
+            mtot = param_arr[-1]
+
+            if self.fit_secondary_mass:
+                # Assume two-body system
+                m_secondary = param_arr[-1-self.num_secondary_bodies+(i-1)]
+                m0 = param_arr[-1]
+                mtot = m_secondary + m0
+
+            per = np.sqrt((4*(np.pi**2)*(sma*u.AU)**3) / (consts.G*(mtot*u.Msun)))
+            per = per.to(u.year).value
+            param_arr[startindex] = per
+
+        return param_arr     
+
 class SemiAmp(Basis):
     '''
     Modification of the standard basis, swapping our sma for period and additionally sampling in
     the stellar radial velocity semi-amplitude: (per, ecc, inc, aop, pan, tau, K).
 
     NOTES: 
-=        Ideally, 'fit_secondary_mass' is true and rv data is supplied.
+        Ideally, 'fit_secondary_mass' is true and rv data is supplied.
 
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
@@ -376,8 +394,8 @@ class XYZ(Basis):
     Defines an orbit using the companion's position and velocity components in XYZ space (x, y, z, xdot, ydot, zdot). 
 
     Notes:
-        Does not have support with multiple bodies yet.
         Does not have support with sep,pa data yet.
+        Does not work for all multi-body data.
 
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
@@ -389,7 +407,7 @@ class XYZ(Basis):
             'stellar_mass' is taken to be total mass
         input_table (astropy.table.Table): output from 'orbitize.read_input.read_file()'
         best_epoch_idx (list): indices of the epochs corresponding to the smallest uncertainties
-        epochs (list): all of the epochs from 'input_table'
+        epochs (list): all of the astrometric epochs from 'input_table'
         angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
         hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
@@ -423,7 +441,7 @@ class XYZ(Basis):
             best_idx = self.best_epoch_idx[body]
             best_epochs = self.epochs[best_idx:(best_idx+datapoints_to_take)] # 0 is best, the others are for fitting velocity
 
-            # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY,
+            # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY 
             # also assuming this is in radec
             best_ras = self.data_table['quant1'][best_idx:(best_idx+datapoints_to_take)].copy()
             best_ras_err = self.data_table['quant1_err'][best_idx:(best_idx+datapoints_to_take)].copy()
