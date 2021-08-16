@@ -378,7 +378,7 @@ class System(object):
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
-    def compute_all_orbits(self, params_arr, epochs=None):
+    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
         interactions, as well as computes total quantities like RV (without jitter/gamma)
@@ -389,6 +389,9 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
+            comp_rebound (bool, optional): A secondary optional input for 
+                use of N-body solver Rebound; by default, this will be set
+                to false and a Kepler solver will be used instead. 
         
         Returns:
             tuple of:
@@ -425,131 +428,155 @@ class System(object):
             mtots = np.zeros((self.num_secondary_bodies + 1, n_orbits))
 
         total_rv0 = 0
+        plx = params_arr[6 * self.num_secondary_bodies]
 
-        for body_num in np.arange(self.num_secondary_bodies)+1:
-
-            startindex = 6 * (body_num - 1)
-            if self.fitting_basis == 'standard':
-
-                sma = params_arr[startindex]
-                ecc = params_arr[startindex + 1]
-                inc = params_arr[startindex + 2]
-                argp = params_arr[startindex + 3]
-                lan = params_arr[startindex + 4]
-                tau = params_arr[startindex + 5]
-            
-            elif self.fitting_basis == 'XYZ':
+        if comp_rebound or self.use_rebound:
                 
-                # curr_idx = self.body_indices[body_num]
-                # radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
-                # min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))
-                best_idx = self.best_epoch_idx[body_num-1]
-                constrained_epoch = epochs[best_idx]
-
-                to_convert = np.array([*params_arr[startindex:(startindex+6)],params_arr[6 * self.num_secondary_bodies],params_arr[-1]])
-                standard_params = conversions.xyz_to_standard(constrained_epoch, to_convert)
-
-                sma = standard_params[0] 
-                ecc = standard_params[1]
-                inc = standard_params[2]
-                argp = standard_params[3]
-                lan = standard_params[4]
-                tau = standard_params[5]
-
-            plx = params_arr[6 * self.num_secondary_bodies]
+            sma = params_arr[0:6*self.num_secondary_bodies:6]
+            ecc = params_arr[1:6*self.num_secondary_bodies:6]
+            inc = params_arr[2:6*self.num_secondary_bodies:6]
+            argp = params_arr[3:6*self.num_secondary_bodies:6]
+            lan = params_arr[4:6*self.num_secondary_bodies:6]
+            tau = params_arr[5:6*self.num_secondary_bodies:6]
 
             if self.fit_secondary_mass:
-
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                m_pl = params_arr[-1-self.num_secondary_bodies:-1]
                 m0 = params_arr[-1]
-
-                # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
-                # We need to select all planets with sma < this planet. 
-                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
-                within_orbit = np.where(all_smas <= sma)
-                outside_orbit = np.where(all_smas > sma)
-                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
-                inside_masses = all_pl_masses[within_orbit]
-                mtot = np.sum(inside_masses) + m0
-
+                mtot = m0 + sum(m_pl)
             else:
+                m_pl = np.zeros(self.num_secondary_bodies)
                 # if not fitting for secondary mass, then total mass must be stellar mass
-                mass = None
-                m0 = None
                 mtot = params_arr[-1]
             
-            if self.track_planet_perturbs:
-                masses[body_num] = mass
-                mtots[body_num] = mtot
+            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl)
+    
+        else:
 
-            # solve Kepler's equation
-            raoff, decoff, vz_i = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
-            )
+            for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            # raoff, decoff, vz are scalers if the length of epochs is 1
-            if len(epochs) == 1:
-                raoff = np.array([raoff])
-                decoff = np.array([decoff])
-                vz_i = np.array([vz_i])
+                startindex = 6 * (body_num - 1)
+                if self.fitting_basis == 'standard':
 
-            if n_orbits == 1:
-                raoff = raoff.reshape((n_epochs, 1))
-                decoff = decoff.reshape((n_epochs, 1))
-                vz_i = vz_i.reshape((n_epochs, 1))
-
-            # add Keplerian ra/deoff for this body to storage arrays
-            ra_kepler[:, body_num, :] = raoff 
-            dec_kepler[:, body_num, :] = decoff
-            vz[:, body_num, :] = vz_i
-
-            # vz_i is the ith companion radial velocity
-            if self.fit_secondary_mass:
-                vz0 = vz_i * -(mass / m0)  # calculating stellar velocity due to ith companion
-                total_rv0 = total_rv0 + vz0  # adding stellar velocity and gamma
-
-        # if we are fitting for the mass of the planets, then they will perturb the star
-        # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
-        # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
-        # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
-        # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
-        if self.track_planet_perturbs:
-            for body_num in np.arange(self.num_secondary_bodies + 1):
-                if body_num > 0:
-                    # for companions, only perturb companion orbits at larger SMAs than this one. 
-                    startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
                     sma = params_arr[startindex]
-                    all_smas = params_arr[0:6*self.num_secondary_bodies:6]
-                    outside_orbit = np.where(all_smas > sma)[0]
-                    which_perturb_bodies = outside_orbit + 1
+                    ecc = params_arr[startindex + 1]
+                    inc = params_arr[startindex + 2]
+                    argp = params_arr[startindex + 3]
+                    lan = params_arr[startindex + 4]
+                    tau = params_arr[startindex + 5]
+                
+                elif self.fitting_basis == 'XYZ':
+                    
+                    # curr_idx = self.body_indices[body_num]
+                    # radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
+                    # min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))
+                    best_idx = self.best_epoch_idx[body_num-1]
+                    constrained_epoch = epochs[best_idx]
 
-                    # the planet will also perturb the star
-                    which_perturb_bodies = np.append([0], which_perturb_bodies)
+                    to_convert = np.array([*params_arr[startindex:(startindex+6)],params_arr[6 * self.num_secondary_bodies],params_arr[-1]])
+                    standard_params = conversions.xyz_to_standard(constrained_epoch, to_convert)
+
+                    sma = standard_params[0] 
+                    ecc = standard_params[1]
+                    inc = standard_params[2]
+                    argp = standard_params[3]
+                    lan = standard_params[4]
+                    tau = standard_params[5]
+
+                if self.fit_secondary_mass:
+
+                    # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
+                    mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
+                    m0 = params_arr[-1]
+
+                    # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
+                    # We need to select all planets with sma < this planet. 
+                    all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                    within_orbit = np.where(all_smas <= sma)
+                    outside_orbit = np.where(all_smas > sma)
+                    all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
+                    inside_masses = all_pl_masses[within_orbit]
+                    mtot = np.sum(inside_masses) + m0
 
                 else:
-                    # for the star, what we are measuring is its position relative to the system barycenter
-                    # so we want to account for all of the bodies.  
-                    which_perturb_bodies = np.arange(self.num_secondary_bodies+1)
-
-                for other_body_num in which_perturb_bodies:
-                    # skip itself since the the 2-body problem is measuring the planet-star separation already
-                    if (body_num == other_body_num) | (body_num == 0):
-                        continue
-
-                    ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
-                    ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
-                    dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+                    # if not fitting for secondary mass, then total mass must be stellar mass
+                    mass = None
+                    m0 = None
+                    mtot = params_arr[-1]
+                    m_pl = np.zeros(len(sma))
+                
+                if self.track_planet_perturbs:
+                    masses[body_num] = mass
+                    mtots[body_num] = mtot
                     
-                    # star is perturbed in opposite direction
-                    if other_body_num == 0:
-                        ra_perturb[:, other_body_num, :] *= -1
-                        dec_perturb[:, other_body_num, :] *= -1
+                # solve Kepler's equation
+                raoff, decoff, vz_i = kepler.calc_orbit(
+                    epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
+                    mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                )
 
-        raoff = ra_kepler + ra_perturb
-        deoff = dec_kepler + dec_perturb
-        vz[:, 0, :] = total_rv0
+                # raoff, decoff, vz are scalers if the length of epochs is 1
+                if len(epochs) == 1:
+                    raoff = np.array([raoff])
+                    decoff = np.array([decoff])
+                    vz_i = np.array([vz_i])
+
+                if n_orbits == 1:
+                    raoff = raoff.reshape((n_epochs, 1))
+                    decoff = decoff.reshape((n_epochs, 1))
+                    vz_i = vz_i.reshape((n_epochs, 1))
+
+                # add Keplerian ra/deoff for this body to storage arrays
+                ra_kepler[:, body_num, :] = raoff 
+                dec_kepler[:, body_num, :] = decoff
+                vz[:, body_num, :] = vz_i
+
+                # vz_i is the ith companion radial velocity
+                if self.fit_secondary_mass:
+                    vz0 = vz_i * -(mass / m0)  # calculating stellar velocity due to ith companion
+                    total_rv0 = total_rv0 + vz0  # adding stellar velocity and gamma
+
+            # if we are fitting for the mass of the planets, then they will perturb the star
+            # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
+            # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
+            # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
+            # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
+            if self.track_planet_perturbs:
+                for body_num in np.arange(self.num_secondary_bodies + 1):
+                    if body_num > 0:
+                        # for companions, only perturb companion orbits at larger SMAs than this one. 
+                        startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
+                        sma = params_arr[startindex]
+                        all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                        outside_orbit = np.where(all_smas > sma)[0]
+                        which_perturb_bodies = outside_orbit + 1
+
+                        # the planet will also perturb the star
+                        which_perturb_bodies = np.append([0], which_perturb_bodies)
+
+                    else:
+                        # for the star, what we are measuring is its position relative to the system barycenter
+                        # so we want to account for all of the bodies.  
+                        which_perturb_bodies = np.arange(self.num_secondary_bodies+1)
+
+                    for other_body_num in which_perturb_bodies:
+                        # skip itself since the the 2-body problem is measuring the planet-star separation already
+                        if (body_num == other_body_num) | (body_num == 0):
+                            continue
+
+                        ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
+                        ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
+                        dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+                        
+                        # star is perturbed in opposite direction
+                        if other_body_num == 0:
+                            ra_perturb[:, other_body_num, :] *= -1
+                            dec_perturb[:, other_body_num, :] *= -1
+
+                raoff = ra_kepler + ra_perturb
+                deoff = dec_kepler + dec_perturb
+                vz[:, 0, :] = total_rv0
+
         if self.fitting_basis == 'XYZ':
             # To filter out unbound orbits
             if ((ecc >= 1.) | (ecc < 0.)):
@@ -563,7 +590,7 @@ class System(object):
             return raoff, deoff, vz
 
 
-    def compute_model(self, params_arr, comp_rebound=False):
+    def compute_model(self, params_arr):
         """
         Compute model predictions for an array of fitting parameters. 
         Calls the above compute_all_orbits() function, adds jitter/gamma to
@@ -576,49 +603,13 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
-            comp_rebound (bool, optional): A secondary optional input for 
-                use of N-body solver Rebound; by default, this will be set
-                to false and a Kepler solver will be used instead. 
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
 
-        if comp_rebound or self.use_rebound:
-            #convert
-            for body_num in np.arange(0, self.num_secondary_bodies)+1:
-                #params_arr
-                startindex = 6 * (body_num - 1)
-                sma = params_arr[startindex]
-                ecc = params_arr[startindex + 1]
-                inc = params_arr[startindex + 2]
-                argp = params_arr[startindex + 3]
-                lan = params_arr[startindex + 4]
-                tau = params_arr[startindex + 5]
-
-            if self.fit_secondary_mass:
-                # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                m_pl = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
-                m0 = params_arr[-1]
-
-                # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
-                # We need to select all planets with sma < this planet. 
-                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
-                within_orbit = np.where(all_smas <= sma)
-                outside_orbit = np.where(all_smas > sma)
-                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
-                inside_masses = all_pl_masses[within_orbit]
-                mtot = np.sum(inside_masses) + m0
-
-            else:
-                # if not fitting for secondary mass, then total mass must be stellar mass
-                m_pl = np.zeros(len(sma))
-                mtot = params_arr[-1]
-            
-            raoff, decoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl)
-        else:
-            raoff, decoff, vz = self.compute_all_orbits(params_arr)
+        raoff, decoff, vz = self.compute_all_orbits(params_arr)
 
         if len(params_arr.shape) == 1:
             n_orbits = 1
