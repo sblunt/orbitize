@@ -213,6 +213,8 @@ class System(object):
 
         self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, self.fit_secondary_mass,
             angle_upperlim=angle_upperlim, hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, rv_instruments=self.rv_instruments, **self.extra_basis_kwargs)
+
+        self.basis.verify_params()
         self.sys_priors, self.labels = self.basis.construct_priors()
 
         # add labels dictionary for parameter indexing

@@ -1,6 +1,6 @@
 import numpy as np
 import astropy.units as u, astropy.constants as consts
-import warnings # remove when functions are depreciated
+import warnings
 import abc
 import pdb
 
@@ -12,6 +12,8 @@ class Basis(abc.ABC):
     Abstract base class for different basis sets. All new basis objects should inherit from
     this class. This class is meant to control how priors are assigned to various basis sets
     and how conversions are made from the basis sets to the standard keplarian set.
+
+    Author: Tirth
     '''
 
     def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
@@ -42,6 +44,17 @@ class Basis(abc.ABC):
     @abc.abstractmethod
     def to_standard_basis(self, param_arr):
         pass
+
+    def verify_params(self):
+        '''
+        Displays warnings about the 'fit_secondary_mass' and 'rv' parameters for all basis sets. Can be overriden by any basis
+        class depending on the necessary parameters that need to be checked. 
+        '''
+        if not self.fit_secondary_mass and self.rv:
+            warnings.warn("Radial velocity data found in input data, but rv parameters will not be sampled. \n To sample rv parameters, set 'fit_secondary_mass' to True.")
+
+        if self.fit_secondary_mass and not self.rv:
+            warnings.warn("Radial velocity data not found in input data.")
 
     def set_hip_iad_priors(self, priors_arr, labels_arr):
         '''
@@ -121,9 +134,6 @@ class Standard(Basis):
     '''
     Standard basis set based upon the 6 standard Keplarian elements: (sma, ecc, inc, aop, pan, tau).
 
-    NOTE: 
-        This class has support with both OFTI and MCMC.
-
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
         mass_err (float): uncertainty on 'stellar_mass', in M_sol
@@ -132,7 +142,7 @@ class Standard(Basis):
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
             'stellar_mass' is taken to be total mass
-        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2pi)
         hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
             is no radial velocity data and radial velocity priors are not assigned (default: False)
@@ -147,10 +157,14 @@ class Standard(Basis):
 
     def construct_priors(self):
         '''
-        Generates the parameter label arrays and initializes the corresponding priors for each
-        parameter.
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the standard basis, the parameters common to each
+        companion are: sma, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
 
         Returns:
+            list: list of strings (labels) that indicate the names of each parameter to sample
+            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
         '''
         base_labels = ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
@@ -183,6 +197,16 @@ class Standard(Basis):
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
+        '''
+        For standard basis, no conversion needs to be made.
+
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the standard basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1d array.
+
+        Returns: 'param_arr' without any modification
+        '''
         return param_arr
 
 class Period(Basis):
@@ -197,7 +221,7 @@ class Period(Basis):
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
             'stellar_mass' is taken to be total mass
-        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2pi)
         hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
             is no radial velocity data and radial velocity priors are not assigned (default: False)
@@ -211,6 +235,16 @@ class Period(Basis):
             fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
+        '''
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the standard basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
+
+        Returns:
+            list: list of strings (labels) that indicate the names of each parameter to sample
+            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        '''
         base_labels = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
         basis_labels = []
@@ -242,6 +276,20 @@ class Period(Basis):
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
+        '''
+        Convert parameter array from period basis to standard basis by swapping out the period
+        parameter to semi-major axis for each companion.
+        
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the period basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1D array.
+
+        Returns:
+            np.array of float: modifies 'param_arr' to contain the semi-major axis for each companion
+                in each orbit rather than period. Shape of 'param_arr' remains the same.
+        '''
+
         for i in np.arange(self.num_secondary_bodies)+1:
             startindex = 6 * (i - 1)
             per = param_arr[startindex]
@@ -253,6 +301,7 @@ class Period(Basis):
                 m0 = param_arr[-1]
                 mtot = m_secondary + m0
 
+            # Compute semi-major axis using Kepler's Third Law and replace period
             sma = np.cbrt((consts.G*(mtot*u.Msun)*((per*u.year)**2))/(4*np.pi**2))
             sma = sma.to(u.AU).value
             param_arr[startindex] = sma
@@ -275,7 +324,7 @@ class Period(Basis):
             per = per.to(u.year).value
             param_arr[startindex] = per
 
-        return param_arr     
+        return param_arr
 
 class SemiAmp(Basis):
     '''
@@ -396,7 +445,6 @@ class SemiAmp(Basis):
         return sma
 
     def to_semi_amp_basis(self, param_arr):
-        pdb.set_trace()
         basis_labels_len = 6
         indices_to_remove = []
         indices_to_add = []
@@ -433,6 +481,12 @@ class SemiAmp(Basis):
         param_arr = np.delete(param_arr, indices_to_remove, 0)
 
         return param_arr
+
+    def verify_params(self):
+        super(SemiAmp, self).verify_params()
+
+        if not self.fit_secondary_mass:
+            warnings.warn("This basis will not sample total mass. It will sample stellar mass.")
 
 class XYZ(Basis):
     '''
@@ -707,7 +761,7 @@ class XYZ(Basis):
         results = np.stack([sma, ecc, inc, aop, pan, tau, elems[6, :], mtot])
         return np.squeeze(results)
 
-    def standard_to_xyz(epoch, elems, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
+    def standard_to_xyz(self, epoch, elems, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
         """
         Converts array of orbital elements from the regular base of Keplerian orbits to positions and velocities in xyz
         Uses code from orbitize.kepler
@@ -800,17 +854,35 @@ class XYZ(Basis):
 
         return np.squeeze(result)
 
+    def verify_params(self):
+        super(XYZ, self).verify_params()
+
+        # For now, raise error if data is in sep/pa
+        seppa_locs = np.where(self.data_table['quant_type'] == 'seppa')
+        if np.size(seppa_locs) != 0:
+            raise Exception("For now, the XYZ basis requires data in RA and DEC offsets.")
+
+        # For now, raise error if the best epoch for each body is one of the last two
+        for i in range(self.num_secondary_bodies):
+            body_num = i + 1
+            best_epoch_loc = self.best_epoch_idx[i]
+            body_indices = np.where(self.data_table['object'] == body_num)[0]
+            max_index = np.amax(body_indices)
+
+            if (max_index - best_epoch_loc < 2):
+                raise Exception("For now, the epoch with the lowest sepparation error should not be one of the last two entries for body{}".format(body_num))
+
 # Other conversions
 def tau_to_t0(tau, ref_epoch, period, after_date=None):
     """
-    DEPRECATING!! Repalced by tau_to_tp
+    DEPRECATING!! Replaced by tau_to_tp
     """
     warnings.warn('DEPRECATION: tau_to_t0 is being deprecated in the next orbitize! release. Please use tau_to_tp instead!', FutureWarning)
     return tau_to_tp(tau, ref_epoch, period, after_date=after_date)
 
 def t0_to_tau(tp, ref_epoch, period):
     """
-    DEPRECATING!! Repalced by tp_to_tau
+    DEPRECATING!! Replaced by tp_to_tau
     """
     warnings.warn('DEPRECATION: t0_to_tau is being deprecated in the next orbitize! release. Please use t0_to_tau instead!', FutureWarning)
     return tp_to_tau(tp, ref_epoch, period)
