@@ -587,7 +587,9 @@ class SemiAmp(Basis):
 
 class XYZ(Basis):
     '''
-    Defines an orbit using the companion's position and velocity components in XYZ space (x, y, z, xdot, ydot, zdot). 
+    Defines an orbit using the companion's position and velocity components in XYZ space (x, y, z, xdot, ydot, zdot).
+    The conversion algorithms used for this basis are defined in the following paper:
+    http://www.dept.aoe.vt.edu/~lutze/AOE4134/9OrbitInSpace.pdf
 
     Notes:
         Does not have support with sep,pa data yet.
@@ -623,6 +625,20 @@ class XYZ(Basis):
         self.epochs = epochs
 
     def construct_priors(self):
+        '''
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the xyz basis, the parameters common to each
+        companion are: x, y, z, xdot, ydot, zdot. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
+
+        The xyz basis describes the position and velocity vectors with reference to the local coordinate 
+        system (the origin of the system is star).
+
+        Returns:
+            list: list of strings (labels) that indicate the names of each parameter to sample
+            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        '''
+
         basis_priors = []
         basis_labels = []
 
@@ -808,7 +824,7 @@ class XYZ(Basis):
 
         unit_k = np.array((0,0,1))[:, None]
         cos_inc = (np.sum(h*unit_k, axis=0) / h_magnitude).value
-        inc = np.arccos(-cos_inc)
+        inc = np.arccos(-cos_inc) # Take arccos of positive cos_inc?
 
         #Nodal vector
         n = np.cross(unit_k, h, axis=0)
@@ -818,7 +834,7 @@ class XYZ(Basis):
         # np.arccos yields angles in [0, pi]
         unit_i = np.array((1,0,0))[:, None]
         unit_j = np.array((0,1,0))[:, None]
-        cos_pan = (np.sum(n*unit_j, axis=0) / n_magnitude).value
+        cos_pan = (np.sum(n*unit_j, axis=0) / n_magnitude).value # take dot product with i?
         pan = np.arccos(cos_pan)
         n_x = np.sum(n*unit_i, axis=0)
         pan[n_x < 0.0] = 2*np.pi - pan[n_x < 0.0]
@@ -833,7 +849,7 @@ class XYZ(Basis):
         cos_tanom = (np.sum(pos*e_vector, axis=0) / (pos_magnitude*e_vec_magnitude)).value
         tanom = np.arccos(cos_tanom)
         # Check for places where tanom is nan, due to cos_tanom=1. (for some reason that was a problem)
-        tanom = np.where((0.9999<cos_tanom ) & (cos_tanom<1.001), 0.0, tanom)
+        # tanom = np.where((0.9999<cos_tanom) & (cos_tanom<1.001), 0.0, tanom)
         rdotv = np.sum(pos*vel, axis=0)
         tanom[rdotv < 0.0] = 2*np.pi - tanom[rdotv < 0.0]
 
@@ -841,7 +857,7 @@ class XYZ(Basis):
         cos_eanom = ((1 - pos_magnitude / sma) / ecc).value
         eanom = np.arccos(cos_eanom)
         # Check for places where eanom is nan, due to cos_eanom = 1.(same problem as above)
-        eanom = np.where((0.9999<cos_eanom ) & (cos_eanom<1.001), 0.0, eanom)
+        # eanom = np.where((0.9999<cos_eanom ) & (cos_eanom<1.001), 0.0, eanom)
         eanom[tanom > np.pi] =  2*np.pi - eanom[tanom > np.pi]
 
         # Time of periastron passage, using Kepler's equation, in MJD:
@@ -863,6 +879,16 @@ class XYZ(Basis):
 
     def to_xyz_basis(self, param_arr):
         '''
+        Makes a call to 'standard_to_xyz' to convert each companion's standard keplerian parameters
+        to the xyz parameters an returns the updated array for conversion.
+
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the period basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1D array.
+
+        Return:
+            np.array: Orbital elements in the xyz for all companions.
         '''
         for body in np.arange(self.num_secondary_bodies)+1:
             startindex = 6 * (body - 1)
@@ -972,7 +998,6 @@ class XYZ(Basis):
             pos_xyz[k,:] =  np.matmul(T[:,:,k], pos[k])
             vel_xyz[k,:] =  np.matmul(T[:,:,k], vel[k])
 
-        # Flipping x-axis sign to increase X as RA increases
         result = np.stack([-pos_xyz[:,0], pos_xyz[:,1], pos_xyz[:,2], -vel_xyz[:,0], vel_xyz[:,1], vel_xyz[:,2], elems[6, :], mtot])
 
         if len(sma) == 1:
