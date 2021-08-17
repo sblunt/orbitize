@@ -4,7 +4,7 @@ import warnings
 import abc
 import pdb
 
-from orbitize import priors
+from orbitize import priors, kepler
 from scipy.optimize import fsolve
 
 class Basis(abc.ABC):
@@ -289,7 +289,6 @@ class Period(Basis):
             np.array of float: modifies 'param_arr' to contain the semi-major axis for each companion
                 in each orbit rather than period. Shape of 'param_arr' remains the same.
         '''
-
         for i in np.arange(self.num_secondary_bodies)+1:
             startindex = 6 * (i - 1)
             per = param_arr[startindex]
@@ -309,6 +308,20 @@ class Period(Basis):
         return param_arr
 
     def to_period_basis(self, param_arr):
+        '''
+        Convert parameter array from standard basis to period basis by swapping out the semi-major
+        axis parameter to period for each companion. This function is used primarily for testing
+        purposes.
+        
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the standard basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1D array.
+
+        Returns:
+            np.array of float: modifies 'param_arr' to contain the period for each companion
+                in each orbit rather than semi-major axis. Shape of 'param_arr' remains the same.
+        '''
         for i in np.arange(self.num_secondary_bodies)+1:
             startindex = 6 * (i - 1)
             sma = param_arr[startindex]
@@ -356,6 +369,18 @@ class SemiAmp(Basis):
             fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
+        '''
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the semi-amp basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, tau, K (stellar rv semi-amplitude). Parallax, 
+        hipparcos (optional), rv (optional), and mass priors are added at the end.
+
+        The mass parameter will always be m0.
+
+        Returns:
+            list: list of strings (labels) that indicate the names of each parameter to sample
+            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        '''
         base_labels = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau', 'K']
         basis_priors = []
         basis_labels = []
@@ -393,7 +418,22 @@ class SemiAmp(Basis):
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
-        indices_to_remove = []  # Keep track of where semi-amp values are for removal
+        '''
+        Convert parameter array from semi-amp basis to standard basis by swapping out the period
+        parameter to semi-major axis for each companion and computing the masses of each
+        companion.
+        
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the period basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1D array.
+
+        Returns:
+            np.array of float: modifies 'param_arr' to contain the semi-major axis for each companion
+                in each orbit rather than period, removes stellar rv semi-amplitude parameters for
+                each companion, and appends the companion masses to 'param_arr'
+        '''
+        indices_to_remove = [] # Keep track of where semi-amp values are for removal
         m0 = param_arr[-1]
         base_labels_len = 7
 
@@ -417,9 +457,36 @@ class SemiAmp(Basis):
         return param_arr
 
     def func(self, x, lhs, m0):
+        '''
+        Define function for scipy.fsolve to use when computing companion mass.
+
+        Args:
+            x (float): the companion mass to be calculated (Msol)
+            lhs (float): the left hand side of the rv semi-amplitude equation (Msol^(1/3))
+            m0 (float): the stellar mass (Msol)
+
+        Returns:
+            float: the difference between the rhs and lhs of the rv semi-amplitude equation, 'x' is a
+                good companion mass when this difference is very close to zero
+        '''
         return ((x / ((x + m0)**(2/3))) - lhs)
 
     def compute_companion_mass(self, period, ecc, inc, semi_amp, m0):
+        '''
+        Computes a single companion's mass given period, eccentricity, inclination, stellar rv semi-amplitude,
+        and stellar mass. Uses scipy.fsolve to compute the masses numerically.
+
+        Args:
+            period (np.array of float): the period values for each orbit for a single companion (can be float)
+            ecc (np.array of float): the eccentricity values for each orbit for a single companion (can be float)
+            inc (np.array of float): the inclination values for each orbit for a single companion (can be float)
+            semi_amp (np.array of float): the stellar rv-semi amp values for each orbit (can be float)
+            m0 (np.array of float): the stellar mass for each orbit (can be float)
+
+        Returns:
+            np.array of float: the companion mass values for each orbit (can also just be a single float)
+        '''
+
         # Define LHS of equation
         kms = u.km / u.s
         lhs = ((semi_amp*kms)*((1-ecc**2)**(1/2))*((period*u.yr)**(1/3))*(consts.G**(-1/3))*((4*np.pi**2)**(-1/6))) / (np.sin(inc))
@@ -427,7 +494,7 @@ class SemiAmp(Basis):
 
         m_n = []
 
-        # Solve for companion mass numerically, making initial guess at center of uniform prior distribution (solar mass)
+        # Solve for companion mass numerically, making initial guess at center of uniform prior distribution (Msol)
         if (not hasattr(m0, '__len__')):
             comp_mass = fsolve(self.func, x0=1e-3, args=(lhs, m0))
             m_n.append(comp_mass[0])
@@ -439,12 +506,38 @@ class SemiAmp(Basis):
         return m_n
 
     def compute_companion_sma(self, period, m0, m_n):
+        '''
+        Computes a single companion's semi-major axis using Kepler's Third Law for each orbit.
+
+        Args:
+            period (np.array of float): the period values for each orbit for a single companion (can be float)
+            m0 (np.array of float): the stellar mass for each orbit (can be float)
+            m_n (np.array of float): the companion mass for each orbit (can be float)
+
+        Returns:
+            np.array of float: the semi-major axis values for each orbit                        
+        '''
         sma = np.cbrt((consts.G*((m0+m_n)*u.Msun)*((period*u.yr)**2))/(4*np.pi**2))
         sma = sma.to(u.AU).value
 
         return sma
 
     def to_semi_amp_basis(self, param_arr):
+        '''
+        Convert parameter array from standard basis to semi-amp basis by swapping out the
+        semi-major axis parameter to period for each companion and computing the stellar
+        rv semi-amplitudes for each companion.
+        
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the period basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1D array.
+
+        Returns:
+            np.array of float: modifies 'param_arr' to contain the semi-major axis for each companion
+                in each orbit rather than period, appends stellar rv semi-amplitude parameters, and
+                removes companion masses
+        '''
         basis_labels_len = 6
         indices_to_remove = []
         indices_to_add = []
@@ -483,6 +576,10 @@ class SemiAmp(Basis):
         return param_arr
 
     def verify_params(self):
+        '''
+        Additionally warns that this basis will sample stellar mass rather than sample mass
+        regardless of whether 'fit_secondary_mass' is True or not.
+        '''
         super(SemiAmp, self).verify_params()
 
         if not self.fit_secondary_mass:
@@ -642,10 +739,13 @@ class XYZ(Basis):
         Makes a call to 'xyz_to_standard' to convert each companion's xyz parameters
         to the standard parameters an returns the updated array for conversion.
 
-        This conversion does not support OFTI yet.
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the period basis, 
+                where R is the number of parameters being fit, and M is the number of orbits. If 
+                M=1 (for MCMC), this can be a 1D array.
 
         Return:
-            np.array: Orbital elements in the usual basis for all companions.
+            np.array: Orbital elements in the standard basis for all companions.
         '''
         for body in np.arange(self.num_secondary_bodies)+1:
             startindex = 6 * (body - 1)
@@ -761,6 +861,29 @@ class XYZ(Basis):
         results = np.stack([sma, ecc, inc, aop, pan, tau, elems[6, :], mtot])
         return np.squeeze(results)
 
+    def to_xyz_basis(self, param_arr):
+        '''
+        '''
+        for body in np.arange(self.num_secondary_bodies)+1:
+            startindex = 6 * (body - 1)
+            best_idx = self.best_epoch_idx[body - 1]
+            constrained_epoch = self.epochs[best_idx]
+            mtot = param_arr[-1]
+
+            # Get total mass
+            if self.fit_secondary_mass:
+                secondary_m = param_arr[-1-self.num_secondary_bodies+(body-1)]
+                mtot = mtot + secondary_m
+
+            # Make conversion
+            to_convert = np.array([*param_arr[startindex:(startindex+6)], param_arr[6 * self.num_secondary_bodies], mtot])
+            xyz_params = self.standard_to_xyz(constrained_epoch, to_convert)
+
+            # Update param_arr
+            param_arr[startindex:(startindex+6)] = xyz_params[0:6]
+
+        return param_arr
+
     def standard_to_xyz(self, epoch, elems, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
         """
         Converts array of orbital elements from the regular base of Keplerian orbits to positions and velocities in xyz
@@ -782,15 +905,15 @@ class XYZ(Basis):
         # Then transform coordinates using matrix multiplication
 
         if elems.ndim == 1:
-            elems = elems[np.newaxis, :]
+            elems = elems[:, np.newaxis]
         # Define variables
-        sma = elems[:,0] # AU
-        ecc = elems[:,1] # [0.0, 1.0]
-        inc = elems[:,2] # rad [0, pi]
-        aop = elems[:,3] # rad [0, 2 pi]
-        pan = elems[:,4] # rad [0, 2 pi]
-        tau = elems[:,5] # [0.0, 1.0]
-        mtot = elems[:,7] # Msun
+        sma = elems[0,:] # AU
+        ecc = elems[1,:] # [0.0, 1.0]
+        inc = elems[2,:] # rad [0, pi]
+        aop = elems[3,:] # rad [0, 2 pi]
+        pan = elems[4,:] # rad [0, 2 pi]
+        tau = elems[5,:] # [0.0, 1.0]
+        mtot = elems[7,:] # Msun
 
         # Just in case so nothing breaks
         ecc = np.where(ecc == 0.0, 1e-8, ecc)
@@ -813,7 +936,7 @@ class XYZ(Basis):
         # Position vector in the perifocal system in AU
         pos_peri_x = (sma*(np.cos(eanom) - ecc))
         pos_peri_y = (sma*np.sqrt(1 - ecc**2)*np.sin(eanom))
-        pos_peri_z = np.zeros(len(elems))
+        pos_peri_z = np.zeros(len(pos_peri_x))
 
         pos = np.stack((pos_peri_x, pos_peri_y, pos_peri_z)).T
         pos_magnitude = np.linalg.norm(pos, axis=1)
@@ -821,7 +944,7 @@ class XYZ(Basis):
         # Velocity vector in the perifocal system in km/s
         vel_peri_x = - ((np.sqrt(consts.G*(mtot*u.Msun)*(sma*u.AU))*np.sin(eanom) / (pos_magnitude*u.AU)).to(u.km / u.s)).value 
         vel_peri_y = ((h* np.cos(eanom) / (pos_magnitude*u.AU)).to(u.km / u.s)).value
-        vel_peri_z = np.zeros(len(elems))
+        vel_peri_z = np.zeros(len(vel_peri_x))
 
         vel = np.stack((vel_peri_x, vel_peri_y, vel_peri_z)).T
 
@@ -843,18 +966,25 @@ class XYZ(Basis):
                       [T_21, T_22, T_23],
                       [T_31, T_32, T_33]])
 
-        pos_xyz = np.zeros((len(elems), 3))
-        vel_xyz = np.zeros((len(elems), 3))
-        for k in range(len(elems)):
+        pos_xyz = np.zeros((len(sma), 3))
+        vel_xyz = np.zeros((len(sma), 3))
+        for k in range(len(sma)):
             pos_xyz[k,:] =  np.matmul(T[:,:,k], pos[k])
             vel_xyz[k,:] =  np.matmul(T[:,:,k], vel[k])
 
         # Flipping x-axis sign to increase X as RA increases
-        result = np.stack([-pos_xyz[:,0], pos_xyz[:,1], pos_xyz[:,2], -vel_xyz[:,0], vel_xyz[:,1], vel_xyz[:,2], elems[:,6], mtot]).T
+        result = np.stack([-pos_xyz[:,0], pos_xyz[:,1], pos_xyz[:,2], -vel_xyz[:,0], vel_xyz[:,1], vel_xyz[:,2], elems[6, :], mtot])
+
+        if len(sma) == 1:
+            result = result.T
 
         return np.squeeze(result)
 
     def verify_params(self):
+        '''
+        For now, additionally throws exceptions if data is supplied in sep/pa or if the best epoch for each
+        body is one of the last two (which would inevtably mess up how the priors are imposed).
+        '''
         super(XYZ, self).verify_params()
 
         # For now, raise error if data is in sep/pa
