@@ -727,7 +727,12 @@ class MCMC(Sampler):
                     total_invalids = 0
                     for temp in range(self.num_temps):
                         to_stand = self.system.basis.to_standard_basis(self.curr_pos[temp,:,:].T.copy()).T
-                        invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+
+                        # Get invalids by checking ecc values for each companion
+                        indices = [((i * 6) + 1) for i in range(self.system.num_secondary_bodies)]
+                        invalids = np.where((to_stand[:, indices] < 0.) | (to_stand[:, indices] >= 1.))[0]
+
+                        # Redraw samples for the invalid ones
                         if len(invalids) > 0:
                             newpos = []
                             for prior in self.priors:
@@ -743,7 +748,12 @@ class MCMC(Sampler):
                 while not all_valid:
                     total_invalids = 0
                     to_stand = self.system.basis.to_standard_basis(self.curr_pos[:,:].T.copy()).T
-                    invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+
+                    # Get invalids by checking ecc values for each companion
+                    indices = [((i * 6) + 1) for i in range(self.system.num_secondary_bodies)]
+                    invalids = np.where((to_stand[:, indices] < 0.) | (to_stand[:, indices] >= 1.))[0]                    
+
+                    # Redraw saples for the invalid ones
                     if len(invalids) > 0:
                         newpos = []
                         for prior in self.priors:

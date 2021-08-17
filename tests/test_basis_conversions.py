@@ -147,7 +147,7 @@ def test_xyz_basis():
 	filename = '{}/xyz_test_data.csv'.format(DATADIR)
 	data = read_input.read_file(filename)
 	single = data[np.where(data['object'] == 1)[0]]
-	my_system = system.System(1, single, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
+	my_system = system.System(1, single, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
 
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -162,8 +162,7 @@ def test_xyz_basis():
 	# OFTI Format
 	conversions = my_system.basis.to_standard_basis(samples)
 
-	# Filter out all orbits with 'nan' ecc or ecc >= 1
-	locs = np.where(np.logical_or(np.isnan(conversions[1, :]), conversions[1, :] >= 1))[0]
+	locs = np.where(np.logical_or(conversions[1, :] < 0., conversions[1, :] >= 1.))[0]
 	conversions = np.delete(conversions, locs, axis=1)
 	sample_copy = np.delete(sample_copy, locs, axis=1)
 
@@ -177,7 +176,7 @@ def test_xyz_basis():
 	assert np.allclose(original, sample_copy[:, 0])
 
 	# 2. Multi-Body
-	my_system = system.System(2, data, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
+	my_system = system.System(2, data, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
 	for i in range(len(my_system.sys_priors)):
@@ -193,7 +192,7 @@ def test_xyz_basis():
 	conversions = my_system.basis.to_standard_basis(samples)
 	for i in range(2):
 		index = (i * 6) + 1
-		to_remove = np.where(np.logical_or(np.isnan(conversions[index, :]), conversions[index, :] >= 1))[0]
+		to_remove = np.where(np.logical_or(conversions[index, :] < 0., conversions[index, :] >= 1.))[0]
 		indices_to_remove = np.union1d(indices_to_remove, to_remove)
 
 	indices_to_remove = indices_to_remove.astype(int)
@@ -213,3 +212,4 @@ def test_xyz_basis():
 if __name__ == '__main__':
 	test_period_basis()
 	test_semi_amp_basis()
+	test_xyz_basis()

@@ -174,18 +174,18 @@ def test_XYZ():
 	# (1) Single Companion (mtot)
 	single_data = data[np.where(data['object'] == 1)[0]]
 	copy = single_data.copy()
-	my_system = system.System(1, single_data, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
+	my_system = system.System(1, single_data, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
 	expected_labels = [item + '1' for item in basis_names['XYZ']] + ['plx', 'mtot']
 	assert expected_labels == my_system.labels
 
 	# (2) Single Companion (fit companion mass)
-	my_system = system.System(1, copy, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fit_secondary_mass=True,
+	my_system = system.System(1, copy, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fit_secondary_mass=True,
 		fitting_basis='XYZ')
 	expected_labels = [item + '1' for item in basis_names['XYZ']] + ['plx', 'm1', 'm0']
 	assert expected_labels == my_system.labels
 
 	# (3) Two Companions (fit companion masses)
-	my_system = system.System(2, data, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fit_secondary_mass=True,
+	my_system = system.System(2, data, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fit_secondary_mass=True,
 		fitting_basis='XYZ')
 
 	expected_labels = [item + '1' for item in basis_names['XYZ']] + [item + '2' for item in basis_names['XYZ']] + ['plx', 'm1', 'm2', 'm0']
