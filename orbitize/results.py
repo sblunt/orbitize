@@ -258,7 +258,7 @@ class Results(object):
             args['num_secondary_bodies'] = num_secondary_bodies
             basis_obj = getattr(orbitize.basis, fitting_basis)
             basis = basis_obj(**args)
-        except KeyError:
+        except:
             # If some key does not exist, then we cannot build basis object
             basis = None
 
@@ -407,7 +407,7 @@ class Results(object):
         samples[:, angle_indices] = np.degrees(
             samples[:, angle_indices])  # convert angles from rad to deg
         samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions
-        samples = samples[:, param_indices]
+        #samples = samples[:, param_indices]
 
         if 'labels' not in corner_kwargs:  # use default labels if user didn't already supply them
             reduced_labels_list = []
