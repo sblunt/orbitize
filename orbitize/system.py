@@ -590,7 +590,7 @@ class System(object):
             return raoff, deoff, vz
 
 
-    def compute_model(self, params_arr):
+    def compute_model(self, params_arr, use_rebound=False):
         """
         Compute model predictions for an array of fitting parameters. 
         Calls the above compute_all_orbits() function, adds jitter/gamma to
@@ -603,13 +603,18 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
+            comp_rebound (bool, optional): A secondary optional input for 
+                use of N-body solver Rebound; by default, this will be set
+                to false and a Kepler solver will be used instead.
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
-
-        raoff, decoff, vz = self.compute_all_orbits(params_arr)
+        if use_rebound:
+            raoff, decoff, vz = self.compute_all_orbits(params_arr, comp_rebound=True)
+        else:
+            raoff, decoff, vz = self.compute_all_orbits(params_arr)
 
         if len(params_arr.shape) == 1:
             n_orbits = 1

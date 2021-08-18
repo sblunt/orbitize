@@ -44,6 +44,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m
     if m_pl is None:                #if no planet masses are input, planet masses set ot zero and mass of star is equal to mtot
         sim.add(m = mtot)
         m_pl = np.zeros(len(sma))
+        m_star = mtot
 
     else:                           #mass of star is always (mass of system)-(sum of planet masses) 
         m_star = mtot - sum(m_pl)
