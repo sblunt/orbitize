@@ -3,7 +3,6 @@ import numpy as np
 import warnings
 import h5py
 import copy
-import pdb
 
 import astropy.units as u
 import astropy.constants as consts
@@ -18,7 +17,6 @@ import matplotlib.colors as colors
 import pandas as pd
 
 import corner
-import pdb
 
 import orbitize.kepler as kepler
 import orbitize.system
@@ -731,8 +729,7 @@ class Results(object):
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
-            if rv_time_series:
-                
+            if rv_time_series:                
                 # switch current axis to rv panel
                 plt.sca(ax3)
         
@@ -758,12 +755,11 @@ class Results(object):
                     inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
 
                 # choose the orbit with the best log probability
-                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
+                best_like=np.where(self.lnlike==np.amax(self.lnlike))[0][0] 
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
                 # Get the posteriors for this index and convert to standard basis
-                best_post = self.post[best_like]
-                best_post = self.basis.to_standard_basis(best_post)
+                best_post = self.basis.to_standard_basis(self.post[best_like].copy())
 
                 # Get the masses for the best posteriors:
                 best_m0 = best_post[-1]

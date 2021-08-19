@@ -2,7 +2,6 @@ import numpy as np
 from orbitize import priors, read_input, kepler, conversions, hipparcos, basis
 import astropy.units as u
 import astropy.constants as consts
-import pdb
 
 class System(object):
     """

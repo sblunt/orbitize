@@ -20,8 +20,6 @@ import orbitize.results
 import copy
 import matplotlib.pyplot as plt
 
-import pdb
-
 class Sampler(abc.ABC):
     """
     Abstract base class for sampler objects.
