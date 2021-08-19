@@ -53,6 +53,6 @@ def test_check_prior_support(PriorChanges=False):
 
 	assert errorCaught == PriorChanges
 
-if __name__ == '__main__'
+if __name__ == '__main__':
 	test_check_prior_support()
 	test_check_prior_support(PriorChanges=True)
