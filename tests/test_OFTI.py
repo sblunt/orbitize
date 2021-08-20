@@ -27,7 +27,7 @@ def test_scale_and_rotate():
                                       1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
 
     s = myDriver.sampler
-    samples = s.scale_and_rotate(100)
+    samples = s.prepare_samples(100)
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
@@ -69,7 +69,7 @@ def test_scale_and_rotate():
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
                                       1, 1.22, 56.95, mass_err=0.08, plx_err=0.26, system_kwargs={'restrict_angle_ranges':True})
     s = myDriver.sampler
-    samples = s.scale_and_rotate(100)
+    samples = s.prepare_samples(100)
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
@@ -154,7 +154,7 @@ def test_fixed_sys_params_sampling():
                                       1, 1.22, 56.95)
 
     s = myDriver.sampler
-    samples = s.scale_and_rotate(100)
+    samples = s.prepare_samples(100)
     assert np.all(samples[-1] == s.priors[-1])
     assert isinstance(samples[-3], np.ndarray)
 
