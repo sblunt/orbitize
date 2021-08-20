@@ -479,8 +479,6 @@ def all_lnpriors(params, priors):
     logp = 0.
     for param, prior in zip(params, priors):
         param = np.array([param])
-        # import pdb
-        # pdb.set_trace()
 
         logp += prior.compute_lnprob(param)  # retrun a float
 
