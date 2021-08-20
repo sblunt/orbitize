@@ -126,7 +126,6 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
-        # pdb.set_trace()
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -813,7 +812,7 @@ class MCMC(Sampler):
                     self.num_walkers, self.num_params, self._logl, pool=pool,
                     kwargs={'include_logp': True}
                 )
-                    
+
             print("Starting Burn in")
             for i, state in enumerate(sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)):
                 if self.use_pt:

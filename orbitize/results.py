@@ -732,7 +732,7 @@ class Results(object):
             if rv_time_series:                
                 # switch current axis to rv panel
                 plt.sca(ax3)
-        
+
                 # get list of instruments
                 insts=np.unique(data['instrument'])
                 insts=[i if isinstance(i,str) else i.decode() for i in insts]
