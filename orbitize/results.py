@@ -366,8 +366,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
-                    fig=None):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False, plot_astrometry=True,
+                    plot_astrometry_insts=False, fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -394,7 +394,8 @@ class Results(object):
                 arcs with PAs that cross 360 deg during observations (default: False)
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
                 display time series, set to True.
-            astrometry (Boolean): set to True by default. Plots the astrometric data.
+            plot_astrometry (Boolean): set to True by default. Plots the astrometric data.
+            plot_astrometry_insts (Boolean): set to False by default. Plots the astrometric data by instruments.
             fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
                 Most users will not need this keyword. 
 
@@ -561,6 +562,18 @@ class Results(object):
                 pa_data = np.append(pa_data, pa_from_dec_data)
                 pa_err = np.append(pa_err, pa_err_from_dec_data)
 
+            # For plotting different astrometry instruments
+            if plot_astrometry_insts:
+                astr_colors = ['#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF111']
+                astr_symbols = ['*', 'o', 'p', 's', '8']
+
+                astr_insts = np.unique(data[astr_inds]['instrument'])
+
+                # Indices corresponding to each instrument in datafile
+                astr_inst_inds = {}
+                for i in range(len(astr_insts)):
+                    astr_inst_inds[astr_insts[i]]=np.where(data['instrument']==astr_insts[i].encode())[0]
+
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -576,7 +589,16 @@ class Results(object):
 
             if plot_astrometry:
                 ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
-                ax.scatter(ra_data,dec_data,marker='*',c='#FF7F11',zorder=10,s=60)
+
+                # Plot astrometry along with instruments
+                if plot_astrometry_insts:
+                    for i in range(len(astr_insts)):
+                        ra = ra_data[astr_inst_inds[astr_insts[i]]]
+                        dec = dec_data[astr_inst_inds[astr_insts[i]]]
+                        ax.scatter(ra, dec, marker=astr_symbols[i], c=astr_colors[i], zorder=10, s=60, label=astr_insts[i])
+                else:
+                    ax.scatter(ra_data, dec_data, marker='*', c='#FF7F11', zorder=10, s=60)
+
             # modify the axes
             if square_plot:
                 adjustable_param = 'datalim'
@@ -646,11 +668,26 @@ class Results(object):
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
-                # plot separations from data points                
-                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
 
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
+
+            # Plot sep/pa instruments
+            if plot_astrometry_insts:
+                for i in range(len(astr_insts)):
+                    sep = sep_data[astr_inst_inds[astr_insts[i]]]
+                    pa = pa_data[astr_inst_inds[astr_insts[i]]]
+                    epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
+                    plt.sca(ax1)
+                    plt.scatter(Time(epochs,format='mjd').decimalyear,sep,s=10,marker=astr_symbols[i],c=astr_colors[i],zorder=10, label=astr_insts[i])
+                    plt.sca(ax2)
+                    plt.scatter(Time(epochs,format='mjd').decimalyear,pa,s=10,marker=astr_symbols[i],c=astr_colors[i],zorder=10)
+                plt.sca(ax1)
+                plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
+            else:
+                plt.sca(ax1)
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
+                plt.sca(ax2)
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
             if rv_time_series:
