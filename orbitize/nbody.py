@@ -2,7 +2,7 @@ import numpy as np
 import orbitize.basis as basis
 import rebound
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m_pl=None):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m_pl=None, output_star=False):
     """
     Solves for position for a set of input orbital elements using rebound.
     Args:
@@ -37,15 +37,11 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m
 
     indv = len(sma)                 #number of planets orbiting the star
     num_planets = np.arange(0,indv) #creates an array of indeces for each planet that exists
-    ra_reb = np.zeros((tx, indv))   #numpy.zeros(number of [arrays], size of each array)
-    dec_reb = np.zeros((tx, indv))
-    vz = np.zeros((tx, indv))
 
     if m_pl is None:                #if no planet masses are input, planet masses set ot zero and mass of star is equal to mtot
         sim.add(m = mtot)
         m_pl = np.zeros(len(sma))
         m_star = mtot
-
     else:                           #mass of star is always (mass of system)-(sum of planet masses) 
         m_star = mtot - sum(m_pl)
         sim.add(m = m_star)
@@ -57,20 +53,39 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m
         mnm = basis.tau_to_manom(epochs[0], sma[i], m_interior, tau[i], tau_ref_epoch) 
         #adding each planet
         sim.add(m = m_pl[i], a = sma[i], e = ecc[i], inc = inc[i], Omega = pan[i] + np.pi/2, omega =aop[i], M =mnm)
-    
+
     sim.move_to_com()
     sim.integrator = "ias15" 
     sim.dt = ps[1].P/100.       #good rule of thumb: timestep should be at most 10% of the shortest orbital period
 
-    #integrate at each epoch
-    for j,t in enumerate(te):
-        sim.integrate(t/365.25)
-
-        #for each planet in each epoch denoted by j,t find the RA, Dec, and RV
-        for i in num_planets:
-            ra_reb[j,i] = -(ps[int(i+1)].x - ps[0].x) # ra is negative x
-            dec_reb[j,i] = ps[int(i+1)].y - ps[0].y
-            vz[j,i] = ps[int(i+1)].vz
+    if output_star:
+        ra_reb = np.zeros((tx, indv+1))   #numpy.zeros(number of [arrays], size of each array)
+        dec_reb = np.zeros((tx, indv+1))
+        vz = np.zeros((tx, indv+1))
+        for j,t in enumerate(te):
+            sim.integrate(t/365.25)
+            #for the star and each planet in each epoch denoted by j,t find the RA, Dec, and RV
+            com = sim.calculate_com()
+            ra_reb[j,0] = -(ps[0].x-com.x)# ra is negative x
+            dec_reb[j,0] = ps[0].y-com.y
+            vz[j,0] = ps[0].vz
+            for i in num_planets:
+                ra_reb[j,i+1] = -(ps[int(i+1)].x - ps[0].x) # ra is negative x
+                dec_reb[j,i+1] = ps[int(i+1)].y - ps[0].y
+                vz[j,i+1] = ps[int(i+1)].vz
+    else:
+        ra_reb = np.zeros((tx, indv))   #numpy.zeros(number of [arrays], size of each array)
+        dec_reb = np.zeros((tx, indv))
+        vz = np.zeros((tx, indv))
+        #integrate at each epoch
+        for j,t in enumerate(te):
+            sim.integrate(t/365.25)
+            #for each planet in each epoch denoted by j,t find the RA, Dec, and RV
+            for i in num_planets:
+                ra_reb[j,i] = -(ps[int(i+1)].x - ps[0].x) # ra is negative x
+                dec_reb[j,i] = ps[int(i+1)].y - ps[0].y
+                vz[j,i] = ps[int(i+1)].vz
+    
 
     #adjusting for parallax
     raoff = plx*ra_reb
@@ -82,6 +97,5 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m
         deoff = deoff.reshape(tx,)
         vz = vz.reshape(tx,)
         return raoff, deoff, vz
-
     else: 
         return raoff, deoff, vz

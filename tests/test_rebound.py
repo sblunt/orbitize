@@ -92,8 +92,8 @@ def calc_diff():
     #ora = ra
     #odec = dec
 
-    delta_ra = abs(rra-kra[:,1:5,0])
-    delta_de = abs(rde-kde[:,1:5,0])
+    delta_ra = abs(rra-kra[:,:,0])
+    delta_de = abs(rde-kde[:,:,0])
     #delta_vz = abs(rvz-_)
     yepochs = Time(epochs, format='mjd').decimalyear
 
@@ -107,22 +107,28 @@ def calc_diff():
         fig, (ax1, ax2) = plt.subplots(2)
         fig.suptitle('Massive Orbits in Rebound vs. Orbitize approx.')
 
-        ax1.plot(yepochs, delta_ra[:,0], 'brown', label = 'Planet E: RA offsets') #first planet
-        ax2.plot(yepochs, delta_de[:,0], 'red', label = 'Planet E: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,0], 'pink', label = 'Planet B: RV offsets')
+        ax1.plot(yepochs, delta_ra[:,0], 'black', label = 'Star') #fourth planet
+        ax2.plot(yepochs, delta_de[:,0], 'dimgray', label = 'Star')
+        #plt.plot(yepochs, delta_vz[:,0], 'silver', label = 'Star')
 
-        ax1.plot(yepochs, delta_ra[:,1], 'coral', label = 'Planet D: RA offsets') #second planet
-        ax2.plot(yepochs, delta_de[:,1], 'orange', label = 'Planet D: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,1], 'gold', label = 'Planet C: RV offsets')
+        ax1.plot(yepochs, delta_ra[:,1], 'brown', label = 'Planet E: RA offsets') #first planet
+        ax2.plot(yepochs, delta_de[:,1], 'red', label = 'Planet E: Dec offsets')
+        #plt.plot(yepochs, delta_vz[:,1], 'pink', label = 'Planet B: RV offsets')
 
-        ax1.plot(yepochs, delta_ra[:,2], 'greenyellow', label = 'Planet C: RA offsets') #third planet
-        ax2.plot(yepochs, delta_de[:,2], 'green', label = 'Planet C: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,2], 'darkgreen', label = 'Planet D: RV offsets')
+        ax1.plot(yepochs, delta_ra[:,2], 'coral', label = 'Planet D: RA offsets') #second planet
+        ax2.plot(yepochs, delta_de[:,2], 'orange', label = 'Planet D: Dec offsets')
+        #plt.plot(yepochs, delta_vz[:,2], 'gold', label = 'Planet C: RV offsets')
+
+        ax1.plot(yepochs, delta_ra[:,3], 'greenyellow', label = 'Planet C: RA offsets') #third planet
+        ax2.plot(yepochs, delta_de[:,3], 'green', label = 'Planet C: Dec offsets')
+        #plt.plot(yepochs, delta_vz[:,3], 'darkgreen', label = 'Planet D: RV offsets')
 
 
-        ax1.plot(yepochs, delta_ra[:,3], 'dodgerblue', label = 'Planet B: RA offsets') #fourth planet
-        ax2.plot(yepochs, delta_de[:,3], 'blue', label = 'Planet B: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,3], 'indigo', label = 'Planet E: RV offsets')
+        ax1.plot(yepochs, delta_ra[:,4], 'dodgerblue', label = 'Planet B: RA offsets') #fourth planet
+        ax2.plot(yepochs, delta_de[:,4], 'blue', label = 'Planet B: Dec offsets')
+        #plt.plot(yepochs, delta_vz[:,4], 'indigo', label = 'Planet E: RV offsets')
+
+        
         
 
     else:
@@ -144,6 +150,21 @@ def plot_orbit():
     
     plt.plot(rra, rdec, 'r', label = 'Rebound', alpha = 0.25)
     plt.plot(rra[-1], rdec[-1], 'o', alpha = 0.25)
+        
+    plt.plot(0, 0, '*')
+    plt.legend()
+    plt.show()
+
+def plot_orbit2():
+
+    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=True)
+    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=False)
+    
+    plt.plot(kra[:,0], kde[:,0], 'indigo', label = 'Orbitize approx.')
+    plt.plot(kra[-1,0], kde[-1,0],'o')
+    
+    plt.plot(rra[:,0], rde[:,0], 'r', label = 'Rebound', alpha = 0.25)
+    plt.plot(rra[-1,0], rde[-1,0], 'o', alpha = 0.25)
         
     plt.plot(0, 0, '*')
     plt.legend()

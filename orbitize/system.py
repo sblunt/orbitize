@@ -449,7 +449,7 @@ class System(object):
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mtot = params_arr[-1]
             
-            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl)
+            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl, output_star = True)
     
         else:
 
