@@ -25,13 +25,14 @@ class HipparcosLogProb(object):
         self.hip_num = hip_num
         self.num_secondary_bodies = num_secondary_bodies
 
-        # load best-fit astrometric solution from van Leeuwen catalog
+        # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
+        # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
         Vizier.ROW_LIMIT = -1
         hip_cat = Vizier(
             catalog='I/311/hip2', 
             columns=[
                 'RArad', 'e_RArad', 'DErad', 'e_DErad', 'Plx', 'e_Plx', 'pmRA', 
-                'e_pmRA', 'pmDE', 'e_pmDE', 'F2'
+                'e_pmRA', 'pmDE', 'e_pmDE', 'F2', 'Sn'
             ]
         ).query_constraints(HIP=self.hip_num)[0]
 
@@ -45,6 +46,16 @@ class HipparcosLogProb(object):
         self.pm_dec0_err = hip_cat['e_pmDE'][0] # [mas/yr]
         self.alpha0_err = hip_cat['e_RArad'][0] # [mas]
         self.delta0_err = hip_cat['e_DErad'][0] # [mas]
+
+        solution_type = hip_cat['Sn'][0]
+
+        if solution_type != 5:
+            raise Exception("""
+            Currently, we only handle stars with 5-parameter astrometric solutions
+            from Hipparcos. Let us know if you'd like us to add functionality 
+            for stars with >5 parameter solutions.
+            """
+        )
 
         # read in IAD
         iad = np.transpose(np.loadtxt(iad_file, skiprows=1))
