@@ -29,6 +29,8 @@ class System(object):
         results (list of orbitize.results.Results): results from an orbit-fit
             will be appended to this list as a Results class.
 
+            TODO: hipparcos_IAD is the actual HipparcosLogProb object
+
     Users should initialize an instance of this class, then overwrite
     priors they wish to customize.
 
@@ -53,7 +55,7 @@ class System(object):
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
-                 hipparcos_number=None, fitting_basis='standard', hipparcos_filename=None):
+                 hipparcos_IAD=None, fitting_basis='standard'):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.sys_priors = []
@@ -62,7 +64,7 @@ class System(object):
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
         self.restrict_angle_ranges = restrict_angle_ranges
-        self.hipparcos_number = hipparcos_number
+        self.hipparcos_IAD = hipparcos_IAD
         self.fitting_basis = fitting_basis
 
         #
@@ -147,7 +149,7 @@ class System(object):
                                      ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
                                       (self.num_secondary_bodies > 1))
 
-        if self.hipparcos_number is not None:
+        if self.hipparcos_IAD is not None:
             self.track_planet_perturbs = True
 
         if restrict_angle_ranges:
@@ -317,11 +319,8 @@ class System(object):
         else:
             self.sys_priors.append(plx)
 
-        # instantiate a HipparcosLogProb object to precompute & hold params relevant to IAD
-        if hipparcos_number is not None:
-            self.hipparcos_IAD = hipparcos.HipparcosLogProb(
-                hipparcos_filename, hipparcos_number, self.num_secondary_bodies
-            )
+        # if we're fitting the Hipparcos IAD, add relevant fitting parameters
+        if self.hipparcos_IAD is not None:
 
             # for now, set broad uniform priors on astrometric params relevant for Hipparcos
             self.sys_priors.append(priors.UniformPrior(
