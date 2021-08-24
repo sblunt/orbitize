@@ -8,10 +8,10 @@ def test_hipparcos_api():
     iad_file = '/data/user/sblunt/HipIAD/H{}/HIP{}.d'.format(hip_num[0:3], hip_num)
     iad_file = '/data/user/sblunt/HipIAD/H{}/HIP{}.d'.format(hip_num[0:3], hip_num)
 
-    # try:
-    myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
-    # except Exception: 
-    #     pass
+    try:
+        myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+    except Exception: 
+        pass
 
 
 if __name__ == '__main__':

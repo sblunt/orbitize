@@ -20,10 +20,11 @@ class HipparcosLogProb(object):
         hip_num (str): the Hipparcos number of your target. Accessible on Simbad.
     """
 
-    def __init__(self, iad_file, hip_num, num_secondary_bodies):
+    def __init__(self, iad_file, hip_num, num_secondary_bodies, alphadec0_epoch=1991.25):
 
         self.hip_num = hip_num
         self.num_secondary_bodies = num_secondary_bodies
+        self.alphadec0_epoch = alphadec0_epoch
 
         # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
         # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
@@ -50,12 +51,13 @@ class HipparcosLogProb(object):
         solution_type = hip_cat['Sn'][0]
 
         if solution_type != 5:
-            raise Exception("""
-            Currently, we only handle stars with 5-parameter astrometric solutions
-            from Hipparcos. Let us know if you'd like us to add functionality 
-            for stars with >5 parameter solutions.
-            """
-        )
+            raise Exception(
+                """
+                Currently, we only handle stars with 5-parameter astrometric 
+                solutions from Hipparcos. Let us know if you'd like us to add 
+                functionality for stars with >5 parameter solutions.
+                """
+            )
 
         # read in IAD
         iad = np.transpose(np.loadtxt(iad_file, skiprows=1))
@@ -95,7 +97,9 @@ class HipparcosLogProb(object):
         self.alpha_abs_st = self.R * self.cos_phi + changein_alpha_st
         self.delta_abs = self.R * self.sin_phi + changein_delta
 
-    def compute_lnlike(self, raoff_model, deoff_model, samples, negative=False):
+    def compute_lnlike(
+        self, raoff_model, deoff_model, samples, negative=False
+    ):
         """
         Computes the log probability of an orbit model with respect to the Hipparcos 
         IAD. 
@@ -129,16 +133,16 @@ class HipparcosLogProb(object):
         # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
         for i in np.arange(n_epochs):
 
-            # this is the expected offset from the Hipparcos photocenter in 1991.25
+            # this is the expected offset from the photocenter in alphadec0_epoch (typically 1991.25 for Hipparcos)
             alpha_C_st = alpha_H0 + plx * (
                 self.X[i] * np.sin(np.radians(self.alpha0)) - 
                 self.Y[i] * np.cos(np.radians(self.alpha0))
-            ) + (self.epochs[i] - 1991.25) * pm_ra
+            ) + (self.epochs[i] - self.alphadec0_epoch) * pm_ra
             delta_C = delta_H0 + plx * (
                 self.X[i] * np.cos(np.radians(self.alpha0)) * np.sin(np.radians(self.delta0)) + 
                 self.Y[i] * np.sin(np.radians(self.alpha0)) * np.sin(np.radians(self.delta0)) -
                 self.Z[i] * np.cos(np.radians(self.delta0))
-            ) + (self.epochs[i] - 1991.25) * pm_dec
+            ) + (self.epochs[i] - self.alphadec0_epoch) * pm_dec
 
             # add in pre-computed secondary perturbations
             alpha_C_st += raoff_model[i]
