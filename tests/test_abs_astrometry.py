@@ -1,3 +1,4 @@
+from locale import MON_10
 import numpy as np
 import os
 import astropy.table as table
@@ -19,10 +20,11 @@ def test_1planet():
     pan = np.radians(45)
     tau = 0.5
     plx = 1
-    mtot = 1
+    m0 = 1
     tau_ref_epoch = 0
     mjup = u.Mjup.to(u.Msun)
-    mass_b = 12 * mjup
+    mass_b = 100 * mjup
+    mtot = mass_b + m0
 
     epochs = np.linspace(0, 300, 100) + tau_ref_epoch # nearly the full period, MJD
 
@@ -37,10 +39,10 @@ def test_1planet():
     # create the orbitize system and generate model predictions using the ground truth
     astrom_dat = read_input.read_file(filename)
 
-    sys = system.System(1, astrom_dat, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
+    sys = system.System(1, astrom_dat, m0, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
     sys.track_planet_perturbs = True
 
-    params = np.array([sma, ecc, inc, aop, pan, tau, plx, mass_b, mtot])
+    params = np.array([sma, ecc, inc, aop, pan, tau, plx, mass_b, m0])
     ra, dec, _ = sys.compute_all_orbits(params)
 
     # the planet and stellar orbit should just be scaled versions of one another
@@ -48,7 +50,9 @@ def test_1planet():
     planet_dec = dec[:,1,:]
     star_ra = ra[:,0,:]
     star_dec = dec[:,0,:]
-    assert np.all(star_ra + (mass_b / mtot) * planet_ra < 1e-3)
+
+    assert np.all(np.abs(star_ra + (mass_b / mtot) * planet_ra) < 1e-16)
+    assert np.all(np.abs(star_dec + (mass_b / mtot) * planet_dec) < 1e-16)
 
 if __name__ == '__main__':
     test_1planet()

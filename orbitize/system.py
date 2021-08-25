@@ -515,6 +515,7 @@ class System(object):
         # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
         if self.track_planet_perturbs:
             for body_num in np.arange(self.num_secondary_bodies + 1):
+
                 if body_num > 0:
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
                     startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
@@ -537,6 +538,7 @@ class System(object):
                         continue
 
                     ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
+                    # this computes the perturbation on the other body due to the current body
                     ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
                     dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
                     
