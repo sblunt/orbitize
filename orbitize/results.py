@@ -762,12 +762,3 @@ class Results(object):
             ax2.locator_params(axis='y', nbins=6)
 
         return fig
-    
-    def plot_hipparcos(self, fig=None, plot_orbits=False):
-
-        plt.figure()
-        
-
-
-        return fig 
-
