@@ -338,11 +338,11 @@ class Results(object):
             'sig': '$\\sigma$ [km/s]',
             'mtot': '$M_T$ [M$_{{\\odot}}$]',
             'm0': '$M_0$ [M$_{{\\odot}}$]',
-            'm': '$M_{0}$ [M$_\{{Jup\}}$]',
-            'pm_ra': 'PM RA',
-            'pm_dec': 'PM Dec',
-            'alpha0': 'alpha0',
-            'delta0': 'delta0',
+            'm': '$M_{0}$ [M$_{{\\rm Jup}}$]',
+            'pm_ra': '$\\mu_{{\\alpha}}$ [mas/yr]',
+            'pm_dec': '$\\mu_{{\\delta}}$ [mas/yr]',
+            'alpha0': '$\\alpha_0$ [mas]',
+            'delta0': '$\\delta_0$ [mas]',
         }
 
         if param_list is None:
