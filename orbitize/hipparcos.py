@@ -1,8 +1,5 @@
 import numpy as np
-import pandas as pd
 
-from orbitize.kepler import calc_orbit
-from orbitize.radvel_utils.compute_sep import compute_sep
 from astroquery.vizier import Vizier
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
@@ -20,7 +17,10 @@ class HipparcosLogProb(object):
         hip_num (str): the Hipparcos number of your target. Accessible on Simbad.
     """
 
-    def __init__(self, iad_file, hip_num, num_secondary_bodies, alphadec0_epoch=1991.25):
+    def __init__(
+        self, iad_file, hip_num, num_secondary_bodies, alphadec0_epoch=1991.25,
+        renormalize_errors=False
+    ):
 
         self.hip_num = hip_num
         self.num_secondary_bodies = num_secondary_bodies
@@ -70,6 +70,18 @@ class HipparcosLogProb(object):
         self.sin_phi = iad[4]
         self.R = iad[5] # abscissa residual [mas]
         self.eps = iad[6] # error on abscissa residual [mas]
+
+        if renormalize_errors:
+            D = len(epochs) - 6
+            G = hip_cat['F2'][0] 
+
+            f = (
+                G * np.sqrt(2 / (9 * D)) + 
+                1 - 
+                (2 / (9 * D))
+            )**(3/2)
+
+            self.eps *= f
 
         # compute Earth XYZ position in barycentric coordinates
         bary_pos, _ = get_body_barycentric_posvel('earth', epochs)

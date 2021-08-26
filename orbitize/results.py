@@ -395,8 +395,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
-                    fig=None):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,
+                    plot_astrometry=True, fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -762,3 +762,12 @@ class Results(object):
             ax2.locator_params(axis='y', nbins=6)
 
         return fig
+    
+    def plot_hipparcos(self, fig=None, plot_orbits=False):
+
+        plt.figure()
+        
+
+
+        return fig 
+

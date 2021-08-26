@@ -16,13 +16,13 @@ def test_hipparcos_api():
     except Exception: 
         pass
 
-def nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
+def _nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
 
-    # reproduce the test from Nielsen+ 202 (end of Section 3.1)
+    # reproduce the test from Nielsen+ 2020 (end of Section 3.1)
     
     num_secondary_bodies = 0
     iad_file = '/data/user/sblunt/HipIAD/H{}/HIP{}.d'.format(hip_num[0:3], hip_num)
-    myHipLogProb = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+    myHipLogProb = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies, renormalize_errors=True)
     n_epochs = len(myHipLogProb.epochs)
 
     def log_prob(model_pars):
@@ -34,18 +34,18 @@ def nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
     ndim, nwalkers = 5, 100
 
     # initialize walkers
-    # fitting alpha_H0, delta_H0, plx, mu_a, mu_d
+    # (fitting plx, mu_a, mu_d, alpha_H0, delta_H0)
     p0 = np.random.randn(nwalkers, ndim)
 
     # plx
-    p0[:,2] *= myHipLogProb.plx0_err
-    p0[:,2] += myHipLogProb.plx0
+    p0[:,0] *= myHipLogProb.plx0_err
+    p0[:,0] += myHipLogProb.plx0
 
     # PM
-    p0[:,3] *= myHipLogProb.pm_ra0
-    p0[:,3] += myHipLogProb.pm_ra0_err
-    p0[:,4] *= myHipLogProb.pm_dec0
-    p0[:,4] += myHipLogProb.pm_dec0_err
+    p0[:,1] *= myHipLogProb.pm_ra0
+    p0[:,1] += myHipLogProb.pm_ra0_err
+    p0[:,2] *= myHipLogProb.pm_dec0
+    p0[:,2] += myHipLogProb.pm_dec0_err
 
     # set up an MCMC
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
@@ -59,26 +59,15 @@ def nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
     if saveplot is not None:
         _, axes = plt.subplots(5, figsize=(5,12))
 
-        # RA offset
-        axes[0].hist(sampler.flatchain[:,0], bins=50, normed=True)
-        xs = np.linspace(-1, 1, 1000)
-        axes[0].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs))
-        axes[0].set_xlabel('RA Offset [mas]')
-
-        # Dec offset
-        axes[1].hist(sampler.flatchain[:,1], bins=50, normed=True)
-        axes[1].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs))
-        axes[1].set_xlabel('Dec Offset [mas]')
-
         # plx
         xs = np.linspace(
             myHipLogProb.plx0 - 3 * myHipLogProb.plx0_err, 
             myHipLogProb.plx0 + 3 * myHipLogProb.plx0_err,
             1000
         )
-        axes[2].hist(sampler.flatchain[:,2], bins=50, normed=True)
-        axes[2].plot(xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs))
-        axes[2].set_xlabel('plx [mas]')
+        axes[0].hist(sampler.flatchain[:,0], bins=50, density=True, color='r')
+        axes[0].plot(xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), color='k')
+        axes[0].set_xlabel('plx [mas]')
 
         # PM RA
         xs = np.linspace(
@@ -86,9 +75,9 @@ def nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
             myHipLogProb.pm_ra0 + 3 * myHipLogProb.pm_ra0_err,
             1000
         )
-        axes[3].hist(sampler.flatchain[:,3], bins=50, normed=True)
-        axes[3].plot(xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs))
-        axes[3].set_xlabel('PM RA [mas/yr]')
+        axes[1].hist(sampler.flatchain[:,1], bins=50, density=True, color='r')
+        axes[1].plot(xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), color='k')
+        axes[1].set_xlabel('PM RA [mas/yr]')
 
         # PM Dec
         xs = np.linspace(
@@ -96,9 +85,21 @@ def nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
             myHipLogProb.pm_dec0 + 3 * myHipLogProb.pm_dec0_err,
             1000
         )
-        axes[4].hist(sampler.flatchain[:,4], bins=50, normed=True)
-        axes[4].plot(xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs))
-        axes[4].set_xlabel('PM Dec [mas/yr]')
+        axes[2].hist(sampler.flatchain[:,2], bins=50, density=True, color='r')
+        axes[2].plot(xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), color='k')
+        axes[2].set_xlabel('PM Dec [mas/yr]')
+
+        # RA offset
+        axes[3].hist(sampler.flatchain[:,3], bins=50, density=True, color='r')
+        xs = np.linspace(-1, 1, 1000)
+        axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color='k')
+        axes[3].set_xlabel('RA Offset [mas]')
+
+        # Dec offset
+        axes[4].hist(sampler.flatchain[:,4], bins=50, density=True, color='r')
+        axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color='k')
+        axes[4].set_xlabel('Dec Offset [mas]')
+
 
         plt.tight_layout()
         plt.savefig(saveplot, dpi=250)
