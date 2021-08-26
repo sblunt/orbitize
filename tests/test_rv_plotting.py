@@ -54,7 +54,7 @@ def test_rv_default_inst():
 		raise Exception("Could not plot rv data with multiple orbits and single default instrument.")
 
 def test_rv_multiple_inst():
-	filename = '{}/HD4747.csv'.format(DATADIR)
+	filename = '{}/HR7672_joint.csv'.format(DATADIR)
 
 	num_secondary_bodies = 1
 	system_mass = 1.08 # [Msol]

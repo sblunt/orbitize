@@ -2,7 +2,6 @@ import numpy as np
 import warnings
 import h5py
 import copy
-import pdb
 
 import astropy.units as u
 import astropy.constants as consts
