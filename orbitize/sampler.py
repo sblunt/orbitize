@@ -334,6 +334,27 @@ class OFTI(Sampler,):
             corrs = None
         lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
+        # account for user-set priors on PAN that were destroyed by scale-and-rotate
+        pan_prior = self.system.sys_priors[
+            self.system.param_idx['pan1']
+        ]
+        if pan_prior is not orbitize.priors.UniformPrior:
+
+            # apply PAN prior
+            lnp_scaled += pan_prior.compute_lnprob(samples[4,:])
+
+        # prior is uniform but with different bounds that OFTI expects
+        elif (pan_prior.minval != 0) or (
+            (pan_prior.maxval != np.pi) or (pan_prior.maxval != 2*np.pi)
+        ):
+            
+            samples_outside_pan_prior = np.where(
+                (samples[4,:] < pan_prior.minval) or 
+                (samples[4,:] > pan_prior.maxval)
+            )[0]
+
+            lnp_scaled[samples_outside_pan_prior] = -np.inf
+
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
@@ -1013,7 +1034,8 @@ class MCMC(Sampler):
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
             basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs
+            extra_basis_args=self.system.extra_basis_kwargs,
+            data = self.results.data
         )
 
         # Print a confirmation
