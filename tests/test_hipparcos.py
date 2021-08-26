@@ -16,12 +16,15 @@ def test_hipparcos_api():
     except Exception: 
         pass
 
-def _nielsen_iad_test(hip_num='027321', saveplot='foo.png'):
+def nielsen_iad_test(
+    hip_num='027321', saveplot='foo.png', 
+    iad_loc = '/data/user/sblunt/HipIAD'
+):
 
     # reproduce the test from Nielsen+ 2020 (end of Section 3.1)
     
     num_secondary_bodies = 0
-    iad_file = '/data/user/sblunt/HipIAD/H{}/HIP{}.d'.format(hip_num[0:3], hip_num)
+    iad_file = '{}/H{}/HIP{}.d'.format(iad_loc, hip_num[0:3], hip_num)
     myHipLogProb = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies, renormalize_errors=True)
     n_epochs = len(myHipLogProb.epochs)
 
