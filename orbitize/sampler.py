@@ -126,7 +126,6 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
-        # pdb.set_trace()
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -197,7 +196,8 @@ class OFTI(Sampler,):
             data=self.system.data_table,
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
 
     def prepare_samples(self, num_samples):
@@ -215,7 +215,6 @@ class OFTI(Sampler,):
         """
 
         # TODO: modify to work for multi-planet systems
-
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
         for i in range(len(self.priors)):
@@ -224,6 +223,9 @@ class OFTI(Sampler,):
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
+        # Make Converison to Standard Basis:
+        samples = self.system.basis.to_standard_basis(samples)
+        
         for body_num in np.arange(self.system.num_secondary_bodies):
             # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
             ref_ind = 6 * body_num
@@ -548,7 +550,8 @@ class MCMC(Sampler):
             data=self.system.data_table,
             num_secondary_bodies=system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
         
         if self.num_temps > 1:
@@ -720,8 +723,13 @@ class MCMC(Sampler):
                 while not all_valid:
                     total_invalids = 0
                     for temp in range(self.num_temps):
-                        to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[temp,:,:])
-                        invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+                        to_stand = self.system.basis.to_standard_basis(self.curr_pos[temp,:,:].T.copy()).T
+
+                        # Get invalids by checking ecc values for each companion
+                        indices = [((i * 6) + 1) for i in range(self.system.num_secondary_bodies)]
+                        invalids = np.where((to_stand[:, indices] < 0.) | (to_stand[:, indices] >= 1.))[0]
+
+                        # Redraw samples for the invalid ones
                         if len(invalids) > 0:
                             newpos = []
                             for prior in self.priors:
@@ -736,8 +744,13 @@ class MCMC(Sampler):
                 all_valid = False
                 while not all_valid:
                     total_invalids = 0
-                    to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[:,:])
-                    invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+                    to_stand = self.system.basis.to_standard_basis(self.curr_pos[:,:].T.copy()).T
+
+                    # Get invalids by checking ecc values for each companion
+                    indices = [((i * 6) + 1) for i in range(self.system.num_secondary_bodies)]
+                    invalids = np.where((to_stand[:, indices] < 0.) | (to_stand[:, indices] >= 1.))[0]                    
+
+                    # Redraw saples for the invalid ones
                     if len(invalids) > 0:
                         newpos = []
                         for prior in self.priors:
@@ -775,7 +788,6 @@ class MCMC(Sampler):
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
         """
-
         if periodic_save_freq is not None and output_filename is None:
             raise ValueError("output_filename must be defined for periodic saving of the chains")
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
@@ -800,7 +812,7 @@ class MCMC(Sampler):
                     self.num_walkers, self.num_params, self._logl, pool=pool,
                     kwargs={'include_logp': True}
                 )
-                    
+
             print("Starting Burn in")
             for i, state in enumerate(sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)):
                 if self.use_pt:
@@ -1000,7 +1012,8 @@ class MCMC(Sampler):
             labels=self.system.labels,
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
 
         # Print a confirmation

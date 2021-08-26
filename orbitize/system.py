@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input, kepler, conversions, hipparcos
+from orbitize import priors, read_input, kepler, conversions, hipparcos, basis
 import astropy.units as u
 import astropy.constants as consts
 
@@ -16,6 +16,8 @@ class System(object):
         stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
             docstring below.
         plx (float): mean parallax of the system, in mas
+        sampler_str (string, optional): name of the sampler being used (either OFTI or MCMC),
+            default is OFTI
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
@@ -51,28 +53,23 @@ class System(object):
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
-                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 plx, sampler_str='OFTI', mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
-                 hipparcos_number=None, fitting_basis='standard', hipparcos_filename=None):
+                 hipparcos_number=None, fitting_basis='Standard', hipparcos_filename=None):
 
         self.num_secondary_bodies = num_secondary_bodies
-        self.sys_priors = []
-        self.labels = []
+        self.sampler_str = sampler_str
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
         self.restrict_angle_ranges = restrict_angle_ranges
         self.hipparcos_number = hipparcos_number
         self.fitting_basis = fitting_basis
-
-        #
-        # Group the data in some useful ways
-        #
-
+        self.best_epochs = []
         self.data_table = data_table
-        # Creates a copy of the input in case data_table needs to be modified
         self.input_table = self.data_table.copy()
 
+        # Group the data in some useful ways
         # Rob: check if instrument column is other than default. If other than default, then separate data table into n number of instruments.
         # gather list of instrument: list_instr = self.data_table['instruments'][name of instrument]
         # List of arrays of indices corresponding to each body
@@ -155,40 +152,25 @@ class System(object):
         else:
             angle_upperlim = 2.*np.pi
 
-        #
-        # Set priors for each orbital element
-        #
+        # Get Hipparcos_IAD
+        self.hipparcos_IAD = None
+        if hipparcos_number is not None:
+            self.hipparcos_IAD = hipparcos.HipparcosLogProb(
+                hipparcos_filename, hipparcos_number, self.num_secondary_bodies
+            )
 
-        if fitting_basis == 'standard':
-            self.best_epochs = None
-            for body in np.arange(num_secondary_bodies):
-                # Add semimajor axis prior
-                self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
-                self.labels.append('sma{}'.format(body+1))
+        # Check for rv data
+        contains_rv = False
+        if len(self.rv[0]) > 0:
+            contains_rv = True
 
-                # Add eccentricity prior
-                self.sys_priors.append(priors.UniformPrior(0., 1.))
-                self.labels.append('ecc{}'.format(body+1))
 
-                # Add inclination angle prior
-                self.sys_priors.append(priors.SinPrior())
-                # self.sys_priors.append(priors.UniformPrior(0., np.pi))# TEST TO COMPARE, CHANGE LATER
-                self.labels.append('inc{}'.format(body+1))
+        # Assign priors for the given basis set
+        self.extra_basis_kwargs = {}
+        basis_obj = getattr(basis, self.fitting_basis)
 
-                # Add argument of periastron prior
-                self.sys_priors.append(priors.UniformPrior(0., 2.*np.pi))
-                self.labels.append('aop{}'.format(body+1))
-
-                # Add position angle of nodes prior
-                self.sys_priors.append(priors.UniformPrior(0., angle_upperlim))
-                self.labels.append('pan{}'.format(body+1))
-
-                # Add epoch of periastron prior.
-                self.sys_priors.append(priors.UniformPrior(0., 1.))
-                self.labels.append('tau{}'.format(body+1))
-
-        elif fitting_basis == 'XYZ':
-            epochs = self.data_table['epoch']
+        # Obtain extra necessary data to assign priors for XYZ
+        if fitting_basis == 'XYZ':
             # Get epochs with least uncertainty, as is done in sampler.py
             convert_warning_print = False
             for body_num in np.arange(self.num_secondary_bodies) + 1:
@@ -203,6 +185,10 @@ class System(object):
                 self.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
             meas_object = self.data_table[np.where(
                 self.data_table['quant_type'] == 'seppa')]['object'].copy()
+
+            astr_inds = np.where(self.input_table['object'] > 0)[0]
+            astr_data = self.input_table[astr_inds]
+            epochs = astr_data['epoch']
 
             self.best_epochs = []
             self.best_epoch_idx = []
@@ -221,158 +207,14 @@ class System(object):
                 this_best_epoch = epochs[this_best_epoch_idx]
                 self.best_epochs.append(this_best_epoch)
 
-            for body in np.arange(num_secondary_bodies):
-                # Get the epoch with the least uncertainty for this body
-                # curr_idx = self.body_indices[body_num]
-                # radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
-                # min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))[0]
-                # best_idx = curr_idx[0][min_uncert[0]]
-                datapoints_to_take = 3
-                best_idx = self.best_epoch_idx[body]
-                best_epochs = epochs[best_idx:(best_idx+datapoints_to_take)] # 0 is best, the others are for fitting velocity
+            self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
-                # Get data near best epoch ASSUMING THE BEST IS NOT ONE OF THE LAST TWO EPOCHS OF A GIVEN BODY,
-                # also assuming this is in radec
-                best_ras = self.input_table['quant1'][best_idx:(best_idx+datapoints_to_take)].copy()
-                best_ras_err = self.input_table['quant1_err'][best_idx:(best_idx+datapoints_to_take)].copy()
-                best_decs =self.input_table['quant2'][best_idx:(best_idx+datapoints_to_take)].copy()
-                best_decs_err = self.input_table['quant2_err'][best_idx:(best_idx+datapoints_to_take)].copy()
 
-                # Convert to AU for prior limits
-                best_xs = best_ras / plx 
-                best_ys = best_decs / plx 
-                best_xs_err = np.sqrt((best_ras_err / best_ras)**2 + (plx_err / plx)**2)*np.absolute(best_xs)
-                best_ys_err = np.sqrt((best_decs_err / best_decs)**2 + (plx_err / plx)**2)*np.absolute(best_ys)
+        self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, self.fit_secondary_mass,
+            angle_upperlim=angle_upperlim, hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, rv_instruments=self.rv_instruments, **self.extra_basis_kwargs)
 
-                # Least-squares fit on velocity for prior limits
-                A = np.vander(best_epochs, 2)
-
-                ATA_x = np.dot(A.T, A / (best_xs_err ** 2)[:, None])
-                cov_x = np.linalg.inv(ATA_x)
-                w_x = np.linalg.solve(ATA_x, np.dot(A.T, best_xs / best_xs_err ** 2))
-
-                ATA_y = np.dot(A.T, A / (best_ys_err ** 2)[:, None])
-                cov_y = np.linalg.inv(ATA_y)
-                w_y = np.linalg.solve(ATA_y, np.dot(A.T, best_ys / best_ys_err ** 2))
-
-                x_vel = w_x[0]
-                x_vel_err = np.sqrt(cov_x[0, 0])
-                y_vel = w_y[0]
-                y_vel_err = np.sqrt(cov_y[0, 0])
-
-                x_vel = (( x_vel* u.AU / u.day).to(u.km / u.s)).value
-                x_vel_err = ((x_vel_err * u.AU / u.day).to(u.km / u.s)).value
-                y_vel = ((y_vel * u.AU / u.day).to(u.km / u.s)).value
-                y_vel_err = ((y_vel_err * u.AU / u.day).to(u.km / u.s)).value
-
-                # Propose bounds on absolute Z and Z dot given the energy equation
-                mu = consts.G * stellar_mass * u.Msun
-
-                mu_vel = 2 * mu / ((x_vel**2 + y_vel**2) * (u.km / u.s * u.km / u.s))
-                z_bound = (np.sqrt(mu_vel**2 - (best_xs[0]**2 + best_ys[0]**2)*u.AU *u.AU)).to(u.AU)
-                z_bound = z_bound.value
-
-                mu_pos = 2 * mu / np.sqrt((best_xs[0]**2 + best_ys[0]**2) * (u.AU *u.AU))
-                z_vel_bound = (np.sqrt(mu_pos - (x_vel**2 + y_vel**2)*(u.km / u.s * u.km / u.s))).to(u.km / u.s)
-                z_vel_bound = z_vel_bound.value
-
-                # Add x-coordinate prior
-                num_uncerts_x = 5
-                self.sys_priors.append(priors.UniformPrior(best_xs[0] - num_uncerts_x*best_xs_err[0], best_xs[0] + num_uncerts_x*best_xs_err[0]))
-                self.labels.append('x{}'.format(body+1))
-                
-                # Add y-coordinate prior
-                num_uncerts_y = 5
-                self.sys_priors.append(priors.UniformPrior(best_ys[0] - num_uncerts_y*best_ys_err[0], best_ys[0] + num_uncerts_y*best_ys_err[0]))
-                self.labels.append('y{}'.format(body+1))
-
-                # Add z-coordinate prior
-                # self.sys_priors.append(priors.UniformPrior(-z_bound,z_bound))
-                # self.sys_priors.append(priors.LogUniformPrior(0.0001,z_bound))
-                self.sys_priors.append(priors.GaussianPrior(0.,z_bound / 4, no_negatives=False))
-                self.labels.append('z{}'.format(body+1))
-
-                # Add x-velocity prior
-                num_uncerts_xvel = 5
-                self.sys_priors.append(priors.UniformPrior(x_vel - num_uncerts_xvel*x_vel_err, x_vel + num_uncerts_xvel*x_vel_err))
-                self.labels.append('xdot{}'.format(body+1))
-
-                # Add y-velocity prior
-                num_uncerts_yvel = 5
-                self.sys_priors.append(priors.UniformPrior(y_vel - num_uncerts_yvel*y_vel_err, y_vel + num_uncerts_yvel*y_vel_err))
-                self.labels.append('ydot{}'.format(body+1))
-
-                # Add z-velocity prior
-                # self.sys_priors.append(priors.UniformPrior(-z_vel_bound,z_vel_bound))
-                # self.sys_priors.append(priors.LogUniformPrior(0.0001,z_vel_bound))
-                self.sys_priors.append(priors.GaussianPrior(0.,z_vel_bound / 4, no_negatives=False))
-                self.labels.append('zdot{}'.format(body+1))
-
-        #
-        # Set priors on total mass and parallax
-        #
-        self.labels.append('plx')
-        if plx_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-        else:
-            self.sys_priors.append(plx)
-
-        # instantiate a HipparcosLogProb object to precompute & hold params relevant to IAD
-        if hipparcos_number is not None:
-            self.hipparcos_IAD = hipparcos.HipparcosLogProb(
-                hipparcos_filename, hipparcos_number, self.num_secondary_bodies
-            )
-
-            # for now, set broad uniform priors on astrometric params relevant for Hipparcos
-            self.sys_priors.append(priors.UniformPrior(
-                self.hipparcos_IAD.pm_ra0 - 10 * self.hipparcos_IAD.pm_ra0_err,
-                self.hipparcos_IAD.pm_ra0 + 10 * self.hipparcos_IAD.pm_ra0_err)
-            )
-            self.labels.append('pm_ra')
-
-            self.sys_priors.append(priors.UniformPrior(
-                self.hipparcos_IAD.pm_dec0 - 10 * self.hipparcos_IAD.pm_dec0_err,
-                self.hipparcos_IAD.pm_dec0 + 10 * self.hipparcos_IAD.pm_dec0_err)
-            )
-            self.labels.append('pm_dec')
-
-            self.sys_priors.append(priors.UniformPrior(
-                - 10 * self.hipparcos_IAD.alpha0_err,
-                10 * self.hipparcos_IAD.alpha0_err)
-            )
-            self.labels.append('alpha0')
-
-            self.sys_priors.append(priors.UniformPrior(
-                - 10 * self.hipparcos_IAD.delta0_err,
-                10 * self.hipparcos_IAD.delta0_err)
-            )
-            self.labels.append('delta0')
-
-        # checking for rv data to include appropriate rv priors:
-        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
-         
-            # for instrument in rv_instruments:
-                # add gamma and sigma for each and label each unique gamma and sigma per instrument name (gamma+instrument1, ...)
-            for instrument in self.rv_instruments:
-                self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
-                self.labels.append('gamma_{}'.format(instrument))
-
-                self.sys_priors.append(priors.LogUniformPrior(1e-4, 0.05))  # jitter prior in km/s
-                self.labels.append('sigma_{}'.format(instrument))
-
-        if self.fit_secondary_mass:
-            for body in np.arange(num_secondary_bodies)+1:
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 2))  # in Solar masses for now
-                self.labels.append('m{}'.format(body))
-            self.labels.append('m0')
-        else:
-            self.labels.append('mtot')
-
-        # still need to append m0/mtot, even though labels are appended above
-        if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(stellar_mass, mass_err))
-        else:
-            self.sys_priors.append(stellar_mass)
+        self.basis.verify_params()
+        self.sys_priors, self.labels = self.basis.construct_priors()
 
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
@@ -399,7 +241,6 @@ class System(object):
                     radial velocities at each epoch.
 
         """
-
         if epochs is None:
             epochs = self.data_table['epoch']
 
@@ -428,33 +269,12 @@ class System(object):
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
             startindex = 6 * (body_num - 1)
-            if self.fitting_basis == 'standard':
-
-                sma = params_arr[startindex]
-                ecc = params_arr[startindex + 1]
-                inc = params_arr[startindex + 2]
-                argp = params_arr[startindex + 3]
-                lan = params_arr[startindex + 4]
-                tau = params_arr[startindex + 5]
-            
-            elif self.fitting_basis == 'XYZ':
-                
-                # curr_idx = self.body_indices[body_num]
-                # radec_uncerts = self.data_table['quant1_err'][curr_idx] + self.data_table['quant2_err'][curr_idx]
-                # min_uncert = np.where(radec_uncerts == np.amin(radec_uncerts))
-                best_idx = self.best_epoch_idx[body_num-1]
-                constrained_epoch = epochs[best_idx]
-
-                to_convert = np.array([*params_arr[startindex:(startindex+6)],params_arr[6 * self.num_secondary_bodies],params_arr[-1]])
-                standard_params = conversions.xyz_to_standard(constrained_epoch, to_convert)
-
-                sma = standard_params[0] 
-                ecc = standard_params[1]
-                inc = standard_params[2]
-                argp = standard_params[3]
-                lan = standard_params[4]
-                tau = standard_params[5]
-
+            sma = params_arr[startindex]
+            ecc = params_arr[startindex + 1]
+            inc = params_arr[startindex + 2]
+            argp = params_arr[startindex + 3]
+            lan = params_arr[startindex + 4]
+            tau = params_arr[startindex + 5]
             plx = params_arr[6 * self.num_secondary_bodies]
 
             if self.fit_secondary_mass:
@@ -549,16 +369,18 @@ class System(object):
         raoff = ra_kepler + ra_perturb
         deoff = dec_kepler + dec_perturb
         vz[:, 0, :] = total_rv0
+
         if self.fitting_basis == 'XYZ':
-            # To filter out unbound orbits
-            if ((ecc >= 1.) | (ecc < 0.)):
-                raoff[:,:,:] = np.inf
-                deoff[:,:,:] = np.inf 
-                vz[:,:,:] = np.inf
+            # Find and filter out bad orbits
+            bad_orbits = np.where(np.logical_or(ecc >= 1., ecc < 0.))[0]
+            if (bad_orbits.size != 0):
+                raoff[:,:, bad_orbits] = np.inf
+                deoff[:,:, bad_orbits] = np.inf 
+                vz[:,:, bad_orbits] = np.inf
                 return raoff, deoff, vz
             else: 
                 return raoff, deoff, vz 
-        elif self.fitting_basis == 'standard':
+        else:
             return raoff, deoff, vz
 
 
@@ -581,12 +403,19 @@ class System(object):
             a 2d array, otherwise it is a 3d array.
         """
 
-        raoff, decoff, vz = self.compute_all_orbits(params_arr)
+        # Only Make Conversion if MCMC (OFTI already converted)
+        if self.sampler_str == 'MCMC':
+            to_convert = np.copy(params_arr)
+            standard_params_arr = self.basis.to_standard_basis(to_convert)
+        else:
+            standard_params_arr = params_arr        
 
-        if len(params_arr.shape) == 1:
+        raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
+
+        if len(standard_params_arr.shape) == 1:
             n_orbits = 1
         else:
-            n_orbits = params_arr.shape[1]
+            n_orbits = standard_params_arr.shape[1]
 
         n_epochs = len(self.data_table)
         model = np.zeros((n_epochs, 2, n_orbits))
@@ -598,13 +427,13 @@ class System(object):
             # looping through instruments to get the gammas & jitters
             for rv_idx in range(len(self.rv_instruments)):
 
-                jitter[self.rv_inst_indices[rv_idx], 0] = params_arr[ # [km/s]
+                jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[ # [km/s]
                     6 * self.num_secondary_bodies+2+2*rv_idx
                 ]
                 jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
 
-                gamma[self.rv_inst_indices[rv_idx], 0] = params_arr[
+                gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
                     6 * self.num_secondary_bodies+1+2*rv_idx
                 ] 
                 gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
