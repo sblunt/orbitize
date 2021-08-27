@@ -8,6 +8,7 @@ import astropy.units as u
 import astropy.constants as consts
 from astropy.io import fits
 from astropy.time import Time
+import astropy.table as table
 from erfa import ErfaWarning
 
 import matplotlib as mpl
@@ -183,8 +184,8 @@ class Results(object):
             version_number = "<= 1.13"
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
-        data=np.array(hf.get('data'))
-        self.data=data
+        data = np.array(hf.get('data'))
+        self.data = table.Table(data) # turn back into astropy table, also keeps str formatted right
 
         # get the tau reference epoch
         try:

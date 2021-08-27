@@ -153,6 +153,10 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     # check tau reference epoch is stored
     assert loaded_results.tau_ref_epoch == 50000
 
+    # check that str fields are indeed strs
+    # checking just one str entry probably is good enough
+    assert isinstance(loaded_results.data['quant_type'][0], str)
+
     # Clean up: Remove save file
     os.remove(save_filename)
 
