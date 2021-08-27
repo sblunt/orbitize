@@ -32,26 +32,22 @@ def test_rv_default_inst():
 	epochs = my_driver.system.data_table['epoch']
 
 	# Test plotting with single orbit
-	try:
-		orbit_plot_fig = m.results.plot_orbits(
-		    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
-		    num_orbits_to_plot= 1, # Will plot 100 randomly selected orbits of this companion
-		    start_mjd=epochs[3], # Minimum MJD for colorbar (here we choose first data epoch)
-		    rv_time_series = True
-		)
-	except:
-		raise Exception("Could not plot rv data with single orbit and single default instrument.")
+	orbit_plot_fig = m.results.plot_orbits(
+	    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
+	    num_orbits_to_plot= 1, # Will plot 100 randomly selected orbits of this companion
+	    start_mjd=epochs[3], # Minimum MJD for colorbar (here we choose first data epoch)
+	    rv_time_series = True,
+	    plot_astrometry_insts = True
+	)
 
 	# Test plotting with multiple orbits
-	try:
-		orbit_plot_fig = m.results.plot_orbits(
-		    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
-		    num_orbits_to_plot= 10, # Will plot 100 randomly selected orbits of this companion
-		    start_mjd=epochs[3], # Minimum MJD for colorbar (here we choose first data epoch)
-		    rv_time_series = True
-		)
-	except:
-		raise Exception("Could not plot rv data with multiple orbits and single default instrument.")
+	orbit_plot_fig = m.results.plot_orbits(
+	    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
+	    num_orbits_to_plot= 10, # Will plot 100 randomly selected orbits of this companion
+	    start_mjd=epochs[3], # Minimum MJD for colorbar (here we choose first data epoch)
+	    rv_time_series = True,
+	    plot_astrometry_insts = True
+	)
 
 def test_rv_multiple_inst():
 	filename = '{}/HR7672_joint.csv'.format(DATADIR)
@@ -81,26 +77,22 @@ def test_rv_multiple_inst():
 	m.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
 	epochs = my_driver.system.data_table['epoch']
 
-	try:
-		orbit_plot_fig = m.results.plot_orbits(
-		    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
-		    num_orbits_to_plot= 1, # Will plot 100 randomly selected orbits of this companion
-		    start_mjd=epochs[0], # Minimum MJD for colorbar (here we choose first data epoch)
-		    rv_time_series = True
-		)
-	except:
-		raise Exception("Could not plot rv data with single orbit and two instruments.")
+	orbit_plot_fig = m.results.plot_orbits(
+	    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
+	    num_orbits_to_plot= 1, # Will plot 100 randomly selected orbits of this companion
+	    start_mjd=epochs[0], # Minimum MJD for colorbar (here we choose first data epoch)
+	    rv_time_series = True,
+	    plot_astrometry_insts = True
+	)
 
 	# Test plotting with multiple orbits
-	try:
-		orbit_plot_fig = m.results.plot_orbits(
-		    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
-		    num_orbits_to_plot= 10, # Will plot 100 randomly selected orbits of this companion
-		    start_mjd=epochs[0], # Minimum MJD for colorbar (here we choose first data epoch)
-		    rv_time_series = True
-		)
-	except:
-		raise Exception("Could not plot rv data with multiple orbits and two instruments.")
+	orbit_plot_fig = m.results.plot_orbits(
+	    object_to_plot = 1, # Plot orbits for the first (and only, in this case) companion
+	    num_orbits_to_plot= 10, # Will plot 100 randomly selected orbits of this companion
+	    start_mjd=epochs[0], # Minimum MJD for colorbar (here we choose first data epoch)
+	    rv_time_series = True,
+	    plot_astrometry_insts = True
+	)
 
 if __name__ == '__main__':
 	test_rv_default_inst()

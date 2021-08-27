@@ -17,7 +17,6 @@ import matplotlib.colors as colors
 import pandas as pd
 
 import corner
-import pdb
 
 import orbitize.kepler as kepler
 import orbitize.system
@@ -564,7 +563,6 @@ class Results(object):
 
             # For plotting different astrometry instruments
             if plot_astrometry_insts:
-                pdb.set_trace()
                 astr_colors = ('#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF1919')
                 astr_symbols = ('*', 'o', 'p', 's')
 
