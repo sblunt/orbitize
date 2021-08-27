@@ -982,25 +982,27 @@ class MCMC(Sampler):
         # Placeholder list to track any bad parameters that come up.
         bad_parameters = []
 
-        # Loop on each variable (this is why we transpose the walkers)
-        for i, x in enumerate(all_positions.T):
-            # Any issues with this parameter?
-            lnprob = self.priors[i].compute_lnprob(np.array(x))
-            supported = np.isfinite(lnprob).all() == True
+        # If there are no covarient priors, loop on each variable to locate any out-of-place parameters. (this is why we transpose the walkers)
+        if not np.any([prior.is_correlated for prior in self.priors]):
+            for i, x in enumerate(all_positions.T):
+                # Any issues with this parameter?
+                lnprob = self.priors[i].compute_lnprob(np.array(x))
+                supported = np.isfinite(lnprob).all() == True
 
-            if supported == False:
-                # Problem detected. Take note and continue the loop - we want to catch all the problem parameters.
-                bad_parameters.append(str(i))
+                if supported == False:
+                    # Problem detected. Take note and continue the loop - we want to catch all the problem parameters.
+                    bad_parameters.append(str(i))
 
-        # Throw our ValueError if necessary,
-        if len(bad_parameters) > 0:
-            raise ValueError("Attempting to start with walkers outside of prior support: check parameter(s) "+', '.join(bad_parameters))
+            # Throw our ValueError if necessary,
+            if len(bad_parameters) > 0:
+                raise ValueError("Attempting to start with walkers outside of prior support: check parameter(s) "+', '.join(bad_parameters))
 
         # We're not done yet, however. There may be errors in covariant priors; run a check for that.
-        for y in all_positions:
-            lnprob = orbitize.priors.all_lnpriors(y,self.priors)
-            if not np.isfinite(lnprob).all():
-                raise ValueError("Attempting to start with walkers outside of prior support: covariant prior failure.")
+        else:
+            for y in all_positions:
+                lnprob = orbitize.priors.all_lnpriors(y,self.priors)
+                if not np.isfinite(lnprob).all():
+                    raise ValueError("Attempting to start with walkers outside of prior support: covariant prior failure.")
         
         # otherwise exit the function and continue.
         return
