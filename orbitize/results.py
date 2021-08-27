@@ -336,6 +336,10 @@ class Results(object):
                     K1: stellar radial velocity semi-amplitude
                     [repeat for 2, 3, 4, etc if multiple objects]
                     plx:  parallax
+                    pm_ra: RA proper motion
+                    pm_dec: Dec proper motion
+                    alpha0: primary offset from reported Hipparcos RA @ alphadec0_epoch (generally 1991.25)
+                    delta0: primary offset from reported Hipparcos Dec @ alphadec0_epoch (generally 1991.25)
                     gamma: rv offset
                     sigma: rv jitter
                     mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass == True)

@@ -6,10 +6,14 @@ from orbitize import system, read_input, priors, sampler
 from orbitize.hipparcos import HipparcosLogProb
 
 """
-Attempts to reproduce case 3 (see table 3) of Nielsen+ 2020 (orbit fits of beta Pic b).
+Attempts to reproduce case 3 (see table 3) of Nielsen+ 2020 (orbit fits of beta 
+Pic b), currently minus the Gaia data point and the planetary RV. 
+
+This is a publishable orbit fit that will take several hours-days to run. It
+uses relative astrometry and Hipparcos intermediate astrometric data (IAD).
 """
 
-fit_IAD = False
+fit_IAD = True 
 if fit_IAD:
     savedir = 'betaPic_hipIAD'
 else:
@@ -28,7 +32,9 @@ if fit_IAD:
     hipparcos_number='027321'
     fit_secondary_mass=True
     hipparcos_filename=os.path.join(orbitize.DATADIR, 'HIP027321.d')
-    betaPic_Hip = HipparcosLogProb(hipparcos_filename, hipparcos_number, num_secondary_bodies)
+    betaPic_Hip = HipparcosLogProb(
+        hipparcos_filename, hipparcos_number, num_secondary_bodies
+    )
 else:
     fit_secondary_mass=False
     betaPic_Hip = None
@@ -55,15 +61,20 @@ betaPic_system.sys_priors[6] = priors.UniformPrior(plx - 1.0, plx + 1.0)
 num_threads = 50
 num_temps = 20
 num_walkers = 1000
-num_steps = 100000 # 10000000 # n_walkers x n_steps_per_walker
+num_steps = 10000000 # n_walkers x n_steps_per_walker
 burn_steps = 10000
 thin = 100
 
-betaPic_sampler = sampler.MCMC(betaPic_system, num_threads=num_threads, num_temps=num_temps, num_walkers=num_walkers)
+betaPic_sampler = sampler.MCMC(
+    betaPic_system, num_threads=num_threads, num_temps=num_temps, 
+    num_walkers=num_walkers
+)
 betaPic_sampler.run_sampler(num_steps, burn_steps=burn_steps, thin=thin)
 
 # save chains
-betaPic_sampler.results.save_results('{}/betaPic_IAD{}.hdf5'.format(savedir, fit_IAD))
+betaPic_sampler.results.save_results(
+    '{}/betaPic_IAD{}.hdf5'.format(savedir, fit_IAD)
+)
 
 # make corner plot
 fig = betaPic_sampler.results.plot_corner()

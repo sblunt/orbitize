@@ -1,7 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input, kepler, conversions, hipparcos, basis
-import astropy.units as u
-import astropy.constants as consts
+from orbitize import kepler, basis
 
 class System(object):
     """
@@ -12,12 +10,13 @@ class System(object):
     Args:
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
-            docstring below.
+        data_table (astropy.table.Table): output from 
+            ``orbitize.read_input.read_file()``
+        stellar_mass (float): mean mass of the primary, in M_sol. See 
+            ``fit_secondary_mass`` docstring below.
         plx (float): mean parallax of the system, in mas
-        sampler_str (string, optional): name of the sampler being used (either OFTI or MCMC),
-            default is OFTI
+        sampler_str (string, optional): name of the sampler being used (either 
+            OFTI or MCMC), default is OFTI
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
@@ -26,37 +25,27 @@ class System(object):
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
         fit_secondary_mass (bool, optional): if True, include the dynamical
-            mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
-            is taken to be the total mass of the system. (default: False)
-        results (list of orbitize.results.Results): results from an orbit-fit
-            will be appended to this list as a Results class.
+            mass of the orbiting body as a fitted parameter. If this is set to 
+            False, ``stellar_mass`` is taken to be the total mass of the system. 
+            (default: False)
+        hipparcos_IAD (orbitize.hipparcos.HipparcosLogProb): an object 
+            containing information & precomputed values relevant to Hipparcos
+            IAD fitting. See hipparcos.py for more details.
+        fitting_basis (str): the name of the class corresponding to the fitting 
+            basis to be used. See basis.py for a list of implemented fitting bases.
 
-            TODO: hipparcos_IAD is the actual HipparcosLogProb object
-
-    Users should initialize an instance of this class, then overwrite
-    priors they wish to customize.
-
-    Priors are initialized as a list of ``orbitize.priors.Prior`` objects,
-    in the following order::
-
-        semimajor axis 1, eccentricity 1, inclination 1,
-        argument of periastron 1, position angle of nodes 1,
-        epoch of periastron passage 1,
-        [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, [mass1, mass2, ..], total_mass/m0]
-
-    where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc. Mass1, mass2, ... correspond to masses of secondary
-    bodies. If `fit_secondary_mass` is set to True, the last element of this
-    list is initialized to the mass of the primary. If not, it is
-    initialized to the total system mass.
+    Priors are initialized as a list of orbitize.priors.Prior objects and stored
+    in the variable ``System.sys_priors``. You should initialize this class, 
+    then overwrite priors you wish to customize. You can use the 
+    ``System.param_idx`` attribute to figure out which indices correspond to 
+    which fitting parameters. See the "changing priors" tutorial for more detail.  
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, sampler_str='OFTI', mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None,
+                 tau_ref_epoch=58849, fit_secondary_mass=False,
                  hipparcos_IAD=None, fitting_basis='Standard'):
 
         self.num_secondary_bodies = num_secondary_bodies
@@ -217,7 +206,7 @@ class System(object):
     def compute_all_orbits(self, params_arr, epochs=None):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
-        interactions, as well as computes total quantities like RV (without jitter/gamma)
+        interactions. Also computes total quantities like RV (without jitter/gamma)
 
         Args:
             params_arr (np.array of float): RxM array
@@ -225,6 +214,8 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
+            epochs (np.array of float): epochs (in mjd) at which to compute
+                orbit predictions.
         
         Returns:
             tuple of:

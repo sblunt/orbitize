@@ -46,7 +46,7 @@ class Sampler(abc.ABC):
     def run_sampler(self, total_orbits):
         pass
 
-    def _logl(self, params, hipparcos=False):
+    def _logl(self, params):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
