@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 import h5py
 import copy
+import itertools
 
 import astropy.units as u
 import astropy.constants as consts
@@ -563,15 +564,20 @@ class Results(object):
 
             # For plotting different astrometry instruments
             if plot_astrometry_insts:
-                astr_colors = ['#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF111']
-                astr_symbols = ['*', 'o', 'p', 's', '8']
+                pdb.set_trace()
+                astr_colors = ('#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF1919')
+                astr_symbols = ('*', 'o', 'p', 's')
 
+                ax_colors = itertools.cycle(astr_colors)
+                ax_symbols = itertools.cycle(astr_symbols)
+
+                astr_data = data[astr_inds]
                 astr_insts = np.unique(data[astr_inds]['instrument'])
 
                 # Indices corresponding to each instrument in datafile
                 astr_inst_inds = {}
                 for i in range(len(astr_insts)):
-                    astr_inst_inds[astr_insts[i]]=np.where(data['instrument']==astr_insts[i].encode())[0]
+                    astr_inst_inds[astr_insts[i]]=np.where(astr_data['instrument']==astr_insts[i].encode())[0]
 
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
@@ -594,7 +600,7 @@ class Results(object):
                     for i in range(len(astr_insts)):
                         ra = ra_data[astr_inst_inds[astr_insts[i]]]
                         dec = dec_data[astr_inst_inds[astr_insts[i]]]
-                        ax.scatter(ra, dec, marker=astr_symbols[i], c=astr_colors[i], zorder=10, s=60, label=astr_insts[i])
+                        ax.scatter(ra, dec, marker=next(ax_symbols), c=next(ax_colors), zorder=10, s=60, label=astr_insts[i])
                 else:
                     ax.scatter(ra_data, dec_data, marker='*', c='#FF7F11', zorder=10, s=60)
 
@@ -629,6 +635,13 @@ class Results(object):
                 ax2.set_ylabel('PA [$^{{\\circ}}$]')
                 ax1.set_ylabel('$\\rho$ [mas]')
                 ax2.set_xlabel('Epoch')
+
+            if plot_astrometry_insts:
+                ax1_colors = itertools.cycle(astr_colors)
+                ax1_symbols = itertools.cycle(astr_symbols)
+
+                ax2_colors = itertools.cycle(astr_colors)
+                ax2_symbols = itertools.cycle(astr_symbols)
 
             epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
@@ -678,9 +691,9 @@ class Results(object):
                     pa = pa_data[astr_inst_inds[astr_insts[i]]]
                     epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
                     plt.sca(ax1)
-                    plt.scatter(Time(epochs,format='mjd').decimalyear,sep,s=10,marker=astr_symbols[i],c=astr_colors[i],zorder=10, label=astr_insts[i])
+                    plt.scatter(Time(epochs,format='mjd').decimalyear,sep,s=10,marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i])
                     plt.sca(ax2)
-                    plt.scatter(Time(epochs,format='mjd').decimalyear,pa,s=10,marker=astr_symbols[i],c=astr_colors[i],zorder=10)
+                    plt.scatter(Time(epochs,format='mjd').decimalyear,pa,s=10,marker=next(ax2_symbols),c=next(ax2_colors),zorder=10)
                 plt.sca(ax1)
                 plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
             else:
@@ -717,8 +730,11 @@ class Results(object):
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
                 # colour/shape scheme scheme for rv data points
-                clrs=['0496FF','372554','FF1053','3A7CA5','143109']
-                symbols=['o','^','v','s']
+                clrs=('#0496FF','#372554','#FF1053','#3A7CA5','#143109')
+                symbols=('o','^','v','s')
+
+                ax3_colors = itertools.cycle(clrs)
+                ax3_symbols = itertools.cycle(symbols)
                 
                 # get rvs and plot them
                 for i,name in enumerate(inds.keys()):
@@ -728,7 +744,7 @@ class Results(object):
                     epochs=inst_data['epoch']
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
-                    plt.scatter(epochs,rvs,marker=symbols[i],s=5,label=name,c=f'#{clrs[i]}',zorder=5)
+                    plt.scatter(epochs,rvs,s=5,marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5)
                 
                 inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
                 plt.legend()
