@@ -61,11 +61,6 @@ class System(object):
         self.input_table = self.data_table.copy()
 
         # Group the data in some useful ways
-        # Rob: check if instrument column is other than default. If other than default, then separate data table into n number of instruments.
-        # gather list of instrument: list_instr = self.data_table['instruments'][name of instrument]
-        # List of arrays of indices corresponding to each body
-
-        # instruments = np.unique(self.data_table['instruments']) gives a list of unique names
 
         self.body_indices = []
 
@@ -77,12 +72,6 @@ class System(object):
 
         # List of index arrays corresponding to each rv for each body
         self.rv = []
-
-        # instr1_tbl = np.where(self.data_table['instruments'] == list_instr[0])
-        # loop through the indices per input_table:
-        # rv_indices = np.where(instr1_tbl['quant_type'] == 'rv')
-        # ... return the parameter labels for each table
-        # ...
 
         self.fit_astrometry=True
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
@@ -203,6 +192,19 @@ class System(object):
         # add labels dictionary for parameter indexing
         self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
+        self.secondary_mass_indx = [
+            self.param_idx[i] for i in self.param_idx.keys() if (
+                i.startswith('m') and
+                not i.endswith('0')
+            )
+        ]
+    
+        self.sma_indx = [
+            self.param_idx[i] for i in self.param_idx.keys() if (
+                i.startswith('sma')
+            )
+        ]
+
     def compute_all_orbits(self, params_arr, epochs=None):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
@@ -254,27 +256,26 @@ class System(object):
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            startindex = 6 * (body_num - 1)
-            sma = params_arr[startindex]
-            ecc = params_arr[startindex + 1]
-            inc = params_arr[startindex + 2]
-            argp = params_arr[startindex + 3]
-            lan = params_arr[startindex + 4]
-            tau = params_arr[startindex + 5]
-            plx = params_arr[6 * self.num_secondary_bodies]
+            sma = params_arr[self.param_idx['sma{}'.format(body_num)]]
+            ecc = params_arr[self.param_idx['ecc{}'.format(body_num)]]
+            inc = params_arr[self.param_idx['inc{}'.format(body_num)]]
+            argp = params_arr[self.param_idx['aop{}'.format(body_num)]]
+            lan = params_arr[self.param_idx['pan{}'.format(body_num)]]
+            tau = params_arr[self.param_idx['tau{}'.format(body_num)]]
+            plx = params_arr[self.param_idx['plx']]
 
             if self.fit_secondary_mass:
 
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
-                m0 = params_arr[-1]
+                mass = params_arr[self.param_idx['m{}'.format(body_num)]]
+                m0 = params_arr[self.param_idx['m0']]
 
                 # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
                 # We need to select all planets with sma < this planet. 
-                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                all_smas = params_arr[self.sma_indx]
                 within_orbit = np.where(all_smas <= sma)
                 outside_orbit = np.where(all_smas > sma)
-                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
+                all_pl_masses = params_arr[self.secondary_mass_indx]
                 inside_masses = all_pl_masses[within_orbit]
                 mtot = np.sum(inside_masses) + m0
 
@@ -291,7 +292,8 @@ class System(object):
             # solve Kepler's equation
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, 
+                tau_warning=False
             )
 
             # raoff, decoff, vz are scalers if the length of epochs is 1
@@ -327,7 +329,7 @@ class System(object):
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
                     startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
                     sma = params_arr[startindex]
-                    all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                    all_smas = params_arr[self.sma_indx]
                     outside_orbit = np.where(all_smas > sma)[0]
                     which_perturb_bodies = outside_orbit + 1
 
@@ -359,7 +361,7 @@ class System(object):
         vz[:, 0, :] = total_rv0
 
         if self.fitting_basis == 'XYZ':
-            # Find and filter out bad orbits
+            # Find and filter out unbound orbits
             bad_orbits = np.where(np.logical_or(ecc >= 1., ecc < 0.))[0]
             if (bad_orbits.size != 0):
                 raoff[:,:, bad_orbits] = np.inf
@@ -416,13 +418,13 @@ class System(object):
             for rv_idx in range(len(self.rv_instruments)):
 
                 jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[ # [km/s]
-                    6 * self.num_secondary_bodies+2+2*rv_idx
+                    self.params_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
                 ]
                 jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
 
                 gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
-                    6 * self.num_secondary_bodies+1+2*rv_idx
+                    self.params_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
                 ] 
                 gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
 
