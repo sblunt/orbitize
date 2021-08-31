@@ -74,7 +74,7 @@ class HipparcosLogProb(object):
         solution_type = hip_cat['Sn'][0]
 
         if solution_type != 5:
-            raise Exception(
+            raise ValueError(
                 """
                 Currently, we only handle stars with 5-parameter astrometric 
                 solutions from Hipparcos. Let us know if you'd like us to add 

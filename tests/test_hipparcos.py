@@ -18,7 +18,7 @@ def test_hipparcos_api():
 
     try:
         _ = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
-    except Exception: 
+    except ValueError: 
         pass
 
 def test_iad_refitting():
@@ -160,4 +160,5 @@ def _nielsen_iad_refitting_test(
 
 
 if __name__ == '__main__':
-    _nielsen_iad_refitting_test()
+    # _nielsen_iad_refitting_test()
+    test_hipparcos_api()
