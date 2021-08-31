@@ -46,7 +46,7 @@ class Sampler(abc.ABC):
     def run_sampler(self, total_orbits):
         pass
 
-    def _logl(self, params, hipparcos=False):
+    def _logl(self, params):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -92,7 +92,7 @@ class Sampler(abc.ABC):
             lnlikes_sum += self.custom_lnlike(params)
         
 
-        if self.system.hipparcos_number is not None:
+        if self.system.hipparcos_IAD is not None:
 
             # compute Ra/Dec predictions at the Hipparcos IAD epochs
             raoff_model, deoff_model, _ = self.system.compute_all_orbits(
@@ -228,6 +228,8 @@ class OFTI(Sampler,):
         
         for body_num in np.arange(self.system.num_secondary_bodies):
             # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
+
+            # TODO SARAH: replace with labels 
             ref_ind = 6 * body_num
             sma = samples[ref_ind,:]
             ecc = samples[ref_ind + 1,:]

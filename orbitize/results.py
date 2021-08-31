@@ -240,7 +240,7 @@ class Results(object):
             fitting_basis = np.str(hf.attrs['fitting_basis'])
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
-            fitting_basis == 'Standard'
+            fitting_basis = 'Standard'
 
         # Rebuild Basis Object
         keys = [item for item in hf.attrs if item.endswith('_extra_arg') or item in self.required_basis_attrs]
@@ -336,6 +336,10 @@ class Results(object):
                     K1: stellar radial velocity semi-amplitude
                     [repeat for 2, 3, 4, etc if multiple objects]
                     plx:  parallax
+                    pm_ra: RA proper motion
+                    pm_dec: Dec proper motion
+                    alpha0: primary offset from reported Hipparcos RA @ alphadec0_epoch (generally 1991.25)
+                    delta0: primary offset from reported Hipparcos Dec @ alphadec0_epoch (generally 1991.25)
                     gamma: rv offset
                     sigma: rv jitter
                     mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass == True)
@@ -368,11 +372,12 @@ class Results(object):
             'sig': '$\\sigma$ [km/s]',
             'mtot': '$M_T$ [M$_{{\\odot}}$]',
             'm0': '$M_0$ [M$_{{\\odot}}$]',
+            'm': '$M_{0}$ [M$_{{\\rm Jup}}$]',
+            'pm_ra': '$\\mu_{{\\alpha}}$ [mas/yr]',
+            'pm_dec': '$\\mu_{{\\delta}}$ [mas/yr]',
+            'alpha0': '$\\alpha_0$ [mas]',
+            'delta0': '$\\delta_0$ [mas]',
             'm': '$M_{0}$ [M$_\{{Jup\}}$]',
-            'pm_ra': 'PM RA',
-            'pm_dec': 'PM Dec',
-            'alpha0': 'alpha0',
-            'delta0': 'delta0',
             'per' : '$P_{0}$ [yr]',
             'K' : '$K_{0}$ [km/s]',
             'x' : '$X_{0}$ [AU]',
@@ -436,8 +441,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
-                    fig=None):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,
+                    plot_astrometry=True, fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
