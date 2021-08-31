@@ -528,7 +528,7 @@ def radec2seppa(ra, dec, mod180=False):
 
 
     Returns:
-        tulple of float: (separation [mas], position angle [deg])
+        tuple of float: (separation [mas], position angle [deg])
 
     """
     sep = np.sqrt((ra**2) + (dec**2))
