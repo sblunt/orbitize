@@ -16,25 +16,25 @@ from orbitize.lnlike import chi2_lnlike
 from orbitize.kepler import calc_orbit
 import orbitize.system
 
-
 input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
 input_file_1epoch = os.path.join(orbitize.DATADIR, 'GJ504_1epoch.csv')
 input_file_rvs = os.path.join(orbitize.DATADIR, 'HD4747.csv')
 
-
-
 def test_scale_and_rotate():
 
     # perform scale-and-rotate
-    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+    myDriver = orbitize.driver.Driver(
+        input_file, 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26
+    )
 
     s = myDriver.sampler
     samples = s.prepare_samples(100)
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    ra, dec, vc = orbitize.kepler.calc_orbit(
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
+    )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -44,7 +44,7 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
     # test scale-and-rotate for orbits run all the way through OFTI
-    s.run_sampler(100)
+    s.run_sampler(100, num_cp)
 
     # test orbit plot generation
     s.results.plot_orbits(start_mjd=s.epochs[0])
@@ -151,6 +151,9 @@ def test_run_sampler():
     print()
 
 def test_not_implemented():
+    """
+    Check that not implemented errors for RVs & Hipparcos IAD + OFTI work
+    """
 
     data_table = orbitize.read_input.read_file(input_file)
 
@@ -312,8 +315,11 @@ def test_OFTI_pan_priors():
 
 if __name__ == "__main__":
 
-    # test_scale_and_rotate()
+    test_scale_and_rotate()
     # test_run_sampler()
+    # test_OFTI_covariances()
     # test_OFTI_multiplanet()
-    test_not_implemented()
+    # test_not_implemented()
+    # test_fixed_sys_params_sampling()
+    # test_OFTI_pan_priors()
     print("Done!")

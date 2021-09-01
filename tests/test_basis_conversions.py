@@ -11,7 +11,10 @@ def test_period_basis():
 	# 1. With System Total Mass
 	filename = "{}/GJ504.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
-	my_system = system.System(1, data_table, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fitting_basis='Period')
+	my_system = system.System(
+		1, data_table, 1.75, 51.44, mass_err=0.05, plx_err=0.12, 
+		fitting_basis='Period'
+	)
 
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -36,8 +39,10 @@ def test_period_basis():
 	# 2. Single Body (with RV)
 	filename = "{}/HD4747.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
-	my_system = system.System(1, data_table, 0.84, 53.18, mass_err=0.04, plx_err=0.12, fit_secondary_mass='True', 
-		fitting_basis='Period')
+	my_system = system.System(
+		1, data_table, 0.84, 53.18, mass_err=0.04, plx_err=0.12, 
+		fit_secondary_mass=True, fitting_basis='Period', sampler_str='MCMC'
+	)
 
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -55,16 +60,14 @@ def test_period_basis():
 	original = my_system.basis.to_period_basis(conversion)
 	assert np.allclose(original, sample_copy[:, 0])
 
-	# OFTI Format
-	conversions = my_system.basis.to_standard_basis(samples)
-	original = my_system.basis.to_period_basis(conversions)
-	assert np.allclose(original, sample_copy)
-
 	# 3. Multi Body
 	filename = "{}/test_val_multi.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
-	my_system = system.System(2, data_table, 1.52, 24.76, mass_err=0.15, plx_err=0.64, fit_secondary_mass='True',
-		fitting_basis='Period')
+	my_system = system.System(
+		2, data_table, 1.52, 24.76, mass_err=0.15, plx_err=0.64, 
+		fit_secondary_mass=True,
+		fitting_basis='Period'
+	)
 
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -96,8 +99,10 @@ def test_semi_amp_basis():
 	# 1. Single Body (with RV)
 	filename = "{}/HD4747.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
-	my_system = system.System(1, data_table, 0.84, 53.18, mass_err=0.04, plx_err=0.12, fit_secondary_mass='True', 
-		fitting_basis='SemiAmp')
+	my_system = system.System(
+		1, data_table, 0.84, 53.18, mass_err=0.04, plx_err=0.12, 
+		fit_secondary_mass=True, fitting_basis='SemiAmp', sampler_str='MCMC'
+	)
 
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -113,18 +118,17 @@ def test_semi_amp_basis():
 	test = samples[:, 0].copy()
 	conversion = my_system.basis.to_standard_basis(test)
 	original = my_system.basis.to_semi_amp_basis(conversion)
-	assert np.allclose(original, sample_copy[:, 0])
 
-	# OFTI Format
-	conversion = my_system.basis.to_standard_basis(samples)
-	original = my_system.basis.to_semi_amp_basis(conversion)
-	assert np.allclose(original, sample_copy)
+	import pdb; pdb.set_trace()
+	assert np.allclose(original, sample_copy[:, 0])
 
 	# 2. Multi Body
 	filename = "{}/test_val_multi.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
-	my_system = system.System(2, data_table, 1.52, 24.76, mass_err=0.15, plx_err=0.64, fit_secondary_mass='True',
-		fitting_basis='SemiAmp')
+	my_system = system.System(
+		2, data_table, 1.52, 24.76, mass_err=0.15, plx_err=0.64, 
+		fit_secondary_mass=True, fitting_basis='SemiAmp', sampler_str='MCMC'
+	)
 
 	num_samples = 100
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -141,11 +145,6 @@ def test_semi_amp_basis():
 	conversion = my_system.basis.to_standard_basis(test)
 	original = my_system.basis.to_semi_amp_basis(conversion)
 	assert np.allclose(original, sample_copy[:, 0])
-
-	# OFTI Format
-	conversion = my_system.basis.to_standard_basis(samples)
-	original = my_system.basis.to_semi_amp_basis(conversion)
-	assert np.allclose(original, sample_copy)
 
 def test_xyz_basis():
 	'''
@@ -212,6 +211,6 @@ def test_xyz_basis():
 	assert np.allclose(original, sample_copy)
 
 if __name__ == '__main__':
-	test_period_basis()
+	# test_period_basis()
 	test_semi_amp_basis()
-	test_xyz_basis()
+	# test_xyz_basis()

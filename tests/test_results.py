@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results
+from orbitize import results, read_input
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -63,7 +63,7 @@ def test_init_and_add_samples(radec_input=False):
     else:
         input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
 
-    data = orbitize.read_input.read_file(input_file)
+    data = read_input.read_file(input_file)
 
     # Create object
     results_obj = results.Results(

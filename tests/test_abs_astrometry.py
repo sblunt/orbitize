@@ -30,7 +30,7 @@ def test_1planet():
 
     ra_model, dec_model, _ = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, 
-        tau_ref_epoch=tau_ref_epoch
+        tau_ref_epoch=tau_ref_epoch, tau_warning=False
     )
 
     # generate some fake measurements to feed into system.py to test bookkeeping
@@ -68,6 +68,9 @@ def test_1planet():
 
     assert np.all(np.abs(star_ra + (mass_b / mtot) * planet_ra) < 1e-16)
     assert np.all(np.abs(star_dec + (mass_b / mtot) * planet_dec) < 1e-16)
+
+    # remove the created csv file to clean up
+    os.system('rm {}'.format(filename))
 
 if __name__ == '__main__':
     test_1planet()

@@ -120,7 +120,7 @@ class System(object):
         
         # snarky error messages for OFTI capabilities that aren't implemented yet
         if (self.sampler_str == 'OFTI') and (
-            (self.hipparcos_IAD is not None) or (len(self.system.rv[0] > 0))
+            (self.hipparcos_IAD is not None) or (len(self.rv[0] > 0))
         ):
             raise NotImplementedError(
                 """
@@ -196,8 +196,12 @@ class System(object):
             self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
 
-        self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, self.fit_secondary_mass,
-            angle_upperlim=angle_upperlim, hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, rv_instruments=self.rv_instruments, **self.extra_basis_kwargs)
+        self.basis = basis_obj(
+            stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
+            self.fit_secondary_mass, angle_upperlim=angle_upperlim, 
+            hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, 
+            rv_instruments=self.rv_instruments, **self.extra_basis_kwargs
+        )
 
         self.basis.verify_params()
         self.sys_priors, self.labels = self.basis.construct_priors()
@@ -431,13 +435,13 @@ class System(object):
             for rv_idx in range(len(self.rv_instruments)):
 
                 jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[ # [km/s]
-                    self.params_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
+                    self.param_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
                 ]
                 jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
 
                 gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
-                    self.params_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
+                    self.param_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
                 ] 
                 gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
 

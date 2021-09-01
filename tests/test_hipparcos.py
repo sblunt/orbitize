@@ -40,6 +40,10 @@ def test_hipparcos_api():
         hipparcos_IAD=myHip, sampler_str='MCMC', fit_secondary_mass=True
     )
 
+    # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately
+    assert mySys.fit_secondary_mass
+    assert mySys.track_planet_perturbs
+
     assert len(mySys.sys_priors) == 15 # 7 orbital params + 2 mass params + 
                                        # 4 Hip nuisance params + 
                                        # 2 RV nuisance params
@@ -48,6 +52,16 @@ def test_hipparcos_api():
        'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'pm_ra', 'pm_dec', 
        'alpha0', 'delta0', 'gamma_defrv', 'sigma_defrv', 'm1', 'm0'
    ]
+
+
+    # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately for non-Hipparcos system
+    noHip_system = system.System(
+        num_secondary_bodies, data_table_with_rvs, 1.0, 1.0, hipparcos_IAD=None, 
+        fit_secondary_mass=False, mass_err=0.01, plx_err=0.01, sampler_str='MCMC'
+    )
+
+    assert not noHip_system.fit_secondary_mass
+    assert not noHip_system.track_planet_perturbs
 
 
 def test_iad_refitting():
@@ -190,4 +204,4 @@ def _nielsen_iad_refitting_test(
 
 if __name__ == '__main__':
     test_hipparcos_api()
-    # _nielsen_iad_refitting_test()
+    test_iad_refitting()

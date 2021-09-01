@@ -79,4 +79,4 @@ if __name__ == "__main__":
     test_pt_mcmc_runs(num_threads=1)
     test_pt_mcmc_runs(num_threads=4)
     test_ensemble_mcmc_runs(num_threads=1)
-test_ensemble_mcmc_runs(num_threads=8)
+    test_ensemble_mcmc_runs(num_threads=4)

@@ -15,8 +15,11 @@ class Basis(abc.ABC):
     Author: Tirth
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
-        angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
+    def __init__(
+        self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        fit_secondary_mass, angle_upperlim=2*np.pi, hipparcos_IAD=None, 
+        rv=False, rv_instruments=None
+    ):
 
         self.stellar_mass = stellar_mass
         self.mass_err=mass_err
@@ -30,10 +33,16 @@ class Basis(abc.ABC):
         self.rv_instruments = rv_instruments
 
         # Define dictionary of default priors to be updated as new basis sets are added
-        self.default_priors = {'sma' : priors.LogUniformPrior(0.001, 1e4), 'per' : priors.LogUniformPrior(1e-5, 1e6),
-                               'ecc' : priors.UniformPrior(0., 1.), 'inc' : priors.SinPrior(), 'aop' : priors.UniformPrior(0., 2.*np.pi),
-                               'pan' : priors.UniformPrior(0., angle_upperlim), 'tau' : priors.UniformPrior(0., 1.),
-                               'K' : priors.LogUniformPrior(1e-4, 10)}
+        self.default_priors = {
+            'sma' : priors.LogUniformPrior(0.001, 1e4), 
+            'per' : priors.LogUniformPrior(1e-5, 1e6),
+            'ecc' : priors.UniformPrior(0., 1.), 
+            'inc' : priors.SinPrior(), 
+            'aop' : priors.UniformPrior(0., 2.*np.pi),
+            'pan' : priors.UniformPrior(0., angle_upperlim), 
+            'tau' : priors.UniformPrior(0., 1.),
+            'K' : priors.LogUniformPrior(1e-4, 10)
+        }
         
 
     @abc.abstractmethod
@@ -50,10 +59,13 @@ class Basis(abc.ABC):
         class depending on the necessary parameters that need to be checked. 
         '''
         if not self.fit_secondary_mass and self.rv:
-            warnings.warn("Radial velocity data found in input data, but rv parameters will not be sampled. \n To sample rv parameters, set 'fit_secondary_mass' to True.")
-
-        if self.fit_secondary_mass and not self.rv:
-            warnings.warn("Radial velocity data not found in input data.")
+            warnings.warn(
+                """"
+                Radial velocity data found in input data, but rv parameters will 
+                not be sampled. To sample rv parameters, set 'fit_secondary_mass' 
+                to True.
+                """
+            )
 
     def set_hip_iad_priors(self, priors_arr, labels_arr):
         '''
@@ -288,8 +300,7 @@ class Period(Basis):
             np.array of float: modifies 'param_arr' to contain the semi-major axis for each companion
                 in each orbit rather than period. Shape of 'param_arr' remains the same.
         '''
-        for i in np.arange(self.num_secondary_bodies)+1:
-            startindex = 6 * (i - 1)
+        for body_num in np.arange(self.num_secondary_bodies)+1:
             per = param_arr[startindex]
             mtot = param_arr[-1]
 
@@ -1097,8 +1108,7 @@ def switch_tau_epoch(old_tau, old_epoch, new_epoch, period):
     Returns:
         new_tau (float or np.array): new taus
     """
-    period_days = period * u.year.to(u.day)
-
+    
     tp = tau_to_tp(old_tau, old_epoch, period)
     new_tau = tp_to_tau(tp, new_epoch, period)
 
@@ -1106,7 +1116,8 @@ def switch_tau_epoch(old_tau, old_epoch, new_epoch, period):
 
 def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
-    Gets the mean anomlay
+    Gets the mean anomlay. Wrapper for kepler.tau_to_manom, kept here
+    for backwards compatibility.
     
     Args:
         date (float or np.array): MJD
@@ -1119,16 +1130,4 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         mean_anom (float or np.array): mean anomaly on that date [0, 2pi)
     """
 
-    period = np.sqrt(
-        4 * np.pi**2.0 * (sma * u.AU)**3 /
-        (consts.G * (mtot * u.Msun))
-    )
-    period = period.to(u.day).value
-
-    frac_date = (date - tau_ref_epoch)/period
-    frac_date %= 1
-
-    mean_anom = (frac_date - tau) * 2 * np.pi
-    mean_anom %= 2 * np.pi
-
-    return mean_anom
+    return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)
