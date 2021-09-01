@@ -117,6 +117,19 @@ class System(object):
             self.rv.append(
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
+        
+        # snarky error messages for OFTI capabilities that aren't implemented yet
+        if (self.sampler_str == 'OFTI') and (
+            (self.hipparcos_IAD is not None) or (len(self.system.rv[0] > 0))
+        ):
+            raise NotImplementedError(
+                """
+                You can only use OFTI with relative astrometry measurements 
+                (no Hipparcos IAD or RVs... yet). Use MCMC, you overachiever, and
+                settle in for a nice long orbit-fit. (But seriously, if you want 
+                this functionality, let us know!)
+                """
+            )
 
         # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
         # we are not fitting relative astrometry of just a single body
@@ -283,7 +296,7 @@ class System(object):
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
                 m0 = None
-                mtot = params_arr[-1]
+                mtot = params_arr[self.param_idx['mtot']]
             
             if self.track_planet_perturbs:
                 masses[body_num] = mass
@@ -328,7 +341,7 @@ class System(object):
                 if body_num > 0:
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
                     startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
-                    sma = params_arr[startindex]
+                    sma = params_arr[self.param_idx['sma{}'.format(body_num)]]
                     all_smas = params_arr[self.sma_indx]
                     outside_orbit = np.where(all_smas > sma)[0]
                     which_perturb_bodies = outside_orbit + 1

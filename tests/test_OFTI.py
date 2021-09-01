@@ -1,6 +1,7 @@
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
+from orbitize import read_input
 import numpy as np
 import os
 import pytest
@@ -18,6 +19,8 @@ import orbitize.system
 
 input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
 input_file_1epoch = os.path.join(orbitize.DATADIR, 'GJ504_1epoch.csv')
+input_file_rvs = os.path.join(orbitize.DATADIR, 'HD4747.csv')
+
 
 
 def test_scale_and_rotate():
@@ -146,6 +149,31 @@ def test_run_sampler():
     s = myDriver.sampler
     s.run_sampler(1)
     print()
+
+def test_not_implemented():
+
+    data_table = orbitize.read_input.read_file(input_file)
+
+    # test that if the `hipparcosIAD` attribute is set, OFTI won't work
+    try:
+        _ = system.System(
+            1, data_table, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+            hipparcos_IAD='foo'
+        )
+        assert False, 'test failed'
+    except NotImplementedError:
+        pass
+
+    # test that if there are RVs in the data file, OFTI won't work
+    data_table_with_rvs = orbitize.read_input.read_file(input_file_rvs)
+    try:
+        _ = system.System(
+            1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+            hipparcos_IAD='foo'
+        )
+        assert False, 'test failed'
+    except NotImplementedError:
+        pass
 
 
 def test_fixed_sys_params_sampling():
@@ -286,5 +314,6 @@ if __name__ == "__main__":
 
     # test_scale_and_rotate()
     # test_run_sampler()
-    test_OFTI_multiplanet()
+    # test_OFTI_multiplanet()
+    test_not_implemented()
     print("Done!")

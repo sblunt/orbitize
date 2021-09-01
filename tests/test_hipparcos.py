@@ -1,25 +1,50 @@
 import numpy as np
+import os
 import emcee
 
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
-from orbitize import DATADIR
+from orbitize import DATADIR, read_input, system
 from orbitize.hipparcos import HipparcosLogProb
 
 def test_hipparcos_api():
     """
-    Check that error is caught for a star with solution type != 5 param
+    Check that error is caught for a star with solution type != 5 param, 
+    and that doing an RV + Hipparcos IAD fit produces the expected array of 
+    Prior objects.
     """
 
+    # check sol type != 5 error message
     hip_num = '25'
     num_secondary_bodies = 1
-    iad_file = '{}/HIP{}.d'.format(DATADIR, hip_num)
+    iad_file = 'foo' # Doesn't actually matter,
+                     # HipparcosLogProb initialization code shouldn't get to here
 
     try:
         _ = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
-    except Exception: 
+        assert False, 'Test failed.'
+    except ValueError: 
         pass
+
+    # check that RV + Hip gives correct prior array labels
+    hip_num = '027321' # beta Pic
+    num_secondary_bodies = 1
+    iad_file = '{}/HIP{}.d'.format(DATADIR, hip_num)
+    myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+
+    input_file = os.path.join(DATADIR, 'HD4747.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip
+    )
+
+    mySys.sys_priors
+
+
+
+    # check that lnlike is finite
 
 def test_iad_refitting():
     """
@@ -160,4 +185,5 @@ def _nielsen_iad_refitting_test(
 
 
 if __name__ == '__main__':
-    _nielsen_iad_refitting_test()
+    test_hipparcos_api()
+    # _nielsen_iad_refitting_test()
