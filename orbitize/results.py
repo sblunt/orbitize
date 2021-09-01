@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 import h5py
 import copy
-import pdb
+import itertools
 
 import astropy.units as u
 import astropy.constants as consts
@@ -17,7 +17,6 @@ import matplotlib.colors as colors
 import pandas as pd
 
 import corner
-import pdb
 
 import orbitize.kepler as kepler
 import orbitize.system
@@ -366,8 +365,8 @@ class Results(object):
                     num_orbits_to_plot=100, num_epochs_to_plot=100,
                     square_plot=True, show_colorbar=True, cmap=cmap,
                     sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False,plot_astrometry=True,
-                    fig=None):
+                    cbar_param='Epoch [year]', mod180=False, rv_time_series=False, plot_astrometry=True,
+                    plot_astrometry_insts=False, fig=None):
         """
         Plots one orbital period for a select number of fitted orbits
         for a given object, with line segments colored according to time
@@ -394,7 +393,8 @@ class Results(object):
                 arcs with PAs that cross 360 deg during observations (default: False)
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
                 display time series, set to True.
-            astrometry (Boolean): set to True by default. Plots the astrometric data.
+            plot_astrometry (Boolean): set to True by default. Plots the astrometric data.
+            plot_astrometry_insts (Boolean): set to False by default. Plots the astrometric data by instruments.
             fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
                 Most users will not need this keyword. 
 
@@ -406,7 +406,6 @@ class Results(object):
         Additions by Malena Rice, 2019
 
         """
-
         if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
             raise ValueError('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
 
@@ -419,6 +418,7 @@ class Results(object):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
 
+            data = self.data
             dict_of_indices = {
                 'sma': 0,
                 'ecc': 1,
@@ -441,7 +441,6 @@ class Results(object):
             else:
                 raise Exception(
                     'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
-
 
             start_index = (object_to_plot - 1) * 6
 
@@ -507,6 +506,12 @@ class Results(object):
                     vmax=np.max(Time(epochs, format='mjd').decimalyear)
                 )
 
+            # Before starting to plot rv data, make sure rv data exists:
+            rv_indices = np.where(data['quant_type'] == 'rv')
+            if rv_time_series and len(rv_indices) == 0:
+                warnings.warn("Unable to plot radial velocity data.")
+                rv_time_series = False
+
             # Create figure for orbit plots
             if fig is None:
                 fig = plt.figure(figsize=(14, 6))
@@ -523,7 +528,6 @@ class Results(object):
                 else:
                     ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
             
-            data=self.data
             astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
             astr_epochs=data['epoch'][astr_inds]
 
@@ -557,6 +561,22 @@ class Results(object):
                 pa_data = np.append(pa_data, pa_from_dec_data)
                 pa_err = np.append(pa_err, pa_err_from_dec_data)
 
+            # For plotting different astrometry instruments
+            if plot_astrometry_insts:
+                astr_colors = ('#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF1919')
+                astr_symbols = ('*', 'o', 'p', 's')
+
+                ax_colors = itertools.cycle(astr_colors)
+                ax_symbols = itertools.cycle(astr_symbols)
+
+                astr_data = data[astr_inds]
+                astr_insts = np.unique(data[astr_inds]['instrument'])
+
+                # Indices corresponding to each instrument in datafile
+                astr_inst_inds = {}
+                for i in range(len(astr_insts)):
+                    astr_inst_inds[astr_insts[i]]=np.where(astr_data['instrument']==astr_insts[i].encode())[0]
+
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(num_orbits_to_plot):
                 points = np.array([raoff[i, :], deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -572,7 +592,16 @@ class Results(object):
 
             if plot_astrometry:
                 ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
-                ax.scatter(ra_data,dec_data,marker='*',c='#FF7F11',zorder=10,s=60)
+
+                # Plot astrometry along with instruments
+                if plot_astrometry_insts:
+                    for i in range(len(astr_insts)):
+                        ra = ra_data[astr_inst_inds[astr_insts[i]]]
+                        dec = dec_data[astr_inst_inds[astr_insts[i]]]
+                        ax.scatter(ra, dec, marker=next(ax_symbols), c=next(ax_colors), zorder=10, s=60, label=astr_insts[i])
+                else:
+                    ax.scatter(ra_data, dec_data, marker='*', c='#FF7F11', zorder=10, s=60)
+
             # modify the axes
             if square_plot:
                 adjustable_param = 'datalim'
@@ -604,6 +633,13 @@ class Results(object):
                 ax2.set_ylabel('PA [$^{{\\circ}}$]')
                 ax1.set_ylabel('$\\rho$ [mas]')
                 ax2.set_xlabel('Epoch')
+
+            if plot_astrometry_insts:
+                ax1_colors = itertools.cycle(astr_colors)
+                ax1_symbols = itertools.cycle(astr_symbols)
+
+                ax2_colors = itertools.cycle(astr_colors)
+                ax2_symbols = itertools.cycle(astr_symbols)
 
             epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
@@ -642,23 +678,35 @@ class Results(object):
 
                 plt.sca(ax1)
                 plt.plot(yr_epochs, seps, color=sep_pa_color)
-                # plot separations from data points                
-                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
 
                 plt.sca(ax2)
                 plt.plot(yr_epochs, pas, color=sep_pa_color)
+
+            # Plot sep/pa instruments
+            if plot_astrometry_insts:
+                for i in range(len(astr_insts)):
+                    sep = sep_data[astr_inst_inds[astr_insts[i]]]
+                    pa = pa_data[astr_inst_inds[astr_insts[i]]]
+                    epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
+                    plt.sca(ax1)
+                    plt.scatter(Time(epochs,format='mjd').decimalyear,sep,s=10,marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i])
+                    plt.sca(ax2)
+                    plt.scatter(Time(epochs,format='mjd').decimalyear,pa,s=10,marker=next(ax2_symbols),c=next(ax2_colors),zorder=10)
+                plt.sca(ax1)
+                plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
+            else:
+                plt.sca(ax1)
+                plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
+                plt.sca(ax2)
                 plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
             if rv_time_series:
-                
                 # switch current axis to rv panel
                 plt.sca(ax3)
         
-                # get list of instruments
-                insts=np.unique(data['instrument'])
-                insts=[i if isinstance(i,str) else i.decode() for i in insts]
-                insts=[i for i in insts if 'def' not in i]
-                
+                # get list of rv instruments
+                insts = np.unique(data['instrument'][rv_indices])
+
                 # get gamma/sigma labels and corresponding positions in the posterior
                 gams=['gamma_'+inst for inst in insts]
 
@@ -676,12 +724,15 @@ class Results(object):
                     inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
 
                 # choose the orbit with the best log probability
-                best_like=np.where(self.lnlike==np.amin(self.lnlike))[0][0] 
+                best_like=np.where(self.lnlike==np.amax(self.lnlike))[0][0] 
                 med_ga=[self.post[best_like,i] for i in gam_idx]
 
                 # colour/shape scheme scheme for rv data points
-                clrs=['0496FF','372554','FF1053','3A7CA5','143109']
-                symbols=['o','^','v','s']
+                clrs=('#0496FF','#372554','#FF1053','#3A7CA5','#143109')
+                symbols=('o','^','v','s')
+
+                ax3_colors = itertools.cycle(clrs)
+                ax3_symbols = itertools.cycle(symbols)
                 
                 # get rvs and plot them
                 for i,name in enumerate(inds.keys()):
@@ -691,7 +742,7 @@ class Results(object):
                     epochs=inst_data['epoch']
                     epochs=Time(epochs, format='mjd').decimalyear
                     rvs-=med_ga[i]
-                    plt.scatter(epochs,rvs,marker=symbols[i],s=5,label=name,c=f'#{clrs[i]}',zorder=5)
+                    plt.scatter(epochs,rvs,s=5,marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5)
                 
                 inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
                 plt.legend()
@@ -699,7 +750,7 @@ class Results(object):
                 
                 # calculate the predicted rv trend using the best orbit 
                 raa, decc, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
+                    epochs_seppa[0, :], sma[best_like], ecc[best_like], inc[best_like], aop[best_like], pan[best_like],
                     tau[best_like], plx[best_like], mtot[best_like], tau_ref_epoch=self.tau_ref_epoch,
                     mass_for_Kamp=m0[best_like]
                 )
@@ -708,7 +759,7 @@ class Results(object):
 
                 # plot rv trend
                 
-                plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
+                plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
 
             # add colorbar
