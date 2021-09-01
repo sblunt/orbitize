@@ -2,18 +2,19 @@ import numpy as np
 import astropy.units as u, astropy.constants as consts
 import warnings
 import abc
+import copy
 
 from orbitize import priors, kepler
 from scipy.optimize import fsolve
 
 class Basis(abc.ABC):
-    '''
+    """
     Abstract base class for different basis sets. All new basis objects should inherit from
     this class. This class is meant to control how priors are assigned to various basis sets
     and how conversions are made from the basis sets to the standard keplarian set.
 
-    Author: Tirth
-    '''
+    Author: Tirth, 2021
+    """
 
     def __init__(
         self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
@@ -50,13 +51,14 @@ class Basis(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def to_standard_basis(self, param_arr):
+    def to_standard_basis(self, param_arr, param_idx):
         pass
 
     def verify_params(self):
         '''
-        Displays warnings about the 'fit_secondary_mass' and 'rv' parameters for all basis sets. Can be overriden by any basis
-        class depending on the necessary parameters that need to be checked. 
+        Displays warnings about the 'fit_secondary_mass' and 'rv' parameters for 
+        all basis sets. Can be overriden by any basis class depending on the 
+        necessary parameters that need to be checked. 
         '''
         if not self.fit_secondary_mass and self.rv:
             warnings.warn(
@@ -69,12 +71,14 @@ class Basis(abc.ABC):
 
     def set_hip_iad_priors(self, priors_arr, labels_arr):
         '''
-        Adds the necessary priors relevant to the hipparcos data to 'priors_arr' and updates 'labels_arr'
-        with the priors' corresponding labels.
+        Adds the necessary priors relevant to the hipparcos data to 'priors_arr' 
+        and updates 'labels_arr' with the priors' corresponding labels.
 
         Args:
-            priors_arr (list of orbitize.priors.Prior objects): holds the prior objects for each parameter to be fitted (updated here)
-            labels_arr (list of strings): holds the name of all the parameters to be fitted (updated here)
+            priors_arr (list of orbitize.priors.Prior objects): holds the prior 
+                objects for each parameter to be fitted (updated here)
+            labels_arr (list of strings): holds the name of all the parameters 
+                to be fitted (updated here)
         '''
 
         priors_arr.append(priors.UniformPrior(
@@ -103,13 +107,16 @@ class Basis(abc.ABC):
 
     def set_rv_priors(self, priors_arr, labels_arr):
         '''
-        Adds the necessary priors if radial velocity data is supplied to 'priors_arr' and updates 'labels_arr'
-        with the priors' corresponding labels. This function assumes that 'rv' data has been supplied and 
+        Adds the necessary priors if radial velocity data is supplied to 
+        'priors_arr' and updates 'labels_arr' with the priors' corresponding 
+        labels. This function assumes that 'rv' data has been supplied and 
         a secondary mass is being fitted for.
 
         Args:
-            priors_arr (list of orbitize.priors.Prior objects): holds the prior objects for each parameter to be fitted (updated here)
-            labels_arr (list of strings): holds the name of all the parameters to be fitted (updated here)
+            priors_arr (list of orbitize.priors.Prior objects): holds the prior 
+                objects for each parameter to be fitted (updated here)
+            labels_arr (list of strings): holds the name of all the parameters 
+                to be fitted (updated here)
         '''        
 
         for instrument in self.rv_instruments:
@@ -124,8 +131,10 @@ class Basis(abc.ABC):
         Adds the necessary priors for the stellar and/or companion masses.
 
         Args:
-            priors_arr (list of orbitize.priors.Prior objects): holds the prior objects for each parameter to be fitted (updated here)
-            labels_arr (list of strings): holds the name of all the parameters to be fitted (updated here)
+            priors_arr (list of orbitize.priors.Prior objects): holds the prior 
+                objects for each parameter to be fitted (updated here)
+            labels_arr (list of strings): holds the name of all the parameters 
+                to be fitted (updated here)
         '''
         if self.fit_secondary_mass:
             for body in np.arange(self.num_secondary_bodies)+1:
@@ -204,6 +213,10 @@ class Standard(Basis):
 
         # Add mass priors
         self.set_default_mass_priors(basis_priors, basis_labels)
+
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
         return basis_priors, basis_labels
 
@@ -284,6 +297,13 @@ class Period(Basis):
         # Add mass priors
         self.set_default_mass_priors(basis_priors, basis_labels)
 
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            self.standard_basis_idx['sma{}'.format(body_num)] = self.param_idx['per{}'.format(body_num)]
+
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
@@ -301,19 +321,20 @@ class Period(Basis):
                 in each orbit rather than period. Shape of 'param_arr' remains the same.
         '''
         for body_num in np.arange(self.num_secondary_bodies)+1:
-            per = param_arr[startindex]
-            mtot = param_arr[-1]
+            per = param_arr[self.param_idx['per{}'.format(body_num)]]
 
             if self.fit_secondary_mass:
                 # Assume two-body system
-                m_secondary = param_arr[-1-self.num_secondary_bodies+(i-1)]
-                m0 = param_arr[-1]
+                m_secondary = param_arr[self.param_idx['m{}'.format(body_num)]]
+                m0 = param_arr[self.param_idx['m0']]
                 mtot = m_secondary + m0
+            else:
+                mtot = param_arr[self.param_idx['mtot']]
 
             # Compute semi-major axis using Kepler's Third Law and replace period
             sma = np.cbrt((consts.G*(mtot*u.Msun)*((per*u.year)**2))/(4*np.pi**2))
             sma = sma.to(u.AU).value
-            param_arr[startindex] = sma
+            param_arr[self.standard_basis_idx['per{}'.format(body_num)]] = sma
 
         return param_arr
 
@@ -332,21 +353,21 @@ class Period(Basis):
             np.array of float: modifies 'param_arr' to contain the period for each companion
                 in each orbit rather than semi-major axis. Shape of 'param_arr' remains the same.
         '''
-        for i in np.arange(self.num_secondary_bodies)+1:
-            startindex = 6 * (i - 1)
-            sma = param_arr[startindex]
-            mtot = param_arr[-1]
+        for body_num in np.arange(self.num_secondary_bodies)+1:
+            sma = param_arr[self.standard_basis_idx['sma{}'.format(body_num)]]
 
             if self.fit_secondary_mass:
                 # Assume two-body system
-                m_secondary = param_arr[-1-self.num_secondary_bodies+(i-1)]
-                m0 = param_arr[-1]
+                m_secondary = param_arr[self.standard_basis_idx['m{}'.format(body_num)]]
+                m0 = param_arr[self.standard_basis_idx['m0']]
                 mtot = m_secondary + m0
+            else:
+                mtot = param_arr[self.standard_basis_idx['mtot']]
 
             per = np.sqrt((4*(np.pi**2)*(sma*u.AU)**3) / (consts.G*(mtot*u.Msun)))
             per = per.to(u.year).value
-            param_arr[startindex] = per
-
+            param_arr[self.param_idx['per{}'.format(body_num)]] = per
+        
         return param_arr
 
 class SemiAmp(Basis):
@@ -425,6 +446,14 @@ class SemiAmp(Basis):
 
         basis_labels.append('m0')
 
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            self.standard_basis_idx['sma{}'.format(body_num)] = self.param_idx['per{}'.format(body_num)]
+            self.standard_basis_idx['m{}'.format(body_num)] = self.param_idx['K{}'.format(body_num)]
+
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
@@ -443,26 +472,20 @@ class SemiAmp(Basis):
                 in each orbit rather than period, removes stellar rv semi-amplitude parameters for
                 each companion, and appends the companion masses to 'param_arr'
         '''
-        indices_to_remove = [] # Keep track of where semi-amp values are for removal
-        m0 = param_arr[-1]
-        base_labels_len = 7
+        m0 = param_arr[self.param_idx['m0']]
 
         # Compute each companion's mass and sma
-        for body in np.arange(self.num_secondary_bodies):
-            period = param_arr[body * base_labels_len]
-            ecc = param_arr[(body * base_labels_len) + 1]
-            inc = param_arr[(body * base_labels_len) + 2]
-            semi_amp = param_arr[(body * base_labels_len) + 6]
-            indices_to_remove.append((body * base_labels_len) + 6)
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            period = param_arr[self.param_idx['per{}'.format(body_num)]]
+            ecc = param_arr[self.param_idx['ecc{}'.format(body_num)]]
+            inc = param_arr[self.param_idx['inc{}'.format(body_num)]]
+            semi_amp = param_arr[self.param_idx['K{}'.format(body_num)]]
 
-            # Add companion mass and replace period with sma
+            # Replace semi-amp with companion mass and period with sma
             companion_m = self.compute_companion_mass(period, ecc, inc, semi_amp, m0)
-            param_arr = np.insert(param_arr, -1, companion_m, 0)
+            param_arr[self.standard_basis_idx['m{}'.format(body_num)]] = companion_m
             companion_sma = self.compute_companion_sma(period, m0, companion_m)
-            param_arr[body * base_labels_len] = companion_sma
-
-        # Remove semi-amplitude values
-        param_arr = np.delete(param_arr, indices_to_remove, 0)
+            param_arr[self.standard_basis_idx['sma{}'.format(body_num)]] = companion_sma
 
         return param_arr
 
@@ -513,6 +536,10 @@ class SemiAmp(Basis):
                 comp_mass = fsolve(self.func, x0=1e-3, args=(lhs[orbit], m0[orbit]))
                 m_n.append(comp_mass[0])
 
+        # squash dimensions
+        if len(m_n) == 1:
+            m_n = m_n[0]
+
         return m_n
 
     def compute_companion_sma(self, period, m0, m_n):
@@ -548,18 +575,15 @@ class SemiAmp(Basis):
                 in each orbit rather than period, appends stellar rv semi-amplitude parameters, and
                 removes companion masses
         '''
-        basis_labels_len = 6
-        indices_to_remove = []
-        indices_to_add = []
-        semi_amps = []
 
-        for body in np.arange(self.num_secondary_bodies):
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+
             # Grab necessary parameters for conversion
-            sma = param_arr[(body * basis_labels_len)]
-            ecc = param_arr[(body * basis_labels_len) + 1]
-            inc = param_arr[(body * basis_labels_len) + 2]
-            m_n = param_arr[-1-(self.num_secondary_bodies - body)]
-            m0 = param_arr[-1]
+            sma = param_arr[self.standard_basis_idx['sma{}'.format(body_num)]]
+            ecc = param_arr[self.standard_basis_idx['ecc{}'.format(body_num)]]
+            inc = param_arr[self.standard_basis_idx['inc{}'.format(body_num)]]
+            m_n = param_arr[self.standard_basis_idx['m{}'.format(body_num)]]
+            m0 = param_arr[self.standard_basis_idx['m0']]
             mtot = m_n + m0
 
             # Get stellar semi-amplitude
@@ -567,21 +591,13 @@ class SemiAmp(Basis):
             kms = u.km / u.s
             K_n = K_n.to(kms).value
 
-            # Keep track of semi-amp values and locations
-            semi_amps.append(K_n)
-            indices_to_add.append((body * basis_labels_len) + basis_labels_len)
-            indices_to_remove.append(-1-(self.num_secondary_bodies - body))
-
-            # Compute Period and add to array
+            # Compute Period replace in array
             per = np.sqrt((4*(np.pi**2)*(sma*u.AU)**3) / (consts.G*(mtot*u.Msun)))
             per = per.to(u.year).value
-            param_arr[body * basis_labels_len] = per
+            param_arr[self.param_idx['per{}'.format(body_num)]] = per
 
-        # Add semi-amplitude params
-        param_arr = np.insert(param_arr, indices_to_add, semi_amps, 0)
-
-        # Remove companion mass params
-        param_arr = np.delete(param_arr, indices_to_remove, 0)
+            # Replace companion mass with semi-amplitude
+            param_arr[self.param_idx['K{}'.format(body_num)]] = K_n
 
         return param_arr
 
@@ -624,11 +640,17 @@ class XYZ(Basis):
 
     Author: Rodrigo
     '''
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
-        data_table, best_epoch_idx, epochs, angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
+    def __init__(
+        self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        fit_secondary_mass, data_table, best_epoch_idx, epochs, 
+        angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, 
+        rv_instruments=None
+    ):
 
-        super(XYZ, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
-            angle_upperlim, hipparcos_IAD, rv, rv_instruments)
+        super(XYZ, self).__init__(stellar_mass, mass_err, plx, plx_err, 
+            num_secondary_bodies, fit_secondary_mass, angle_upperlim, 
+            hipparcos_IAD, rv, rv_instruments
+        )
 
         self.data_table = data_table
         self.best_epoch_idx = best_epoch_idx
@@ -758,6 +780,18 @@ class XYZ(Basis):
         # Add mass priors
         self.set_default_mass_priors(basis_priors, basis_labels)
 
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            self.standard_basis_idx['sma{}'.format(body_num)] = self.param_idx['x{}'.format(body_num)]
+            self.standard_basis_idx['ecc{}'.format(body_num)] = self.param_idx['y{}'.format(body_num)]
+            self.standard_basis_idx['inc{}'.format(body_num)] = self.param_idx['z{}'.format(body_num)]
+            self.standard_basis_idx['aop{}'.format(body_num)] = self.param_idx['xdot{}'.format(body_num)]
+            self.standard_basis_idx['pan{}'.format(body_num)] = self.param_idx['ydot{}'.format(body_num)]
+            self.standard_basis_idx['tau{}'.format(body_num)] = self.param_idx['zdot{}'.format(body_num)]
+
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
@@ -773,38 +807,61 @@ class XYZ(Basis):
         Return:
             np.array: Orbital elements in the standard basis for all companions.
         '''
-        for body in np.arange(self.num_secondary_bodies)+1:
-            startindex = 6 * (body - 1)
-            best_idx = self.best_epoch_idx[body - 1]
+        for body_num in np.arange(self.num_secondary_bodies)+1:
+            best_idx = self.best_epoch_idx[body_num - 1]
             constrained_epoch = self.epochs[best_idx]
-            mtot = param_arr[-1]
 
             # Total mass is the sum of companion and stellar
             if self.fit_secondary_mass:
-                secondary_m = param_arr[-1-self.num_secondary_bodies+(body-1)]
-                mtot = mtot + secondary_m
+                secondary_m = param_arr[self.param_idx['m{}'.format(body_num)]]
+                m0 = param_arr[self.param_idx['m0']]
+                mtot = m0 + secondary_m
+            else:
+                mtot = param_arr[self.param_idx['mtot']]
 
-            to_convert = np.array([*param_arr[startindex:(startindex+6)], param_arr[6 * self.num_secondary_bodies], mtot])
+            to_convert = np.array([
+                param_arr[self.param_idx['x{}'.format(body_num)]],
+                param_arr[self.param_idx['y{}'.format(body_num)]],
+                param_arr[self.param_idx['z{}'.format(body_num)]],
+                param_arr[self.param_idx['xdot{}'.format(body_num)]],
+                param_arr[self.param_idx['ydot{}'.format(body_num)]],
+                param_arr[self.param_idx['zdot{}'.format(body_num)]],
+                param_arr[self.param_idx['plx']],
+                mtot
+            ])
             standard_params = self.xyz_to_standard(constrained_epoch, to_convert)
 
             # Update param_arr to hold standard parameters
-            param_arr[startindex:(startindex+6)] = standard_params[0:6]
+            param_arr[self.standard_basis_idx['sma{}'.format(body_num)]] = standard_params[0]
+            param_arr[self.standard_basis_idx['ecc{}'.format(body_num)]] = standard_params[1]
+            param_arr[self.standard_basis_idx['inc{}'.format(body_num)]] = standard_params[2]
+            param_arr[self.standard_basis_idx['aop{}'.format(body_num)]] = standard_params[3]
+            param_arr[self.standard_basis_idx['pan{}'.format(body_num)]] = standard_params[4]
+            param_arr[self.standard_basis_idx['tau{}'.format(body_num)]] = standard_params[5]
+            param_arr[self.standard_basis_idx['plx']] = standard_params[6]
+            param_arr[self.standard_basis_idx['mtot']] = standard_params[7]
 
         return param_arr
 
     def xyz_to_standard(self, epoch, elems, tau_ref_epoch=58849):
         """
-        Converts array of orbital elements in terms of position and velocity in xyz to the regular one
+        Converts array of orbital elements in terms of position and velocity in 
+        xyz to the standard basis.
 
         Args:
-            epoch (float): Date in MJD of observation to calculate time of periastron passage (tau).
-            elems (np.array of floats): Orbital elements in xyz basis (x-coordinate [au], y-coordinate [au],
-                z-coordinate [au], velocity in x [km/s], velocity in y [km/s], velocity in z [km/s], parallax [mas], total mass of the two-body orbit
-                (M_* + M_planet) [Solar masses]). If more than 1 set of parameters is passed, the first dimension must be
-                the number of orbital parameter sets, and the second the orbital elements.
+            epoch (float): Date in MJD of observation to calculate time of 
+                periastron passage (tau).
+            elems (np.array of floats): Orbital elements in xyz basis 
+                (x-coordinate [au], y-coordinate [au], z-coordinate [au], 
+                velocity in x [km/s], velocity in y [km/s], velocity in z [km/s], 
+                parallax [mas], total mass of the two-body orbit (M_* + M_planet) 
+                [Solar masses]). If more than 1 set of parameters is passed, the 
+                first dimension must be the number of orbital parameter sets, 
+                and the second the orbital elements.
 
         Return:
-            np.array: Orbital elements in the usual basis (sma, ecc, inc, aop, pan, tau, plx, mtot)
+            np.array: Orbital elements in the standard basis 
+                (sma, ecc, inc, aop, pan, tau, plx, mtot)
         """
         if elems.ndim == 1:
             elems = elems[:, np.newaxis]
@@ -900,23 +957,40 @@ class XYZ(Basis):
         Return:
             np.array: Orbital elements in the xyz for all companions.
         '''
-        for body in np.arange(self.num_secondary_bodies)+1:
-            startindex = 6 * (body - 1)
-            best_idx = self.best_epoch_idx[body - 1]
+        for body_num in np.arange(self.num_secondary_bodies)+1:
+            best_idx = self.best_epoch_idx[body_num - 1]
             constrained_epoch = self.epochs[best_idx]
-            mtot = param_arr[-1]
 
             # Get total mass
             if self.fit_secondary_mass:
-                secondary_m = param_arr[-1-self.num_secondary_bodies+(body-1)]
-                mtot = mtot + secondary_m
+                secondary_m = param_arr[self.param_idx['m{}'.format(body_num)]]
+                m0 = param_arr[self.standard_basis_idx['m0']]
+                mtot = m0 + secondary_m
+            else:
+                mtot = param_arr[self.param_idx['mtot']]
 
             # Make conversion
-            to_convert = np.array([*param_arr[startindex:(startindex+6)], param_arr[6 * self.num_secondary_bodies], mtot])
+            to_convert = np.array([
+                param_arr[self.standard_basis_idx['sma{}'.format(body_num)]],
+                param_arr[self.standard_basis_idx['ecc{}'.format(body_num)]],
+                param_arr[self.standard_basis_idx['inc{}'.format(body_num)]],
+                param_arr[self.standard_basis_idx['aop{}'.format(body_num)]],
+                param_arr[self.standard_basis_idx['pan{}'.format(body_num)]],
+                param_arr[self.standard_basis_idx['tau{}'.format(body_num)]],
+                param_arr[self.standard_basis_idx['plx']],
+                mtot
+            ])
             xyz_params = self.standard_to_xyz(constrained_epoch, to_convert)
 
-            # Update param_arr
-            param_arr[startindex:(startindex+6)] = xyz_params[0:6]
+            # Update param_arr to hold xyz parameters
+            param_arr[self.param_idx['x{}'.format(body_num)]] = xyz_params[0]
+            param_arr[self.param_idx['y{}'.format(body_num)]] = xyz_params[1]
+            param_arr[self.param_idx['z{}'.format(body_num)]] = xyz_params[2]
+            param_arr[self.param_idx['xdot{}'.format(body_num)]] = xyz_params[3]
+            param_arr[self.param_idx['ydot{}'.format(body_num)]] = xyz_params[4]
+            param_arr[self.param_idx['zdot{}'.format(body_num)]] = xyz_params[5]
+            param_arr[self.param_idx['plx']] = xyz_params[6]
+            param_arr[self.param_idx['mtot']] = xyz_params[7]            
 
         return param_arr
 

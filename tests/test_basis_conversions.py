@@ -119,7 +119,6 @@ def test_semi_amp_basis():
 	conversion = my_system.basis.to_standard_basis(test)
 	original = my_system.basis.to_semi_amp_basis(conversion)
 
-	import pdb; pdb.set_trace()
 	assert np.allclose(original, sample_copy[:, 0])
 
 	# 2. Multi Body
@@ -211,6 +210,6 @@ def test_xyz_basis():
 	assert np.allclose(original, sample_copy)
 
 if __name__ == '__main__':
-	# test_period_basis()
+	test_period_basis()
 	test_semi_amp_basis()
-	# test_xyz_basis()
+	test_xyz_basis()
