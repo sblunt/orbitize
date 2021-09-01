@@ -91,7 +91,6 @@ class Sampler(abc.ABC):
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
         
-
         if self.system.hipparcos_IAD is not None:
 
             # compute Ra/Dec predictions at the Hipparcos IAD epochs
@@ -126,6 +125,19 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+
+        if (
+            (self.system.hipparcos_IAD is not None) or 
+            (len(self.system.rv[0] > 0))
+        ):
+            raise NotImplementedError(
+                """
+                You can only use OFTI with relative astrometry measurements 
+                (no Hipparcos IAD or RVs... yet). Use MCMC, you overachiever, and
+                settle in for a nice long orbit-fit. (But seriously, if you want 
+                this functionality, let us know!)
+                """
+            )
 
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors

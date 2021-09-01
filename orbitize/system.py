@@ -15,8 +15,6 @@ class System(object):
         stellar_mass (float): mean mass of the primary, in M_sol. See 
             ``fit_secondary_mass`` docstring below.
         plx (float): mean parallax of the system, in mas
-        sampler_str (string, optional): name of the sampler being used (either 
-            OFTI or MCMC), default is OFTI
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
@@ -44,12 +42,11 @@ class System(object):
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
-                 plx, sampler_str='OFTI', mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
                  hipparcos_IAD=None, fitting_basis='Standard'):
 
         self.num_secondary_bodies = num_secondary_bodies
-        self.sampler_str = sampler_str
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
@@ -117,19 +114,6 @@ class System(object):
             self.rv.append(
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
-        
-        # snarky error messages for OFTI capabilities that aren't implemented yet
-        if (self.sampler_str == 'OFTI') and (
-            (self.hipparcos_IAD is not None) or (len(self.rv[0] > 0))
-        ):
-            raise NotImplementedError(
-                """
-                You can only use OFTI with relative astrometry measurements 
-                (no Hipparcos IAD or RVs... yet). Use MCMC, you overachiever, and
-                settle in for a nice long orbit-fit. (But seriously, if you want 
-                this functionality, let us know!)
-                """
-            )
 
         # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
         # we are not fitting relative astrometry of just a single body
@@ -149,7 +133,6 @@ class System(object):
         contains_rv = False
         if len(self.rv[0]) > 0:
             contains_rv = True
-
 
         # Assign priors for the given basis set
         self.extra_basis_kwargs = {}
@@ -409,12 +392,8 @@ class System(object):
             a 2d array, otherwise it is a 3d array.
         """
 
-        # Only Make Conversion if MCMC (OFTI already converted)
-        if self.sampler_str == 'MCMC':
-            to_convert = np.copy(params_arr)
-            standard_params_arr = self.basis.to_standard_basis(to_convert)
-        else:
-            standard_params_arr = params_arr        
+        to_convert = np.copy(params_arr)
+        standard_params_arr = self.basis.to_standard_basis(to_convert)      
 
         raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
 
