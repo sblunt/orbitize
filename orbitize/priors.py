@@ -21,6 +21,8 @@ class Prior(ABC):
     Written: Sarah Blunt, 2018
     """
 
+    is_correlated = False
+    
     @abc.abstractmethod
     def draw_samples(self, num_samples):
         pass
@@ -359,9 +361,10 @@ def all_lnpriors(params, priors):
         float: prior probability of this set of parameters
     """
     logp = 0.
+
     for param, prior in zip(params, priors):
         param = np.array([param])
-
+    
         logp += prior.compute_lnprob(param)  # retrun a float
 
     return logp

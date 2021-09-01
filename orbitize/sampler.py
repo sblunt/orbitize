@@ -963,3 +963,46 @@ class MCMC(Sampler):
 
         # Print a confirmation
         print('Chains successfully chopped. Results object updated.')
+
+    def check_prior_support(self,):
+        """
+        Review the positions of all MCMC walkers, to verify that they are supported by the prior space.
+        This function will raise a descriptive ValueError if any positions lie outside prior support.
+        Otherwise, it will return nothing.
+        Args:
+            None.
+        Returns:
+            None.
+        (written): Adam Smith, 2021
+        """
+
+        # Flatten the walker/temperature positions for ease of manipulation.
+        all_positions = self.curr_pos.reshape(self.num_walkers*self.num_temps,self.num_params)
+        
+        # Placeholder list to track any bad parameters that come up.
+        bad_parameters = []
+
+        # If there are no covarient priors, loop on each variable to locate any out-of-place parameters. (this is why we transpose the walkers)
+        if not np.any([prior.is_correlated for prior in self.priors]):
+            for i, x in enumerate(all_positions.T):
+                # Any issues with this parameter?
+                lnprob = self.priors[i].compute_lnprob(np.array(x))
+                supported = np.isfinite(lnprob).all() == True
+
+                if supported == False:
+                    # Problem detected. Take note and continue the loop - we want to catch all the problem parameters.
+                    bad_parameters.append(str(i))
+
+            # Throw our ValueError if necessary,
+            if len(bad_parameters) > 0:
+                raise ValueError("Attempting to start with walkers outside of prior support: check parameter(s) "+', '.join(bad_parameters))
+
+        # We're not done yet, however. There may be errors in covariant priors; run a check for that.
+        else:
+            for y in all_positions:
+                lnprob = orbitize.priors.all_lnpriors(y,self.priors)
+                if not np.isfinite(lnprob).all():
+                    raise ValueError("Attempting to start with walkers outside of prior support: covariant prior failure.")
+        
+        # otherwise exit the function and continue.
+        return
