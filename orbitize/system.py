@@ -589,6 +589,10 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
     Returns:
         tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
     """
+
+    if np.isnan(x12_corr):
+        x12_corr = 0.
+
     # construct covariance matrix from the terms provided
     cov = np.array([[x1_err**2, x1_err*x2_err*x12_corr], [x1_err*x2_err*x12_corr, x2_err**2]])
 

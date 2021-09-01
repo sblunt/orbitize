@@ -444,7 +444,7 @@ class OFTI(Sampler,):
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output, nrun_per_core, num_cores, num_samples,
+                    args=(output, nrun_per_core, num_samples,
                           orbits_saved, lock)
                 ) for x in range(num_cores)
             ]

@@ -1,19 +1,15 @@
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
-from orbitize import read_input
 import numpy as np
 import os
 import pytest
-import matplotlib.pyplot as plt
 import time
 import orbitize
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
 import orbitize.system as system
-from orbitize.lnlike import chi2_lnlike
-from orbitize.kepler import calc_orbit
 import orbitize.system
 
 input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
@@ -33,7 +29,8 @@ def test_scale_and_rotate():
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
     ra, dec, vc = orbitize.kepler.calc_orbit(
-        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0,
+        tau_warning=False
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
@@ -44,7 +41,7 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch['quant2'], abs=sar_epoch['quant2_err'])
 
     # test scale-and-rotate for orbits run all the way through OFTI
-    s.run_sampler(100, num_cp)
+    s.run_sampler(100)
 
     # test orbit plot generation
     s.results.plot_orbits(start_mjd=s.epochs[0])
@@ -59,7 +56,10 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    ra, dec, vc = orbitize.kepler.calc_orbit(
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0,
+        tau_warning=False
+    )
     assert np.max(lan) > np.pi
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
@@ -79,7 +79,10 @@ def test_scale_and_rotate():
     assert np.max(lan) < np.pi
     assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    ra, dec, vc = orbitize.kepler.calc_orbit(
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0,
+        tau_warning=False
+    )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -316,10 +319,10 @@ def test_OFTI_pan_priors():
 if __name__ == "__main__":
 
     test_scale_and_rotate()
-    # test_run_sampler()
-    # test_OFTI_covariances()
-    # test_OFTI_multiplanet()
-    # test_not_implemented()
-    # test_fixed_sys_params_sampling()
-    # test_OFTI_pan_priors()
+    test_run_sampler()
+    test_OFTI_covariances()
+    test_OFTI_multiplanet()
+    test_not_implemented()
+    test_fixed_sys_params_sampling()
+    test_OFTI_pan_priors()
     print("Done!")

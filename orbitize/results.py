@@ -462,8 +462,8 @@ class Results(object):
                 color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
             sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
                 tracks in the Sep/PA panels (default: 2025.0).
-            cbar_param (string): options are the following: epochs, sma1, ecc1, inc1, aop1,
-                pan1, tau1. Number can be switched out. Default is epochs.
+            cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
+                'pan1', 'tau1', 'plx. Number can be switched out. Default is Epoch [year].
             mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
                 arcs with PAs that cross 360 deg during observations (default: False)
             rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
@@ -488,7 +488,7 @@ class Results(object):
             raise ValueError("Only {0} secondary bodies being fit. Requested to plot body {1} which is out of range".format(self.num_secondary_bodies, object_to_plot))
 
         if object_to_plot == 0:
-            raise ValueError("Plotting the primary's orbit is currently unsupported. Stay tuned..")
+            raise ValueError("Plotting the primary's orbit is currently unsupported. Stay tuned.")
 
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
