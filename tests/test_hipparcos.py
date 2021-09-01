@@ -37,14 +37,18 @@ def test_hipparcos_api():
     data_table_with_rvs = read_input.read_file(input_file)
     mySys = system.System(
         1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
-        hipparcos_IAD=myHip
+        hipparcos_IAD=myHip, sampler_str='MCMC', fit_secondary_mass=True
     )
 
-    mySys.sys_priors
+    assert len(mySys.sys_priors) == 15 # 7 orbital params + 2 mass params + 
+                                       # 4 Hip nuisance params + 
+                                       # 2 RV nuisance params
 
+    assert mySys.labels == [
+       'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'pm_ra', 'pm_dec', 
+       'alpha0', 'delta0', 'gamma_defrv', 'sigma_defrv', 'm1', 'm0'
+   ]
 
-
-    # check that lnlike is finite
 
 def test_iad_refitting():
     """

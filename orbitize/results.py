@@ -395,7 +395,7 @@ class Results(object):
         angle_indices = []
         secondary_mass_indices = []
         for i, param in enumerate(param_list):
-            index_num = np.where(np.array(self.labels) == param)[0][0]
+            index_num = self.param_idx[param]
 
             # only plot non-fixed parameters
             if np.std(self.post[:, index_num]) > 0:
@@ -410,7 +410,6 @@ class Results(object):
         samples[:, angle_indices] = np.degrees(
             samples[:, angle_indices])  # convert angles from rad to deg
         samples[:, secondary_mass_indices] *= u.solMass.to(u.jupiterMass) # convert to Jupiter masses for companions
-        #samples = samples[:, param_indices]
 
         if 'labels' not in corner_kwargs:  # use default labels if user didn't already supply them
             reduced_labels_list = []
@@ -494,29 +493,24 @@ class Results(object):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ErfaWarning)
 
-            dict_of_indices = {
-                'sma': 0,
-                'ecc': 1,
-                'inc': 2,
-                'aop': 3,
-                'pan': 4,
-                'tau': 5,
-                'plx': 6 * self.num_secondary_bodies,
-            }
+            possible_cbar_params = [
+                'sma',
+                'ecc',
+                'inc',
+                'aop'
+                'pan',
+                'tau',
+                'plx'
+            ]
 
             if cbar_param == 'Epoch [year]':
                 pass
-            elif cbar_param[0:3] in dict_of_indices:
-                try:
-                    object_id = np.int(cbar_param[3:])
-                except ValueError:
-                    object_id = 1
-
-                index = dict_of_indices[cbar_param[0:3]] + 6*(object_id-1)
+            elif cbar_param[0:3] in possible_cbar_params:
+                index = self.param_idx[cbar_param]
             else:
                 raise Exception(
-                    'Invalid input; acceptable inputs include epochs, sma1, ecc1, inc1, aop1, pan1, tau1, sma2, ecc2, ...')
-
+                    "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
+                )
             # Select random indices for plotted orbit
             num_orbits = len(self.post[:, 0])
             if num_orbits_to_plot > num_orbits:
@@ -538,21 +532,20 @@ class Results(object):
 
             standard_post = np.array(standard_post)
 
-            start_index = (object_to_plot - 1) * 6
-            sma = standard_post[:, start_index + dict_of_indices['sma']]
-            ecc = standard_post[:, start_index + dict_of_indices['ecc']]
-            inc = standard_post[:, start_index + dict_of_indices['inc']]
-            aop = standard_post[:, start_index + dict_of_indices['aop']]
-            pan = standard_post[:, start_index + dict_of_indices['pan']]
-            tau = standard_post[:, start_index + dict_of_indices['tau']]
-            plx = standard_post[:, dict_of_indices['plx']]
+            sma = standard_post[:, self.param_idx['sma{}'.format(object_to_plot)]]
+            ecc = standard_post[:, self.param_idx['ecc{}'.format(object_to_plot)]]
+            inc = standard_post[:, self.param_idx['inc{}'.format(object_to_plot)]]
+            aop = standard_post[:, self.param_idx['aop{}'.format(object_to_plot)]]
+            pan = standard_post[:, self.param_idx['pan{}'.format(object_to_plot)]]
+            tau = standard_post[:, self.param_idx['tau{}'.format(object_to_plot)]]
+            plx = standard_post[:, self.param_idx['plx']]
 
             # Then, get the other parameters
             if 'mtot' in self.labels:
-                mtot = standard_post[:, -1]
+                mtot = standard_post[:, self.param_idx['mtot']]
             elif 'm0' in self.labels:
-                m0 = standard_post[:, -1]
-                m1 = standard_post[:, -(self.num_secondary_bodies+1) + (object_to_plot-1)]
+                m0 = standard_post[:, self.param_idx['m0']]
+                m1 = standard_post[:, self.param_idx['m{}'.format(object_to_plot)]]
                 mtot = m0 + m1
 
             raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -622,7 +615,6 @@ class Results(object):
             pa_data, pa_err=data['quant2'][seppa_inds],data['quant2_err'][seppa_inds]
 
             if len(radec_inds[0] > 0):
-
 
                 sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
                     data['quant1'][radec_inds], data['quant2'][radec_inds]
@@ -705,7 +697,7 @@ class Results(object):
 
                 # Calculate ra/dec offsets for all epochs of this orbit
                 if rv_time_series:
-                    raoff0, deoff0, vzoff0 = kepler.calc_orbit(
+                    raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
                         tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch,
                         mass_for_Kamp=m0[i], tau_warning=False
@@ -768,8 +760,8 @@ class Results(object):
                 best_post = self.basis.to_standard_basis(self.post[best_like].copy())
 
                 # Get the masses for the best posteriors:
-                best_m0 = best_post[-1]
-                best_m1 = best_post[-(self.num_secondary_bodies+1)+(object_to_plot-1)]
+                best_m0 = best_post[self.param_idx['m0']]
+                best_m1 = best_post[self.param_idx['m{}'.format(object_to_plot)]]
                 best_mtot = best_m0 + best_m1
 
                 # colour/shape scheme scheme for rv data points
@@ -791,16 +783,21 @@ class Results(object):
 
                 
                 # calculate the predicted rv trend using the best orbit 
-                raa, decc, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :], best_post[dict_of_indices['sma']], best_post[dict_of_indices['ecc']], best_post[dict_of_indices['inc']], 
-                    best_post[dict_of_indices['aop']], best_post[dict_of_indices['pan']], best_post[dict_of_indices['tau']], 
-                    best_post[dict_of_indices['plx']], best_mtot, tau_ref_epoch=self.tau_ref_epoch, mass_for_Kamp=best_m0
+                _, _, vz = kepler.calc_orbit(
+                    epochs_seppa[i, :], 
+                    best_post[self.param_idx['sma{}'.format(object_to_plot)]], 
+                    best_post[self.param_idx['ecc{}'.format(object_to_plot)]], 
+                    best_post[self.param_idx['inc{}'.format(object_to_plot)]], 
+                    best_post[self.param_idx['aop{}'.format(object_to_plot)]], 
+                    best_post[self.param_idx['pan{}'.format(object_to_plot)]], 
+                    best_post[self.param_idx['tau{}'.format(object_to_plot)]], 
+                    best_post[self.param_idx['plx']], best_mtot, 
+                    tau_ref_epoch=self.tau_ref_epoch, mass_for_Kamp=best_m0
                 )
                 
                 vz=vz*-(best_m1)/np.median(best_m0)
 
                 # plot rv trend
-                
                 plt.plot(Time(epochs_seppa[i, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
 
