@@ -1,4 +1,3 @@
-from ast import walk
 import os
 import numpy as np
 import pytest
