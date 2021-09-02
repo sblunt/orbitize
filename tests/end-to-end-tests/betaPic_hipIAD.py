@@ -11,20 +11,25 @@ Pic b), currently minus the Gaia data point and the planetary RV.
 
 This is a publishable orbit fit that will take several hours-days to run. It
 uses relative astrometry and Hipparcos intermediate astrometric data (IAD).
-"""
 
-"""
-Set this "keyword" to True if you want to include the Hipparcos IAD. If False,
+Set these "keywords:"
+
+- `fit_IAD` to True if you want to include the Hipparcos IAD. If False,
 just fits the relative astrometry.
+- `savedir` to where you want the fit outputs to be saved
+
+
+Begin keywords ((
 """
 fit_IAD = True 
-"""
-"""
 
 if fit_IAD:
-    savedir = 'betaPic_hipIAD'
+    savedir = '/data/user/{}/betaPic/hipIAD'.format(os.getlogin())
 else:
-    savedir = 'betaPic_noIAD'
+    savedir = '/data/user/{}/betaPic/noIAD'.format(os.getlogin())
+"""
+)) End keywords
+"""
 
 if not os.path.exists(savedir):
     os.mkdir(savedir)
@@ -51,18 +56,27 @@ betaPic_system = system.System(
     fit_secondary_mass=fit_secondary_mass, mass_err=0.01, plx_err=0.01
 )
 
+m0_or_mtot_prior = priors.UniformPrior(1.5, 2.0)
+
+# set uniform parallax prior
+plx_index = betaPic_system.param_idx['plx']
+betaPic_system.sys_priors[plx_index] = priors.UniformPrior(plx - 1.0, plx + 1.0)
+
 if fit_IAD:
     assert betaPic_system.fit_secondary_mass
     assert betaPic_system.track_planet_perturbs
+
+    # set uniform m0 prior
+    m0_index = betaPic_system.param_idx['m0']
+    betaPic_system.sys_priors[m0_index] = m0_or_mtot_prior
+
 else:
     assert not betaPic_system.fit_secondary_mass
     assert not betaPic_system.track_planet_perturbs
 
-# set uniform m0 prior
-betaPic_system.sys_priors[-1] = priors.UniformPrior(1.5, 2.0)
-
-# set uniform parallax prior
-betaPic_system.sys_priors[6] = priors.UniformPrior(plx - 1.0, plx + 1.0)
+    # set uniform mtot prior
+    mtot_index = betaPic_system.param_idx['mtot']    
+    betaPic_system.sys_priors[mtot_index] = m0_or_mtot_prior
 
 # run MCMC
 num_threads = 50
