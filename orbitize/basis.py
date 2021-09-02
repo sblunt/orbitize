@@ -2,7 +2,6 @@ import numpy as np
 import astropy.units as u, astropy.constants as consts
 import warnings
 import abc
-import copy
 
 from orbitize import priors, kepler
 from scipy.optimize import fsolve
