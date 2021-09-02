@@ -13,7 +13,14 @@ This is a publishable orbit fit that will take several hours-days to run. It
 uses relative astrometry and Hipparcos intermediate astrometric data (IAD).
 """
 
+"""
+Set this "keyword" to True if you want to include the Hipparcos IAD. If False,
+just fits the relative astrometry.
+"""
 fit_IAD = True 
+"""
+"""
+
 if fit_IAD:
     savedir = 'betaPic_hipIAD'
 else:
