@@ -238,25 +238,24 @@ class OFTI(Sampler,):
         # Make Converison to Standard Basis:
         samples = self.system.basis.to_standard_basis(samples)
         
-        for body_num in np.arange(self.system.num_secondary_bodies):
+        for body_num in np.arange(self.system.num_secondary_bodies) + 1:
 
-            # ref_ind = 6 * body_num
-            sma = samples[self.system.basis.param_idx['sma{}'.format(body_num + 1)],:]
-            ecc = samples[self.system.basis.param_idx['ecc{}'.format(body_num + 1)],:]
-            inc = samples[self.system.basis.param_idx['inc{}'.format(body_num + 1)],:]
-            argp = samples[self.system.basis.param_idx['aop{}'.format(body_num + 1)],:]
-            lan = samples[self.system.basis.param_idx['pan{}'.format(body_num + 1)],:]
-            tau = samples[self.system.basis.param_idx['tau{}'.format(body_num + 1)],:]
+            sma = samples[self.system.basis.param_idx['sma{}'.format(body_num)],:]
+            ecc = samples[self.system.basis.param_idx['ecc{}'.format(body_num)],:]
+            inc = samples[self.system.basis.param_idx['inc{}'.format(body_num)],:]
+            argp = samples[self.system.basis.param_idx['aop{}'.format(body_num)],:]
+            lan = samples[self.system.basis.param_idx['pan{}'.format(body_num)],:]
+            tau = samples[self.system.basis.param_idx['tau{}'.format(body_num)],:]
             plx = samples[self.system.basis.param_idx['plx'],:]
             if self.system.fit_secondary_mass:
                 m0 = samples[self.system.basis.param_idx['m0'],:]
-                m1 = samples[self.system.basis.param_idx['m{}'.format(body_num + 1)],:]
+                m1 = samples[self.system.basis.param_idx['m{}'.format(body_num)],:]
                 mtot = m0 + m1
             else:
                 mtot = samples[self.system.basis.param_idx['mtot'],:]
                 m1 = None
             
-            min_epoch = self.epoch_idx[body_num]
+            min_epoch = self.epoch_idx[body_num - 1]
             if min_epoch is None:
                 # Don't need to rotate and scale if no astrometric measurments for this body. Brute force rejection sampling
                 continue
@@ -304,10 +303,10 @@ class OFTI(Sampler,):
             tau = (self.epochs[min_epoch]/period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
-            samples[self.system.basis.param_idx['sma{}'.format(body_num + 1)],:] = sma
-            samples[self.system.basis.param_idx['aop{}'.format(body_num + 1)],:] = argp
-            samples[self.system.basis.param_idx['pan{}'.format(body_num + 1)],:] = lan
-            samples[self.system.basis.param_idx['tau{}'.format(body_num + 1)],:] = tau
+            samples[self.system.basis.param_idx['sma{}'.format(body_num)],:] = sma
+            samples[self.system.basis.param_idx['aop{}'.format(body_num)],:] = argp
+            samples[self.system.basis.param_idx['pan{}'.format(body_num)],:] = lan
+            samples[self.system.basis.param_idx['tau{}'.format(body_num)],:] = tau
 
         return samples
 
@@ -342,9 +341,9 @@ class OFTI(Sampler,):
         lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
         # account for user-set priors on PAN that were destroyed by scale-and-rotate
-        for body_num in np.arange(self.system.num_secondary_bodies):
+        for body_num in np.arange(self.system.num_secondary_bodies) + 1:
 
-            pan_idx = self.system.basis.param_idx['pan{}'.format(body_num + 1)]
+            pan_idx = self.system.basis.param_idx['pan{}'.format(body_num)]
 
             pan_prior = self.system.sys_priors[pan_idx]
             if pan_prior is not orbitize.priors.UniformPrior:
