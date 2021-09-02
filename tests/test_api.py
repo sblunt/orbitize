@@ -129,6 +129,5 @@ def test_radec2seppa():
 if __name__ == "__main__":
     test_compute_model()
     test_systeminit()
-    test_chi2lnlike()
     test_custom_likelihood()
     test_radec2seppa()

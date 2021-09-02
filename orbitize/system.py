@@ -15,8 +15,6 @@ class System(object):
         stellar_mass (float): mean mass of the primary, in M_sol. See 
             ``fit_secondary_mass`` docstring below.
         plx (float): mean parallax of the system, in mas
-        sampler_str (string, optional): name of the sampler being used (either 
-            OFTI or MCMC), default is OFTI
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
@@ -44,12 +42,11 @@ class System(object):
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
-                 plx, sampler_str='OFTI', mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
                  hipparcos_IAD=None, fitting_basis='Standard'):
 
         self.num_secondary_bodies = num_secondary_bodies
-        self.sampler_str = sampler_str
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
@@ -61,11 +58,6 @@ class System(object):
         self.input_table = self.data_table.copy()
 
         # Group the data in some useful ways
-        # Rob: check if instrument column is other than default. If other than default, then separate data table into n number of instruments.
-        # gather list of instrument: list_instr = self.data_table['instruments'][name of instrument]
-        # List of arrays of indices corresponding to each body
-
-        # instruments = np.unique(self.data_table['instruments']) gives a list of unique names
 
         self.body_indices = []
 
@@ -77,12 +69,6 @@ class System(object):
 
         # List of index arrays corresponding to each rv for each body
         self.rv = []
-
-        # instr1_tbl = np.where(self.data_table['instruments'] == list_instr[0])
-        # loop through the indices per input_table:
-        # rv_indices = np.where(instr1_tbl['quant_type'] == 'rv')
-        # ... return the parameter labels for each table
-        # ...
 
         self.fit_astrometry=True
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
@@ -148,7 +134,6 @@ class System(object):
         if len(self.rv[0]) > 0:
             contains_rv = True
 
-
         # Assign priors for the given basis set
         self.extra_basis_kwargs = {}
         basis_obj = getattr(basis, self.fitting_basis)
@@ -194,14 +179,30 @@ class System(object):
             self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
 
-        self.basis = basis_obj(stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, self.fit_secondary_mass,
-            angle_upperlim=angle_upperlim, hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, rv_instruments=self.rv_instruments, **self.extra_basis_kwargs)
+        self.basis = basis_obj(
+            stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
+            self.fit_secondary_mass, angle_upperlim=angle_upperlim, 
+            hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, 
+            rv_instruments=self.rv_instruments, **self.extra_basis_kwargs
+        )
 
         self.basis.verify_params()
         self.sys_priors, self.labels = self.basis.construct_priors()
 
-        # add labels dictionary for parameter indexing
-        self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
+        self.secondary_mass_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('m') and
+                not i.endswith('0')
+            )
+        ]
+    
+        self.sma_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('sma')
+            )
+        ]
+
+        self.param_idx = self.basis.param_idx
 
     def compute_all_orbits(self, params_arr, epochs=None):
         """
@@ -254,27 +255,26 @@ class System(object):
 
         for body_num in np.arange(self.num_secondary_bodies)+1:
 
-            startindex = 6 * (body_num - 1)
-            sma = params_arr[startindex]
-            ecc = params_arr[startindex + 1]
-            inc = params_arr[startindex + 2]
-            argp = params_arr[startindex + 3]
-            lan = params_arr[startindex + 4]
-            tau = params_arr[startindex + 5]
-            plx = params_arr[6 * self.num_secondary_bodies]
+            sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
+            ecc = params_arr[self.basis.param_idx['ecc{}'.format(body_num)]]
+            inc = params_arr[self.basis.param_idx['inc{}'.format(body_num)]]
+            argp = params_arr[self.basis.param_idx['aop{}'.format(body_num)]]
+            lan = params_arr[self.basis.param_idx['pan{}'.format(body_num)]]
+            tau = params_arr[self.basis.param_idx['tau{}'.format(body_num)]]
+            plx = params_arr[self.basis.param_idx['plx']]
 
             if self.fit_secondary_mass:
 
                 # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
-                m0 = params_arr[-1]
+                mass = params_arr[self.basis.param_idx['m{}'.format(body_num)]]
+                m0 = params_arr[self.basis.param_idx['m0']]
 
                 # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
                 # We need to select all planets with sma < this planet. 
-                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                all_smas = params_arr[self.sma_indx]
                 within_orbit = np.where(all_smas <= sma)
                 outside_orbit = np.where(all_smas > sma)
-                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
+                all_pl_masses = params_arr[self.secondary_mass_indx]
                 inside_masses = all_pl_masses[within_orbit]
                 mtot = np.sum(inside_masses) + m0
 
@@ -282,7 +282,7 @@ class System(object):
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mass = None
                 m0 = None
-                mtot = params_arr[-1]
+                mtot = params_arr[self.basis.param_idx['mtot']]
             
             if self.track_planet_perturbs:
                 masses[body_num] = mass
@@ -291,7 +291,8 @@ class System(object):
             # solve Kepler's equation
             raoff, decoff, vz_i = kepler.calc_orbit(
                 epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, 
+                tau_warning=False
             )
 
             # raoff, decoff, vz are scalers if the length of epochs is 1
@@ -326,8 +327,8 @@ class System(object):
                 if body_num > 0:
                     # for companions, only perturb companion orbits at larger SMAs than this one. 
                     startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
-                    sma = params_arr[startindex]
-                    all_smas = params_arr[0:6*self.num_secondary_bodies:6]
+                    sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
+                    all_smas = params_arr[self.sma_indx]
                     outside_orbit = np.where(all_smas > sma)[0]
                     which_perturb_bodies = outside_orbit + 1
 
@@ -359,7 +360,7 @@ class System(object):
         vz[:, 0, :] = total_rv0
 
         if self.fitting_basis == 'XYZ':
-            # Find and filter out bad orbits
+            # Find and filter out unbound orbits
             bad_orbits = np.where(np.logical_or(ecc >= 1., ecc < 0.))[0]
             if (bad_orbits.size != 0):
                 raoff[:,:, bad_orbits] = np.inf
@@ -391,12 +392,8 @@ class System(object):
             a 2d array, otherwise it is a 3d array.
         """
 
-        # Only Make Conversion if MCMC (OFTI already converted)
-        if self.sampler_str == 'MCMC':
-            to_convert = np.copy(params_arr)
-            standard_params_arr = self.basis.to_standard_basis(to_convert)
-        else:
-            standard_params_arr = params_arr        
+        to_convert = np.copy(params_arr)
+        standard_params_arr = self.basis.to_standard_basis(to_convert)      
 
         raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
 
@@ -416,13 +413,13 @@ class System(object):
             for rv_idx in range(len(self.rv_instruments)):
 
                 jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[ # [km/s]
-                    6 * self.num_secondary_bodies+2+2*rv_idx
+                    self.basis.param_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
                 ]
                 jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
 
                 gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
-                    6 * self.num_secondary_bodies+1+2*rv_idx
+                    self.basis.param_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
                 ] 
                 gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
 
@@ -526,7 +523,7 @@ def radec2seppa(ra, dec, mod180=False):
 
 
     Returns:
-        tulple of float: (separation [mas], position angle [deg])
+        tuple of float: (separation [mas], position angle [deg])
 
     """
     sep = np.sqrt((ra**2) + (dec**2))
@@ -570,6 +567,10 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
     Returns:
         tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
     """
+
+    if np.isnan(x12_corr):
+        x12_corr = 0.
+
     # construct covariance matrix from the terms provided
     cov = np.array([[x1_err**2, x1_err*x2_err*x12_corr], [x1_err*x2_err*x12_corr, x2_err**2]])
 

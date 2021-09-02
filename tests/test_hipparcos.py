@@ -1,25 +1,68 @@
 import numpy as np
+import os
 import emcee
 
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
-from orbitize import DATADIR
+from orbitize import DATADIR, read_input, system
 from orbitize.hipparcos import HipparcosLogProb
 
 def test_hipparcos_api():
     """
-    Check that error is caught for a star with solution type != 5 param
+    Check that error is caught for a star with solution type != 5 param, 
+    and that doing an RV + Hipparcos IAD fit produces the expected array of 
+    Prior objects.
     """
 
+    # check sol type != 5 error message
     hip_num = '25'
     num_secondary_bodies = 1
-    iad_file = '{}/HIP{}.d'.format(DATADIR, hip_num)
+    iad_file = 'foo' # Doesn't actually matter,
+                     # HipparcosLogProb initialization code shouldn't get to here
 
     try:
         _ = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+        assert False, 'Test failed.'
     except ValueError: 
         pass
+
+    # check that RV + Hip gives correct prior array labels
+    hip_num = '027321' # beta Pic
+    num_secondary_bodies = 1
+    iad_file = '{}/HIP{}.d'.format(DATADIR, hip_num)
+    myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+
+    input_file = os.path.join(DATADIR, 'HD4747.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip, fit_secondary_mass=True
+    )
+
+    # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately
+    assert mySys.fit_secondary_mass
+    assert mySys.track_planet_perturbs
+
+    assert len(mySys.sys_priors) == 15 # 7 orbital params + 2 mass params + 
+                                       # 4 Hip nuisance params + 
+                                       # 2 RV nuisance params
+
+    assert mySys.labels == [
+       'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'pm_ra', 'pm_dec', 
+       'alpha0', 'delta0', 'gamma_defrv', 'sigma_defrv', 'm1', 'm0'
+   ]
+
+
+    # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately for non-Hipparcos system
+    noHip_system = system.System(
+        num_secondary_bodies, data_table_with_rvs, 1.0, 1.0, hipparcos_IAD=None, 
+        fit_secondary_mass=False, mass_err=0.01, plx_err=0.01
+    )
+
+    assert not noHip_system.fit_secondary_mass
+    assert not noHip_system.track_planet_perturbs
+
 
 def test_iad_refitting():
     """
@@ -160,5 +203,5 @@ def _nielsen_iad_refitting_test(
 
 
 if __name__ == '__main__':
-    # _nielsen_iad_refitting_test()
     test_hipparcos_api()
+    test_iad_refitting()

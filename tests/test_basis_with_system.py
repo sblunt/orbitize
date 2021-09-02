@@ -1,4 +1,4 @@
-from orbitize import driver, system, basis, DATADIR, read_input
+from orbitize import driver, system, basis, DATADIR, read_input, hipparcos
 import numpy as np
 import pytest
 
@@ -129,13 +129,16 @@ def test_with_hip_iad():
 	the driver where Hipparcos data is supplied. Again, for the XYZ basis, expect there to be errors thrown.
 	'''
 	filename = "{}/betaPic.csv".format(DATADIR)
-	hipp_filename = "{}/HIP027321.d".format(DATADIR)
+	hip_num = '027321'
+	hipp_filename = "{}/HIP{}.d".format(DATADIR, hip_num)
 
 	num_secondary_bodies = 1
 	system_mass = 1.75
 	mass_err = 0
 	plx = 51.44
 	plx_err = 0.12
+
+	myHip = hipparcos.HipparcosLogProb(hipp_filename, hip_num, num_secondary_bodies)
 
 	hip_labels = ['pm_ra', 'pm_dec', 'alpha0', 'delta0']
 
@@ -150,14 +153,14 @@ def test_with_hip_iad():
 				my_driver = driver.Driver(
 					filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
 					fitting_basis = basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 
-					'hipparcos_number':27321, 'hipparcos_filename':hipp_filename}
+					'hipparcos_IAD':myHip}
 				)
 			assert str(excinfo.value) == "For now, the XYZ basis requires data in RA and DEC offsets."
 		else:
 			my_driver = driver.Driver(
 				filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
 				fitting_basis = basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 
-				'hipparcos_number':27321, 'hipparcos_filename':hipp_filename}
+				'hipparcos_IAD':myHip}
 			)
 			assert expected_labels == my_driver.system.labels
 
