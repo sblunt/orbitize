@@ -53,12 +53,10 @@ class Driver(object):
         if system_kwargs is None:
             system_kwargs = {}
 
-        if sampler_str == 'OFTI' and ('fit_secondary_mass' in system_kwargs and True == system_kwargs['fit_secondary_mass']):
-            raise Exception('Run Astrometry+RV in MCMC for now.')
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
             num_secondary_bodies, data_table, system_mass,
-            plx, sampler_str, mass_err=mass_err, plx_err=plx_err, 
+            plx, mass_err=mass_err, plx_err=plx_err, 
             fitting_basis=fitting_basis, **system_kwargs
         )
 

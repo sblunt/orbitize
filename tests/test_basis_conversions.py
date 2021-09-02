@@ -41,7 +41,7 @@ def test_period_basis():
 	data_table = read_input.read_file(filename)
 	my_system = system.System(
 		1, data_table, 0.84, 53.18, mass_err=0.04, plx_err=0.12, 
-		fit_secondary_mass=True, fitting_basis='Period', sampler_str='MCMC'
+		fit_secondary_mass=True, fitting_basis='Period'
 	)
 
 	num_samples = 100
@@ -101,7 +101,7 @@ def test_semi_amp_basis():
 	data_table = read_input.read_file(filename)
 	my_system = system.System(
 		1, data_table, 0.84, 53.18, mass_err=0.04, plx_err=0.12, 
-		fit_secondary_mass=True, fitting_basis='SemiAmp', sampler_str='MCMC'
+		fit_secondary_mass=True, fitting_basis='SemiAmp'
 	)
 
 	num_samples = 100
@@ -126,7 +126,7 @@ def test_semi_amp_basis():
 	data_table = read_input.read_file(filename)
 	my_system = system.System(
 		2, data_table, 1.52, 24.76, mass_err=0.15, plx_err=0.64, 
-		fit_secondary_mass=True, fitting_basis='SemiAmp', sampler_str='MCMC'
+		fit_secondary_mass=True, fitting_basis='SemiAmp'
 	)
 
 	num_samples = 100

@@ -20,7 +20,7 @@ def test_add_and_clear_results():
     # Initialize System object
     test_system = system.System(
         num_secondary_bodies, data_table, system_mass,
-        plx, mass_err=mass_err, plx_err=plx_err, sampler_str='MCMC'
+        plx, mass_err=mass_err, plx_err=plx_err
     )
     # Initialize dummy results.Results object
     test_results = results.Results()
@@ -49,7 +49,7 @@ def test_convert_data_table_radec2seppa():
     # Initialize System object
     test_system = system.System(
         num_secondary_bodies, data_table, system_mass,
-        plx, mass_err=mass_err, plx_err=plx_err, sampler_str='MCMC'
+        plx, mass_err=mass_err, plx_err=plx_err
     )
     test_system.convert_data_table_radec2seppa()
 

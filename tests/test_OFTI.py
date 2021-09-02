@@ -11,6 +11,7 @@ import orbitize.driver
 import orbitize.priors as priors
 import orbitize.system as system
 import orbitize.system
+from orbitize.hipparcos import HipparcosLogProb
 
 input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
 input_file_1epoch = os.path.join(orbitize.DATADIR, 'GJ504_1epoch.csv')
@@ -162,10 +163,16 @@ def test_not_implemented():
 
     # test that if the `hipparcosIAD` attribute is set, OFTI won't work
     try:
-        _ = system.System(
+
+        hip_num = '027321'
+        num_secondary_bodies = 1
+        iad_file = '{}/HIP{}.d'.format(orbitize.DATADIR, hip_num)
+        myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+        mySystem = system.System(
             1, data_table, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
-            hipparcos_IAD='foo'
+            hipparcos_IAD=myHip
         )
+        _ = sampler.OFTI(mySystem)
         assert False, 'test failed'
     except NotImplementedError:
         pass
@@ -174,9 +181,9 @@ def test_not_implemented():
     data_table_with_rvs = orbitize.read_input.read_file(input_file_rvs)
     try:
         _ = system.System(
-            1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
-            hipparcos_IAD='foo'
+            1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26
         )
+        _ = sampler.OFTI(mySystem)
         assert False, 'test failed'
     except NotImplementedError:
         pass

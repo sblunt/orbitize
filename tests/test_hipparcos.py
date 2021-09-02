@@ -37,7 +37,7 @@ def test_hipparcos_api():
     data_table_with_rvs = read_input.read_file(input_file)
     mySys = system.System(
         1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
-        hipparcos_IAD=myHip, sampler_str='MCMC', fit_secondary_mass=True
+        hipparcos_IAD=myHip, fit_secondary_mass=True
     )
 
     # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately
@@ -57,7 +57,7 @@ def test_hipparcos_api():
     # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately for non-Hipparcos system
     noHip_system = system.System(
         num_secondary_bodies, data_table_with_rvs, 1.0, 1.0, hipparcos_IAD=None, 
-        fit_secondary_mass=False, mass_err=0.01, plx_err=0.01, sampler_str='MCMC'
+        fit_secondary_mass=False, mass_err=0.01, plx_err=0.01
     )
 
     assert not noHip_system.fit_secondary_mass
