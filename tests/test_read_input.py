@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import os
 import orbitize
-from orbitize.read_input import read_file, write_orbitize_input, read_formatted_file, read_orbitize_input
+from orbitize.read_input import read_file, write_orbitize_input
 
 
 def _compare_table(input_table):
