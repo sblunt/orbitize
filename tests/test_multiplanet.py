@@ -34,7 +34,10 @@ def test_compute_model():
 
     epochs = np.linspace(0, period_c*365.25, 5) + tau_ref_epoch # the full period of c, MJD
 
-    ra_model, dec_model, vz_model = kepler.calc_orbit(epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], b_params[5], plx, mtot, tau_ref_epoch=tau_ref_epoch)
+    ra_model, dec_model, vz_model = kepler.calc_orbit(
+        epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], 
+        b_params[5], plx, mtot, tau_ref_epoch=tau_ref_epoch, tau_warning=False
+    )
 
     # generate some fake measurements just to feed into system.py to test bookkeeping
     # just make a 1 planet fit for now
@@ -71,6 +74,9 @@ def test_compute_model():
     # just test the first value, because of the face on orbit, we should see it immediately. 
     assert total_diff[0] == pytest.approx(mass_c/m0 * c_params[0] * plx, abs=0.01 * mass_c/m0 * b_params[0] * plx)
 
+    # clean up
+    os.system('rm {}'.format(filename))
+
 
 def test_fit_selfconsist():
     """
@@ -97,10 +103,18 @@ def test_fit_selfconsist():
     epochs = np.linspace(0, period_b*365.25, 20) + tau_ref_epoch # the full period of b, MJD
 
     # comptue Keplerian orbit of b
-    ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], b_params[5], plx, mtot_b, mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch)
+    ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(
+        epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], 
+        b_params[5], plx, mtot_b, mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch,
+        tau_warning=False
+    )
 
     # comptue Keplerian orbit of c
-    ra_model_c, dec_model_c, vz_model_c = kepler.calc_orbit(epochs, c_params[0], c_params[1], c_params[2], c_params[3], c_params[4], c_params[5], plx, mtot_c, tau_ref_epoch=tau_ref_epoch)
+    ra_model_c, dec_model_c, vz_model_c = kepler.calc_orbit(
+        epochs, c_params[0], c_params[1], c_params[2], c_params[3], c_params[4], 
+        c_params[5], plx, mtot_c, tau_ref_epoch=tau_ref_epoch, 
+        tau_warning=False
+    )
 
     # perturb b due to c
     ra_model_b_orig = np.copy(ra_model_b)
@@ -168,6 +182,8 @@ def test_fit_selfconsist():
     assert np.median(res.post[:,sys.param_idx['sma1']]) == pytest.approx(b_params[0], abs=0.01)
     assert np.median(res.post[:,sys.param_idx['sma2']]) == pytest.approx(c_params[0], abs=0.01)
     assert np.median(res.post[:,sys.param_idx['m2']]) == pytest.approx(mass_c, abs=0.5 * mass_c)
+
+    os.system('rm {}'.format(filename))
     
 
 if __name__ == "__main__":

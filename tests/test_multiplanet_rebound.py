@@ -41,7 +41,10 @@ def test_1planet():
 
     epochs = np.linspace(0, 300, 100) + tau_ref_epoch # nearly the full period, MJD
 
-    ra_model, dec_model, vz_model = kepler.calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch)
+    ra_model, dec_model, vz_model = kepler.calc_orbit(
+        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, 
+        tau_ref_epoch=tau_ref_epoch, tau_warning=False
+    )
 
     # generate some fake measurements just to feed into system.py to test bookkeeping
     t = table.Table([epochs, np.ones(epochs.shape, dtype=int), ra_model, np.zeros(ra_model.shape), dec_model, np.zeros(dec_model.shape)], 
@@ -99,6 +102,9 @@ def test_1planet():
     assert np.all(np.abs(diff_ra) < 1e-9)
     assert np.all(np.abs(diff_dec) < 1e-9)
 
+    # clean up
+    os.system('rm {}'.format(filename))
+
 
 def test_2planet_massive():
     """
@@ -122,7 +128,10 @@ def test_2planet_massive():
 
     # doesn't matter that this is right, just needs to be the same size. below doesn't include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(epochs, params[0], params[1], params[2], params[3], params[4], params[5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch)
+    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
+        epochs, params[0], params[1], params[2], params[3], params[4], params[5], 
+        params[-2], params[-1], tau_ref_epoch=tau_ref_epoch, tau_warning=False
+    )
 
     # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping
     t = table.Table([epochs, np.ones(epochs.shape, dtype=int), b_ra_model, np.zeros(b_ra_model.shape), b_dec_model, np.zeros(b_dec_model.shape)], 
@@ -191,6 +200,9 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_ra)/(params[0]) < 1e-3)
     assert np.all(np.abs(diff_dec)/(params[0]) < 1e-3)
 
+    # clean up
+    os.system('rm {}'.format(filename))
+
     ###### NOW TEST THE INNER PLANET #######
 
     # generate some fake measurements of planet c, just to feed into system.py to test bookkeeping
@@ -247,6 +259,8 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_ra)/(params[0]) < 3e-3)
     assert np.all(np.abs(diff_dec)/(params[0]) < 3e-3)
 
+    # clean up
+    os.system('rm {}'.format(filename))
 
     
 def test_2planet_massive_reverse_order():
@@ -268,7 +282,11 @@ def test_2planet_massive_reverse_order():
 
     # doesn't matter that this is right, just needs to be the same size. below doesn't include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(epochs, params[6+0], params[6+1], params[6+2], params[6+3], params[6+4], params[6+5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch)
+    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
+        epochs, params[6+0], params[6+1], params[6+2], params[6+3], params[6+4], 
+        params[6+5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch,
+        tau_warning=False
+    )
 
     # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping
     t = table.Table([epochs, np.ones(epochs.shape, dtype=int) * 2, b_ra_model, np.zeros(b_ra_model.shape), b_dec_model, np.zeros(b_dec_model.shape)], 
@@ -330,6 +348,9 @@ def test_2planet_massive_reverse_order():
     assert np.all(np.abs(diff_ra)/(params[6]) < 1e-3)
     assert np.all(np.abs(diff_dec)/(params[6]) < 1e-3)
 
+    # clean up
+    os.system('rm {}'.format(filename))
+
 
 def test_2planet_nomass():
     """
@@ -350,7 +371,10 @@ def test_2planet_nomass():
 
     # doesn't matter that this is right, just needs to be the same size. below doesn't include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(epochs, params[0], params[1], params[2], params[3], params[4], params[5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch)
+    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
+        epochs, params[0], params[1], params[2], params[3], params[4], params[5], 
+        params[-2], params[-1], tau_ref_epoch=tau_ref_epoch, tau_warning=False
+    )
 
     # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping
     t = table.Table([epochs, np.ones(epochs.shape, dtype=int), b_ra_model, np.zeros(b_ra_model.shape), b_dec_model, np.zeros(b_dec_model.shape)], 
@@ -409,6 +433,8 @@ def test_2planet_nomass():
     assert np.all(np.abs(diff_ra)/(params[0]*params[6*2]) < 1e-9)
     assert np.all(np.abs(diff_dec)/(params[0]*params[6*2]) < 1e-9)
 
+    # clean up
+    os.system('rm {}'.format(filename))
 
 if __name__ == "__main__":
     test_1planet()

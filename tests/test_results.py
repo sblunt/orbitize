@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results
+from orbitize import results, read_input
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -63,7 +63,7 @@ def test_init_and_add_samples(radec_input=False):
     else:
         input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
 
-    data = orbitize.read_input.read_file(input_file)
+    data = read_input.read_file(input_file)
 
     # Create object
     results_obj = results.Results(
@@ -194,7 +194,7 @@ def test_plot_orbits(results_to_test):
     Figure4 = results_to_test.plot_orbits(
         num_orbits_to_plot=1, square_plot=False, show_colorbar=False)
     assert Figure4 is not None
-    Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1, square_plot=False, cbar_param='ecc')
+    Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1, square_plot=False, cbar_param='ecc1')
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
     test_orbit_figs = test_plot_orbits(test_results_radec)
-    test_corner_fig1.savefig('test_corner1.png')
+    test_corner_fig1.savefig('test_corner1.png');
     test_corner_fig2.savefig('test_corner2.png')
     test_corner_fig3.savefig('test_corner3.png')
     test_orbit_figs[0].savefig('test_orbit1.png')

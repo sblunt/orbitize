@@ -1,8 +1,5 @@
 import numpy as np
-import pandas as pd
 
-from orbitize.kepler import calc_orbit
-from orbitize.radvel_utils.compute_sep import compute_sep
 from astroquery.vizier import Vizier
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
@@ -12,26 +9,54 @@ class HipparcosLogProb(object):
     Class to compute the log probability of an orbit with respect to the 
     Hipparcos Intermediate Astrometric Data (IAD). Queries Vizier for 
     all metadata relevant to the IAD, and reads in the IAD themselves from
-    a specified location. Follows Nielsen+ 2020
-    (studying the orbit of beta Pic b).
+    a specified location. Follows Nielsen+ 2020 (studying the orbit of beta 
+    Pic b).
+
+    Fitting the Hipparcos IAD requires fitting for the following five parameters.
+    They are added to the vector of fitting parameters in system.py, but 
+    are described here for completeness. See Nielsen+ 2020 for more detail.
+
+        alpha0: RA offset from the reported Hipparcos position at a particular
+            epoch (usually 1991.25) [mas]
+        delta0: Dec offset from the reported Hipparcos position at a particular
+            epoch (usually 1991.25) [mas]
+        pm_ra: RA proper motion [mas/yr]
+        pm_dec: Dec proper motion [mas/yr]
+        plx: parallax [mas]
 
     Args:
-        iad_file (str): 
-        hip_num (str): the Hipparcos number of your target. Accessible on Simbad.
+        iad_file (str): location of IAD file. For now, assumes the file is 
+            formatted as the DVD version of the IAD.
+        hip_num (str): the Hipparcos ID of your target. Accessible on Simbad.
+        num_secondary_bodies (int): number of companions in the system
+        alphadec0_epoch (float): epoch (in decimal year) that the fitting 
+            parameters alpha0 and delta0 are defined relative to (see above).
+        renormalize_errors (bool): if True, normalize the scan errors to get
+            chisq_red = 1, following Nielsen+ 2020 (eq 10). In general, this 
+            should be False, but it's helpful for testing. Check out 
+            `test_hipparcos._nielsen_iad_refitting_test()` for an example
+            using this renormalization.
+
+    Written: Sarah Blunt, 2021
     """
 
-    def __init__(self, iad_file, hip_num, num_secondary_bodies):
+    def __init__(
+        self, iad_file, hip_num, num_secondary_bodies, alphadec0_epoch=1991.25,
+        renormalize_errors=False
+    ):
 
         self.hip_num = hip_num
         self.num_secondary_bodies = num_secondary_bodies
+        self.alphadec0_epoch = alphadec0_epoch
 
-        # load best-fit astrometric solution from van Leeuwen catalog
+        # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
+        # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
         Vizier.ROW_LIMIT = -1
         hip_cat = Vizier(
             catalog='I/311/hip2', 
             columns=[
                 'RArad', 'e_RArad', 'DErad', 'e_DErad', 'Plx', 'e_Plx', 'pmRA', 
-                'e_pmRA', 'pmDE', 'e_pmDE', 'F2'
+                'e_pmRA', 'pmDE', 'e_pmDE', 'F2', 'Sn'
             ]
         ).query_constraints(HIP=self.hip_num)[0]
 
@@ -46,6 +71,17 @@ class HipparcosLogProb(object):
         self.alpha0_err = hip_cat['e_RArad'][0] # [mas]
         self.delta0_err = hip_cat['e_DErad'][0] # [mas]
 
+        solution_type = hip_cat['Sn'][0]
+
+        if solution_type != 5:
+            raise ValueError(
+                """
+                Currently, we only handle stars with 5-parameter astrometric 
+                solutions from Hipparcos. Let us know if you'd like us to add 
+                functionality for stars with >5 parameter solutions.
+                """
+            )
+
         # read in IAD
         iad = np.transpose(np.loadtxt(iad_file, skiprows=1))
 
@@ -57,6 +93,18 @@ class HipparcosLogProb(object):
         self.sin_phi = iad[4]
         self.R = iad[5] # abscissa residual [mas]
         self.eps = iad[6] # error on abscissa residual [mas]
+
+        if renormalize_errors:
+            D = len(epochs) - 6
+            G = hip_cat['F2'][0] 
+
+            f = (
+                G * np.sqrt(2 / (9 * D)) + 
+                1 - 
+                (2 / (9 * D))
+            )**(3/2)
+
+            self.eps *= f
 
         # compute Earth XYZ position in barycentric coordinates
         bary_pos, _ = get_body_barycentric_posvel('earth', epochs)
@@ -84,20 +132,32 @@ class HipparcosLogProb(object):
         self.alpha_abs_st = self.R * self.cos_phi + changein_alpha_st
         self.delta_abs = self.R * self.sin_phi + changein_delta
 
-    def compute_lnlike(self, raoff_model, deoff_model, samples, negative=False):
+    def compute_lnlike(
+        self, raoff_model, deoff_model, samples
+    ):
         """
-        Computes the log probability of an orbit model with respect to the Hipparcos 
-        IAD. 
+        Computes the log likelihood of an orbit model with respect to the 
+        Hipparcos IAD. This is added to the likelihoods calculated with 
+        respect to other data types in ``sampler._logl()``. 
 
-        raoff/deoff: ra/deoffsets for star, computed for an arbitrary orbit model
-        astr_samples: pm_ra, pm_dec, alpha_H0, delta_H0, plx (fitted astrometric params)
+        Args:
+            raoff_model (np.array of float): M-dimensional array of primary RA
+                offsets from the barycenter incurred from orbital motion of 
+                companions (i.e. not from parallactic motion), where M is the 
+                number of epochs of IAD scan data.
+            deoff_model (np.array of float): M-dimensional array of primary RA
+                offsets from the barycenter incurred from orbital motion of 
+                companions (i.e. not from parallactic motion), where M is the 
+                number of epochs of IAD scan data.
+            samples (np.array of float): R-dimensional array of fitting 
+                parameters, where R is the number of parameters being fit. Must 
+                be in the same order documented in ``System``. 
 
         Returns:
-            np.array of length M, where M is the number of input orbits (same as def'n
-                in description of `samples` arg above) representing the log probability
-                for each orbit with respect to the Hipparcos IAD
+            np.array of float: array of length M, where M is the number of input 
+                orbits, representing the log likelihood of each orbit with 
+                respect to the Hipparcos IAD.
         """
-        n_params = len(samples)
 
         # variables for each of the astrometric fitting parameters
         plx = samples[6 * self.num_secondary_bodies]
@@ -118,16 +178,16 @@ class HipparcosLogProb(object):
         # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
         for i in np.arange(n_epochs):
 
-            # this is the expected offset from the Hipparcos photocenter in 1991.25
+            # this is the expected offset from the photocenter in alphadec0_epoch (typically 1991.25 for Hipparcos)
             alpha_C_st = alpha_H0 + plx * (
                 self.X[i] * np.sin(np.radians(self.alpha0)) - 
                 self.Y[i] * np.cos(np.radians(self.alpha0))
-            ) + (self.epochs[i] - 1991.25) * pm_ra
+            ) + (self.epochs[i] - self.alphadec0_epoch) * pm_ra
             delta_C = delta_H0 + plx * (
                 self.X[i] * np.cos(np.radians(self.alpha0)) * np.sin(np.radians(self.delta0)) + 
                 self.Y[i] * np.sin(np.radians(self.alpha0)) * np.sin(np.radians(self.delta0)) -
                 self.Z[i] * np.cos(np.radians(self.delta0))
-            ) + (self.epochs[i] - 1991.25) * pm_dec
+            ) + (self.epochs[i] - self.alphadec0_epoch) * pm_dec
 
             # add in pre-computed secondary perturbations
             alpha_C_st += raoff_model[i]
