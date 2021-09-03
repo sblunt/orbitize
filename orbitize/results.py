@@ -839,7 +839,7 @@ class Results(object):
                 
                 # calculate the predicted rv trend using the best orbit 
                 _, _, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :], 
+                    epochs_seppa[0, :], 
                     best_post[self.param_idx['sma{}'.format(object_to_plot)]], 
                     best_post[self.param_idx['ecc{}'.format(object_to_plot)]], 
                     best_post[self.param_idx['inc{}'.format(object_to_plot)]], 
