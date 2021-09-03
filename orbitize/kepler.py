@@ -14,6 +14,43 @@ except ImportError:
 equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
+try:
+
+    import pyopencl as cl
+    import struct
+    
+
+    ctx = cl.create_some_context()
+    queue = cl.CommandQueue(ctx)
+    mf = cl.mem_flags
+
+
+    f = open("orbitize/kepler.cl", 'r')
+    fstr = "".join(f.readlines())
+    prg = cl.Program(ctx, fstr).build()
+
+
+    tolerance = 1e-9
+    max_iter = 100
+    print("copy parameters to gpu")
+    params = struct.pack('dd', tolerance, max_iter)
+    print("prams: {}".format(params))    
+    #print("param parameters", len(params), struct.calcsize('dd'))
+    print("actual transfer") 
+    params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
+
+    print("allocating space") 
+    manom_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
+    print("manom buf")
+    ecc_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
+    print("ecc buf") 
+    eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, int(4e6)) 
+    clext = True
+except Exception as e:
+    print("Warning: KEPLER: Unable to import openCL Kepler solver")
+    print(e)
+    clext = False
+
 def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
     Gets the mean anomlay
@@ -44,42 +81,11 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-try:
-    import pyopencl as cl
-    import struct
-
-    ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
-    mf = cl.mem_flags
-
-    f = open("/home/devin/Documents/orbitize/orbitize/kepler.cl", 'r')
-    fstr = "".join(f.readlines())
-    prg = cl.Program(ctx, fstr).build()
-
-
-    tolerance = 1e-9
-    max_iter = 100
-    print("copy parameters to gpu")
-    params = struct.pack('dd', tolerance, max_iter)
-    print("prams: {}".format(params))    
-    #print("param parameters", len(params), struct.calcsize('dd'))
-    print("actuall transfer") 
-    params_buf = cl.Buffer(ctx, mf.READ_ONLY, len(params))
-
-    print("allocating space") 
-    manom_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
-    print("manom buf")
-    ecc_buf = cl.Buffer(ctx, mf.READ_ONLY, size = int(4e6))
-    print("ecc buf") 
-    eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, int(4e6)) 
-    clext = True
-except Exception as e:
-    print("Warning: KEPLER: Unable to import openCL Kepler solver")
-    print(e)
-    clext = False
-
-
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, tau_warning=True):
+def calc_orbit(
+    epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, 
+    tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, tau_warning=True,
+    opencl=False
+):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -106,6 +112,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         tau_warning (bool, optional, depricating): temporary argument to warn users about tau_ref_epoch default value change. 
             Users that are calling this function themsleves should receive a warning since default is True. 
             To be removed when tau_ref_epoch change is fully propogated to users. Users can turn it off to stop getting the warning.
+        opencl: TODO: document
 
     Return:
         3-tuple:
@@ -140,7 +147,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_opencl=opencl)
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
     tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
