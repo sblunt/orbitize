@@ -46,11 +46,27 @@ class NearestNDInterpPrior(Prior):
         self.correlated_input_samples = None
         self.num_priorsFromArr = interp_fct.values.size
         self.ind_draw = None
+
     def increment_param_num(self):
+        """
+        Increment the index to evaluate the appropriate parameter.
+        """
         self.param_num += 1
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
+
     def draw_samples(self, num_samples):
+        """
+        Draw positive samples from the ND interpolator.
+        Negative samples will not be returned.
+
+        Args:
+            num_samples (float): the number of samples to generate.
+
+        Returns:
+            numpy array of float: samples drawn from the ND interpolator 
+            distribution. Array has length `num_samples`.
+        """
         if self.param_num == 0:
             ind_draw = np.random.randint(self.num_priorsFromArr,size=num_samples)
             self.ind_draw = ind_draw
@@ -61,7 +77,21 @@ class NearestNDInterpPrior(Prior):
             return_me = self.interp_fct.points[self.ind_draw,self.param_num]
             self.increment_param_num()
             return return_me
+
     def compute_lnprob(self, element_array):
+        """
+        Compute log(probability) of an array of numbers wrt a the defined ND interpolator.
+        Negative numbers return a probability of -inf.
+
+        Args:
+            element_array (float or np.array of float): array of numbers. We want the
+                probability of drawing each of these from the ND interpolator.
+
+        Returns:
+            numpy array of float: array of log(probability) values,
+            corresponding to the probability of drawing each of the numbers
+            in the input `element_array`.
+        """
         if self.param_num == 0:
             self.correlated_input_samples = element_array
         else:
@@ -100,15 +130,30 @@ class KDEPrior(Prior):
             self.log_scale_arr = log_scale_arr
         self.correlated_drawn_samples = None 
         self.correlated_input_samples = None
+
     def __repr__(self):
         return "Gaussian KDE"
 
     def increment_param_num(self):
+        """
+        Increment the index to evaluate the appropriate parameter.
+        """
         self.param_num += 1
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
 
     def draw_samples(self, num_samples):
+        """
+        Draw positive samples from the KDE.
+        Negative samples will not be returned.
+
+        Args:
+            num_samples (float): the number of samples to generate.
+
+        Returns:
+            numpy array of float: samples drawn from the KDE 
+            distribution. Array has length `num_samples`.
+        """
         if self.param_num == 0:
             self.correlated_drawn_samples = self.gaussian_kde.resample(num_samples)
             self.increment_param_num()
@@ -117,7 +162,21 @@ class KDEPrior(Prior):
             return_me = self.correlated_drawn_samples[self.param_num]
             self.increment_param_num()
             return return_me
+            
     def compute_lnprob(self, element_array):
+        """
+        Compute log(probability) of an array of numbers wrt a the defined KDE.
+        Negative numbers return a probability of -inf.
+
+        Args:
+            element_array (float or np.array of float): array of numbers. We want the
+                probability of drawing each of these from the KDE.
+
+        Returns:
+            numpy array of float: array of log(probability) values,
+            corresponding to the probability of drawing each of the numbers
+            in the input `element_array`.
+        """
         if element_array<self.bounds[self.param_num][0] or element_array>self.bounds[self.param_num][1]:
             if self.log_scale_arr[self.param_num]:
                 element_array_lin = element_array
