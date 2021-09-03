@@ -13,7 +13,7 @@ import os
 
 # print ('I am being imported by', frames)
 
-__version__ = '1.15.4'
+__version__ = '1.16.1'
 
 # set Python env variable to keep track of example data dir
 orbitize_dir = os.path.dirname(__file__)

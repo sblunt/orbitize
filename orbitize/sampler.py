@@ -49,7 +49,7 @@ class Sampler(abc.ABC):
     def run_sampler(self, total_orbits, use_c = None, use_gpu = None):
         pass
 
-    def _logl(self, params, hipparcos=False, use_c, use_gpu):
+    def _logl(self, params, use_c=True, use_gpu=False, hipparcos=False):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -93,8 +93,7 @@ class Sampler(abc.ABC):
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
         
-
-        if self.system.hipparcos_number is not None:
+        if self.system.hipparcos_IAD is not None:
 
             # compute Ra/Dec predictions at the Hipparcos IAD epochs
             raoff_model, deoff_model, _ = self.system.compute_all_orbits(
@@ -127,7 +126,20 @@ class OFTI(Sampler,):
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c = True, use_gpu = False):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c = use_c, use_gpu = use_gpu)
-      
+
+        if (
+            (self.system.hipparcos_IAD is not None) or 
+            (len(self.system.rv[0] > 0))
+        ):
+            raise NotImplementedError(
+                """
+                You can only use OFTI with relative astrometry measurements 
+                (no Hipparcos IAD or RVs... yet). Use MCMC, you overachiever, and
+                settle in for a nice long orbit-fit. (But seriously, if you want 
+                this functionality, let us know!)
+                """
+            )
+
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -198,10 +210,11 @@ class OFTI(Sampler,):
             data=self.system.data_table,
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
 
-    def prepare_samples(self, num_samples, use_c = None, use_gpu = None):
+    def prepare_samples(self, num_samples, use_c = True, use_gpu = False):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
@@ -215,13 +228,10 @@ class OFTI(Sampler,):
             num_samples. This should be passed into ``OFTI.reject()``
         """
 
-        # TODO: modify to work for multi-planet systems
-
         if use_c is None:
             use_c = self.use_c
         if use_gpu is None:
             use_gpu = self.use_gpu
-
 
         # generate sample orbits
         samples = np.empty([len(self.priors), num_samples])
@@ -231,30 +241,27 @@ class OFTI(Sampler,):
             else: # param is fixed & has no prior
                 samples[i, :] = self.priors[i] * np.ones(num_samples)
 
-        for body_num in np.arange(self.system.num_secondary_bodies):
-            # sma, ecc, inc, argp, lan, tau, plx, mtot = [s for s in samples]
-            ref_ind = 6 * body_num
-            sma = samples[ref_ind,:]
-            ecc = samples[ref_ind + 1,:]
-            inc = samples[ref_ind + 2,:]
-            argp = samples[ref_ind + 3,:]
-            lan = samples[ref_ind + 4,:]
-            tau = samples[ref_ind + 5,:]
-            plx = samples[6 * self.system.num_secondary_bodies,:]
+        # Make Converison to Standard Basis:
+        samples = self.system.basis.to_standard_basis(samples)
+        
+        for body_num in np.arange(self.system.num_secondary_bodies) + 1:
+
+            sma = samples[self.system.basis.param_idx['sma{}'.format(body_num)],:]
+            ecc = samples[self.system.basis.param_idx['ecc{}'.format(body_num)],:]
+            inc = samples[self.system.basis.param_idx['inc{}'.format(body_num)],:]
+            argp = samples[self.system.basis.param_idx['aop{}'.format(body_num)],:]
+            lan = samples[self.system.basis.param_idx['pan{}'.format(body_num)],:]
+            tau = samples[self.system.basis.param_idx['tau{}'.format(body_num)],:]
+            plx = samples[self.system.basis.param_idx['plx'],:]
             if self.system.fit_secondary_mass:
-                m0 = samples[-1,:]
-                m1 = samples[-1-self.system.num_secondary_bodies+body_num,:]
+                m0 = samples[self.system.basis.param_idx['m0'],:]
+                m1 = samples[self.system.basis.param_idx['m{}'.format(body_num)],:]
                 mtot = m0 + m1
             else:
-                mtot = samples[-1,:]
+                mtot = samples[self.system.basis.param_idx['mtot'],:]
                 m1 = None
             
-            if "gamma" in self.system.labels:
-                gamma = samples[6 * self.system.num_secondary_bodies + 1, :]  # Rob: added gamma and sigma parameters
-            if "sigma" in self.system.labels:
-                sigma = samples[6 * self.system.num_secondary_bodies + 2, :]
-
-            min_epoch = self.epoch_idx[body_num]
+            min_epoch = self.epoch_idx[body_num - 1]
             if min_epoch is None:
                 # Don't need to rotate and scale if no astrometric measurments for this body. Brute force rejection sampling
                 continue
@@ -266,7 +273,7 @@ class OFTI(Sampler,):
             meananno = self.epochs[min_epoch]/period_prescale - tau
 
             # compute sep/PA of generated orbits
-            ra, dec, vc = orbitize.kepler.calc_orbit(
+            ra, dec, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch], sma, ecc, inc, argp, lan, tau, plx, mtot, 
                 tau_ref_epoch=0, mass_for_Kamp=m1, tau_warning=False, use_c = use_c, use_gpu = use_gpu
             )
@@ -302,10 +309,10 @@ class OFTI(Sampler,):
             tau = (self.epochs[min_epoch]/period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
-            samples[ref_ind,:] = sma
-            samples[ref_ind + 3,:] = argp
-            samples[ref_ind + 4,:] = lan
-            samples[ref_ind + 5,:] = tau
+            samples[self.system.basis.param_idx['sma{}'.format(body_num)],:] = sma
+            samples[self.system.basis.param_idx['aop{}'.format(body_num)],:] = argp
+            samples[self.system.basis.param_idx['pan{}'.format(body_num)],:] = lan
+            samples[self.system.basis.param_idx['tau{}'.format(body_num)],:] = tau
 
         return samples
 
@@ -318,7 +325,7 @@ class OFTI(Sampler,):
                 has size ``num_samples``. This should be the output of \
                 ``prepare_samples()``.
 
-        Return:
+        Return:spectrum_index = trueorder - config['ordmin']
             tuple:
 
                 np.array: a subset of ``samples`` that are accepted based on the
@@ -344,6 +351,29 @@ class OFTI(Sampler,):
             corrs = None
         lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
 
+        # account for user-set priors on PAN that were destroyed by scale-and-rotate
+        for body_num in np.arange(self.system.num_secondary_bodies) + 1:
+
+            pan_idx = self.system.basis.param_idx['pan{}'.format(body_num)]
+
+            pan_prior = self.system.sys_priors[pan_idx]
+            if pan_prior is not orbitize.priors.UniformPrior:
+
+                # apply PAN prior
+                lnp_scaled += pan_prior.compute_lnprob(samples[pan_idx,:])
+
+            # prior is uniform but with different bounds that OFTI expects
+            elif (pan_prior.minval != 0) or (
+                (pan_prior.maxval != np.pi) or (pan_prior.maxval != 2*np.pi)
+            ):
+                
+                samples_outside_pan_prior = np.where(
+                    (samples[pan_idx,:] < pan_prior.minval) or 
+                    (samples[pan_idx,:] > pan_prior.maxval)
+                )[0]
+
+                lnp_scaled[samples_outside_pan_prior] = -np.inf
+
         # reject orbits with probability less than a uniform random number
         random_samples = np.log(np.random.random(len(lnp)))
         saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
@@ -352,31 +382,24 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
 
-    def _sampler_process(self, output, total_orbits, num_cores, use_c, use_gpu, num_samples=10000, Value=0, lock=None):
+    def _sampler_process(self, output, total_orbits, use_c, use_gpu, num_samples=10000, Value=0, lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
         Meant to be called by run_sampler.
 
         Args:
             output (manager.Queue): manager.Queue object to store results
-
             total_orbits (int): total number of accepted orbits desired by user
-
-            num_cores(int): the number of cores that _run_sampler_base is being
-                            run in parallel on.
-
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on
-
             Value (mp.Value(int)): global counter for the orbits generated
-
             lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
         Returns:
-            output_orbits (np.array): array of accepted orbits,
-                                      size: total_orbits
-
-            output_lnlikes (np.array): array of log probabilities,
+            tuple of:
+                output_orbits (np.array): array of accepted orbits,
+                                        size: total_orbits
+                output_lnlikes (np.array): array of log probabilities,
                                        size: total_orbits
 
         """
@@ -410,7 +433,7 @@ class OFTI(Sampler,):
         output.put((np.array(output_orbits), output_lnlikes))
         return (np.array(output_orbits), output_lnlikes)
 
-    def run_sampler(self, total_orbits, num_samples=10000, num_cores=None, use_c=None, use_gpu=None):
+    def run_sampler(self, total_orbits, num_samples=10000, num_cores=None, use_c=True, use_gpu=False):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
         Args:
@@ -454,8 +477,8 @@ class OFTI(Sampler,):
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output,nrun_per_core,num_cores,use_c,use_gpu,num_samples,
-                        orbits_saved,lock)
+                    args=(output, nrun_per_core, use_c, use_gpu, num_samples,
+                          orbits_saved, lock)
                 ) for x in range(num_cores)
             ]
 
@@ -570,7 +593,8 @@ class MCMC(Sampler):
             data=self.system.data_table,
             num_secondary_bodies=system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs
         )
         
         if self.num_temps > 1:
@@ -662,7 +686,7 @@ class MCMC(Sampler):
 
         return sampled_params
 
-    def _logl(self, params, use_c, use_gpu, include_logp=False):
+    def _logl(self, params, use_c=True, use_gpu=False, include_logp=False):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -742,8 +766,13 @@ class MCMC(Sampler):
                 while not all_valid:
                     total_invalids = 0
                     for temp in range(self.num_temps):
-                        to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[temp,:,:])
-                        invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+                        to_stand = self.system.basis.to_standard_basis(self.curr_pos[temp,:,:].T.copy()).T
+
+                        # Get invalids by checking ecc values for each companion
+                        indices = [((i * 6) + 1) for i in range(self.system.num_secondary_bodies)]
+                        invalids = np.where((to_stand[:, indices] < 0.) | (to_stand[:, indices] >= 1.))[0]
+
+                        # Redraw samples for the invalid ones
                         if len(invalids) > 0:
                             newpos = []
                             for prior in self.priors:
@@ -758,8 +787,13 @@ class MCMC(Sampler):
                 all_valid = False
                 while not all_valid:
                     total_invalids = 0
-                    to_stand = orbitize.conversions.xyz_to_standard(self.system.best_epochs[0], self.curr_pos[:,:])
-                    invalids = np.where((to_stand[:, 1] < 0.) | (to_stand[:, 1] >=1.))[0]
+                    to_stand = self.system.basis.to_standard_basis(self.curr_pos[:,:].T.copy()).T
+
+                    # Get invalids by checking ecc values for each companion
+                    indices = [((i * 6) + 1) for i in range(self.system.num_secondary_bodies)]
+                    invalids = np.where((to_stand[:, indices] < 0.) | (to_stand[:, indices] >= 1.))[0]                    
+
+                    # Redraw saples for the invalid ones
                     if len(invalids) > 0:
                         newpos = []
                         for prior in self.priors:
@@ -772,7 +806,7 @@ class MCMC(Sampler):
                         print('All walker positions validated.')
 
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False, output_filename=None, periodic_save_freq=None):
+    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False, output_filename=None, periodic_save_freq=None, use_c=True, use_gpu=False):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -803,21 +837,6 @@ class MCMC(Sampler):
         if use_gpu is None:
             use_gpu = self.use_gpu
 
-        if self.use_pt:
-            sampler = ptemcee.Sampler(
-                self.num_walkers, self.num_params, self._logl, orbitize.priors.all_lnpriors,
-                ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
-            )
-        else:
-            if self.num_threads != 1:
-                print('Setting num_threads=1. If you want parallel processing for emcee implemented in orbitize, let us know.')
-                self.num_threads = 1
-
-            sampler = emcee.EnsembleSampler(
-                self.num_walkers, self.num_params, self._logl,
-                kwargs={'include_logp': True}
-            )
-                
         if periodic_save_freq is not None and output_filename is None:
             raise ValueError("output_filename must be defined for periodic saving of the chains")
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
@@ -842,7 +861,7 @@ class MCMC(Sampler):
                     self.num_walkers, self.num_params, self._logl, pool=pool,
                     kwargs={'include_logp': True}
                 )
-                    
+
             print("Starting Burn in")
             for i, state in enumerate(sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)):
                 if self.use_pt:
@@ -968,10 +987,10 @@ class MCMC(Sampler):
         else:  # build list from user input strings
             params_plot_list = []
             for i in param_list:
-                if i in self.system.param_idx:
-                    params_plot_list.append(self.system.param_idx[i])
+                if i in self.system.basis.param_idx:
+                    params_plot_list.append(self.system.basis.param_idx[i])
                 else:
-                    raise Exception('Invalid param name: {}. See system.param_idx.'.format(i))
+                    raise Exception('Invalid param name: {}. See system.basis.param_idx.'.format(i))
             params_to_plot = np.array(params_plot_list)
 
         # Loop through each parameter and make plot
@@ -1042,8 +1061,53 @@ class MCMC(Sampler):
             labels=self.system.labels,
             num_secondary_bodies=self.system.num_secondary_bodies,
             fitting_basis=self.system.fitting_basis,
-            xyz_epochs= self.system.best_epochs
+            basis=self.system.basis,
+            extra_basis_args=self.system.extra_basis_kwargs,
+            data = self.results.data
         )
 
         # Print a confirmation
         print('Chains successfully chopped. Results object updated.')
+
+    def check_prior_support(self,):
+        """
+        Review the positions of all MCMC walkers, to verify that they are supported by the prior space.
+        This function will raise a descriptive ValueError if any positions lie outside prior support.
+        Otherwise, it will return nothing.
+        Args:
+            None.
+        Returns:
+            None.
+        (written): Adam Smith, 2021
+        """
+
+        # Flatten the walker/temperature positions for ease of manipulation.
+        all_positions = self.curr_pos.reshape(self.num_walkers*self.num_temps,self.num_params)
+        
+        # Placeholder list to track any bad parameters that come up.
+        bad_parameters = []
+
+        # If there are no covarient priors, loop on each variable to locate any out-of-place parameters. (this is why we transpose the walkers)
+        if not np.any([prior.is_correlated for prior in self.priors]):
+            for i, x in enumerate(all_positions.T):
+                # Any issues with this parameter?
+                lnprob = self.priors[i].compute_lnprob(np.array(x))
+                supported = np.isfinite(lnprob).all() == True
+
+                if supported == False:
+                    # Problem detected. Take note and continue the loop - we want to catch all the problem parameters.
+                    bad_parameters.append(str(i))
+
+            # Throw our ValueError if necessary,
+            if len(bad_parameters) > 0:
+                raise ValueError("Attempting to start with walkers outside of prior support: check parameter(s) "+', '.join(bad_parameters))
+
+        # We're not done yet, however. There may be errors in covariant priors; run a check for that.
+        else:
+            for y in all_positions:
+                lnprob = orbitize.priors.all_lnpriors(y,self.priors)
+                if not np.isfinite(lnprob).all():
+                    raise ValueError("Attempting to start with walkers outside of prior support: covariant prior failure.")
+        
+        # otherwise exit the function and continue.
+        return

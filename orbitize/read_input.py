@@ -64,7 +64,7 @@ def read_file(filename):
         contain nan.
 
     Args:
-        filename (str): Input file name
+        filename (str or astropy.table.Table): Input filename or the actual table object
 
     Returns:
         astropy.Table: Table containing orbitize-readable input for given
@@ -91,7 +91,11 @@ def read_file(filename):
 
     # read file
     try:
-        input_table = read(filename)
+        # load from file, unless a table is passed in
+        if not isinstance(filename, Table):
+            input_table = read(filename)
+        else:
+            input_table = filename
 
         # convert to masked table
         if input_table.has_masked_columns:
