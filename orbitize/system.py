@@ -229,7 +229,7 @@ class System(object):
         ]
         self.mpl_idx = [
             self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
-                i.startswith('m') and int(i[1:]) > 0
+                i.startswith('m') and i[1:] not in ['tot', '0']
             )
         ]
 
@@ -306,7 +306,7 @@ class System(object):
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mtot = params_arr[self.basis.param_idx['mtot']]
             
-            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl, output_star = True)
+            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl, output_star=True)
 
         else:
                 for body_num in np.arange(self.num_secondary_bodies)+1:
@@ -357,6 +357,11 @@ class System(object):
                         decoff = np.array([decoff])
                         vz_i = np.array([vz_i])
 
+                    # add Keplerian ra/deoff for this body to storage arrays
+                    ra_kepler[:, body_num, :] = np.reshape(raoff, (n_epochs, n_orbits)) 
+                    dec_kepler[:, body_num, :] = np.reshape(decoff, (n_epochs, n_orbits)) 
+                    vz[:, body_num, :] = np.reshape(vz_i, (n_epochs, n_orbits)) 
+
                     # vz_i is the ith companion radial velocity
                     if self.fit_secondary_mass:
                         vz0 = vz_i * -(mass / m0)  # calculating stellar velocity due to ith companion
@@ -372,7 +377,6 @@ class System(object):
 
                         if body_num > 0:
                             # for companions, only perturb companion orbits at larger SMAs than this one. 
-                            startindex = 6 * (body_num - 1) # subtract 1 because object 1 is 0th companion
                             sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
                             all_smas = params_arr[self.sma_indx]
                             outside_orbit = np.where(all_smas > sma)[0]
@@ -393,17 +397,19 @@ class System(object):
 
                             ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
                             # this computes the perturbation on the other body due to the current body
-                            ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
-                            dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
-                            
+
                             # star is perturbed in opposite direction
                             if other_body_num == 0:
-                                ra_perturb[:, other_body_num, :] *= -1
-                                dec_perturb[:, other_body_num, :] *= -1
+                                ra_perturb[:, other_body_num, :] -= (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
+                                dec_perturb[:, other_body_num, :] -= (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+                            
+                            else:
+                                ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
+                                dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
 
                 raoff = ra_kepler + ra_perturb
                 deoff = dec_kepler + dec_perturb
-                vz[:, 0, :] = total_rv0
+                vz[:, 0, :] = np.reshape(total_rv0, (n_epochs, n_orbits))
 
         if self.fitting_basis == 'XYZ':
             # Find and filter out unbound orbits

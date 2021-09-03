@@ -2,7 +2,7 @@ import numpy as np
 import orbitize.basis as basis
 import rebound
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch, m_pl=None, output_star=False):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=58849, m_pl=None, output_star=False):
     """
     Solves for position for a set of input orbital elements using rebound.
     Args:

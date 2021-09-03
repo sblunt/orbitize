@@ -59,10 +59,10 @@ inc4 = inc[3]
 aop4 = aop[3]
 pan4 = pan[3]
 tau4 = tau[3]
-m1 = mass_in_msun
-m2 = mass_in_msun
-m3 = mass_in_msun
-m4 = massB
+m1 = m_pl[0]
+m2 = m_pl[1]
+m3 = m_pl[2]
+m4 = m_pl[3]
 m_st = mtot-sum(m_pl)
 
 hr8799_sys = System(
@@ -87,8 +87,8 @@ def calc_diff():
     import matplotlib.pyplot as plt
     from astropy.time import Time
     
-    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=True)
-    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=False)
+    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=True)
+    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=False)
     #ora = ra
     #odec = dec
 
@@ -138,12 +138,12 @@ def calc_diff():
     plt.ylabel('milliarcseconds')
     ax1.legend()
     ax2.legend()
-    plt.show()
+    plt.savefig('foo.png')
 
 def plot_orbit():
 
-    kra, kde, kvz = kepler.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch)
-    rra, rdec, rvz = nbody.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch)
+    kra, kde, kvz = kepler.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch=tau_ref_epoch)
+    rra, rdec, rvz = nbody.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch=tau_ref_epoch)
     
     plt.plot(kra[:,1:5], kde[:,1:5], 'indigo', label = 'Orbitize approx.')
     plt.plot(kra[-1,1:5], kde[-1,1:5],'o')
@@ -153,12 +153,12 @@ def plot_orbit():
         
     plt.plot(0, 0, '*')
     plt.legend()
-    plt.show()
+    plt.savefig('foo.png')
 
 def plot_orbit2():
 
-    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=True)
-    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=False)
+    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=True)
+    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=False)
     
     plt.plot(kra[:,0], kde[:,0], 'indigo', label = 'Orbitize approx.')
     plt.plot(kra[-1,0], kde[-1,0],'o')
@@ -168,6 +168,7 @@ def plot_orbit2():
         
     plt.plot(0, 0, '*')
     plt.legend()
-    plt.show()
+    plt.savefig('foo.png')
 
 calc_diff()
+# plot_orbit()
