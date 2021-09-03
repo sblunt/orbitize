@@ -14,6 +14,35 @@ except ImportError:
 equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
+def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
+    """
+    Gets the mean anomlay
+    
+    Args:
+        date (float or np.array): MJD
+        sma (float): semi major axis (AU)
+        mtot (float): total mass (M_sun)
+        tau (float): epoch of periastron, in units of the orbital period
+        tau_ref_epoch (float): reference epoch for tau
+        
+    Returns:
+        mean_anom (float or np.array): mean anomaly on that date [0, 2pi)
+    """
+
+    period = np.sqrt(
+        4 * np.pi**2.0 * (sma * u.AU)**3 /
+        (consts.G * (mtot * u.Msun))
+    )
+    period = period.to(u.day).value
+
+    frac_date = (date - tau_ref_epoch)/period
+    frac_date %= 1
+
+    mean_anom = (frac_date - tau) * 2 * np.pi
+    mean_anom %= 2 * np.pi
+
+    return mean_anom
+
 
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
     """
@@ -68,13 +97,8 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         epochs = np.array([epochs])
     ecc_arr = np.tile(ecc, (n_dates, 1))
 
-    # Compute period (from Kepler's third law) and mean motion
-    period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
-    period = period.to(u.day).value
-    mean_motion = 2*np.pi/(period)  # in rad/day
-
     # # compute mean anomaly (size: n_orbs x n_dates)
-    manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
+    manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
     # compute the true anomalies (size: n_orbs x n_dates)

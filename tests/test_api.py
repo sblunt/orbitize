@@ -28,6 +28,7 @@ def test_compute_model():
 
     params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 10])
     model, jitter = testSystem_parsing.compute_model(params_arr)
+
     assert model.shape == (4, 2)
 
 
@@ -126,4 +127,7 @@ def test_radec2seppa():
 
 
 if __name__ == "__main__":
+    test_compute_model()
+    test_systeminit()
     test_custom_likelihood()
+    test_radec2seppa()
