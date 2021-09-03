@@ -15,7 +15,7 @@ equation solver. Falling back to the slower NumPy implementation.")
     cext = False
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, tau_warning=True):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -56,11 +56,6 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    if tau_warning:
-        warnings.warn("tau_ref_epoch default for kepler.calc_orbit is 58849 now instead of 0 MJD. "
-                      "Please check that this does not break your code. You can turn off this warning by setting "
-                      "tau_warning=False when you call kepler.calc_orbit.")
-
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
@@ -221,7 +216,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], use_c) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], cext) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
 

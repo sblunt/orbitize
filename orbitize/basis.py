@@ -3,19 +3,6 @@ import astropy.units as u
 
 import warnings # remove when functions are depreciated
 
-def tau_to_t0(tau, ref_epoch, period, after_date=None):
-    """
-    DEPRECATING!! Repalced by tau_to_tp
-    """
-    warnings.warn('DEPRECATION: tau_to_t0 is being deprecated in the next orbitize! release. Please use tau_to_tp instead!', FutureWarning)
-    return tau_to_tp(tau, ref_epoch, period, after_date=after_date)
-
-def t0_to_tau(tp, ref_epoch, period):
-    """
-    DEPRECATING!! Repalced by tp_to_tau
-    """
-    warnings.warn('DEPRECATION: t0_to_tau is being deprecated in the next orbitize! release. Please use t0_to_tau instead!', FutureWarning)
-    return tp_to_tau(tp, ref_epoch, period)
 
 def tau_to_tp(tau, ref_epoch, period, after_date=None):
     """
