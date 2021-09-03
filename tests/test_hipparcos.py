@@ -72,7 +72,7 @@ def test_iad_refitting():
     """
 
     post, myHipLogProb = _nielsen_iad_refitting_test(
-        iad_loc=DATADIR, burn_steps=10, mcmc_steps=100, saveplot=None
+        iad_loc=DATADIR, burn_steps=10, mcmc_steps=200, saveplot=None
     )
 
     # check that we get reasonable values for the posteriors of the refit IAD

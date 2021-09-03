@@ -364,8 +364,8 @@ class System(object):
 
                     # vz_i is the ith companion radial velocity
                     if self.fit_secondary_mass:
-                        vz0 = vz_i * -(mass / m0)  # calculating stellar velocity due to ith companion
-                        total_rv0 = total_rv0 + vz0  # adding stellar velocity and gamma
+                        vz0 = np.reshape(vz_i * -(mass / m0), (n_epochs, n_orbits)) # calculating stellar velocity due to ith companion
+                        vz[:, 0, :] += vz0  # adding stellar velocity and gamma
 
                 # if we are fitting for the mass of the planets, then they will perturb the star
                 # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
@@ -409,7 +409,10 @@ class System(object):
 
                 raoff = ra_kepler + ra_perturb
                 deoff = dec_kepler + dec_perturb
-                vz[:, 0, :] = np.reshape(total_rv0, (n_epochs, n_orbits))
+                # if n_orbits == 1:
+                #     import pdb; pdb.set_trace()
+                #     total_rv0 = np.reshape(total_rv0, (n_epochs, n_orbits))
+                # vz[:, 0, :] = total_rv0
 
         if self.fitting_basis == 'XYZ':
             # Find and filter out unbound orbits
