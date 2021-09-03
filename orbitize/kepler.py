@@ -44,7 +44,7 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, **other_keys):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -85,6 +85,9 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     Written: Jason Wang, Henry Ngo, 2018
     """
+    if "tau_warning" in other_keys:
+        print("tau_warning is being depreciated as it is no longer doing anything. Please remove from your calc_orbit function calls.")
+        
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
