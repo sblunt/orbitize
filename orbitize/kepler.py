@@ -19,16 +19,13 @@ try:
     import pyopencl as cl
     import struct
     
-
     ctx = cl.create_some_context()
     queue = cl.CommandQueue(ctx)
     mf = cl.mem_flags
 
-
-    f = open("orbitize/kepler.cl", 'r')
+    f = open("../orbitize/kepler.cl", 'r')
     fstr = "".join(f.readlines())
     prg = cl.Program(ctx, fstr).build()
-
 
     tolerance = 1e-9
     max_iter = 100
@@ -46,6 +43,7 @@ try:
     print("ecc buf") 
     eanom_buf = cl.Buffer(ctx, mf.READ_WRITE, int(4e6)) 
     clext = True
+
 except Exception as e:
     print("Warning: KEPLER: Unable to import openCL Kepler solver")
     print(e)
