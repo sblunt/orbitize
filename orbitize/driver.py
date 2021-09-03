@@ -36,7 +36,7 @@ class Driver(object):
     def __init__(self, input_data, sampler_str,
                  num_secondary_bodies, system_mass, plx,
                  mass_err=0, plx_err=0, lnlike='chi2_lnlike',
-                 system_kwargs=None, mcmc_kwargs=None):
+                 system_kwargs=None, mcmc_kwargs=None, fitting_basis='Standard'):
 
         # Read in data
         # Try to interpret input as a filename first
@@ -53,12 +53,11 @@ class Driver(object):
         if system_kwargs is None:
             system_kwargs = {}
 
-        if sampler_str == 'OFTI' and ('fit_secondary_mass' in system_kwargs and True == system_kwargs['fit_secondary_mass']):
-            raise Exception('Run Astrometry+RV in MCMC for now.')
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
             num_secondary_bodies, data_table, system_mass,
-            plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
+            plx, mass_err=mass_err, plx_err=plx_err, 
+            fitting_basis=fitting_basis, **system_kwargs
         )
 
         # Initialize Sampler object, which has System object as an attribute.

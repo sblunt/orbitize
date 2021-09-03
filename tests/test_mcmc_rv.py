@@ -6,7 +6,6 @@ from orbitize.driver import Driver
 import orbitize.sampler as sampler
 import orbitize.system as system
 import orbitize.read_input as read_input
-import pdb
 
 
 def test_pt_mcmc_runs(num_threads=1):
@@ -79,4 +78,4 @@ if __name__ == "__main__":
     test_pt_mcmc_runs(num_threads=1)
     test_pt_mcmc_runs(num_threads=4)
     test_ensemble_mcmc_runs(num_threads=1)
-test_ensemble_mcmc_runs(num_threads=8)
+    test_ensemble_mcmc_runs(num_threads=4)
