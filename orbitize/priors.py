@@ -38,6 +38,8 @@ class NearestNDInterpPrior(Prior):
         total_params (float): number of parameters 
 
     """
+    is_correlated = True
+
     def __init__(self, interp_fct,total_params):
         self.interp_fct = interp_fct
         self.total_params = total_params
@@ -115,6 +117,8 @@ class KDEPrior(Prior):
         bounds (array_like, optional): bounds for the KDE out of which the prob returned is -Inf
         bounds (array_like of bool, optional): if True for a parameter the parameter is fit to the KDE in log-scale
     """
+    is_correlated = True
+    
     def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
         self.gaussian_kde = gaussian_kde
         self.total_params = total_params
