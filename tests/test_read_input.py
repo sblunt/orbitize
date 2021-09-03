@@ -1,5 +1,4 @@
 import pytest
-import deprecation
 import numpy as np
 import os
 import orbitize
@@ -70,21 +69,6 @@ def test_read_file():
     read_file(input_file_radec)
 
 
-@deprecation.fail_if_not_removed
-def test_read_formatted_file():
-    """
-    Tests the read_formatted_file function using the test_val.csv file and test_val_radec.csv
-
-    This test exists with the fail_if_not_removed decorator as a reminder to remove in v2.0
-    """
-    # Check that main test input is read in with correct values
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
-    _compare_table(read_formatted_file(input_file))
-    # Check that an input value with all valid entries and only ra/dec columns can be read
-    input_file_radec = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
-    read_file(input_file_radec)
-
-
 def test_write_orbitize_input():
     """
     Test the write_orbitize_input and the read_file functions
@@ -106,30 +90,6 @@ def test_write_orbitize_input():
         # Remove temporary file
         os.remove(output_file)
 
-
-@deprecation.fail_if_not_removed
-def test_write_orbitize_input_2():
-    """
-    Test the write_orbitize_input and the read_orbitize_input functions
-
-    This test exists with the fail_if_not_removed decorator as a reminder to remove in v2.0
-    """
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
-    test_table = read_file(input_file)
-    output_file = os.path.join(orbitize.DATADIR, 'temp_test_orbitize_input.csv')
-    # If temp output file already exists, delete it
-    if os.path.isfile(output_file):
-        os.remove(output_file)
-    try:  # Catch these tests so that we remove temporary file
-        # Test that we were able to write the table
-        write_orbitize_input(test_table, output_file)
-        assert os.path.isfile(output_file)
-        # Test that we can read the table and check if it's correct
-        test_table_2 = read_orbitize_input(output_file)
-        _compare_table(test_table_2)
-    finally:
-        # Remove temporary file
-        os.remove(output_file)
 
 def test_cov_input():
     """
@@ -173,8 +133,6 @@ def test_read_old_orbitize_format():
 
 if __name__ == "__main__":
     test_read_file()
-    test_read_formatted_file()
     test_write_orbitize_input()
-    test_write_orbitize_input_2()
     test_cov_input()
     test_read_old_orbitize_format()
