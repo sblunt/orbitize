@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import nbody, kepler, conversions, basis
+from orbitize import nbody, kepler, basis
 
 class System(object):
     """

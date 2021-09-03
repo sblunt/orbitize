@@ -64,9 +64,6 @@ class Sampler(abc.ABC):
         """
         # compute the model based on system params
         # jitter output from compute model
-
-        # TODO SOFIA: pass in self.system.rebound keyword here
-
         model, jitter = self.system.compute_model(params)
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
@@ -322,7 +319,7 @@ class OFTI(Sampler,):
                 has size ``num_samples``. This should be the output of \
                 ``prepare_samples()``.
 
-        Return:spectrum_index = trueorder - config['ordmin']
+        Return:
             tuple:
 
                 np.array: a subset of ``samples`` that are accepted based on the
