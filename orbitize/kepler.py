@@ -44,7 +44,7 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, **other_keys):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -68,9 +68,6 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
-        tau_warning (bool, optional, depricating): temporary argument to warn users about tau_ref_epoch default value change. 
-            Users that are calling this function themsleves should receive a warning since default is True. 
-            To be removed when tau_ref_epoch change is fully propogated to users. Users can turn it off to stop getting the warning.
 
     Return:
         3-tuple:
@@ -85,9 +82,6 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    if "tau_warning" in other_keys:
-        print("tau_warning is being depreciated as it is no longer doing anything. Please remove from your calc_orbit function calls.")
-        
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
