@@ -5,7 +5,7 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, model, jitter, seppa_indices):
+def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -13,6 +13,8 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
             for every epoch, and data[:,1] = corresponding pa/DEC/np.nan.
         errors (np.array): Nobsx2 array of errors for each data point. Same
                 format as ``data``.
+        corrs (np.array): Nobs array of Pearson correlation coeffs
+                between the two quantities. If there is none, can be None.
         model (np.array): Nobsx2xM array of model predictions, where M is the \
                 number of orbits being compared against the data. If M is 1, \
             ``model`` can be 2 dimensional.
@@ -32,7 +34,7 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
         this function should be an array of dimension 8 x 2 x 10,000.
 
     """
-
+    
     if np.ndim(model) == 3:
         # move M dimension to the primary axis, so that numpy knows to iterate over it
         model = np.rollaxis(model, 2, 0)  # now MxNobsx2 in dimensions
@@ -48,10 +50,23 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
     if np.size(seppa_indices) > 0:
         residual[:, seppa_indices, 1] = (residual[:, seppa_indices, 1] + 180.) % 360. - 180.
 
-    sigma2 = errors**2 + jitter**2
+    sigma2 = errors**2 + jitter**2 # diagonal error term
 
-    # including the second term of chi2
-    chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+    if corrs is None:
+        # including the second term of chi2
+        # the sqrt() in the log() means we don't need to multiply by 0.5
+        chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+    else:
+        has_no_corr = np.isnan(corrs)
+        yes_corr = np.where(~has_no_corr)[0]
+        no_corr = np.where(has_no_corr)[0]
+
+        chi2 = np.zeros(residual.shape)
+        chi2[:,no_corr] = -0.5 * residual[:,no_corr]**2 / sigma2[:,no_corr] - np.log(np.sqrt(2*np.pi*sigma2[:,no_corr]))
+
+        # analytical solution for 2x2 covariance matrix
+        # chi2 = -0.5 * (R^T C^-1 R + ln(det_C))
+        chi2[:,yes_corr] = _chi2_2x2cov(residual[:,yes_corr], sigma2[:,yes_corr], corrs[yes_corr])
 
     if third_dim:
         # move M dimension back to the last axis
@@ -64,3 +79,64 @@ def chi2_lnlike(data, errors, model, jitter, seppa_indices):
         jitter.shape = jitter.shape[1:]
 
     return chi2
+
+def _chi2_2x2cov(residual, var, corrs):
+    """
+    Analytical solution for when quant1/quant2 have a covariance term
+    So we don't need to calculate matrix inverses when the jitter varies depending on the model
+
+    Args:
+        residual (np.array): MxNobsx2 array of fit residuals, 
+        var (np.array): MxNobsx2 array of variance for each residual
+        corrs (np.array): Nobs array of off axis Pearson corr coeffs
+                          between the two quantities. 
+
+    Returns:
+        np.array: MxNobsx2 array of chi2. Becuase of x/y coariance, it's impossible to
+                         spearate the quant1/quant2 chi2. Thus, all the chi2 is in the first term
+                         and the second dimension is 0
+    """
+
+    det_C = var[:,:,0] * var[:,:,1] * (1 - corrs**2) 
+
+    covs = corrs * np.sqrt(var[:,:,0]) * np.sqrt(var[:,:,1])
+    chi2 = (residual[:,:,0]**2 * var[:,:,1] + residual[:,:,1]**2 * var[:,:,0] - 2 * residual[:,:,0] * residual[:,:,1] * covs)/det_C
+
+    chi2 += np.log(det_C) + 2 * np.log(2*np.pi) # extra factor of 2 since quant1 and quant2 in each element of chi2. 
+
+    chi2 *= -0.5
+
+    chi2 = np.stack([chi2, np.zeros(chi2.shape)], axis=2)
+
+    return chi2
+
+def chi2_norm_term(errors, corrs):
+    """
+    Return only the normalization term of the Gaussian likelihood: 
+    -log(sqrt(2pi*error^2)) or -0.5 * (log(det(C)) + N * log(2pi))
+
+    Args:
+        errors (np.array): Nobsx2 array of errors for each data point. Same
+                format as ``data``.
+        corrs (np.array): Nobs array of Pearson correlation coeffs
+                between the two quantities. If there is none, can be None.
+
+    Returns:
+        float: sum of the normalization terms
+    """
+    sigma2 = errors**2
+
+    if corrs is None:
+        norm = -np.log(np.sqrt(2*np.pi*sigma2))
+    else:
+        has_no_corr = np.isnan(corrs)
+        yes_corr = np.where(~has_no_corr)[0]
+        no_corr = np.where(has_no_corr)[0]
+
+        norm = np.zeros(errors.shape)
+        norm[no_corr] = -np.log(np.sqrt(2*np.pi*sigma2[no_corr]))
+
+        det_C = sigma2[yes_corr[0], 0] * sigma2[yes_corr[0],1] * (1 - corrs[yes_corr]**2) 
+        norm[yes_corr,0] = -0.5 * (det_C + 2 * np.log(2 * np.pi)) # extra factor of 2 since quant1 and quant2 in each element of chi2. 
+
+    return np.sum(norm)

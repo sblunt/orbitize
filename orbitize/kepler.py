@@ -9,6 +9,8 @@ import sys
 from orbitize import cuda_ext
 import warnings # to be removed after tau_ref_epoch warning is removed. 
 
+from orbitize.basis import tau_to_manom
+
 try:
     from . import _kepler
     cext = True
@@ -89,13 +91,8 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         epochs = np.array([epochs])
     ecc_arr = np.tile(ecc, (n_dates, 1))
 
-    # Compute period (from Kepler's third law) and mean motion
-    period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
-    period = period.to(u.day).value
-    mean_motion = 2*np.pi/(period)  # in rad/day
-
     # # compute mean anomaly (size: n_orbs x n_dates)
-    manom = (mean_motion*(epochs[:, None] - tau_ref_epoch) - 2*np.pi*tau) % (2.0*np.pi)
+    manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu = use_gpu)
 

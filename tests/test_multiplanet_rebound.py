@@ -147,7 +147,7 @@ def test_2planet_massive():
     b_dec_orb_noc = radec_orb_noc[:,1]
 
     # check that planet c's perturbation is imprinted (nonzero))
-    #assert np.all(b_ra_orb_noc != b_ra_orb)
+    assert np.all(b_ra_orb_noc != b_ra_orb)
 
     # now project the orbit with rebound
     b_manom = basis.tau_to_manom(epochs[0], params[0], params[-1]+params[-3], params[5], tau_ref_epoch)
@@ -248,6 +248,89 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_dec)/(params[0]) < 3e-3)
 
 
+    
+def test_2planet_massive_reverse_order():
+    """
+    Compare multiplanet to rebound for planets with mass. reverse planet indicies to check bookkeeping. 
+    """
+    # generate a planet orbit
+    mjup = u.Mjup.to(u.Msun)
+    mass_b = 12 * mjup
+    mass_c = 9 * mjup
+
+    params = np.array([3, 0.1, np.radians(45), np.radians(190), np.radians(45), 0.2,
+                       10, 0.1, np.radians(45), np.radians(45), np.radians(45), 0.5,
+                       50, mass_c, mass_b, 1.5 - mass_b - mass_c])
+    tau_ref_epoch = 0
+
+
+    epochs = np.linspace(0, 365.25*10, 100) + tau_ref_epoch # nearly the full period, MJD
+
+    # doesn't matter that this is right, just needs to be the same size. below doesn't include effect of c
+    # just want to generate some measurements of plaent b to test compute model
+    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(epochs, params[6+0], params[6+1], params[6+2], params[6+3], params[6+4], params[6+5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch)
+
+    # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping
+    t = table.Table([epochs, np.ones(epochs.shape, dtype=int) * 2, b_ra_model, np.zeros(b_ra_model.shape), b_dec_model, np.zeros(b_dec_model.shape)], 
+                     names=["epoch", "object" ,"raoff", "raoff_err","decoff","decoff_err"])
+    filename = os.path.join(orbitize.DATADIR, "rebound_2planet_swapped_outer.csv")
+    t.write(filename)
+
+    #### TEST THE OUTER PLANET ####
+
+    # create the orbitize system and generate model predictions using the ground truth
+    astrom_dat = read_input.read_file(filename)
+
+    sys = system.System(2, astrom_dat, params[-1], params[-4], tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
+
+    # generate measurement
+    radec_orbitize, _ = sys.compute_model(params)
+    b_ra_orb = radec_orbitize[:, 0]
+    b_dec_orb = radec_orbitize[:, 1]
+
+    # now project the orbit with rebound
+    c_manom = basis.tau_to_manom(epochs[0], params[0], params[-1]+params[-3], params[5], tau_ref_epoch)
+    b_manom = basis.tau_to_manom(epochs[0], params[0+6], params[-1]+params[-2]+params[-3], params[5+6], tau_ref_epoch)
+    
+    sim = rebound.Simulation()
+    sim.units = ('yr', 'AU', 'Msun')
+
+
+    # add star
+    sim.add(m=params[-1])
+
+    # add two planets
+    sim.add(m=mass_c, a=params[0], e=params[1], M=c_manom, omega=params[3], Omega=params[4]+np.pi/2, inc=params[2])
+    sim.add(m=mass_b, a=params[0+6], e=params[1+6], M=b_manom, omega=params[3+6], Omega=params[4+6]+np.pi/2, inc=params[2+6])
+    ps = sim.particles
+
+    sim.move_to_com()
+
+    # Use Wisdom Holman integrator (fast), with the timestep being < 5% of inner planet's orbital period
+    sim.integrator = "ias15"
+    sim.dt = ps[1].P/1000.
+
+    # integrate and measure star/planet separation 
+    b_ra_reb = []
+    b_dec_reb = []
+
+    for t in epochs:
+        sim.integrate(t/365.25)
+        
+        b_ra_reb.append(-(ps[2].x - ps[0].x)) # ra is negative x
+        b_dec_reb.append(ps[2].y - ps[0].y)
+        
+    b_ra_reb = np.array(b_ra_reb)
+    b_dec_reb = np.array(b_dec_reb)
+
+    diff_ra = b_ra_reb - b_ra_orb/params[6*2]
+    diff_dec = b_dec_reb - b_dec_orb/params[6*2]
+
+    # we placed the planets far apart to minimize secular interactions but there are still some, so relax precision
+    assert np.all(np.abs(diff_ra)/(params[6]) < 1e-3)
+    assert np.all(np.abs(diff_dec)/(params[6]) < 1e-3)
+
+
 def test_2planet_nomass():
     """
     Compare multiplanet to rebound for planets with mass.
@@ -328,10 +411,10 @@ def test_2planet_nomass():
 
 
 if __name__ == "__main__":
-    #test_1planet()
+    test_1planet()
     test_2planet_massive()
-    #test_2planet_nomass()
-    #test_OFTI_multiplanet()
+    test_2planet_massive_reverse_order()
+    test_2planet_nomass()
 
 
 
