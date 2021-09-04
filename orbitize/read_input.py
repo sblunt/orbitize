@@ -2,7 +2,6 @@
 Module to read user input from files and create standardized input for orbitize
 """
 
-import deprecation
 import numpy as np
 import orbitize
 from astropy.table import Table
@@ -314,19 +313,6 @@ def read_file(filename):
     return output_table
 
 
-@deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
-                        current_version=orbitize.__version__,
-                        details="Use read_file() instead. v1.0.2 replaces read_formatted_file and read_orbitize_input with read_file(). For now, this will be a wrapper for read_file and will be removed in the v2.0 release.")
-def read_formatted_file(filename):
-    """
-    Version 1.0.2 replaces this function with `read_file`.
-    Currently exists as a wrapper for `read_file` and will be removed in v2.0
-
-    Written: Henry Ngo, 2018
-    """
-
-    return read_file(filename)
-
 
 def write_orbitize_input(table, output_filename, file_type='csv'):
     """ Writes orbitize-readable input as an ASCII file
@@ -353,14 +339,3 @@ def write_orbitize_input(table, output_filename, file_type='csv'):
     write(table, output=output_filename, format=file_type)
 
 
-@deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
-                        current_version=orbitize.__version__,
-                        details="Use read_file() instead. v1.0.2 replaces read_orbitize_input and read_formatted_file with read_file(). For now, this will be a wrapper for read_file and will be removed in the v2.0 release.")
-def read_orbitize_input(filename):
-    """
-    Version 1.0.2 replaces this function with `read_file`.
-    Currently exists as a wrapper for `read_file` and will be removed in v2.0
-
-    Written: Henry Ngo, 2018
-    """
-    return read_file(filename)

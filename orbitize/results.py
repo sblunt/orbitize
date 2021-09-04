@@ -568,7 +568,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
-                    tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                    tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch
                 )
 
                 raoff[i, :] = raoff0
@@ -739,7 +739,7 @@ class Results(object):
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
                         tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch,
-                        mass_for_Kamp=m0[i], tau_warning=False
+                        mass_for_Kamp=m0[i]
                     )
 
                     raoff[i, :] = raoff0
@@ -747,7 +747,7 @@ class Results(object):
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
-                        tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                        tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch
                     )
 
                     raoff[i, :] = raoff0

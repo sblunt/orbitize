@@ -1110,20 +1110,6 @@ class XYZ(Basis):
             if (max_index - best_epoch_loc < 2):
                 raise Exception("For now, the epoch with the lowest sepparation error should not be one of the last two entries for body{}".format(body_num))
 
-# Other conversions
-def tau_to_t0(tau, ref_epoch, period, after_date=None):
-    """
-    DEPRECATING!! Replaced by tau_to_tp
-    """
-    warnings.warn('DEPRECATION: tau_to_t0 is being deprecated in the next orbitize! release. Please use tau_to_tp instead!', FutureWarning)
-    return tau_to_tp(tau, ref_epoch, period, after_date=after_date)
-
-def t0_to_tau(tp, ref_epoch, period):
-    """
-    DEPRECATING!! Replaced by tp_to_tau
-    """
-    warnings.warn('DEPRECATION: t0_to_tau is being deprecated in the next orbitize! release. Please use t0_to_tau instead!', FutureWarning)
-    return tp_to_tau(tp, ref_epoch, period)
 
 def tau_to_tp(tau, ref_epoch, period, after_date=None):
     """

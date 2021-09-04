@@ -269,7 +269,7 @@ class OFTI(Sampler,):
             # compute sep/PA of generated orbits
             ra, dec, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch], sma, ecc, inc, argp, lan, tau, plx, mtot, 
-                tau_ref_epoch=0, mass_for_Kamp=m1, tau_warning=False
+                tau_ref_epoch=0, mass_for_Kamp=m1
             )
             sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 

@@ -36,7 +36,7 @@ def test_compute_model():
 
     ra_model, dec_model, vz_model = kepler.calc_orbit(
         epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], 
-        b_params[5], plx, mtot, tau_ref_epoch=tau_ref_epoch, tau_warning=False
+        b_params[5], plx, mtot, tau_ref_epoch=tau_ref_epoch
     )
 
     # generate some fake measurements just to feed into system.py to test bookkeeping
@@ -105,15 +105,13 @@ def test_fit_selfconsist():
     # comptue Keplerian orbit of b
     ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(
         epochs, b_params[0], b_params[1], b_params[2], b_params[3], b_params[4], 
-        b_params[5], plx, mtot_b, mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch,
-        tau_warning=False
+        b_params[5], plx, mtot_b, mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch
     )
 
     # comptue Keplerian orbit of c
     ra_model_c, dec_model_c, vz_model_c = kepler.calc_orbit(
         epochs, c_params[0], c_params[1], c_params[2], c_params[3], c_params[4], 
-        c_params[5], plx, mtot_c, tau_ref_epoch=tau_ref_epoch, 
-        tau_warning=False
+        c_params[5], plx, mtot_c, tau_ref_epoch=tau_ref_epoch
     )
 
     # perturb b due to c

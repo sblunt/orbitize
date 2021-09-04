@@ -44,7 +44,7 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, tau_warning=True):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -68,9 +68,6 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
-        tau_warning (bool, optional, depricating): temporary argument to warn users about tau_ref_epoch default value change. 
-            Users that are calling this function themsleves should receive a warning since default is True. 
-            To be removed when tau_ref_epoch change is fully propogated to users. Users can turn it off to stop getting the warning.
 
     Return:
         3-tuple:
@@ -85,11 +82,6 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    if tau_warning:
-        warnings.warn("tau_ref_epoch default for kepler.calc_orbit is 58849 now instead of 0 MJD. "
-                      "Please check that this does not break your code. You can turn off this warning by setting "
-                      "tau_warning=False when you call kepler.calc_orbit.")
-
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
@@ -245,7 +237,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], use_c) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], cext) # Send remaining orbits to the analytical version, this has not happened yet...
 
     return eanom
 
