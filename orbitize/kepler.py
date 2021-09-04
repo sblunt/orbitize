@@ -4,7 +4,6 @@ This module solves for the orbit of the planet given Keplerian parameters.
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
-import warnings # to be removed after tau_ref_epoch warning is removed. 
 
 try:
     from . import _kepler

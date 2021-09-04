@@ -1,11 +1,8 @@
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
-import sys
 import abc
-import math
 import time
-import orbitize.conversions
 
 import emcee
 import ptemcee
@@ -15,9 +12,7 @@ from multiprocessing import Pool
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
-from orbitize.system import radec2seppa
 import orbitize.results
-import copy
 import matplotlib.pyplot as plt
 
 class Sampler(abc.ABC):
