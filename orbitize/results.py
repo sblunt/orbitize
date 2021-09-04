@@ -316,6 +316,25 @@ class Results(object):
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
 
+    def print_results(self):
+        """
+        Prints median and 68% credible intervals alongside fitting labels
+        """
+
+        print('\nparam: med [68% CI]')
+        print('-------------------\n')
+        for i, l in enumerate(self.labels):
+            print(
+                '{}: {:.3f} [{:.3f} - {:.3f}]'.format(
+                    l, 
+                    np.median(self.post[:,i]),
+                    np.quantile(self.post[:,i], 0.16),
+                    np.quantile(self.post[:,i], 0.84)
+                )
+            )
+        print('-------------------\n')
+
+
     def plot_corner(self, param_list=None, **corner_kwargs):
         """
         Make a corner plot of posterior on orbit fit from any sampler

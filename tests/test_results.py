@@ -117,6 +117,14 @@ def results_to_test():
     # Return object for testing
     return results_obj
 
+def test_results_printing(results_to_test):
+    """
+    Tests that `results.print_results()` doesn't fail
+    """
+
+    results_to_test.print_results()
+
+
 def test_plot_long_periods(results_to_test):
 
     # make all orbits in the results posterior have absurdly long orbits
@@ -211,24 +219,26 @@ def test_plot_orbits(results_to_test):
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
+
+    test_results_printing(test_results)
     test_plot_long_periods(test_results)
-    # test_results_radec = test_init_and_add_samples(radec_input=True)
+    test_results_radec = test_init_and_add_samples(radec_input=True)
     
-    # test_save_and_load_results(test_results, has_lnlike=True)
-    # test_save_and_load_results(test_results, has_lnlike=True)
-    # test_save_and_load_results(test_results, has_lnlike=False)
-    # test_save_and_load_results(test_results, has_lnlike=False)
-    # test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
-    # test_orbit_figs = test_plot_orbits(test_results)
-    # test_orbit_figs = test_plot_orbits(test_results_radec)
-    # test_corner_fig1.savefig('test_corner1.png');
-    # test_corner_fig2.savefig('test_corner2.png')
-    # test_corner_fig3.savefig('test_corner3.png')
-    # test_orbit_figs[0].savefig('test_orbit1.png')
-    # test_orbit_figs[1].savefig('test_orbit2.png')
-    # test_orbit_figs[2].savefig('test_orbit3.png')
-    # test_orbit_figs[3].savefig('test_orbit4.png')
-    # test_orbit_figs[4].savefig('test_orbit5.png')
+    test_save_and_load_results(test_results, has_lnlike=True)
+    test_save_and_load_results(test_results, has_lnlike=True)
+    test_save_and_load_results(test_results, has_lnlike=False)
+    test_save_and_load_results(test_results, has_lnlike=False)
+    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
+    test_orbit_figs = test_plot_orbits(test_results)
+    test_orbit_figs = test_plot_orbits(test_results_radec)
+    test_corner_fig1.savefig('test_corner1.png');
+    test_corner_fig2.savefig('test_corner2.png')
+    test_corner_fig3.savefig('test_corner3.png')
+    test_orbit_figs[0].savefig('test_orbit1.png')
+    test_orbit_figs[1].savefig('test_orbit2.png')
+    test_orbit_figs[2].savefig('test_orbit3.png')
+    test_orbit_figs[3].savefig('test_orbit4.png')
+    test_orbit_figs[4].savefig('test_orbit5.png')
 
     # clean up
     os.system('rm test_*.png')
