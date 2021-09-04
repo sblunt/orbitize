@@ -1,6 +1,6 @@
 import os
 
-__version__ = '1.16.1'
+__version__ = '2.0b1'
 
 # set Python env variable to keep track of example data dir
 orbitize_dir = os.path.dirname(__file__)
