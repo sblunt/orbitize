@@ -119,7 +119,7 @@ class System(object):
         # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
         # we are not fitting relative astrometry of just a single body
         self.track_planet_perturbs = self.fit_secondary_mass and \
-                                     ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
+                                     ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[0]) < len(data_table)) or \
                                       (self.num_secondary_bodies > 1))
 
         if self.hipparcos_IAD is not None:
