@@ -10,5 +10,5 @@ Orbit-fitting for directly imaged objects. For installation instructions, tutori
 [![PyPI version](https://badge.fury.io/py/orbitize.svg)](https://badge.fury.io/py/orbitize)
 [![PyPI downloads](https://img.shields.io/pypi/dm/orbitize.svg)](https://pypistats.org/packages/orbitize)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4017034.svg)](https://doi.org/10.5281/zenodo.4017034)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5432124.svg)](https://doi.org/10.5281/zenodo.5432124)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
