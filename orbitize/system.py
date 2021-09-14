@@ -1,6 +1,5 @@
 import numpy as np
-from orbitize import priors, read_input, kepler
-
+from orbitize import nbody, kepler, basis
 
 class System(object):
     """
@@ -11,9 +10,10 @@ class System(object):
     Args:
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        data_table (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        stellar_mass (float): mean mass of the primary, in M_sol. See `fit_secondary_mass`
-            docstring below.
+        data_table (astropy.table.Table): output from 
+            ``orbitize.read_input.read_file()``
+        stellar_mass (float): mean mass of the primary, in M_sol. See 
+            ``fit_secondary_mass`` docstring below.
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
@@ -23,53 +23,43 @@ class System(object):
         tau_ref_epoch (float, optional): reference epoch for defining tau (MJD).
             Default is 58849 (Jan 1, 2020).
         fit_secondary_mass (bool, optional): if True, include the dynamical
-            mass of the orbiting body as a fitted parameter. If this is set to False, ``stellar_mass``
-            is taken to be the total mass of the system. (default: False)
-        results (list of orbitize.results.Results): results from an orbit-fit
-            will be appended to this list as a Results class.
+            mass of the orbiting body as a fitted parameter. If this is set to 
+            False, ``stellar_mass`` is taken to be the total mass of the system. 
+            (default: False)
+        hipparcos_IAD (orbitize.hipparcos.HipparcosLogProb): an object 
+            containing information & precomputed values relevant to Hipparcos
+            IAD fitting. See hipparcos.py for more details.
+        fitting_basis (str): the name of the class corresponding to the fitting 
+            basis to be used. See basis.py for a list of implemented fitting bases.
 
-
-    Users should initialize an instance of this class, then overwrite
-    priors they wish to customize.
-
-    Priors are initialized as a list of ``orbitize.priors.Prior`` objects,
-    in the following order::
-
-        semimajor axis 1, eccentricity 1, inclination 1,
-        argument of periastron 1, position angle of nodes 1,
-        epoch of periastron passage 1,
-        [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, [mass1, mass2, ..], total_mass/m0]
-
-    where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc. Mass1, mass2, ... correspond to masses of secondary
-    bodies. If `fit_secondary_mass` is set to True, the last element of this
-    list is initialized to the mass of the primary. If not, it is
-    initialized to the total system mass.
+    Priors are initialized as a list of orbitize.priors.Prior objects and stored
+    in the variable ``System.sys_priors``. You should initialize this class, 
+    then overwrite priors you wish to customize. You can use the 
+    ``System.param_idx`` attribute to figure out which indices correspond to 
+    which fitting parameters. See the "changing priors" tutorial for more detail.  
 
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
-                 tau_ref_epoch=58849, fit_secondary_mass=False, results=None):
+                 tau_ref_epoch=58849, fit_secondary_mass=False,
+                 hipparcos_IAD=None, fitting_basis='Standard', use_rebound=False):
 
+        self.use_rebound = use_rebound
         self.num_secondary_bodies = num_secondary_bodies
-        self.sys_priors = []
-        self.labels = []
         self.results = []
         self.fit_secondary_mass = fit_secondary_mass
         self.tau_ref_epoch = tau_ref_epoch
-
-        #
-        # Group the data in some useful ways
-        #
-
+        self.restrict_angle_ranges = restrict_angle_ranges
+        self.hipparcos_IAD = hipparcos_IAD
+        self.fitting_basis = fitting_basis
+        self.best_epochs = []
         self.data_table = data_table
-        # Creates a copy of the input in case data_table needs to be modified
         self.input_table = self.data_table.copy()
 
-        # List of arrays of indices corresponding to each body
+        # Group the data in some useful ways
+
         self.body_indices = []
 
         # List of arrays of indices corresponding to epochs in RA/Dec for each body
@@ -81,11 +71,31 @@ class System(object):
         # List of index arrays corresponding to each rv for each body
         self.rv = []
 
+        self.fit_astrometry=True
         radec_indices = np.where(self.data_table['quant_type'] == 'radec')
         seppa_indices = np.where(self.data_table['quant_type'] == 'seppa')
 
+        if len(radec_indices[0])==0 and len(seppa_indices[0])==0:
+            self.fit_astrometry=False
         rv_indices = np.where(self.data_table['quant_type'] == 'rv')
 
+        # defining all indices to loop through the unique rv instruments to get different offsets and jitters
+        instrument_list = np.unique(self.data_table['instrument'])
+        inst_indices_all = []
+        for inst in instrument_list:
+            inst_indices = np.where(self.data_table['instrument'] == inst)
+            inst_indices_all.append(inst_indices)
+
+        # defining indices for unique instruments in the data table
+        self.rv_instruments = np.unique(self.data_table['instrument'][rv_indices])
+        self.rv_inst_indices = []
+        for inst in self.rv_instruments:
+            inst_indices = np.where(self.data_table['instrument'] == inst)
+            self.rv_inst_indices.append(inst_indices)
+
+        # astrometry instruments same for radec and seppa:
+        self.astr_instruments = np.unique(
+            self.data_table['instrument'][np.where(self.data_table['quant_type'] != 'rv')])
         # save indicies for all of the ra/dec, sep/pa measurements for convenience
         self.all_radec = radec_indices
         self.all_seppa = seppa_indices
@@ -106,84 +116,135 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
 
-        # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
-        # we are not fitting relative astrometry of just a single body
-        self.track_planet_perturbs = self.fit_secondary_mass and \
-                                     ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
-                                      (self.num_secondary_bodies > 1))
+        # we should track the influence of the planet(s) on each other/the star if:
+        # we are not fitting massless planets and 
+        # we have more than 1 companion OR we have stellar astrometry
+        self.track_planet_perturbs = (
+            self.fit_secondary_mass and 
+            (
+                (len(self.radec[0]) + len(self.seppa[0] > 0) or
+                (self.num_secondary_bodies > 1)
+                )
+            )
+        )
+
+        if self.hipparcos_IAD is not None:
+            self.track_planet_perturbs = True
 
         if restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
             angle_upperlim = 2.*np.pi
 
-        #
-        # Set priors for each orbital element
-        #
+        # Check for rv data
+        contains_rv = False
+        if len(self.rv[0]) > 0:
+            contains_rv = True
 
-        for body in np.arange(num_secondary_bodies):
-            # Add semimajor axis prior
-            self.sys_priors.append(priors.LogUniformPrior(0.001, 1e7))
-            self.labels.append('sma{}'.format(body+1))
+        # Assign priors for the given basis set
+        self.extra_basis_kwargs = {}
+        basis_obj = getattr(basis, self.fitting_basis)
 
-            # Add eccentricity prior
-            self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('ecc{}'.format(body+1))
+        # Obtain extra necessary data to assign priors for XYZ
+        if fitting_basis == 'XYZ':
+            # Get epochs with least uncertainty, as is done in sampler.py
+            convert_warning_print = False
+            for body_num in np.arange(self.num_secondary_bodies) + 1:
+                if len(self.radec[body_num]) > 0:
+                    # only print the warning once. 
+                    if not convert_warning_print:
+                        print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
+                        convert_warning_print = True
+                    self.convert_data_table_radec2seppa(body_num=body_num)
 
-            # Add inclination angle prior
-            self.sys_priors.append(priors.SinPrior())
-            self.labels.append('inc{}'.format(body+1))
+            sep_err = self.data_table[np.where(
+                self.data_table['quant_type'] == 'seppa')]['quant1_err'].copy()
+            meas_object = self.data_table[np.where(
+                self.data_table['quant_type'] == 'seppa')]['object'].copy()
 
-            # Add argument of periastron prior
-            self.sys_priors.append(priors.UniformPrior(0., 2.*np.pi))
-            self.labels.append('aop{}'.format(body+1))
+            astr_inds = np.where(self.input_table['object'] > 0)[0]
+            astr_data = self.input_table[astr_inds]
+            epochs = astr_data['epoch']
 
-            # Add position angle of nodes prior
-            self.sys_priors.append(priors.UniformPrior(0., angle_upperlim))
-            self.labels.append('pan{}'.format(body+1))
+            self.best_epochs = []
+            self.best_epoch_idx = []
+            min_sep_indices = np.argsort(sep_err) # indices of sep err sorted from smallest to higheset
+            min_sep_indices_body = meas_object[min_sep_indices] # the corresponding body_num that these sorted measurements correspond to
+            for i in range(self.num_secondary_bodies):
+                body_num = i + 1
+                this_object_meas = np.where(min_sep_indices_body == body_num)[0]
+                if np.size(this_object_meas) == 0:
+                    # no data, no scaling
+                    self.best_epochs.append(None)
+                    continue
+                # get the smallest measurement belonging to this body
+                this_best_epoch_idx = min_sep_indices[this_object_meas][0] # already sorted by argsort
+                self.best_epoch_idx.append(this_best_epoch_idx)
+                this_best_epoch = epochs[this_best_epoch_idx]
+                self.best_epochs.append(this_best_epoch)
 
-            # Add epoch of periastron prior.
-            self.sys_priors.append(priors.UniformPrior(0., 1.))
-            self.labels.append('tau{}'.format(body+1))
+            self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
-        #
-        # Set priors on total mass and parallax
-        #
-        self.labels.append('plx')
-        if plx_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(plx, plx_err))
-        else:
-            self.sys_priors.append(plx)
 
-        # checking for rv data to include appropriate rv priors:
+        self.basis = basis_obj(
+            stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
+            self.fit_secondary_mass, angle_upperlim=angle_upperlim, 
+            hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, 
+            rv_instruments=self.rv_instruments, **self.extra_basis_kwargs
+        )
 
-        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
-            self.sys_priors.append(priors.UniformPrior(-5, 5))  # gamma prior in km/s
-            self.labels.append('gamma')
+        self.basis.verify_params()
+        self.sys_priors, self.labels = self.basis.construct_priors()
 
-            self.sys_priors.append(priors.LogUniformPrior(1e-4, 0.05))  # jitter prior in km/s
-            self.labels.append('sigma')
+        self.secondary_mass_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('m') and
+                not i.endswith('0')
+            )
+        ]
+    
+        self.sma_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('sma')
+            )
+        ]
+        self.ecc_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('ecc')
+            )
+        ]
+        self.inc_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('inc')
+            )
+        ]
+        self.aop_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('aop')
+            )
+        ]
+        self.pan_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('pan')
+            )
+        ]
+        self.tau_indx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('tau')
+            )
+        ]
+        self.mpl_idx = [
+            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+                i.startswith('m') and i[1:] not in ['tot', '0']
+            )
+        ]
 
-        if self.fit_secondary_mass:
-            for body in np.arange(num_secondary_bodies)+1:
-                self.sys_priors.append(priors.LogUniformPrior(1e-6, 2))  # in Solar masses for now
-                self.labels.append('m{}'.format(body))
-            self.labels.append('m0')
-        else:
-            self.labels.append('mtot')
+        self.param_idx = self.basis.param_idx
 
-        # still need to append m0/mtot, even though labels are appended above
-        if mass_err > 0:
-            self.sys_priors.append(priors.GaussianPrior(stellar_mass, mass_err))
-        else:
-            self.sys_priors.append(stellar_mass)
-
-        # add labels dictionary for parameter indexing
-        self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
-
-    def compute_model(self, params_arr):
+    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
         """
-        Compute model predictions for an array of fitting parameters.
+        Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
+        interactions. Also computes total quantities like RV (without jitter/gamma)
 
         Args:
             params_arr (np.array of float): RxM array
@@ -191,142 +252,270 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
+            epochs (np.array of float): epochs (in mjd) at which to compute
+                orbit predictions.
+            comp_rebound (bool, optional): A secondary optional input for 
+                use of N-body solver Rebound; by default, this will be set
+                to false and a Kepler solver will be used instead. 
+        
+        Returns:
+            tuple of:
+                raoff (np.array of float): N_epochs x N_bodies x N_orbits array of
+                    RA offsets from barycenter at each epoch.
+                decoff (np.array of float): N_epochs x N_bodies x N_orbits array of
+                    Dec offsets from barycenter at each epoch.
+                vz (np.array of float): N_epochs x N_bodies x N_orbits array of
+                    radial velocities at each epoch.
+
+        """
+        if epochs is None:
+            epochs = self.data_table['epoch']
+
+        n_epochs = len(epochs)
+
+        if len(params_arr.shape) == 1:
+            n_orbits = 1
+        else:
+            n_orbits = params_arr.shape[1]
+
+        ra_kepler = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits)) # N_epochs x N_bodies x N_orbits
+        dec_kepler = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+
+        ra_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits)) 
+        dec_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+
+        vz = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+
+        # mass/mtot used to compute each Keplerian orbit will be needed later to compute perturbations
+        if self.track_planet_perturbs:
+            masses = np.zeros((self.num_secondary_bodies + 1, n_orbits))
+            mtots = np.zeros((self.num_secondary_bodies + 1, n_orbits))
+
+        if comp_rebound or self.use_rebound:
+                
+            sma = params_arr[self.sma_indx]
+            ecc = params_arr[self.ecc_indx]
+            inc = params_arr[self.inc_indx]
+            argp = params_arr[self.aop_indx]
+            lan = params_arr[self.pan_indx]
+            tau = params_arr[self.tau_indx]
+            plx = params_arr[self.basis.param_idx['plx']]
+
+            if self.fit_secondary_mass:
+                m_pl = params_arr[self.mpl_idx]
+                m0 = params_arr[self.basis.param_idx['m0']]
+                mtot = m0 + sum(m_pl)
+            else:
+                m_pl = np.zeros(self.num_secondary_bodies)
+                # if not fitting for secondary mass, then total mass must be stellar mass
+                mtot = params_arr[self.basis.param_idx['mtot']]
+            
+            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl, output_star=True)
+
+        else:
+                for body_num in np.arange(self.num_secondary_bodies)+1:
+
+                    sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
+                    ecc = params_arr[self.basis.param_idx['ecc{}'.format(body_num)]]
+                    inc = params_arr[self.basis.param_idx['inc{}'.format(body_num)]]
+                    argp = params_arr[self.basis.param_idx['aop{}'.format(body_num)]]
+                    lan = params_arr[self.basis.param_idx['pan{}'.format(body_num)]]
+                    tau = params_arr[self.basis.param_idx['tau{}'.format(body_num)]]
+                    plx = params_arr[self.basis.param_idx['plx']]
+
+                    if self.fit_secondary_mass:
+                        # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
+                        mass = params_arr[self.basis.param_idx['m{}'.format(body_num)]]
+                        m0 = params_arr[self.basis.param_idx['m0']]
+
+                        # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
+                        # We need to select all planets with sma < this planet. 
+                        all_smas = params_arr[self.sma_indx]
+                        within_orbit = np.where(all_smas <= sma)
+                        outside_orbit = np.where(all_smas > sma)
+                        all_pl_masses = params_arr[self.secondary_mass_indx]
+                        inside_masses = all_pl_masses[within_orbit]
+                        mtot = np.sum(inside_masses) + m0
+
+                    else:
+                        m_pl = np.zeros(self.num_secondary_bodies)
+                        # if not fitting for secondary mass, then total mass must be stellar mass
+                        mass = None
+                        m0 = None
+                        mtot = params_arr[self.basis.param_idx['mtot']]
+                    
+                    if self.track_planet_perturbs:
+                        masses[body_num] = mass
+                        mtots[body_num] = mtot
+
+                    # solve Kepler's equation
+                    raoff, decoff, vz_i = kepler.calc_orbit(
+                        epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
+                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
+                    )
+
+                    # raoff, decoff, vz are scalers if the length of epochs is 1
+                    if len(epochs) == 1:
+                        raoff = np.array([raoff])
+                        decoff = np.array([decoff])
+                        vz_i = np.array([vz_i])
+
+                    # add Keplerian ra/deoff for this body to storage arrays
+                    ra_kepler[:, body_num, :] = np.reshape(raoff, (n_epochs, n_orbits)) 
+                    dec_kepler[:, body_num, :] = np.reshape(decoff, (n_epochs, n_orbits)) 
+                    vz[:, body_num, :] = np.reshape(vz_i, (n_epochs, n_orbits)) 
+
+                    # vz_i is the ith companion radial velocity
+                    if self.fit_secondary_mass:
+                        vz0 = np.reshape(vz_i * -(mass / m0), (n_epochs, n_orbits)) # calculating stellar velocity due to ith companion
+                        vz[:, 0, :] += vz0  # adding stellar velocity and gamma
+
+                # if we are fitting for the mass of the planets, then they will perturb the star
+                # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
+                # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
+                # Because we are in Jacobi coordinates, for companions, we only should model the effect of planets interior to it. 
+                # (Jacobi coordinates mean that separation for a given companion is measured relative to the barycenter of all interior companions)
+                if self.track_planet_perturbs:
+                    for body_num in np.arange(self.num_secondary_bodies + 1):
+
+                        if body_num > 0:
+                            # for companions, only perturb companion orbits at larger SMAs than this one. 
+                            sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
+                            all_smas = params_arr[self.sma_indx]
+                            outside_orbit = np.where(all_smas > sma)[0]
+                            which_perturb_bodies = outside_orbit + 1
+
+                            # the planet will also perturb the star
+                            which_perturb_bodies = np.append([0], which_perturb_bodies)
+
+                        else:
+                            # for the star, what we are measuring is its position relative to the system barycenter
+                            # so we want to account for all of the bodies.  
+                            which_perturb_bodies = np.arange(self.num_secondary_bodies+1)
+
+                        for other_body_num in which_perturb_bodies:
+                            # skip itself since the the 2-body problem is measuring the planet-star separation already
+                            if (body_num == other_body_num) | (body_num == 0):
+                                continue
+
+                            ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
+                            # this computes the perturbation on the other body due to the current body
+
+                            # star is perturbed in opposite direction
+                            if other_body_num == 0:
+                                ra_perturb[:, other_body_num, :] -= (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
+                                dec_perturb[:, other_body_num, :] -= (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+                            
+                            else:
+                                ra_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * ra_kepler[:, body_num, :]
+                                dec_perturb[:, other_body_num, :] += (masses[body_num]/mtots[body_num]) * dec_kepler[:, body_num, :] 
+
+                raoff = ra_kepler + ra_perturb
+                deoff = dec_kepler + dec_perturb
+                # if n_orbits == 1:
+                #     import pdb; pdb.set_trace()
+                #     total_rv0 = np.reshape(total_rv0, (n_epochs, n_orbits))
+                # vz[:, 0, :] = total_rv0
+
+        if self.fitting_basis == 'XYZ':
+            # Find and filter out unbound orbits
+            bad_orbits = np.where(np.logical_or(ecc >= 1., ecc < 0.))[0]
+            if (bad_orbits.size != 0):
+                raoff[:,:, bad_orbits] = np.inf
+                deoff[:,:, bad_orbits] = np.inf 
+                vz[:,:, bad_orbits] = np.inf
+                return raoff, deoff, vz
+            else: 
+                return raoff, deoff, vz 
+        else:
+            return raoff, deoff, vz
+
+
+    def compute_model(self, params_arr, use_rebound=False):
+        """
+        Compute model predictions for an array of fitting parameters. 
+        Calls the above compute_all_orbits() function, adds jitter/gamma to
+        RV measurements, and propagates these predictions to a model array that
+        can be subtracted from a data array to compute chi2. 
+        
+        Args:
+            params_arr (np.array of float): RxM array
+                of fitting parameters, where R is the number of
+                parameters being fit, and M is the number of orbits
+                we need model predictions for. Must be in the same order
+                documented in ``System()`` above. If M=1, this can be a 1d array.
+            comp_rebound (bool, optional): A secondary optional input for 
+                use of N-body solver Rebound; by default, this will be set
+                to false and a Kepler solver will be used instead.
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
             a 2d array, otherwise it is a 3d array.
         """
 
-        if len(params_arr.shape) == 1:
-            model = np.zeros((len(self.data_table), 2))
-            jitter = np.zeros((len(self.data_table), 2))
+        to_convert = np.copy(params_arr)
+        standard_params_arr = self.basis.to_standard_basis(to_convert)      
+
+        if use_rebound:
+            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, comp_rebound=True)
         else:
-            model = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
-            jitter = np.zeros((len(self.data_table), 2, params_arr.shape[1]))
-            
-        if self.track_planet_perturbs:
-            radec_perturb = np.zeros(model.shape)
+            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
 
-        if len(self.rv[0]) > 0 and self.fit_secondary_mass:
-            gamma = params_arr[6*self.num_secondary_bodies + 1]  # km/s
-
-            # need to put planetary rv later
-            # Both gamma and jitter will be default values if fitting for secondary masses later
-            total_rv0 = gamma
-            jitter[self.rv[0], 0] = params_arr[6*self.num_secondary_bodies + 2]  # km/s
-            jitter[self.rv[0], 1] = np.nan
+        if len(standard_params_arr.shape) == 1:
+            n_orbits = 1
         else:
-            total_rv0 = 0  # If we're not fitting rv, then we don't regard the total rv and will not use this
+            n_orbits = standard_params_arr.shape[1]
 
-        for body_num in np.arange(self.num_secondary_bodies)+1:
-            # we're going to compute at all epochs for convenience of indexing right now
-            # self.radec, and self.seppa index into the entire data table, not just the values for a particular body
-            epochs = self.data_table['epoch']#[self.body_indices[body_num]] 
-            startindex = 6 * (body_num - 1)
-            sma = params_arr[startindex]
-            ecc = params_arr[startindex + 1]
-            inc = params_arr[startindex + 2]
-            argp = params_arr[startindex + 3]
-            lan = params_arr[startindex + 4]
-            tau = params_arr[startindex + 5]
-            plx = params_arr[6 * self.num_secondary_bodies]
+        n_epochs = len(self.data_table)
+        model = np.zeros((n_epochs, 2, n_orbits))
+        jitter = np.zeros((n_epochs, 2, n_orbits))
+        gamma = np.zeros((n_epochs, 2, n_orbits))
 
-            if self.fit_secondary_mass:
-                # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                mass = params_arr[-1-self.num_secondary_bodies+(body_num-1)]
-                m0 = params_arr[-1]
-                # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
-                # We need to select all planets with sma < this planet. 
-                all_smas = params_arr[0:6*self.num_secondary_bodies:6]
-                within_orbit = np.where(all_smas <= sma)
-                all_pl_masses = params_arr[-1-self.num_secondary_bodies:-1]
-                inside_masses = all_pl_masses[within_orbit]
-                mtot = np.sum(inside_masses) + m0
-            else:
-                # if not fitting for secondary mass, then total mass must be stellar mass
-                mass = None
-                m0 = None
-                mtot = params_arr[-1]
+        if len(self.rv[0]) > 0 and self.fit_secondary_mass: 
 
-            # i = 1,2,3... (companion index)
+            # looping through instruments to get the gammas & jitters
+            for rv_idx in range(len(self.rv_instruments)):
 
-            raoff, decoff, vz_i = kepler.calc_orbit(
-                epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
-            )
-
-            # raoff, decoff, vz are scalers if the length of epochs is 1. 
-            # Jason is too lazy to figure out how to make it return a one element array without breaking everything else
-            # so hard code it here to convert them into 1-element numpy arrays. 
-            if len(epochs) == 1:
-                raoff = np.array([raoff])
-                decoff = np.array([decoff])
-                vz = np.array([vz_i])
+                jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[ # [km/s]
+                    self.basis.param_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
+                ]
+                jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
 
-            # vz_i is the ith companion radial velocity
-            if self.fit_secondary_mass:
-                vz0 = vz_i*-(mass/mtot)  # calculating stellar velocity due to ith companion
-                total_rv0 = total_rv0 + vz0  # Adding stellar velocity and gamma
+                gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
+                    self.basis.param_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
+                ] 
+                gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
+
+        for body_num in np.arange(self.num_secondary_bodies + 1):
 
             # for the model points that correspond to this planet's orbit, add the model prediction
             # RA/Dec
             if len(self.radec[body_num]) > 0: # (prevent empty array dimension errors)
-                model[self.radec[body_num], 0] = raoff[self.radec[body_num]]
-                model[self.radec[body_num], 1] = decoff[self.radec[body_num]]
+                model[self.radec[body_num], 0] = raoff[self.radec[body_num], body_num, :]  # N_epochs x N_bodies x N_orbits
+                model[self.radec[body_num], 1] = decoff[self.radec[body_num], body_num, :]
 
             # Sep/PA
             if len(self.seppa[body_num]) > 0:
                 sep, pa = radec2seppa(raoff, decoff)
 
-                model[self.seppa[body_num], 0] = sep[self.seppa[body_num]]
-                model[self.seppa[body_num], 1] = pa[self.seppa[body_num]]
+                model[self.seppa[body_num], 0] = sep[self.seppa[body_num], body_num, :]
+                model[self.seppa[body_num], 1] = pa[self.seppa[body_num], body_num, :]
 
             # RV
             if len(self.rv[body_num]) > 0:
-                model[self.rv[body_num], 0] = vz_i[self.rv[body_num]]
+                model[self.rv[body_num], 0] = vz[self.rv[body_num], body_num, :]
                 model[self.rv[body_num], 1] = np.nan
 
-            # for the other epochs, if we are fitting for the mass of the planets, then they will perturb the star
-            # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
-            # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass. 
-            if self.track_planet_perturbs:
-                for other_body_num in range(self.num_secondary_bodies+1):
-                    # skip itself since the the 2-body problem is measuring the planet-star separation already
-                    if body_num == other_body_num:
-                        continue
-                    ## NOTE: we are only handling ra/dec and sep/pa right now
-                    ## TOOD: integrate RV into this
-                    if len(self.radec[other_body_num]) > 0:
-                        radec_perturb[self.radec[other_body_num], 0] += -(mass/mtot) * raoff[self.radec[other_body_num]]
-                        radec_perturb[self.radec[other_body_num], 1] += -(mass/mtot) * decoff[self.radec[other_body_num]] 
-                    if len(self.seppa[other_body_num]) > 0:
-                        radec_perturb[self.seppa[other_body_num], 0] += -(mass/mtot) * raoff[self.seppa[other_body_num]]
-                        radec_perturb[self.seppa[other_body_num], 1] += -(mass/mtot) * decoff[self.seppa[other_body_num]]
+        if n_orbits == 1:
+            model = model.reshape((n_epochs, 2))
+            jitter = jitter.reshape((n_epochs, 2))
+            gamma = gamma.reshape((n_epochs, 2))
 
         if self.fit_secondary_mass:
-            if len(total_rv0[self.rv[0]]) > 0:
-                model[self.rv[0], 0] = total_rv0[self.rv[0]]
-                model[self.rv[0], 1] = np.nan  # nans only for rv indices
-
-        # add the effects of other planets on the measured astrometry
-        if self.track_planet_perturbs:
-            for body_num in range(self.num_secondary_bodies+1):
-                if len(self.radec[body_num]) > 0:
-                    model[self.radec[body_num]] -= radec_perturb[self.radec[body_num]]
-
-                if len(self.seppa[body_num]) > 0:
-                    # for seppa, add the perturbations in radec space and convert back
-                    ra_unperturb, dec_unperturb = seppa2radec(model[self.seppa[body_num], 0], model[self.seppa[body_num], 1])
-                    ra_perturb = ra_unperturb - radec_perturb[self.seppa[body_num], 0]
-                    dec_perturb = dec_unperturb - radec_perturb[self.seppa[body_num], 1]
-                    sep_perturb, pa_perturb = radec2seppa(ra_perturb, dec_perturb)
-
-                    model[self.seppa[body_num], 0] = sep_perturb
-                    model[self.seppa[body_num], 1] = pa_perturb
-
-
-        return model, jitter
+            return model + gamma, jitter
+        else:
+            return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """
@@ -342,16 +531,24 @@ class System(object):
             ra_err = self.data_table['quant1_err'][i]
             dec = self.data_table['quant2'][i]
             dec_err = self.data_table['quant2_err'][i]
+            radec_corr = self.data_table['quant12_corr'][i]
             # Convert to sep/PA
             sep, pa = radec2seppa(ra, dec)
-            sep_err = 0.5*(ra_err+dec_err)
-            pa_err = np.degrees(sep_err/sep)
+
+            if np.isnan(radec_corr): 
+                # E-Z
+                sep_err = 0.5*(ra_err+dec_err)
+                pa_err = np.degrees(sep_err/sep)
+                seppa_corr = np.nan
+            else:
+                sep_err, pa_err, seppa_corr = transform_errors(ra, dec, ra_err, dec_err, radec_corr, radec2seppa)
 
             # Update data_table
             self.data_table['quant1'][i] = sep
             self.data_table['quant1_err'][i] = sep_err
             self.data_table['quant2'][i] = pa
             self.data_table['quant2_err'][i] = pa_err
+            self.data_table['quant12_corr'][i] = seppa_corr
             self.data_table['quant_type'][i] = 'seppa'
             # Update self.radec and self.seppa arrays
             self.radec[body_num] = np.delete(
@@ -390,7 +587,7 @@ def radec2seppa(ra, dec, mod180=False):
 
 
     Returns:
-        tulple of float: (separation [mas], position angle [deg])
+        tuple of float: (separation [mas], position angle [deg])
 
     """
     sep = np.sqrt((ra**2) + (dec**2))
@@ -416,3 +613,37 @@ def seppa2radec(sep, pa):
     dec = sep * np.cos(np.radians(pa))
 
     return ra, dec
+
+
+def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=100000):
+    """
+    Transform errors and covariances from one basis to another using a Monte Carlo apporach
+    
+   Args:
+        x1 (float): planet location in first coordinate (e.g., RA, sep) before transformation
+        x2 (float): planet location in the second coordinate (e.g., Dec, PA) before transformation)
+        x1_err (float): error in x1
+        x2_err (float): error in x2
+        x12_corr (float): correlation between x1 and x2
+        transform_func (function): function that transforms between (x1, x2) and (x1p, x2p) (the transformed coordinates)
+                                    The function signature should look like: `x1p, x2p = transform_func(x1, x2)`
+        nsamps (int): number of samples to draw more the Monte Carlo approach. More is slower but more accurate. 
+    Returns:
+        tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
+    """
+
+    if np.isnan(x12_corr):
+        x12_corr = 0.
+
+    # construct covariance matrix from the terms provided
+    cov = np.array([[x1_err**2, x1_err*x2_err*x12_corr], [x1_err*x2_err*x12_corr, x2_err**2]])
+
+    samps = np.random.multivariate_normal([x1, x2], cov, size=nsamps)
+
+    x1p, x2p = transform_func(samps[:,0], samps[:, 1])
+
+    x1p_err = np.std(x1p)
+    x2p_err = np.std(x2p)
+    x12_corr = np.corrcoef([x1p, x2p])[0,1]
+
+    return x1p_err, x2p_err, x12_corr

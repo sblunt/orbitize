@@ -1,15 +1,18 @@
 """
 Test the routines in the orbitize.Results module
 """
-# Based on driver.py
 
-from orbitize import results
+import orbitize
+from orbitize import results, read_input
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
 import os
 
 std_labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+std_param_idx = {
+    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
+}
 
 
 def simulate_orbit_sampling(n_sim_orbits):
@@ -49,15 +52,23 @@ def simulate_orbit_sampling(n_sim_orbits):
     return sim_post
 
 
-def test_init_and_add_samples():
+def test_init_and_add_samples(radec_input=False):
     """
     Tests object creation and add_samples() with some simulated posterior samples
     Returns results.Results object
     """
+
+    if radec_input:
+        input_file = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
+    else:
+        input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+
+    data = read_input.read_file(input_file)
+
     # Create object
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1
+        labels=std_labels, num_secondary_bodies=1, data=data
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -83,9 +94,13 @@ def test_init_and_add_samples():
 
 @pytest.fixture()
 def results_to_test():
+
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data = orbitize.read_input.read_file(input_file)
+
     results_obj = results.Results(
         sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1
+        labels=std_labels, num_secondary_bodies=1, data=data
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -102,6 +117,21 @@ def results_to_test():
     # Return object for testing
     return results_obj
 
+def test_results_printing(results_to_test):
+    """
+    Tests that `results.print_results()` doesn't fail
+    """
+
+    results_to_test.print_results()
+
+
+def test_plot_long_periods(results_to_test):
+
+    # make all orbits in the results posterior have absurdly long orbits
+    mtot_idx = results_to_test.param_idx['mtot']
+    results_to_test.post[:,mtot_idx] = 1e-10
+
+    results_to_test.plot_orbits()
 
 def test_save_and_load_results(results_to_test, has_lnlike=True):
     """
@@ -120,6 +150,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     loaded_results.load_results(save_filename, append=False)
     # Check if loaded results equal saved results
     assert results_to_save.sampler_name == loaded_results.sampler_name
+    assert results_to_save.version_number == loaded_results.version_number
     assert np.array_equal(results_to_save.post, loaded_results.post)
     if has_lnlike:
         assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
@@ -130,11 +161,16 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
     assert loaded_results.labels.tolist() == std_labels
+    assert loaded_results.param_idx == std_param_idx
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
 
     # check tau reference epoch is stored
     assert loaded_results.tau_ref_epoch == 50000
+
+    # check that str fields are indeed strs
+    # checking just one str entry probably is good enough
+    assert isinstance(loaded_results.data['quant_type'][0], str)
 
     # Clean up: Remove save file
     os.remove(save_filename)
@@ -149,7 +185,16 @@ def test_plot_corner(results_to_test):
     assert Figure1 is not None
     Figure2 = results_to_test.plot_corner(param_list=['sma1', 'ecc1', 'inc1', 'mtot'])
     assert Figure2 is not None
-    return Figure1, Figure2
+
+    mass_vals = results_to_test.post[:,-1].copy()
+
+    # test that fixing parameters doesn't crash corner plot code
+    results_to_test.post[:,-1] = np.ones(len(results_to_test.post[:,-1]))
+    Figure3 = results_to_test.plot_corner()
+
+    results_to_test.post[:,-1] = mass_vals
+
+    return Figure1, Figure2, Figure3
 
 
 def test_plot_orbits(results_to_test):
@@ -168,23 +213,32 @@ def test_plot_orbits(results_to_test):
     Figure4 = results_to_test.plot_orbits(
         num_orbits_to_plot=1, square_plot=False, show_colorbar=False)
     assert Figure4 is not None
-    Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1, square_plot=False, cbar_param='ecc')
+    Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1, square_plot=False, cbar_param='ecc1')
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
-
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()
+
+    test_results_printing(test_results)
+    test_plot_long_periods(test_results)
+    test_results_radec = test_init_and_add_samples(radec_input=True)
+    
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
     test_save_and_load_results(test_results, has_lnlike=False)
-    test_corner_fig1, test_corner_fig2 = test_plot_corner(test_results)
+    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
-    test_corner_fig1.savefig('test_corner1.png')
+    test_orbit_figs = test_plot_orbits(test_results_radec)
+    test_corner_fig1.savefig('test_corner1.png');
     test_corner_fig2.savefig('test_corner2.png')
+    test_corner_fig3.savefig('test_corner3.png')
     test_orbit_figs[0].savefig('test_orbit1.png')
     test_orbit_figs[1].savefig('test_orbit2.png')
     test_orbit_figs[2].savefig('test_orbit3.png')
     test_orbit_figs[3].savefig('test_orbit4.png')
     test_orbit_figs[4].savefig('test_orbit5.png')
+
+    # clean up
+    os.system('rm test_*.png')

@@ -1,0 +1,5 @@
+# old orbitize format without covariance or instrument. 
+epoch,object,quant1,quant1_err,quant2,quant2_err,quant_type
+55645.95,1,2479,16,327.94,0.39,seppa
+55645.95,1,2479,16,327.94,0.39,radec
+55645.95,1,2479,16,nan,nan,rv

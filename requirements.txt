@@ -1,7 +1,7 @@
 astropy>=4
 numpy
 scipy
-emcee<3
+emcee>=3
 ptemcee
 matplotlib
 corner
@@ -9,3 +9,9 @@ h5py
 deprecation
 cython
 pytest
+pandas
+radvel
+pyerfa
+astroquery
+sphinx==3.5.3
+rebound
