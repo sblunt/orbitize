@@ -83,7 +83,7 @@ params_arr = np.array([
 ra, dec, _ = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=True)
 
 
-def calc_diff():
+def test_calc_diff():
     import matplotlib.pyplot as plt
     from astropy.time import Time
     
@@ -140,7 +140,7 @@ def calc_diff():
     ax2.legend()
     plt.savefig('foo.png')
 
-def plot_orbit():
+def test_plot_orbit():
 
     kra, kde, kvz = kepler.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch=tau_ref_epoch)
     rra, rdec, rvz = nbody.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch=tau_ref_epoch)
@@ -155,7 +155,7 @@ def plot_orbit():
     plt.legend()
     plt.savefig('foo.png')
 
-def plot_orbit2():
+def test_plot_orbit2():
 
     rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=True)
     kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=False)
@@ -169,6 +169,3 @@ def plot_orbit2():
     plt.plot(0, 0, '*')
     plt.legend()
     plt.savefig('foo.png')
-
-calc_diff()
-# plot_orbit()
