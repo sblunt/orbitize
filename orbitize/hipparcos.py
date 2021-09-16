@@ -1,8 +1,14 @@
 import numpy as np
+import struct
+import time
+from astropy.io import ascii
+import os.path
 
 from astroquery.vizier import Vizier
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
+
+from orbitize import DATADIR
 
 class HipparcosLogProb(object):
     """
@@ -25,8 +31,8 @@ class HipparcosLogProb(object):
         plx: parallax [mas]
 
     Args:
-        iad_file (str): location of IAD file. For now, assumes the file is 
-            formatted as the DVD version of the IAD.
+        path_to_iad_file (str): location of IAD files. These are distributed
+            with the orbitize download; pass in orbitize.DATADIR. TODO: update
         hip_num (str): the Hipparcos ID of your target. Accessible on Simbad.
         num_secondary_bodies (int): number of companions in the system
         alphadec0_epoch (float): epoch (in decimal year) that the fitting 
@@ -36,13 +42,14 @@ class HipparcosLogProb(object):
             should be False, but it's helpful for testing. Check out 
             `test_hipparcos._nielsen_iad_refitting_test()` for an example
             using this renormalization.
+        use_binary_file: TODO
 
-    Written: Sarah Blunt, 2021
+    Written: Sarah Blunt & Rob de Rosa, 2021
     """
 
     def __init__(
-        self, iad_file, hip_num, num_secondary_bodies, alphadec0_epoch=1991.25,
-        renormalize_errors=False
+        self, hip_num, num_secondary_bodies,
+        alphadec0_epoch=1991.25, renormalize_errors=False, use_binary_file=True
     ):
 
         self.hip_num = hip_num
@@ -82,17 +89,97 @@ class HipparcosLogProb(object):
                 """
             )
 
-        # read in IAD
-        iad = np.transpose(np.loadtxt(iad_file, skiprows=1))
+        if use_binary_file:
 
-        times = iad[1] + 1991.25
-        epochs = Time(times, format='decimalyear')
-        self.epochs = epochs.decimalyear
-        self.epochs_mjd = epochs.mjd
-        self.cos_phi = iad[3] # scan direction
-        self.sin_phi = iad[4]
-        self.R = iad[5] # abscissa residual [mas]
-        self.eps = iad[6] # error on abscissa residual [mas]
+            # check for IAD files in orbitize DATADIR
+            if (
+                os.path.exists('{}rr_Headers.d'.format(DATADIR)) and 
+                os.path.exists('{}rr_Records.d'.format(DATADIR))
+            ):
+                pass
+
+            # if they don't exist, download them
+            else:
+
+                # TODO: download.
+                print(
+                    "Downloading IAD files (200 MB) to {}.".format(DATADIR)
+                )
+
+                time.sleep(2)
+
+
+
+            # Open header file which contains the starting line and number of lines for a given star
+            hdr = ascii.read('{}rr_Headers.d'.format(DATADIR))
+            n_lines = hdr['col3'].data[list(hdr['col1'].data).index(int(self.hip_num))]
+            
+            times = np.zeros(n_lines)
+            self.cos_phi = np.zeros(n_lines)
+            self.sin_phi = np.zeros(n_lines)
+            self.R = np.zeros(n_lines)
+            self.eps = np.zeros(n_lines)
+
+            # Open binary file
+            f = open('{}rr_Records.d'.format(DATADIR), 'rb')
+
+            # Put pointer at start
+            f.seek(0)
+
+            # This is the binary format of the data entries
+            s_fmt = 'i6h'
+
+            # Print each line - note negative errors here mean the data is ignored for the fit
+            for i in range(0, n_lines + 1):
+
+                if i == 0:
+                    line = f.read(16)
+                else:
+                    line = f.read(16)
+                    res = struct.unpack(s_fmt, line[0:16])
+
+
+
+
+                    times[i-1] = (res[3] / 1e4) + 1991.25
+                    self.cos_phi[i-1] = res[5] / 1e4
+                    self.sin_phi[i-1] = res[6] / 1e4
+                    self.R[i-1] = res[0] / 100
+                    self.eps[i-1] = res[1] / 100
+
+            # reject negative errors
+            good_scans = np.where(self.eps > 0)[0]
+
+            print('{} Hipparcos scans rejected.'.format(n_lines - len(good_scans)))
+            times = times[good_scans]
+            self.cos_phi = self.cos_phi[good_scans]
+            self.sin_phi = self.sin_phi[good_scans]
+            self.R = self.R[good_scans]
+            self.eps = self.eps[good_scans]
+
+            epochs = Time(times, format='decimalyear')
+            self.epochs = epochs.decimalyear
+            self.epochs_mjd = epochs.mjd
+
+            import pdb; pdb.set_trace()
+
+
+            # TODO: print time-ordered IAD; compare against DVD
+        
+        # use the DVD format
+        else:
+            
+            # read in IAD
+            iad = np.transpose(np.loadtxt(path_to_iad_file, skiprows=1))
+
+            times = iad[1] + 1991.25
+            epochs = Time(times, format='decimalyear')
+            self.epochs = epochs.decimalyear
+            self.epochs_mjd = epochs.mjd
+            self.cos_phi = iad[3] # scan direction
+            self.sin_phi = iad[4]
+            self.R = iad[5] # abscissa residual [mas]
+            self.eps = iad[6] # error on abscissa residual [mas]
 
         if renormalize_errors:
             D = len(epochs) - 6
@@ -133,7 +220,7 @@ class HipparcosLogProb(object):
         self.delta_abs = self.R * self.sin_phi + changein_delta
 
     def compute_lnlike(
-        self, raoff_model, deoff_model, samples
+        self, raoff_model, deoff_model, samples, param_idx
     ):
         """
         Computes the log likelihood of an orbit model with respect to the 
@@ -152,6 +239,9 @@ class HipparcosLogProb(object):
             samples (np.array of float): R-dimensional array of fitting 
                 parameters, where R is the number of parameters being fit. Must 
                 be in the same order documented in ``System``. 
+            param_idx: a dictionary matching fitting parameter labels to their
+                indices in an array of fitting parameters (generally 
+                set to System.basis.param_idx).
 
         Returns:
             np.array of float: array of length M, where M is the number of input 
@@ -160,12 +250,11 @@ class HipparcosLogProb(object):
         """
 
         # variables for each of the astrometric fitting parameters
-        plx = samples[6 * self.num_secondary_bodies]
-        pm_ra = samples[6 * self.num_secondary_bodies + 1]
-        pm_dec = samples[6 * self.num_secondary_bodies + 2]
-        alpha_H0 = samples[6 * self.num_secondary_bodies + 3]
-        delta_H0 = samples[6 * self.num_secondary_bodies + 4]
-
+        plx = samples[param_idx['plx']]
+        pm_ra = samples[param_idx['pm_ra']]
+        pm_dec = samples[param_idx['pm_dec']]
+        alpha_H0 = samples[param_idx['alpha0']]
+        delta_H0 = samples[param_idx['delta0']]
 
         try:
             n_samples = len(pm_ra)

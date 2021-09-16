@@ -185,7 +185,6 @@ class System(object):
 
             self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
-
         self.basis = basis_obj(
             stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
             self.fit_secondary_mass, angle_upperlim=angle_upperlim, 

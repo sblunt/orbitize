@@ -30,8 +30,9 @@ def test_hipparcos_api():
     # check that RV + Hip gives correct prior array labels
     hip_num = '027321' # beta Pic
     num_secondary_bodies = 1
-    iad_file = '{}/HIP{}.d'.format(DATADIR, hip_num)
-    myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+    path_to_iad_files = '{}/HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = HipparcosLogProb(path_to_iad_files, hip_num, num_secondary_bodies)
 
     input_file = os.path.join(DATADIR, 'HD4747.csv')
     data_table_with_rvs = read_input.read_file(input_file)
@@ -72,7 +73,8 @@ def test_iad_refitting():
     """
 
     post, myHipLogProb = _nielsen_iad_refitting_test(
-        iad_loc=DATADIR, burn_steps=10, mcmc_steps=200, saveplot=None
+        iad_loc=DATADIR, burn_steps=10, mcmc_steps=200, saveplot=None,
+        use_binary_file=False
     )
 
     # check that we get reasonable values for the posteriors of the refit IAD
@@ -82,7 +84,8 @@ def test_iad_refitting():
 
 def _nielsen_iad_refitting_test(
     hip_num='027321', saveplot='bPic_IADrefit.png', 
-    iad_loc='/data/user/sblunt/HipIAD', burn_steps=100, mcmc_steps=5000
+    iad_loc='/data/user/sblunt/HipIAD-esa', burn_steps=100, mcmc_steps=5000,
+    use_binary_file=True
 ):
     """
     Reproduce the IAD refitting test from Nielsen+ 2020 (end of Section 3.1).
@@ -96,6 +99,7 @@ def _nielsen_iad_refitting_test(
         iad_loc (str): path to the directory containing the IAD file.
         burn_steps (int): number of MCMC burn-in steps to run.
         mcmc_steps (int): number of MCMC production steps to run.
+        use_binary_file: TODO
 
     Returns:
         tuple of:
@@ -105,16 +109,27 @@ def _nielsen_iad_refitting_test(
     """
     
     num_secondary_bodies = 0
-    iad_file = '{}/HIP{}.d'.format(iad_loc, hip_num)
+
+    if use_binary_file:
+        iad_file = iad_loc
+    else:
+        iad_file = '{}HIP{}.d'.format(iad_loc, hip_num)
+
     myHipLogProb = HipparcosLogProb(
-        iad_file, hip_num, num_secondary_bodies, renormalize_errors=True
+        hip_num, num_secondary_bodies, renormalize_errors=True,
+        use_binary_file=use_binary_file
     )
     n_epochs = len(myHipLogProb.epochs)
+
+    param_idx = {'plx':0, 'pm_ra':1, 'pm_dec':2, 'alpha0':3, 'delta0':4}
 
     def log_prob(model_pars):
         ra_model = np.zeros(n_epochs)
         dec_model = np.zeros(n_epochs)
-        lnlike = myHipLogProb.compute_lnlike(ra_model, dec_model, model_pars)
+        lnlike = myHipLogProb.compute_lnlike(
+            ra_model, dec_model, model_pars, 
+            param_idx
+        )
         return lnlike
     
     ndim, nwalkers = 5, 100
@@ -203,5 +218,14 @@ def _nielsen_iad_refitting_test(
 
 
 if __name__ == '__main__':
-    test_hipparcos_api()
-    test_iad_refitting()
+    # test_hipparcos_api()
+    # test_iad_refitting()
+
+    # # use the binary file
+    _nielsen_iad_refitting_test(hip_num='021547') # 51 eri
+
+    ## don't use the binary file
+    # _nielsen_iad_refitting_test(
+    #     iad_loc=DATADIR, use_binary_file=False
+    # )
+
