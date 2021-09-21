@@ -4,7 +4,7 @@ from astroquery.gaia import Gaia
 class GaiaLogProb(object):
 
     """
-    TODO: cite Gaia appropriately
+    TODO: cite Gaia (& Hipparcos van Leeuwen) appropriately
     TODO: catch errors in this code
     TODO: don't require the user to put in Gaia source ID (look it up)
     TODO: account for correlations in Gaia measurements
@@ -65,8 +65,7 @@ class GaiaLogProb(object):
                 respect to the Hipparcos IAD.
         """
 
-        # compare alpha difference, delta difference plus orbit motion to 
-        # get orbital motion 
+        # TODO: check DR3 epoch
 
         alpha_H0 = samples[param_idx['alpha0']]
         pm_ra = samples[param_idx['pm_ra']]
@@ -76,22 +75,34 @@ class GaiaLogProb(object):
         pm_dec = samples[param_idx['pm_dec']]
         delta_delta_from_pm = pm_dec * (2015.5 - 1991.25)
 
+        # difference in position due to orbital motion between Hipparcos & Gaia epochs
+        alpha_diff_orbit = raoff_model[0,:] - raoff_model[1,:]
+        dec_diff_orbit = deoff_model[0,:] - deoff_model[1,:]
+       
+       # RA model (not in tangent plane)
         alpha_model = (
-            (self.ra - (self.hiplogprob.alpha0 + alpha_H0)) * np.cos(self.hiplogprob.delta0) + 
-            delta_alpha_from_pm + 
-            raoff_model
-        )
-        alpha_data = (self.ra - self.hiplogprob.alpha0) * np.cos(self.hiplogprob.delta0)
-        alpha_unc = self.ra_err
+            self.hiplogprob.alpha0 + (
+                alpha_H0  + 
+                delta_alpha_from_pm + 
+                alpha_diff_orbit
 
-        alpha_chi2 = ((alpha_model - alpha_data) / alpha_unc)**2
+            # divide by cos(dec) to undo projection onto tangent plane
+            ) / np.cos(np.radians(self.hiplogprob.delta0))  
+        )
+        alpha_data = self.ra
+
+        # again divide by cos(dec) to undo projection onto tangent plane
+        alpha_unc = self.ra_err / np.cos(np.radians(self.hiplogprob.delta0)) 
+
+        alpha_resid = (alpha_model - alpha_data)
+        alpha_chi2 = (alpha_resid / alpha_unc)**2
 
         delta_model = (
-            (self.dec - (self.hiplogprob.delta0 + delta_H0)) + 
+            self.hiplogprob.delta0 + delta_H0 + 
             delta_delta_from_pm + 
-            deoff_model
+            dec_diff_orbit
         )
-        dec_data = (self.dec - self.hiplogprob.delta0)
+        dec_data = self.dec
         delta_unc = self.dec_err
 
         delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
