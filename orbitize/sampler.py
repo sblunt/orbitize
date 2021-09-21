@@ -103,7 +103,7 @@ class Sampler(abc.ABC):
 
                 # compute Ra/Dec predictions at the Gaia epoch
                 raoff_model, deoff_model, _ = self.system.compute_all_orbits(
-                    params, epochs=np.array([Time(1991.25, 2015.5, format='decimalyear').mjd])
+                    params, epochs=np.array([Time(self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch, format='decimalyear').mjd])
                 ) 
 
                 # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn

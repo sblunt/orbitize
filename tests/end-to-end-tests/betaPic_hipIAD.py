@@ -8,10 +8,11 @@ from orbitize.gaia import GaiaLogProb
 
 """
 Attempts to reproduce case 3 (see table 3) of Nielsen+ 2020 (orbit fits of beta 
-Pic b), currently minus the Gaia data point and the planetary RV. 
+Pic b), currently minus the planetary RV. 
 
 This is a publishable orbit fit that will take several hours-days to run. It
-uses relative astrometry and Hipparcos intermediate astrometric data (IAD).
+uses relative astrometry, Hipparcos intermediate astrometric data (IAD),
+and Gaia eDR3 data.
 
 Set these "keywords:"
 

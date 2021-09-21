@@ -166,7 +166,6 @@ class HipparcosLogProb(object):
         alpha_H0 = samples[6 * self.num_secondary_bodies + 3]
         delta_H0 = samples[6 * self.num_secondary_bodies + 4]
 
-
         try:
             n_samples = len(pm_ra)
         except TypeError:

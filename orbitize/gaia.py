@@ -41,6 +41,9 @@ class GaiaLogProb(object):
         self.dec = gaia_data['dec']
         self.dec_err = gaia_data['dec_error']
 
+        self.gaia_epoch = 2016.0 # dr3
+        self.hipparcos_epoch = 1991.25
+
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx
     ):
@@ -65,15 +68,13 @@ class GaiaLogProb(object):
                 respect to the Hipparcos IAD.
         """
 
-        # TODO: check DR3 epoch
-
         alpha_H0 = samples[param_idx['alpha0']]
         pm_ra = samples[param_idx['pm_ra']]
-        delta_alpha_from_pm = pm_ra * (2015.5 - 1991.25)
+        delta_alpha_from_pm = pm_ra * (self.gaia_epoch - self.hipparcos_epoch)
 
         delta_H0 = samples[param_idx['delta0']]
         pm_dec = samples[param_idx['pm_dec']]
-        delta_delta_from_pm = pm_dec * (2015.5 - 1991.25)
+        delta_delta_from_pm = pm_dec * (self.gaia_epoch - self.hipparcos_epoch)
 
         # difference in position due to orbital motion between Hipparcos & Gaia epochs
         alpha_diff_orbit = raoff_model[0,:] - raoff_model[1,:]
