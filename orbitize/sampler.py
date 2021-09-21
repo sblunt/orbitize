@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as consts
 import abc
 import time
+from astropy.time import Time
 
 import emcee
 import ptemcee
@@ -97,6 +98,18 @@ class Sampler(abc.ABC):
             lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
                 raoff_model[:,0,:], deoff_model[:,0,:], params
             )
+
+            if self.system.gaia is not None:
+
+                # compute Ra/Dec predictions at the Gaia epoch
+                raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+                    params, epochs=np.array([Time(2015.5, format='decimalyear').mjd])
+                ) 
+
+                # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
+                lnlikes_sum += self.system.gaia.compute_lnlike(
+                    raoff_model[:,0,:], deoff_model[:,0,:], params, self.system.param_idx
+                )
 
         return lnlikes_sum
 

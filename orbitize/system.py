@@ -31,6 +31,7 @@ class System(object):
             IAD fitting. See hipparcos.py for more details.
         fitting_basis (str): the name of the class corresponding to the fitting 
             basis to be used. See basis.py for a list of implemented fitting bases.
+        gaia: TODO
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class, 
@@ -44,7 +45,7 @@ class System(object):
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
-                 hipparcos_IAD=None, fitting_basis='Standard', use_rebound=False):
+                 hipparcos_IAD=None, gaia=None, fitting_basis='Standard', use_rebound=False):
 
         self.use_rebound = use_rebound
         self.num_secondary_bodies = num_secondary_bodies
@@ -53,6 +54,7 @@ class System(object):
         self.tau_ref_epoch = tau_ref_epoch
         self.restrict_angle_ranges = restrict_angle_ranges
         self.hipparcos_IAD = hipparcos_IAD
+        self.gaia = gaia
         self.fitting_basis = fitting_basis
         self.best_epochs = []
         self.data_table = data_table

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import orbitize
 from orbitize import system, read_input, priors, sampler
 from orbitize.hipparcos import HipparcosLogProb
+from orbitize.gaia import GaiaLogProb
 
 """
 Attempts to reproduce case 3 (see table 3) of Nielsen+ 2020 (orbit fits of beta 
@@ -19,7 +20,7 @@ just fits the relative astrometry.
 - `savedir` to where you want the fit outputs to be saved
 
 
-Begin keywords ((
+Begin keywords <<
 """
 fit_IAD = True 
 
@@ -28,7 +29,7 @@ if fit_IAD:
 else:
     savedir = '/data/user/{}/betaPic/noIAD'.format(os.getlogin())
 """
-)) End keywords
+>> End keywords
 """
 
 if not os.path.exists(savedir):
@@ -42,18 +43,24 @@ data_table = read_input.read_file(input_file)
 
 if fit_IAD:
     hipparcos_number='027321'
+    gaia_edr3_number = 4792774797545800832
     fit_secondary_mass=True
     hipparcos_filename=os.path.join(orbitize.DATADIR, 'HIP027321.d')
     betaPic_Hip = HipparcosLogProb(
         hipparcos_filename, hipparcos_number, num_secondary_bodies
     )
+    betaPic_gaia = GaiaLogProb(
+        gaia_edr3_number, betaPic_Hip
+    )
 else:
     fit_secondary_mass=False
     betaPic_Hip = None
+    betaPic_gaia = None
 
 betaPic_system = system.System(
     num_secondary_bodies, data_table, 1.75, plx, hipparcos_IAD=betaPic_Hip, 
-    fit_secondary_mass=fit_secondary_mass, mass_err=0.01, plx_err=0.01
+    gaia=betaPic_gaia, fit_secondary_mass=fit_secondary_mass, mass_err=0.01, 
+    plx_err=0.01
 )
 
 m0_or_mtot_prior = priors.UniformPrior(1.5, 2.0)
@@ -79,10 +86,10 @@ else:
     betaPic_system.sys_priors[mtot_index] = m0_or_mtot_prior
 
 # run MCMC
-num_threads = 50
+num_threads = 1#50
 num_temps = 20
 num_walkers = 1000
-num_steps = 10000000 # n_walkers x n_steps_per_walker
+num_steps = 1000000 #10000000 # n_walkers x n_steps_per_walker
 burn_steps = 10000
 thin = 100
 
