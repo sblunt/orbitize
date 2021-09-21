@@ -101,9 +101,15 @@ class Sampler(abc.ABC):
 
             if self.system.gaia is not None:
 
+
+                gaiahip_epochs = Time(
+                    [self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch], 
+                    format='decimalyear'
+                ).mjd
+
                 # compute Ra/Dec predictions at the Gaia epoch
                 raoff_model, deoff_model, _ = self.system.compute_all_orbits(
-                    params, epochs=np.array([Time(self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch, format='decimalyear').mjd])
+                    params, epochs=gaiahip_epochs
                 ) 
 
                 # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn

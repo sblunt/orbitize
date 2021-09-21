@@ -87,7 +87,7 @@ else:
     betaPic_system.sys_priors[mtot_index] = m0_or_mtot_prior
 
 # run MCMC
-num_threads = 50
+num_threads = 1#50
 num_temps = 20
 num_walkers = 1000
 num_steps = 1000000 #10000000 # n_walkers x n_steps_per_walker

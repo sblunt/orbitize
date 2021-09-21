@@ -4,13 +4,13 @@ from astroquery.gaia import Gaia
 class GaiaLogProb(object):
 
     """
+    TODO: add unit tests!
     TODO: cite Gaia (& Hipparcos van Leeuwen) appropriately
     TODO: catch errors in this code
     TODO: don't require the user to put in Gaia source ID (look it up)
     TODO: account for correlations in Gaia measurements
     TODO: make plots that display Hipparcos and Gaia
     TODO: average over Gaia motion to compare PM? (compute PM anomaly)
-
     TODO: Assumes already using Hip IAD (i.e. can't use this module by itself)-- add an error message saying that
 
     """
