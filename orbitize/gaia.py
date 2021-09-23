@@ -1,5 +1,6 @@
 import numpy as np
 from astroquery.gaia import Gaia
+from astropy import units as u
 
 class GaiaLogProb(object):
 
@@ -7,11 +8,13 @@ class GaiaLogProb(object):
     TODO: add unit tests!
     TODO: cite Gaia (& Hipparcos van Leeuwen) appropriately
     TODO: catch errors in this code
+    TODO: Assumes already using Hip IAD (i.e. can't use this module by itself)-- add an error message saying that
     TODO: don't require the user to put in Gaia source ID (look it up)
+
+    
     TODO: account for correlations in Gaia measurements
     TODO: make plots that display Hipparcos and Gaia
     TODO: average over Gaia motion to compare PM? (compute PM anomaly)
-    TODO: Assumes already using Hip IAD (i.e. can't use this module by itself)-- add an error message saying that
 
     """
     def __init__(self, gaia_edr3_num, hiplogprob):
@@ -44,6 +47,10 @@ class GaiaLogProb(object):
         self.gaia_epoch = 2016.0 # dr3
         self.hipparcos_epoch = 1991.25
 
+        # keep this number on hand for use in lnlike computation 
+        self.mas2deg = (u.mas).to(u.degree)
+
+
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx
     ):
@@ -68,21 +75,26 @@ class GaiaLogProb(object):
                 respect to the Hipparcos IAD.
         """
 
+
         alpha_H0 = samples[param_idx['alpha0']]
         pm_ra = samples[param_idx['pm_ra']]
-        delta_alpha_from_pm = pm_ra * (self.gaia_epoch - self.hipparcos_epoch)
+        delta_alpha_from_pm = pm_ra * (self.gaia_epoch - self.hipparcos_epoch) # [mas]
 
         delta_H0 = samples[param_idx['delta0']]
         pm_dec = samples[param_idx['pm_dec']]
-        delta_delta_from_pm = pm_dec * (self.gaia_epoch - self.hipparcos_epoch)
+        delta_delta_from_pm = pm_dec * (self.gaia_epoch - self.hipparcos_epoch) # [mas]
 
         # difference in position due to orbital motion between Hipparcos & Gaia epochs
-        alpha_diff_orbit = raoff_model[0,:] - raoff_model[1,:]
-        dec_diff_orbit = deoff_model[0,:] - deoff_model[1,:]
+        alpha_diff_orbit = (raoff_model[1,:] - raoff_model[0,:]) # [mas]
+        dec_diff_orbit = (deoff_model[1,:] - deoff_model[0,:]) 
+
+        ##### NOTE: change #1 0->1 swapped; change #2: checked all units
        
-       # RA model (not in tangent plane)
-        alpha_model = (
-            self.hiplogprob.alpha0 + (
+        
+
+        # RA model (not in tangent plane)
+        alpha_model = ( # [deg]
+            self.hiplogprob.alpha0 + self.mas2deg * (
                 alpha_H0  + 
                 delta_alpha_from_pm + 
                 alpha_diff_orbit
@@ -93,18 +105,20 @@ class GaiaLogProb(object):
         alpha_data = self.ra
 
         # again divide by cos(dec) to undo projection onto tangent plane
-        alpha_unc = self.ra_err / np.cos(np.radians(self.hiplogprob.delta0)) 
+        alpha_unc = self.mas2deg * self.ra_err / np.cos(np.radians(self.hiplogprob.delta0)) 
 
         alpha_resid = (alpha_model - alpha_data)
         alpha_chi2 = (alpha_resid / alpha_unc)**2
 
-        delta_model = (
-            self.hiplogprob.delta0 + delta_H0 + 
-            delta_delta_from_pm + 
-            dec_diff_orbit
+        delta_model = ( # [arcsec]
+            self.hiplogprob.delta0 + self.mas2deg * (
+                delta_H0 + 
+                delta_delta_from_pm + 
+                dec_diff_orbit
+            )
         )
         dec_data = self.dec
-        delta_unc = self.dec_err
+        delta_unc = self.mas2deg * self.dec_err
 
         delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
 
