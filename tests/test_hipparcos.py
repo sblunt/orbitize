@@ -82,7 +82,7 @@ def test_iad_refitting():
 
 def _nielsen_iad_refitting_test(
     hip_num='027321', saveplot='bPic_IADrefit.png', 
-    iad_loc='/data/user/sblunt/HipIAD', burn_steps=100, mcmc_steps=5000
+    iad_loc='/data/user/sblunt/HipIAD/H027', burn_steps=100, mcmc_steps=5000
 ):
     """
     Reproduce the IAD refitting test from Nielsen+ 2020 (end of Section 3.1).
@@ -203,5 +203,6 @@ def _nielsen_iad_refitting_test(
 
 
 if __name__ == '__main__':
-    test_hipparcos_api()
-    test_iad_refitting()
+    # test_hipparcos_api()
+    # test_iad_refitting()
+    _nielsen_iad_refitting_test(mcmc_steps=10000)
