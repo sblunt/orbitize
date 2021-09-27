@@ -13,7 +13,7 @@ Pic b).
 
 This is a publishable orbit fit that will take several hours-days to run. It
 uses relative astrometry, Hipparcos intermediate astrometric data (IAD),
-and Gaia astrometric data.
+Gaia astrometric data, and a radial velocity measurement of beta Pic b.
 
 Set these "keywords:"
 
