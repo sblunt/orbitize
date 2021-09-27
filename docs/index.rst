@@ -72,6 +72,7 @@ Changelog:
 This is the beta release of orbitize! version 2.
 
 Big changes:
+
 - N-body Kepler solver backend! (@sofiacovarrubias)
 - Fitting in XYZ orbital basis! (@rferrerc)
 - API for fitting in arbitrary new orbital bases! (@TirthDS)
@@ -81,6 +82,7 @@ Big changes:
 - KDE prior added (inspiration=training on RV fits) (@jorgellop)
 
 Small changes:
+
 - HD 4747 rv data file fix for the RV tutorial (@lhirsch238)
 - Add check_prior_support to sampler.MCMC (@adj-smith)
 - Update example generation code in MCMC v OFTI tutorial (@semaphoreP)
