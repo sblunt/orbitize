@@ -413,10 +413,6 @@ class System(object):
 
                 raoff = ra_kepler + ra_perturb
                 deoff = dec_kepler + dec_perturb
-                # if n_orbits == 1:
-                #     import pdb; pdb.set_trace()
-                #     total_rv0 = np.reshape(total_rv0, (n_epochs, n_orbits))
-                # vz[:, 0, :] = total_rv0
 
         if self.fitting_basis == 'XYZ':
             # Find and filter out unbound orbits
