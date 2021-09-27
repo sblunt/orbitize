@@ -1,28 +1,25 @@
 import numpy as np
 import os
-import emcee
 
 import matplotlib.pyplot as plt
-from scipy.stats import norm
 
 from orbitize import DATADIR, read_input, system
-from orbitize.hipparcos import HipparcosLogProb
+from orbitize.hipparcos import HipparcosLogProb, nielsen_iad_refitting_test
 
 def test_hipparcos_api():
     """
     Check that error is caught for a star with solution type != 5 param, 
-    and that doing an RV + Hipparcos IAD fit produces the expected array of 
+    and that doing an RV + Hipparcos IAD fit produces the expected list of 
     Prior objects.
     """
 
     # check sol type != 5 error message
-    hip_num = '25'
+    hip_num = '000025'
     num_secondary_bodies = 1
-    iad_file = 'foo' # Doesn't actually matter,
-                     # HipparcosLogProb initialization code shouldn't get to here
+    path_to_iad_file = '{}H{}.d'.format(DATADIR, hip_num)
 
     try:
-        _ = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+        _ = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
         assert False, 'Test failed.'
     except ValueError: 
         pass
@@ -30,9 +27,9 @@ def test_hipparcos_api():
     # check that RV + Hip gives correct prior array labels
     hip_num = '027321' # beta Pic
     num_secondary_bodies = 1
-    path_to_iad_files = '{}/HIP{}.d'.format(DATADIR, hip_num)
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
 
-    myHip = HipparcosLogProb(path_to_iad_files, hip_num, num_secondary_bodies)
+    myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
 
     input_file = os.path.join(DATADIR, 'HD4747.csv')
     data_table_with_rvs = read_input.read_file(input_file)
@@ -54,8 +51,8 @@ def test_hipparcos_api():
        'alpha0', 'delta0', 'gamma_defrv', 'sigma_defrv', 'm1', 'm0'
    ]
 
-
-    # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are set appropriately for non-Hipparcos system
+    # test that `fit_secondary_mass` and `track_planet_perturbs` keywords are 
+    # set appropriately for non-Hipparcos system
     noHip_system = system.System(
         num_secondary_bodies, data_table_with_rvs, 1.0, 1.0, hipparcos_IAD=None, 
         fit_secondary_mass=False, mass_err=0.01, plx_err=0.01
@@ -64,6 +61,55 @@ def test_hipparcos_api():
     assert not noHip_system.fit_secondary_mass
     assert not noHip_system.track_planet_perturbs
 
+    # check that negative residuals are rejected properly
+    hip_num = '000026' # contains one negative residual
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}H{}.d'.format(DATADIR, hip_num)
+
+    raw_iad_data = np.transpose(np.loadtxt(path_to_iad_file))
+
+    rejected_scansHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    assert len(rejected_scansHip.cos_phi) == len(raw_iad_data[0]) - 1
+
+
+def test_dvd_vs_2021catalog():
+    """
+    Test code's ability to parse both a DVD data file and a 2021
+    data file. Assert that these two files (for beta Pic) give the
+    same best-fit astrometric solution and the same IAD.
+    """
+
+    hip_num = '027321'
+    num_secondary_bodies = 1
+    iad_file_2021 = '{}H{}.d'.format(DATADIR, hip_num)
+    iad_file_dvd = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    # first, test reading of 2021 catalog
+    new_iadHipLogProb = HipparcosLogProb(
+        iad_file_2021, hip_num, num_secondary_bodies
+    )
+
+    # next, test reading of a DVD file
+    old_iadHipLogProb = HipparcosLogProb(
+        iad_file_dvd, hip_num, num_secondary_bodies
+    )
+
+    # test that these give the same data file for beta Pic (which has no rejected scans)
+    assert np.abs(new_iadHipLogProb.plx0 - old_iadHipLogProb.plx0) < 1e-3 # (plx precise to 0.01)
+    assert np.abs(new_iadHipLogProb.plx0_err - old_iadHipLogProb.plx0_err) < 1e-3
+    assert np.abs(new_iadHipLogProb.pm_ra0 - old_iadHipLogProb.pm_ra0) < 1e-3
+    assert np.abs(new_iadHipLogProb.pm_ra0_err - old_iadHipLogProb.pm_ra0_err) < 1e-3
+    assert np.abs(new_iadHipLogProb.pm_dec0 - old_iadHipLogProb.pm_dec0) < 1e-3
+    assert np.abs(new_iadHipLogProb.pm_dec0_err - old_iadHipLogProb.pm_dec0_err) < 1e-3
+    assert np.abs(new_iadHipLogProb.alpha0 - old_iadHipLogProb.alpha0) < 1e-8
+    assert np.abs(new_iadHipLogProb.alpha0_err - old_iadHipLogProb.alpha0_err) < 1e-3
+    assert np.abs(new_iadHipLogProb.delta0 - old_iadHipLogProb.delta0) < 1e-8
+    assert np.abs(new_iadHipLogProb.delta0_err - old_iadHipLogProb.delta0_err) < 1e-3
+
+    # this also asserts that they're the same length, i.e. no rejected scans
+    assert np.all(np.isclose(new_iadHipLogProb.cos_phi, old_iadHipLogProb.cos_phi, atol=1e-2))
+    assert np.all(np.isclose(new_iadHipLogProb.sin_phi, old_iadHipLogProb.sin_phi, atol=1e-2))
+    assert np.all(np.isclose(new_iadHipLogProb.epochs, old_iadHipLogProb.epochs, atol=1e-2))
 
 def test_iad_refitting():
     """
@@ -72,9 +118,9 @@ def test_iad_refitting():
     this is a unit test. 
     """
 
-    post, myHipLogProb = _nielsen_iad_refitting_test(
-        iad_loc=DATADIR, burn_steps=10, mcmc_steps=200, saveplot=None,
-        use_binary_file=False
+    post, myHipLogProb = nielsen_iad_refitting_test(
+        '{}/HIP027321.d'.format(DATADIR), burn_steps=10, mcmc_steps=200, 
+        saveplot=None
     )
 
     # check that we get reasonable values for the posteriors of the refit IAD
@@ -82,150 +128,9 @@ def test_iad_refitting():
     assert np.isclose(0, np.median(post[:, -1]), atol=0.1)
     assert np.isclose(myHipLogProb.plx0, np.median(post[:, 0]), atol=0.1)
 
-def _nielsen_iad_refitting_test(
-    hip_num='027321', saveplot='bPic_IADrefit.png', 
-    iad_loc='/data/user/sblunt/HipIAD-esa', burn_steps=100, mcmc_steps=5000,
-    use_binary_file=True
-):
-    """
-    Reproduce the IAD refitting test from Nielsen+ 2020 (end of Section 3.1).
-    The default MCMC parameters are what you'd want to run before using 
-    the IAD for a new system. This fit uses 100 walkers. 
-
-    Args:
-        hip_num (str): Hipparcos ID of star. Available on Simbad.
-        saveplot (str): what to save the summary plot as. If None, don't make a 
-            plot
-        iad_loc (str): path to the directory containing the IAD file.
-        burn_steps (int): number of MCMC burn-in steps to run.
-        mcmc_steps (int): number of MCMC production steps to run.
-        use_binary_file: TODO
-
-    Returns:
-        tuple of:
-            numpy.array of float: n_steps x 5 array of posterior samples
-            orbitize.hipparcos.HipparcosLogProb: the object storing relevant
-                metadata for the performed Hipparcos IAD fit
-    """
-    
-    num_secondary_bodies = 0
-
-    if use_binary_file:
-        iad_file = iad_loc
-    else:
-        iad_file = '{}HIP{}.d'.format(iad_loc, hip_num)
-
-    myHipLogProb = HipparcosLogProb(
-        hip_num, num_secondary_bodies, renormalize_errors=True,
-        use_binary_file=use_binary_file
-    )
-    n_epochs = len(myHipLogProb.epochs)
-
-    param_idx = {'plx':0, 'pm_ra':1, 'pm_dec':2, 'alpha0':3, 'delta0':4}
-
-    def log_prob(model_pars):
-        ra_model = np.zeros(n_epochs)
-        dec_model = np.zeros(n_epochs)
-        lnlike = myHipLogProb.compute_lnlike(
-            ra_model, dec_model, model_pars, 
-            param_idx
-        )
-        return lnlike
-    
-    ndim, nwalkers = 5, 100
-
-    # initialize walkers
-    # (fitting only plx, mu_a, mu_d, alpha_H0, delta_H0)
-    p0 = np.random.randn(nwalkers, ndim)
-
-    # plx
-    p0[:,0] *= myHipLogProb.plx0_err
-    p0[:,0] += myHipLogProb.plx0
-
-    # PM
-    p0[:,1] *= myHipLogProb.pm_ra0
-    p0[:,1] += myHipLogProb.pm_ra0_err
-    p0[:,2] *= myHipLogProb.pm_dec0
-    p0[:,2] += myHipLogProb.pm_dec0_err
-
-    # set up an MCMC
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
-    print('Starting burn-in!')
-    state = sampler.run_mcmc(p0, burn_steps)
-    sampler.reset()
-    print('Starting production chain!')
-    sampler.run_mcmc(state, mcmc_steps)
-
-
-    if saveplot is not None:
-        _, axes = plt.subplots(5, figsize=(5,12))
-
-        # plx
-        xs = np.linspace(
-            myHipLogProb.plx0 - 3 * myHipLogProb.plx0_err, 
-            myHipLogProb.plx0 + 3 * myHipLogProb.plx0_err,
-            1000
-        )
-        axes[0].hist(sampler.flatchain[:,0], bins=50, density=True, color='r')
-        axes[0].plot(
-            xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), 
-            color='k'
-        )
-        axes[0].set_xlabel('plx [mas]')
-
-        # PM RA
-        xs = np.linspace(
-            myHipLogProb.pm_ra0 - 3 * myHipLogProb.pm_ra0_err, 
-            myHipLogProb.pm_ra0 + 3 * myHipLogProb.pm_ra0_err,
-            1000
-        )
-        axes[1].hist(sampler.flatchain[:,1], bins=50, density=True, color='r')
-        axes[1].plot(
-            xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), 
-            color='k'
-        )
-        axes[1].set_xlabel('PM RA [mas/yr]')
-
-        # PM Dec
-        xs = np.linspace(
-            myHipLogProb.pm_dec0 - 3 * myHipLogProb.pm_dec0_err, 
-            myHipLogProb.pm_dec0 + 3 * myHipLogProb.pm_dec0_err,
-            1000
-        )
-        axes[2].hist(sampler.flatchain[:,2], bins=50, density=True, color='r')
-        axes[2].plot(
-            xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), 
-            color='k'
-        )
-        axes[2].set_xlabel('PM Dec [mas/yr]')
-
-        # RA offset
-        axes[3].hist(sampler.flatchain[:,3], bins=50, density=True, color='r')
-        xs = np.linspace(-1, 1, 1000)
-        axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color='k')
-        axes[3].set_xlabel('RA Offset [mas]')
-
-        # Dec offset
-        axes[4].hist(sampler.flatchain[:,4], bins=50, density=True, color='r')
-        axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color='k')
-        axes[4].set_xlabel('Dec Offset [mas]')
-
-
-        plt.tight_layout()
-        plt.savefig(saveplot, dpi=250)
-
-    return sampler.flatchain, myHipLogProb
-
 
 if __name__ == '__main__':
-    # test_hipparcos_api()
-    # test_iad_refitting()
-
-    # # use the binary file
-    _nielsen_iad_refitting_test(hip_num='021547') # 51 eri
-
-    ## don't use the binary file
-    # _nielsen_iad_refitting_test(
-    #     iad_loc=DATADIR, use_binary_file=False
-    # )
+    test_hipparcos_api()
+    test_iad_refitting()
+    test_dvd_vs_2021catalog()
 
