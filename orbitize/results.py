@@ -392,7 +392,7 @@ class Results(object):
             'm': '$M_{0}$ [M$_{{\\rm Jup}}$]',
             'pm_ra': '$\\mu_{{\\alpha}}$ [mas/yr]',
             'pm_dec': '$\\mu_{{\\delta}}$ [mas/yr]',
-            'alpha0': '$\\alpha_0$ [mas]',
+            'alpha0': '$\\alpha^{{*}}_{{0}}$ [mas]',
             'delta0': '$\\delta_0$ [mas]',
             'm': '$M_{0}$ [M$_\{{Jup\}}$]',
             'per' : '$P_{0}$ [yr]',
