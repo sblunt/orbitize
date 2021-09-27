@@ -6,16 +6,14 @@ class GaiaLogProb(object):
 
     """
     TODO: add unit tests!
-    TODO: cite Gaia (& Hipparcos van Leeuwen) appropriately
-    TODO: catch errors in this code; add Gaia to Hip tutorial
+    TODO: document this file
+    TODO: cite Gaia appropriately
+    TODO: catch errors in this code
+    TODO: add Gaia to Hip tutorial
     TODO: Assumes already using Hip IAD (i.e. can't use this module by itself)-- add an error message saying that
     TODO: don't require the user to put in Gaia source ID (look it up)
-
-    
-    TODO: account for correlations in Gaia measurements
-    TODO: make plots that display Hipparcos and Gaia
-    TODO: average over Gaia motion to compare PM? (compute PM anomaly)
-
+    TODO: raise issue to account for correlations in Gaia measurements
+    TODO: raise issue to make plots that display Hipparcos and Gaia fits
     """
     def __init__(self, gaia_num, hiplogprob, dr='dr2'): # choose from: 'dr2', 'edr3'
 
