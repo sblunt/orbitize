@@ -14,6 +14,9 @@ std_param_idx = {
     'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
 }
 
+def test_load_v1_results():
+
+
 
 def simulate_orbit_sampling(n_sim_orbits):
     """
@@ -218,6 +221,9 @@ def test_plot_orbits(results_to_test):
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
 if __name__ == "__main__":
+    
+    test_load_v1_results()
+
     test_results = test_init_and_add_samples()
 
     test_results_printing(test_results)
