@@ -111,7 +111,7 @@ class GaiaLogProb(object):
         # technically this is an angle so we should wrap it, but the precision
         # of Hipparcos and Gaia is so good that we'll never have to.
         alpha_resid = (alpha_model - alpha_data)
-        alpha_chi2 = (alpha_resid / alpha_unc)**2
+        alpha_chi2 = (alpha_resid / alpha_unc)**2 - np.log(np.sqrt(2*np.pi*alpha_unc**2))
 
         delta_model = ( # [deg]
             self.hiplogprob.delta0 + self.mas2deg * (
@@ -123,10 +123,10 @@ class GaiaLogProb(object):
         dec_data = self.dec
         delta_unc = self.mas2deg * self.dec_err
 
-        delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
+        delta_chi2 = ((delta_model - dec_data) / delta_unc)**2 - np.log(np.sqrt(2*np.pi*delta_unc**2))
 
         chi2 = np.sum(alpha_chi2) + np.sum(delta_chi2)
-        lnlike = -0.5 * chi2
+        lnlike = -0.5 * chi2 
 
         return lnlike
 

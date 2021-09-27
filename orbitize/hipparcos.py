@@ -263,7 +263,7 @@ class HipparcosLogProb(object):
             )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
-        chi2 = np.sum([(dist[:,i] / self.eps)**2 for i in np.arange(n_samples)], axis=1)
+        chi2 = np.sum([(dist[:,i] / self.eps)**2 - np.log(np.sqrt(2*np.pi*self.eps**2)) for i in np.arange(n_samples)], axis=1)
         lnlike = -0.5 * chi2
 
         return lnlike
@@ -395,3 +395,15 @@ def nielsen_iad_refitting_test(
         plt.savefig(saveplot, dpi=250)
 
     return sampler.flatchain, myHipLogProb
+
+
+if __name__ == '__main__':
+
+    from orbitize import DATADIR
+
+    hip_num = '027321' # beta Pic
+
+    nielsen_iad_refitting_test(
+        '{}HIP027321.d'.format(DATADIR), hip_num=hip_num, 
+        saveplot='bPic_IADrefit.png', burn_steps=100, mcmc_steps=500
+    )
