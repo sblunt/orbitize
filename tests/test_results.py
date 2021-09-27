@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results, read_input
+from orbitize import results, read_input, DATADIR
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -15,7 +15,12 @@ std_param_idx = {
 }
 
 def test_load_v1_results():
+    """
+    Tests that loading a posterior generated with v1.0.0 of the code works.
+    """
 
+    myResults = results.Results()
+    myResults.load_results('{}v1_posterior.hdf5'.format(DATADIR))
 
 
 def simulate_orbit_sampling(n_sim_orbits):
