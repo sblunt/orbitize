@@ -13,7 +13,6 @@ else:
         print("Error: Importing cython build environment failed")
         USE_C_KEPLER_MODULE = 0
 
-
 # auto-updating version code stolen from RadVel
 def get_property(prop, project):
     result = re.search(r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop),

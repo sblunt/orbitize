@@ -96,7 +96,7 @@ class Sampler(abc.ABC):
 
             # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
             lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
-                raoff_model[:,0,:], deoff_model[:,0,:], params
+                raoff_model[:,0,:], deoff_model[:,0,:], params, self.system.param_idx
             )
 
             if self.system.gaia is not None:

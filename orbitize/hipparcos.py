@@ -1,4 +1,9 @@
 import numpy as np
+from astropy.io import ascii
+import pandas as pd
+import emcee
+from scipy.stats import norm
+import matplotlib.pyplot as plt
 
 from astroquery.vizier import Vizier
 from astropy.time import Time
@@ -25,9 +30,12 @@ class HipparcosLogProb(object):
         plx: parallax [mas]
 
     Args:
-        iad_file (str): location of IAD file. For now, assumes the file is 
-            formatted as the DVD version of the IAD.
-        hip_num (str): the Hipparcos ID of your target. Accessible on Simbad.
+        path_to_iad_file (str): location of IAD file to be used in your fit.
+            See the Hipparcos tutorial for a walkthrough of how to 
+            download these files.
+        hip_num (str): Hipparcos ID of star. Available on Simbad. Should have
+            zeros in the prefix if number is <100,000. (i.e. 27321 should be
+            passed in as '027321').
         num_secondary_bodies (int): number of companions in the system
         alphadec0_epoch (float): epoch (in decimal year) that the fitting 
             parameters alpha0 and delta0 are defined relative to (see above).
@@ -37,41 +45,77 @@ class HipparcosLogProb(object):
             `test_hipparcos._nielsen_iad_refitting_test()` for an example
             using this renormalization.
 
-    Written: Sarah Blunt, 2021
+    Written: Sarah Blunt & Rob de Rosa, 2021
     """
 
     def __init__(
-        self, iad_file, hip_num, num_secondary_bodies, alphadec0_epoch=1991.25,
-        renormalize_errors=False
+        self, path_to_iad_file, hip_num, num_secondary_bodies,
+        alphadec0_epoch=1991.25, renormalize_errors=False
     ):
+
+        # infer if the IAD file is an older DVD file or a new file
+        with open(path_to_iad_file, 'r') as f:
+            first_char = f.readline()[0]
+
+            # newer format files don't start with comments
+            if first_char == '#':
+                dvd_file = False
+            else:
+                dvd_file = True
 
         self.hip_num = hip_num
         self.num_secondary_bodies = num_secondary_bodies
         self.alphadec0_epoch = alphadec0_epoch
 
-        # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
-        # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
-        Vizier.ROW_LIMIT = -1
-        hip_cat = Vizier(
-            catalog='I/311/hip2', 
-            columns=[
-                'RArad', 'e_RArad', 'DErad', 'e_DErad', 'Plx', 'e_Plx', 'pmRA', 
-                'e_pmRA', 'pmDE', 'e_pmDE', 'F2', 'Sn'
-            ]
-        ).query_constraints(HIP=self.hip_num)[0]
+        # dvd files don't contain the Hipparcos astrometric solution, so
+        # we need to look it up
+        if dvd_file:
 
-        self.plx0 = hip_cat['Plx'][0] # [mas]
-        self.pm_ra0 = hip_cat['pmRA'][0] # [mas/yr]
-        self.pm_dec0 = hip_cat['pmDE'][0] # [mas/yr]
-        self.alpha0 = hip_cat['RArad'][0] # [deg]
-        self.delta0 = hip_cat['DErad'][0] # [deg]
-        self.plx0_err = hip_cat['e_Plx'][0] # [mas]
-        self.pm_ra0_err = hip_cat['e_pmRA'][0] # [mas/yr]
-        self.pm_dec0_err = hip_cat['e_pmDE'][0] # [mas/yr]
-        self.alpha0_err = hip_cat['e_RArad'][0] # [mas]
-        self.delta0_err = hip_cat['e_DErad'][0] # [mas]
+            # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
+            # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
+            Vizier.ROW_LIMIT = -1
+            hip_cat = Vizier(
+                catalog='I/311/hip2', 
+                columns=[
+                    'RArad', 'e_RArad', 'DErad', 'e_DErad', 'Plx', 'e_Plx', 'pmRA', 
+                    'e_pmRA', 'pmDE', 'e_pmDE', 'F2', 'Sn'
+                ]
+            ).query_constraints(HIP=self.hip_num)[0]
 
-        solution_type = hip_cat['Sn'][0]
+            self.plx0 = hip_cat['Plx'][0] # [mas]
+            self.pm_ra0 = hip_cat['pmRA'][0] # [mas/yr]
+            self.pm_dec0 = hip_cat['pmDE'][0] # [mas/yr]
+            self.alpha0 = hip_cat['RArad'][0] # [deg]
+            self.delta0 = hip_cat['DErad'][0] # [deg]
+            self.plx0_err = hip_cat['e_Plx'][0] # [mas]
+            self.pm_ra0_err = hip_cat['e_pmRA'][0] # [mas/yr]
+            self.pm_dec0_err = hip_cat['e_pmDE'][0] # [mas/yr]
+            self.alpha0_err = hip_cat['e_RArad'][0] # [mas]
+            self.delta0_err = hip_cat['e_DErad'][0] # [mas]
+
+            solution_type = hip_cat['Sn'][0]
+            f2 = hip_cat['F2'][0]
+        
+        else:
+            
+            # read the Hipparcos best-fit solution from the IAD file
+            astrometric_solution = pd.read_csv(path_to_iad_file, skiprows=9, sep='\s+', nrows=1)
+            self.plx0 = astrometric_solution['Plx'].values[0] # [mas]
+            self.pm_ra0 = astrometric_solution['pm_RA'].values[0] # [mas/yr]
+            self.pm_dec0 = astrometric_solution['pm_DE'].values[0] # [mas/yr]
+            self.alpha0 = astrometric_solution['RAdeg'].values[0] # [deg]
+            self.delta0 = astrometric_solution['DEdeg'].values[0] # [deg]
+            self.plx0_err =  astrometric_solution['e_Plx'].values[0] # [mas]
+            self.pm_ra0_err = astrometric_solution['e_pmRA'].values[0] # [mas/yr]
+            self.pm_dec0_err = astrometric_solution['e_pmDE'].values[0] # [mas/yr]
+            self.alpha0_err = astrometric_solution['e_RA'].values[0] # [mas]
+            self.delta0_err = astrometric_solution['e_DE'].values[0] # [mas]
+
+            solution_details = pd.read_csv(path_to_iad_file, skiprows=5, sep='\s+', nrows=1)
+
+            solution_type = solution_details['isol_n'].values[0]
+            f2 = solution_details['F2'].values[0]
+
 
         if solution_type != 5:
             raise ValueError(
@@ -83,20 +127,37 @@ class HipparcosLogProb(object):
             )
 
         # read in IAD
-        iad = np.transpose(np.loadtxt(iad_file, skiprows=1))
+        if dvd_file:
+            iad = np.transpose(np.loadtxt(path_to_iad_file, skiprows=1))
+        else:
+            iad = np.transpose(np.loadtxt(path_to_iad_file))
+
+        n_lines = len(iad)
 
         times = iad[1] + 1991.25
-        epochs = Time(times, format='decimalyear')
-        self.epochs = epochs.decimalyear
-        self.epochs_mjd = epochs.mjd
         self.cos_phi = iad[3] # scan direction
         self.sin_phi = iad[4]
         self.R = iad[5] # abscissa residual [mas]
         self.eps = iad[6] # error on abscissa residual [mas]
 
+        # reject negative errors (scans that were rejected by Hipparcos team)
+        good_scans = np.where(self.eps > 0)[0]
+
+        if n_lines - len(good_scans) > 0:
+            print('{} Hipparcos scans rejected.'.format(n_lines - len(good_scans)))
+        times = times[good_scans]
+        self.cos_phi = self.cos_phi[good_scans]
+        self.sin_phi = self.sin_phi[good_scans]
+        self.R = self.R[good_scans]
+        self.eps = self.eps[good_scans]
+
+        epochs = Time(times, format='decimalyear')
+        self.epochs = epochs.decimalyear
+        self.epochs_mjd = epochs.mjd
+
         if renormalize_errors:
             D = len(epochs) - 6
-            G = hip_cat['F2'][0] 
+            G = f2
 
             f = (
                 G * np.sqrt(2 / (9 * D)) + 
@@ -133,7 +194,7 @@ class HipparcosLogProb(object):
         self.delta_abs = self.R * self.sin_phi + changein_delta
 
     def compute_lnlike(
-        self, raoff_model, deoff_model, samples
+        self, raoff_model, deoff_model, samples, param_idx
     ):
         """
         Computes the log likelihood of an orbit model with respect to the 
@@ -152,6 +213,9 @@ class HipparcosLogProb(object):
             samples (np.array of float): R-dimensional array of fitting 
                 parameters, where R is the number of parameters being fit. Must 
                 be in the same order documented in ``System``. 
+            param_idx: a dictionary matching fitting parameter labels to their
+                indices in an array of fitting parameters (generally 
+                set to System.basis.param_idx).
 
         Returns:
             np.array of float: array of length M, where M is the number of input 
@@ -160,11 +224,11 @@ class HipparcosLogProb(object):
         """
 
         # variables for each of the astrometric fitting parameters
-        plx = samples[6 * self.num_secondary_bodies]
-        pm_ra = samples[6 * self.num_secondary_bodies + 1]
-        pm_dec = samples[6 * self.num_secondary_bodies + 2]
-        alpha_H0 = samples[6 * self.num_secondary_bodies + 3]
-        delta_H0 = samples[6 * self.num_secondary_bodies + 4]
+        plx = samples[param_idx['plx']]
+        pm_ra = samples[param_idx['pm_ra']]
+        pm_dec = samples[param_idx['pm_dec']]
+        alpha_H0 = samples[param_idx['alpha0']]
+        delta_H0 = samples[param_idx['delta0']]
 
         try:
             n_samples = len(pm_ra)
@@ -203,3 +267,131 @@ class HipparcosLogProb(object):
         lnlike = -0.5 * chi2
 
         return lnlike
+
+def nielsen_iad_refitting_test(
+    iad_file, hip_num='027321', saveplot='bPic_IADrefit.png', 
+    burn_steps=100, mcmc_steps=5000
+):
+    """
+    Reproduce the IAD refitting test from Nielsen+ 2020 (end of Section 3.1).
+    The default MCMC parameters are what you'd want to run before using 
+    the IAD for a new system. This fit uses 100 walkers. 
+
+    Args:
+        iad_loc (str): path to the IAD file.
+        hip_num (str): Hipparcos ID of star. Available on Simbad. Should have
+            zeros in the prefix if number is <100,000. (i.e. 27321 should be
+            passed in as '027321').
+        saveplot (str): what to save the summary plot as. If None, don't make a 
+            plot
+        burn_steps (int): number of MCMC burn-in steps to run.
+        mcmc_steps (int): number of MCMC production steps to run.
+
+    Returns:
+        tuple of:
+            numpy.array of float: n_steps x 5 array of posterior samples
+            orbitize.hipparcos.HipparcosLogProb: the object storing relevant
+                metadata for the performed Hipparcos IAD fit
+    """
+    
+    num_secondary_bodies = 0
+
+    myHipLogProb = HipparcosLogProb(
+        iad_file, hip_num, num_secondary_bodies, renormalize_errors=True
+    )
+    n_epochs = len(myHipLogProb.epochs)
+
+    param_idx = {'plx':0, 'pm_ra':1, 'pm_dec':2, 'alpha0':3, 'delta0':4}
+
+    def log_prob(model_pars):
+        ra_model = np.zeros(n_epochs)
+        dec_model = np.zeros(n_epochs)
+        lnlike = myHipLogProb.compute_lnlike(
+            ra_model, dec_model, model_pars, 
+            param_idx
+        )
+        return lnlike
+    
+    ndim, nwalkers = 5, 100
+
+    # initialize walkers
+    # (fitting only plx, mu_a, mu_d, alpha_H0, delta_H0)
+    p0 = np.random.randn(nwalkers, ndim)
+
+    # plx
+    p0[:,0] *= myHipLogProb.plx0_err
+    p0[:,0] += myHipLogProb.plx0
+
+    # PM
+    p0[:,1] *= myHipLogProb.pm_ra0
+    p0[:,1] += myHipLogProb.pm_ra0_err
+    p0[:,2] *= myHipLogProb.pm_dec0
+    p0[:,2] += myHipLogProb.pm_dec0_err
+
+    # set up an MCMC
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
+    print('Starting burn-in!')
+    state = sampler.run_mcmc(p0, burn_steps)
+    sampler.reset()
+    print('Starting production chain!')
+    sampler.run_mcmc(state, mcmc_steps)
+
+
+    if saveplot is not None:
+        _, axes = plt.subplots(5, figsize=(5,12))
+
+        # plx
+        xs = np.linspace(
+            myHipLogProb.plx0 - 3 * myHipLogProb.plx0_err, 
+            myHipLogProb.plx0 + 3 * myHipLogProb.plx0_err,
+            1000
+        )
+        axes[0].hist(sampler.flatchain[:,0], bins=50, density=True, color='r')
+        axes[0].plot(
+            xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), 
+            color='k'
+        )
+        axes[0].set_xlabel('plx [mas]')
+
+        # PM RA
+        xs = np.linspace(
+            myHipLogProb.pm_ra0 - 3 * myHipLogProb.pm_ra0_err, 
+            myHipLogProb.pm_ra0 + 3 * myHipLogProb.pm_ra0_err,
+            1000
+        )
+        axes[1].hist(sampler.flatchain[:,1], bins=50, density=True, color='r')
+        axes[1].plot(
+            xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), 
+            color='k'
+        )
+        axes[1].set_xlabel('PM RA [mas/yr]')
+
+        # PM Dec
+        xs = np.linspace(
+            myHipLogProb.pm_dec0 - 3 * myHipLogProb.pm_dec0_err, 
+            myHipLogProb.pm_dec0 + 3 * myHipLogProb.pm_dec0_err,
+            1000
+        )
+        axes[2].hist(sampler.flatchain[:,2], bins=50, density=True, color='r')
+        axes[2].plot(
+            xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), 
+            color='k'
+        )
+        axes[2].set_xlabel('PM Dec [mas/yr]')
+
+        # RA offset
+        axes[3].hist(sampler.flatchain[:,3], bins=50, density=True, color='r')
+        xs = np.linspace(-1, 1, 1000)
+        axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color='k')
+        axes[3].set_xlabel('RA Offset [mas]')
+
+        # Dec offset
+        axes[4].hist(sampler.flatchain[:,4], bins=50, density=True, color='r')
+        axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color='k')
+        axes[4].set_xlabel('Dec Offset [mas]')
+
+
+        plt.tight_layout()
+        plt.savefig(saveplot, dpi=250)
+
+    return sampler.flatchain, myHipLogProb
