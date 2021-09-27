@@ -3,29 +3,37 @@ from astroquery.gaia import Gaia
 from astropy import units as u
 
 class GaiaLogProb(object):
-
     """
-    TODO: add unit tests!
-    TODO: document this file
-    TODO: cite Gaia appropriately
-    TODO: catch errors in this code
-    TODO: add Gaia to Hip tutorial
-    TODO: Assumes already using Hip IAD (i.e. can't use this module by itself)-- add an error message saying that
-    TODO: don't require the user to put in Gaia source ID (look it up)
-    TODO: raise issue to account for correlations in Gaia measurements
-    TODO: raise issue to make plots that display Hipparcos and Gaia fits
+    Class to compute the log probability of an orbit with respect to a single 
+    astrometric position point from Gaia. Uses astroquery to look up Gaia
+    astrometric data, and computes log-likelihood. To be used in conjunction with
+    orbitize.hipparcos.HipLogProb; see documentation for that object for more
+    detail. 
+
+    Follows Nielsen+ 2020 (studying the orbit of beta Pic b).
+
+    NOTE: in orbitize, it is possible to perform a fit to just the Hipparcos
+    IAD, but not to just the Gaia astrometric data.
+
+    Args:
+        gaia_num (int): the Gaia source ID of the object you're fitting. Note
+            that the dr2 and edr3 source IDs are not necessarily the same.
+        hiplogprob (orbitize.hipparcos.HipLogProb): object containing
+            all info relevant to Hipparcos IAD fitting
+        dr (str): either 'dr2' or 'edr3'
     """
-    def __init__(self, gaia_num, hiplogprob, dr='dr2'): # choose from: 'dr2', 'edr3'
-
-        # import astroquery.simbad
-        # simbad = astroquery.simbad.Simbad()
-        # simbad.add_votable_fields('ids')
-
-        # hip_name = 'HIP {}'.format(hip_num)
-
-        # df = simbad.query_objects([hip_name])
+    def __init__(self, gaia_num, hiplogprob, dr='dr2'):
 
         self.hiplogprob = hiplogprob
+
+        if dr == 'edr3':
+            self.gaia_epoch = 2016.0
+        elif dr == 'dr2':
+            self.gaia_epoch = 2015.5
+        else:
+            raise ValueError("`dr` must be either `dr2` or `edr3")
+        self.hipparcos_epoch = 1991.25
+
 
         query = """SELECT
         TOP 1
@@ -45,25 +53,26 @@ class GaiaLogProb(object):
         # keep this number on hand for use in lnlike computation 
         self.mas2deg = (u.mas).to(u.degree)
 
-        if dr == 'edr3':
-            self.gaia_epoch = 2016.0
-        elif dr == 'dr2':
-            self.gaia_epoch = 2015.5
-
-        self.hipparcos_epoch = 1991.25
-
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx
     ):
         """
-        Computes the log likelihood of an orbit model with respect to the 
-        Hipparcos IAD. This is added to the likelihoods calculated with 
+        Computes the log likelihood of an orbit model with respect to a single 
+        Gaia astrometric point. This is added to the likelihoods calculated with 
         respect to other data types in ``sampler._logl()``. 
         Args:
-            raoff_model (np.array of float): TODO
-            deoff_model (np.array of float): primary RA
+            raoff_model (np.array of float): 2xM primary RA
                 offsets from the barycenter incurred from orbital motion of 
-                companions (i.e. not from parallactic motion), at Gaia epoch TODO: check
+                companions (i.e. not from parallactic motion), where M is the 
+                number of orbits being tested, and raoff_model[0,:] are position
+                predictions at the Hipparcos epoch, and raoff_model[1,:] are
+                position predictions at the Gaia epoch
+            deoff_model (np.array of float): 2xM primary decl
+                offsets from the barycenter incurred from orbital motion of 
+                companions (i.e. not from parallactic motion), where M is the 
+                number of orbits being tested, and deoff_model[0,:] are position
+                predictions at the Hipparcos epoch, and deoff_model[1,:] are
+                position predictions at the Gaia epoch
             samples (np.array of float): R-dimensional array of fitting 
                 parameters, where R is the number of parameters being fit. Must 
                 be in the same order documented in ``System``. 
@@ -73,9 +82,8 @@ class GaiaLogProb(object):
         Returns:
             np.array of float: array of length M, where M is the number of input 
                 orbits, representing the log likelihood of each orbit with 
-                respect to the Hipparcos IAD.
+                respect to the Gaia position measurement.
         """
-
 
         alpha_H0 = samples[param_idx['alpha0']] # [deg]
         pm_ra = samples[param_idx['pm_ra']] # [mas/yr]
@@ -87,11 +95,7 @@ class GaiaLogProb(object):
 
         # difference in position due to orbital motion between Hipparcos & Gaia epochs
         alpha_diff_orbit = (raoff_model[1,:] - raoff_model[0,:]) # [mas]
-        dec_diff_orbit = (deoff_model[1,:] - deoff_model[0,:]) 
-
-        ##### NOTE: change #1 0->1 swapped; change #2: checked all units
-       
-        
+        dec_diff_orbit = (deoff_model[1,:] - deoff_model[0,:])        
 
         # RA model (not in tangent plane)
         alpha_model = ( # [deg]

@@ -29,6 +29,9 @@ class HipparcosLogProb(object):
         pm_dec: Dec proper motion [mas/yr]
         plx: parallax [mas]
 
+    NOTE: in orbitize, it is possible to perform a fit to just the Hipparcos
+    IAD, but not to just the Gaia astrometric data.
+
     Args:
         path_to_iad_file (str): location of IAD file to be used in your fit.
             See the Hipparcos tutorial for a walkthrough of how to 
@@ -389,7 +392,6 @@ def nielsen_iad_refitting_test(
         axes[4].hist(sampler.flatchain[:,4], bins=50, density=True, color='r')
         axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color='k')
         axes[4].set_xlabel('Dec Offset [mas]')
-
 
         plt.tight_layout()
         plt.savefig(saveplot, dpi=250)
