@@ -2,7 +2,6 @@
 Module to read user input from files and create standardized input for orbitize
 """
 
-import deprecation
 import numpy as np
 import orbitize
 from astropy.table import Table
@@ -64,7 +63,7 @@ def read_file(filename):
         contain nan.
 
     Args:
-        filename (str): Input file name
+        filename (str or astropy.table.Table): Input filename or the actual table object
 
     Returns:
         astropy.Table: Table containing orbitize-readable input for given
@@ -91,7 +90,11 @@ def read_file(filename):
 
     # read file
     try:
-        input_table = read(filename)
+        # load from file, unless a table is passed in
+        if not isinstance(filename, Table):
+            input_table = read(filename)
+        else:
+            input_table = filename
 
         # convert to masked table
         if input_table.has_masked_columns:
@@ -201,6 +204,25 @@ def read_file(filename):
             else:
                 have_inst = np.zeros(num_measurements, dtype=bool)
 
+    # orbitize! backwards compatability since we added new columns, some old data formats may not have them
+    # fill in with default values
+    if orbitize_style:
+        if 'quant12_corr' not in input_table.keys():
+            default_corrs = np.nan * np.ones(len(input_table))
+            input_table.add_column(default_corrs, name="quant12_corr")
+        if 'instrument' not in input_table.keys():
+            default_insts = []
+            for this_quant_type in input_table['quant_type']:
+                if this_quant_type == "radec":
+                    default_insts.append("defrd")
+                elif this_quant_type == "seppa":
+                    default_insts.append("defsp")
+                elif this_quant_type == "rv":
+                    default_insts.append("defrv")
+                else:
+                    raise Exception("Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(this_quant_type))
+            input_table.add_column(default_insts, name="instrument")
+
     # loop through each row and format table
     for index, row in enumerate(input_table):
         # First check if epoch is a number
@@ -237,7 +259,7 @@ def read_file(filename):
                 output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'],
                                       row['quant2'], row['quant2_err'], quant12_corr, row['quant_type'], row['instrument']])
             else:  # catch wrong formats
-                raise Exception("Invalid 'quant_type'. Valid values are 'radec', 'seppa' or 'rv'")
+                raise Exception("Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(row['quant_type']))
 
         else:  # When not in orbitize style
 
@@ -291,19 +313,6 @@ def read_file(filename):
     return output_table
 
 
-@deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
-                        current_version=orbitize.__version__,
-                        details="Use read_file() instead. v1.0.2 replaces read_formatted_file and read_orbitize_input with read_file(). For now, this will be a wrapper for read_file and will be removed in the v2.0 release.")
-def read_formatted_file(filename):
-    """
-    Version 1.0.2 replaces this function with `read_file`.
-    Currently exists as a wrapper for `read_file` and will be removed in v2.0
-
-    Written: Henry Ngo, 2018
-    """
-
-    return read_file(filename)
-
 
 def write_orbitize_input(table, output_filename, file_type='csv'):
     """ Writes orbitize-readable input as an ASCII file
@@ -330,14 +339,3 @@ def write_orbitize_input(table, output_filename, file_type='csv'):
     write(table, output=output_filename, format=file_type)
 
 
-@deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
-                        current_version=orbitize.__version__,
-                        details="Use read_file() instead. v1.0.2 replaces read_orbitize_input and read_formatted_file with read_file(). For now, this will be a wrapper for read_file and will be removed in the v2.0 release.")
-def read_orbitize_input(filename):
-    """
-    Version 1.0.2 replaces this function with `read_file`.
-    Currently exists as a wrapper for `read_file` and will be removed in v2.0
-
-    Written: Henry Ngo, 2018
-    """
-    return read_file(filename)

@@ -10,6 +10,13 @@ import orbitize.read_input as read_input
 import orbitize.results as results
 import matplotlib.pyplot as plt
 
+std_param_idx_fixed_mtot_plx = {
+    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5
+}
+
+std_param_idx = {
+    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
+}
 
 def test_mcmc_runs(num_temps=0, num_threads=1):
     """
@@ -23,16 +30,19 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
 
     # use the test_csv dir
     input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
 
     # construct Driver
     n_walkers = 100
-    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
-                      mcmc_kwargs={'num_temps': num_temps, 'num_threads': num_threads,
-                                   'num_walkers': n_walkers}
-                      )
+    myDriver = Driver(
+        input_file, 'MCMC', 1, 1, 0.01,
+        mcmc_kwargs={
+            'num_temps': num_temps, 'num_threads': num_threads, 
+            'num_walkers': n_walkers
+        }
+    )
 
     # run it a little (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)
@@ -44,7 +54,9 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
 
     # run it a little more (tests adding to results object, and periodic saving)
     output_filename = os.path.join(orbitize.DATADIR, 'test_mcmc.hdf5')
-    myDriver.sampler.run_sampler(400, burn_steps=1, output_filename=output_filename, periodic_save_freq=2)
+    myDriver.sampler.run_sampler(
+        400, burn_steps=1, output_filename=output_filename, periodic_save_freq=2
+    )
 
     # test results object exists and has 2100*100 steps
     assert os.path.exists(output_filename)
@@ -58,7 +70,10 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
 
     # run it a little more testing that everything gets saved even if prediodic_save_freq is not a multiple of the number of steps
     output_filename_2 = os.path.join(orbitize.DATADIR, 'test_mcmc_v1.hdf5')
-    myDriver.sampler.run_sampler(500, burn_steps=1, output_filename=output_filename_2, periodic_save_freq=3)
+    myDriver.sampler.run_sampler(
+        500, burn_steps=1, output_filename=output_filename_2, 
+        periodic_save_freq=3
+    )
     assert myDriver.sampler.results.post.shape[0] == 2000 
 
     # test that lnlikes being saved are correct
@@ -88,7 +103,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
 
     # use the test_csv dir
     input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
-    data_table = read_input.read_formatted_file(input_file)
+    data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
 
@@ -144,6 +159,34 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     assert mcmc.results.post.shape[0] == expected_total_orbits
 
 
+def test_mcmc_param_idx():
+
+    # use the test_csv dir
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    data_table = read_input.read_file(input_file)
+
+    # Manually set 'object' column of data table
+    data_table['object'] = 1
+
+    # construct Driver with fixed mass and plx
+    n_walkers = 100
+    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
+                      mcmc_kwargs={'num_temps': 0, 'num_threads': 1,
+                                   'num_walkers': n_walkers}
+                      )
+
+    # check that sampler.param_idx behaves as expected
+    assert myDriver.sampler.sampled_param_idx == std_param_idx_fixed_mtot_plx
+
+    # construct Driver with no fixed params
+    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01, mass_err=0.1, plx_err=0.2,
+                      mcmc_kwargs={'num_temps': 0, 'num_threads': 1,
+                                   'num_walkers': n_walkers}
+                      )
+
+    assert myDriver.sampler.sampled_param_idx == std_param_idx
+
+
 if __name__ == "__main__":
     # Parallel Tempering tests
     test_mcmc_runs(num_temps=2, num_threads=1)
@@ -154,3 +197,5 @@ if __name__ == "__main__":
     # Test examine/chop chains
     test_examine_chop_chains(num_temps=5)  # PT
     test_examine_chop_chains(num_temps=0)  # Ensemble
+    # param_idx utility tests
+    test_mcmc_param_idx()

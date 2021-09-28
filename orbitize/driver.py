@@ -36,7 +36,7 @@ class Driver(object):
     def __init__(self, input_data, sampler_str,
                  num_secondary_bodies, stellar_mass, plx,
                  mass_err=0, plx_err=0, lnlike='chi2_lnlike',
-                 system_kwargs=None, mcmc_kwargs=None):
+                 system_kwargs=None, mcmc_kwargs=None, fitting_basis='Standard'):
 
         # Read in data
         # Try to interpret input as a filename first
