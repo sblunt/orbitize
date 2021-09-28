@@ -206,7 +206,10 @@ class Results(object):
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
         data = np.array(hf.get('data'))
-        self.data = table.Table(data) # turn back into astropy table, also keeps str formatted right
+        try:
+            self.data = table.Table(data) # turn back into astropy table, also keeps str formatted right
+        except ValueError: # old version of results
+            self.data = None
 
         # get the tau reference epoch
         try:
