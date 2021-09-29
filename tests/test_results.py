@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results, read_input
+from orbitize import results, read_input, system
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -65,28 +65,30 @@ def test_init_and_add_samples(radec_input=False):
 
     data = read_input.read_file(input_file)
 
+    test_system = system.System(1, data, 1, 1)
+
     # Create object
     results_obj = results.Results(
-        sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1, data=data
+        # test_system, 
+        sampler_name='testing',
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)#, labels=std_labels)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)#, labels=std_labels)
     # Check shape of results.post
     expected_length = n_orbit_draws1 + n_orbit_draws2
     assert results_obj.post.shape == (expected_length, 8)
     assert results_obj.lnlike.shape == (expected_length,)
-    assert results_obj.tau_ref_epoch == 50000
+    assert results_obj.tau_ref_epoch == 58849
     assert results_obj.labels == std_labels
 
     return results_obj
@@ -99,8 +101,7 @@ def results_to_test():
     data = orbitize.read_input.read_file(input_file)
 
     results_obj = results.Results(
-        sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1, data=data
+        sampler_name='testing'
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -129,7 +130,7 @@ def test_plot_long_periods(results_to_test):
 
     # make all orbits in the results posterior have absurdly long orbits
     mtot_idx = results_to_test.param_idx['mtot']
-    results_to_test.post[:,mtot_idx] = 1e-10
+    results_to_test.post[:,mtot_idx] = 1e-5
 
     results_to_test.plot_orbits()
 
@@ -160,13 +161,13 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     original_length = results_to_save.post.shape[0]
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
-    assert loaded_results.labels.tolist() == std_labels
+    assert loaded_results.labels == std_labels
     assert loaded_results.param_idx == std_param_idx
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
 
     # check tau reference epoch is stored
-    assert loaded_results.tau_ref_epoch == 50000
+    assert loaded_results.tau_ref_epoch == 58849
 
     # check that str fields are indeed strs
     # checking just one str entry probably is good enough
@@ -181,6 +182,7 @@ def test_plot_corner(results_to_test):
     Tests plot_corner() with plotting simulated posterior samples
     for all 8 parameters and for just four selected parameters
     """
+
     Figure1 = results_to_test.plot_corner()
     assert Figure1 is not None
     Figure2 = results_to_test.plot_corner(param_list=['sma1', 'ecc1', 'inc1', 'mtot'])
@@ -216,6 +218,12 @@ def test_plot_orbits(results_to_test):
     Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1, square_plot=False, cbar_param='ecc1')
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
+
+def test_save_and_load_hipparcos_only():
+    pass
+
+def test_save_and_load_gaia_and_gaia():
+    pass
 
 if __name__ == "__main__":
     test_results = test_init_and_add_samples()

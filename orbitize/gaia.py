@@ -52,6 +52,11 @@ class GaiaLogProb(object):
 
         # keep this number on hand for use in lnlike computation 
         self.mas2deg = (u.mas).to(u.degree)
+    
+    def save(self, hf):
+        hf.attrs['gaia_num'] = self.gaia_num
+        hf.attrs['dr'] = self.dr
+        self.hiplogprob.save(hf)
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx

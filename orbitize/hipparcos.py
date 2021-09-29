@@ -56,6 +56,8 @@ class HipparcosLogProb(object):
         alphadec0_epoch=1991.25, renormalize_errors=False
     ):
 
+        self.path_to_iad_file = path_to_iad_file
+
         # infer if the IAD file is an older DVD file or a new file
         with open(path_to_iad_file, 'r') as f:
             first_char = f.readline()[0]
@@ -195,6 +197,29 @@ class HipparcosLogProb(object):
         # compute abcissa point (Nielsen+ Eq 3)
         self.alpha_abs_st = self.R * self.cos_phi + changein_alpha_st
         self.delta_abs = self.R * self.sin_phi + changein_delta
+
+
+    def save(self, hf):
+        with open(self.path_to_iad_file, 'r') as f:
+            hf.create_dataset("IAD_datafile", data=f.readlines())
+
+        hf.attrs['hip_num'] = self.hip_num
+        hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
+        hf.attrs['renormalize_errors'] = self.renormalize_errors
+        
+        # hf.create_dataset("hip_epochs", data=self.epochs)
+        # hf.create_dataset("X", data=self.X)
+        # hf.create_dataset("Y", data=self.Y)
+        # hf.create_dataset("Z", data=self.Z)
+        # hf.create_dataset("alpha_abs_st", data=self.alpha_abs_st)
+        # hf.create_dataset("delta_abs", data=self.delta_abs)
+        # hf.attrs['alpha0'] = self.alpha0
+        # hf.attrs['delta0'] = self.delta0
+        # hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
+        # hf.attrs['cos_phi'] = self.cos_phi
+        # hf.attrs['sin_phi'] = self.sin_phi
+        # hf.attrs['eps'] = self.eps
+
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx

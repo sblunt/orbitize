@@ -1,5 +1,6 @@
 import numpy as np
 from orbitize import nbody, kepler, basis
+from astropy import table
 
 class System(object):
     """
@@ -43,21 +44,29 @@ class System(object):
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
-                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=False,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
                  hipparcos_IAD=None, gaia=None, fitting_basis='Standard', use_rebound=False):
 
-        self.use_rebound = use_rebound
         self.num_secondary_bodies = num_secondary_bodies
-        self.results = []
-        self.fit_secondary_mass = fit_secondary_mass
-        self.tau_ref_epoch = tau_ref_epoch
+        self.data_table = data_table
+        self.stellar_mass = stellar_mass
+        self.plx = plx
+        self.mass_err = mass_err
+        self.plx_err = plx_err
         self.restrict_angle_ranges = restrict_angle_ranges
+        self.tau_ref_epoch = tau_ref_epoch
+        self.fit_secondary_mass = fit_secondary_mass
         self.hipparcos_IAD = hipparcos_IAD
         self.gaia = gaia
         self.fitting_basis = fitting_basis
+        self.use_rebound = use_rebound
+
+
+
+        # self.results = []
+
         self.best_epochs = []
-        self.data_table = data_table
         self.input_table = self.data_table.copy()
 
         # Group the data in some useful ways
@@ -133,7 +142,7 @@ class System(object):
         if self.hipparcos_IAD is not None:
             self.track_planet_perturbs = True
 
-        if restrict_angle_ranges:
+        if self.restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
             angle_upperlim = 2.*np.pi
@@ -148,7 +157,7 @@ class System(object):
         basis_obj = getattr(basis, self.fitting_basis)
 
         # Obtain extra necessary data to assign priors for XYZ
-        if fitting_basis == 'XYZ':
+        if self.fitting_basis == 'XYZ':
             # Get epochs with least uncertainty, as is done in sampler.py
             convert_warning_print = False
             for body_num in np.arange(self.num_secondary_bodies) + 1:
@@ -188,7 +197,7 @@ class System(object):
             self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
         self.basis = basis_obj(
-            stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
+            self.stellar_mass, self.mass_err, self.plx, self.plx_err, self.num_secondary_bodies, 
             self.fit_secondary_mass, angle_upperlim=angle_upperlim, 
             hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, 
             rv_instruments=self.rv_instruments, **self.extra_basis_kwargs
@@ -241,6 +250,30 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
+
+    def save(self, hf):
+        """
+        """
+        hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
+
+        hf.create_dataset('data', data=self.data_table)
+
+        hf.attrs['restrict_angle_ranges'] = self.restrict_angle_ranges
+        hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
+        hf.attrs['stellar_mass'] = self.stellar_mass
+        hf.attrs['plx'] = self.plx
+        hf.attrs['mass_err'] = self.mass_err
+        hf.attrs['plx_err'] = self.plx_err
+        hf.attrs['fit_secondary_mass'] = self.fit_secondary_mass
+
+        if self.hipparcos_IAD is not None:
+            self.hipparcos_IAD.save(hf)
+        if self.gaia is not None:
+            self.gaia.save(hf)
+        hf.attrs['fitting_basis'] = self.fitting_basis
+        hf.attrs['use_rebound'] = self.use_rebound
+
+        
 
     def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
         """
@@ -552,20 +585,20 @@ class System(object):
                 self.radec[body_num], np.where(self.radec[body_num] == i)[0])
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
 
-    def add_results(self, results):
-        """
-        Adds an orbitize.results.Results object to the list in system.results
+    # def add_results(self, results):
+    #     """
+    #     Adds an orbitize.results.Results object to the list in system.results
 
-        Args:
-            results (orbitize.results.Results object): add this object to list
-        """
-        self.results.append(results)
+    #     Args:
+    #         results (orbitize.results.Results object): add this object to list
+    #     """
+    #     self.results.append(results)
 
-    def clear_results(self):
-        """
-        Removes all stored results
-        """
-        self.results = []
+    # def clear_results(self):
+    #     """
+    #     Removes all stored results
+    #     """
+    #     self.results = []
 
 
 def radec2seppa(ra, dec, mod180=False):
