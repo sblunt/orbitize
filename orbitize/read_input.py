@@ -83,6 +83,7 @@ def read_file(filename):
         if ``quant_type`` is "rv", the units of quant are km/s
 
     Written: Henry Ngo, 2018
+    Updated: Vighnesh Nagpal, Jason Wang (2020-2021)
     """
     # initialize output table
     output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type', 'instrument'),
@@ -275,7 +276,7 @@ def read_file(filename):
                 if have_inst[index]:
                     this_inst = row['instrument']
                 else:
-                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    # sets the row with a default instrument name if none is provided
                     this_inst = 'defrd'
 
                 output_table.add_row([MJD, row['object'], row['raoff'],
@@ -294,7 +295,7 @@ def read_file(filename):
                 if have_inst[index]:
                     this_inst = row['instrument']
                 else:
-                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    # sets the row with a default instrument name if none is provided
                     this_inst = 'defsp'
 
                 output_table.add_row([MJD, row['object'], row['sep'],

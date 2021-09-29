@@ -43,7 +43,10 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
+def calc_orbit(
+    epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, 
+    tau_ref_epoch=58849, tolerance=1e-9, max_iter=100
+):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -141,6 +144,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
         ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        use_c (bool, optional): if True, use the C-based eccentric anomaly
+            solver.
     Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
 
@@ -196,10 +201,17 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
     Newton-Raphson solver for eccentric anomaly.
+
     Args:
         manom (np.array): array of mean anomalies
         ecc (np.array): array of eccentricities
-        eanom0 (np.array): array of first guess for eccentric anomaly, same shape as manom (optional)
+        tolerance (float, optional): absolute tolerance of iterative computation. 
+            Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. 
+            Defaults to 100.
+        eanom0 (np.array): array of first guess for eccentric anomaly, same 
+            shape as manom (optional)
+
     Return:
         eanom (np.array): array of eccentric anomalies
 
@@ -242,12 +254,14 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
 def _mikkola_solver_wrapper(manom, ecc, use_c):
     """
-    Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
-    Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
+    Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) 
+    for the eccentric anomaly. Wrapper for the python implemenation of the IDL 
+    version. From Rob De Rosa.
 
     Args:
         manom (np.array): array of mean anomalies between 0 and 2pi
         ecc (np.array): eccentricity
+        use_c (bool): if True, use the C-based Mikkola solver.
     Return:
         eanom (np.array): array of eccentric anomalies
 
@@ -268,7 +282,8 @@ def _mikkola_solver_wrapper(manom, ecc, use_c):
 def _mikkola_solver(manom, ecc):
     """
     Analtyical Mikkola solver for the eccentric anomaly.
-    Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
+    Adapted from IDL routine keplereq.pro by Rob De Rosa 
+    (http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro)
 
     Args:
         manom (float or np.array): mean anomaly, must be between 0 and pi.

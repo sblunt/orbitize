@@ -30,9 +30,13 @@ class System(object):
         hipparcos_IAD (orbitize.hipparcos.HipparcosLogProb): an object 
             containing information & precomputed values relevant to Hipparcos
             IAD fitting. See hipparcos.py for more details.
+        gaia (orbitize.gaia.GaiaLogProb): an object 
+            containing information & precomputed values relevant to Gaia
+            astrometrry fitting. See gaia.py for more details.
         fitting_basis (str): the name of the class corresponding to the fitting 
             basis to be used. See basis.py for a list of implemented fitting bases.
-        gaia: TODO
+        use_rebound (bool): if True, use an n-body backend solver instead
+            of a Keplerian solver.
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class, 
@@ -46,7 +50,9 @@ class System(object):
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=False,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
-                 hipparcos_IAD=None, gaia=None, fitting_basis='Standard', use_rebound=False):
+                 hipparcos_IAD=None, gaia=None, fitting_basis='Standard', 
+                 use_rebound=False
+    ):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.data_table = data_table
@@ -249,7 +255,11 @@ class System(object):
 
     def save(self, hf):
         """
-        TODO
+        Saves the current object to an hdf5 file
+
+        Args:
+            hf (h5py._hl.files.File): a currently open hdf5 file in which
+                to save the object.        
         """
 
         hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
@@ -472,13 +482,13 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
-            comp_rebound (bool, optional): A secondary optional input for 
+            use_rebound (bool, optional): A secondary optional input for 
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
-            a 2d array, otherwise it is a 3d array.
+                a 2d array, otherwise it is a 3d array.
         """
 
         to_convert = np.copy(params_arr)
@@ -630,19 +640,25 @@ def seppa2radec(sep, pa):
 
 def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=100000):
     """
-    Transform errors and covariances from one basis to another using a Monte Carlo apporach
+    Transform errors and covariances from one basis to another using a Monte Carlo 
+    apporach
     
    Args:
-        x1 (float): planet location in first coordinate (e.g., RA, sep) before transformation
-        x2 (float): planet location in the second coordinate (e.g., Dec, PA) before transformation)
+        x1 (float): planet location in first coordinate (e.g., RA, sep) before 
+            transformation
+        x2 (float): planet location in the second coordinate (e.g., Dec, PA) 
+            before transformation)
         x1_err (float): error in x1
         x2_err (float): error in x2
         x12_corr (float): correlation between x1 and x2
-        transform_func (function): function that transforms between (x1, x2) and (x1p, x2p) (the transformed coordinates)
-                                    The function signature should look like: `x1p, x2p = transform_func(x1, x2)`
-        nsamps (int): number of samples to draw more the Monte Carlo approach. More is slower but more accurate. 
+        transform_func (function): function that transforms between (x1, x2) 
+            and (x1p, x2p) (the transformed coordinates). The function signature 
+            should look like: `x1p, x2p = transform_func(x1, x2)`
+        nsamps (int): number of samples to draw more the Monte Carlo approach. 
+            More is slower but more accurate. 
     Returns:
-        tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
+        tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for 
+            x1p,x2p (the transformed coordinates)
     """
 
     if np.isnan(x12_corr):

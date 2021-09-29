@@ -55,7 +55,7 @@ class Sampler(abc.ABC):
                 documented in System() above. If M=1, this can be a 1d array.
 
         Returns:
-            lnlikes (float): sum of all log likelihoods of the data given input model
+            float: sum of all log likelihoods of the data given input model
 
         """
         # compute the model based on system params
@@ -124,8 +124,8 @@ class OFTI(Sampler,):
     OFTI Sampler
 
     Args:
-        like (string): name of likelihood function in ``lnlike.py``
         system (system.System): ``system.System`` object
+        like (string): name of likelihood function in ``lnlike.py``
         custom_lnlike (func): ability to include an addition custom likelihood function in the fit.
             the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
             of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
@@ -440,7 +440,7 @@ class OFTI(Sampler,):
             num_cores (int): the number of cores to run OFTI on. Defaults to
                              number of cores availabe.
         Return:
-            output_orbits (np.array): array of accepted orbits. Size: total_orbits.
+            np.array: array of accepted orbits. Size: total_orbits.
 
         Written by: Vighnesh Nagpal(2019)
 
@@ -563,7 +563,10 @@ class MCMC(Sampler):
     Written: Jason Wang, Henry Ngo, 2018
     """
 
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None):
+    def __init__(
+        self, system, num_temps=20, num_walkers=1000, num_threads=1, 
+        like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None
+    ):
 
         super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
@@ -647,10 +650,12 @@ class MCMC(Sampler):
         Fills in the missing parameters from the chain that aren't being sampled
 
         Args:
-            sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
+            sampled_params (np.array): either 1-D array of size = number of 
+                sampled params, or 2-D array of shape (num_models, num_params)
 
         Returns:
-            full_params (np.array): same number of dimensions as sampled_params, but with num_params including the fixed parameters
+            np.array: same number of dimensions as sampled_params, 
+                but with num_params including the fixed parameters
         """
         if len(self.fixed_params) == 0:
             # nothing to add
@@ -679,7 +684,6 @@ class MCMC(Sampler):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
-
             include_logp (bool): if True, also include log prior in this function
 
         Returns:
@@ -739,8 +743,9 @@ class MCMC(Sampler):
 
     def validate_xyz_positions(self):
         """
-        If using the XYZ basis, walkers might be initialized in an invalid region of parameter space. This function fixes that
-        by replacing invalid positions by new randomly generated positions until all are valid.
+        If using the XYZ basis, walkers might be initialized in an invalid 
+        region of parameter space. This function fixes that by replacing invalid 
+        positions by new randomly generated positions until all are valid.
         """
         if self.system.fitting_basis == 'XYZ':
             if self.use_pt:
@@ -788,7 +793,10 @@ class MCMC(Sampler):
                         print('All walker positions validated.')
 
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False, output_filename=None, periodic_save_freq=None):
+    def run_sampler(
+        self, total_orbits, burn_steps=0, thin=1, examine_chains=False, 
+        output_filename=None, periodic_save_freq=None
+    ):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -829,10 +837,6 @@ class MCMC(Sampler):
                     ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
                 )
             else:
-                # if self.num_threads != 1:
-                #     print('Setting num_threads=1. If you want parallel processing for emcee implemented in orbitize, let us know.')
-                #     self.num_threads = 1
-
                 sampler = emcee.EnsembleSampler(
                     self.num_walkers, self.num_params, self._logl, pool=pool,
                     kwargs={'include_logp': True}
@@ -1038,15 +1042,12 @@ class MCMC(Sampler):
         # Print a confirmation
         print('Chains successfully chopped. Results object updated.')
 
-    def check_prior_support(self,):
+    def check_prior_support(self):
         """
         Review the positions of all MCMC walkers, to verify that they are supported by the prior space.
         This function will raise a descriptive ValueError if any positions lie outside prior support.
         Otherwise, it will return nothing.
-        Args:
-            None.
-        Returns:
-            None.
+
         (written): Adam Smith, 2021
         """
 

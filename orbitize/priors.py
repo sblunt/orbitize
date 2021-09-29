@@ -35,14 +35,17 @@ class NearestNDInterpPrior(Prior):
     """
     Nearest Neighbor interp. This class is
     a wrapper for scipy.interpolate.NearestNDInterpolator.
+
     Args:
-        interp_fct (scipy.interpolate.NearestNDInterpolator): scipy Interpolator object containing the NDInterpolator defined by the user
+        interp_fct (scipy.interpolate.NearestNDInterpolator): scipy Interpolator 
+            object containing the NDInterpolator defined by the user
         total_params (float): number of parameters 
 
+    Written: Jorge LLop-Sayson (2021)
     """
     is_correlated = True
 
-    def __init__(self, interp_fct,total_params):
+    def __init__(self, interp_fct, total_params):
         self.interp_fct = interp_fct
         self.total_params = total_params
         self.param_num = 0
@@ -84,12 +87,12 @@ class NearestNDInterpPrior(Prior):
 
     def compute_lnprob(self, element_array):
         """
-        Compute log(probability) of an array of numbers wrt a the defined ND interpolator.
-        Negative numbers return a probability of -inf.
+        Compute log(probability) of an array of numbers wrt a the defined ND 
+        interpolator. Negative numbers return a probability of -inf.
 
         Args:
-            element_array (float or np.array of float): array of numbers. We want the
-                probability of drawing each of these from the ND interpolator.
+            element_array (float or np.array of float): array of numbers. We want 
+                the probability of drawing each of these from the ND interpolator.
 
         Returns:
             numpy array of float: array of log(probability) values,
@@ -113,11 +116,17 @@ class KDEPrior(Prior):
     """
     Gaussian kernel density estimation (KDE) prior. This class is
     a wrapper for scipy.stats.gaussian_kde.
+
     Args:
-        gaussian_kde (scipy.stats.gaussian_kde): scipy KDE object containing the KDE defined by the user
+        gaussian_kde (scipy.stats.gaussian_kde): scipy KDE object containing the 
+            KDE defined by the user
         total_params (float): number of parameters in the KDE
-        bounds (array_like, optional): bounds for the KDE out of which the prob returned is -Inf
-        bounds (array_like of bool, optional): if True for a parameter the parameter is fit to the KDE in log-scale
+        bounds (array_like, optional): bounds for the KDE out of which the prob 
+            returned is -Inf
+        bounds (array_like of bool, optional): if True for a parameter the 
+            parameter is fit to the KDE in log-scale
+
+    Written: Jorge LLop-Sayson, Sarah Blunt(2021)
     """
     is_correlated = True
     

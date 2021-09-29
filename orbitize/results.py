@@ -15,41 +15,28 @@ class Results(object):
     A class to store accepted orbital configurations from the sampler
 
     Args:
-        sampler_name (string): name of sampler class that generated these results (default: None).
+        system (orbitize.system.System): System object used to do the fit.
+        sampler_name (string): name of sampler class that generated these results 
+            (default: None).
         post (np.array of float): MxN array of orbital parameters
             (posterior output from orbit-fitting process), where M is the
             number of orbits generated, and N is the number of varying orbital
             parameters in the fit (default: None).
         lnlike (np.array of float): M array of log-likelihoods corresponding to
             the orbits described in ``post`` (default: None).
-        tau_ref_epoch (float): date (in days, typically MJD) that tau is defined relative to
-        labels (list of str): parameter labels in same order as `post`
+        version_number (str): version of orbitize that produced these results. 
         data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        num_secondary_bodies (int): number of companions fit 
-        curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
-            that is used for restarting a MCMC sampler. 
-        fitting_basis (string): name of the basis that the sampler fit into (default: 'Standard').
-        basis (orbitize.Basis): basis object corresponding to the fitting basis being used (default: None).
-        extra_basis_args (dict): additional arguments needed to initialize the basis class and make
-            necessary conversions (default: None).
-
-    The ``post`` array is in the following order::
-
-        semimajor axis 1, eccentricity 1, inclination 1,
-        argument of periastron 1, position angle of nodes 1,
-        epoch of periastron passage 1,
-        [semimajor axis 2, eccentricity 2, etc.],
-        [parallax, masses (see docstring for orbitize.system.System)]
-
-    where 1 corresponds to the first orbiting object, 2 corresponds
-    to the second, etc.
+        curr_pos (np.array of float): for MCMC only. A multi-D array of the 
+            current walker positions that is used for restarting a MCMC sampler. 
 
     Written: Henry Ngo, Sarah Blunt, 2018
+    API Update: Sarah Blunt, 2021
     """
 
-    def __init__(self, system=None, 
-        sampler_name=None, post=None, lnlike=None,
-        version_number=None, curr_pos=None):
+    def __init__(
+        self, system=None, sampler_name=None, post=None, lnlike=None,
+        version_number=None, curr_pos=None
+    ):
 
         self.system = system
         self.sampler_name = sampler_name
@@ -69,15 +56,18 @@ class Results(object):
 
     def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
         """
-        Add accepted orbits, their likelihoods, and the orbitize version number to the results
+        Add accepted orbits, their likelihoods, and the orbitize version number 
+            to the results
 
         Args:
-            orbital_params (np.array): add sets of orbital params (could be multiple) to results
+            orbital_params (np.array): add sets of orbital params (could be multiple) 
+                to results
             lnlike (np.array): add corresponding lnlike values to results
-            labels (list of str): list of parameter labels specifying the order in ``orbital_params``
-            curr_pos (np.array of float): for MCMC only. A multi-D array of the current walker positions
+            curr_pos (np.array of float): for MCMC only. A multi-D array of the 
+                current walker positions
 
         Written: Henry Ngo, 2018
+        API Update: Sarah Blunt, 2021
         """
         
         # Adding the orbitize version number to the results
@@ -96,18 +86,6 @@ class Results(object):
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
-
-    def _set_sampler_name(self, sampler_name):
-        """
-        internal method to set object's sampler_name attribute
-        """
-        self.sampler_name = sampler_name
-
-    def _set_version_number(self, version_number):
-        """
-        internal method to set object's version_number attribute
-        """
-        self.version_number = version_number
 
     def save_results(self, filename):
         """
@@ -182,7 +160,10 @@ class Results(object):
             data_table = table.Table(np.array(hf.get('data')))
         except ValueError: # old version of results; add a dummy table
             data_table = table.Table(
-                names = ('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type', 'instrument'),
+                names = (
+                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2', 
+                    'quant2_err', 'quant12_corr', 'quant_type', 'instrument'
+                ),
                 dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')
             )
 
@@ -218,7 +199,9 @@ class Results(object):
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
             renormalize_errors = bool(hf.attrs['renormalize_errors'])
 
-            hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(tmpfile, hip_num, alphadec0_epoch, renormalize_errors)
+            hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
+                tmpfile, hip_num, alphadec0_epoch, renormalize_errors
+            )
 
             os.system('rm {}'.format(tmpfile))
             try:
@@ -267,14 +250,14 @@ class Results(object):
         if append:
             # if no sampler_name set, use the input file's value
             if self.sampler_name is None:
-                self._set_sampler_name(sampler_name)
+                self.sampler_name = sampler_name
             # otherwise only proceed if the sampler_names match
             elif self.sampler_name != sampler_name:
                 raise Exception(
                     'Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
             # if no version_number set, use the input file's value
             if self.version_number is None:
-                self._set_version_number(version_number)
+                self.version_number = version_number
             # otherwise only proceed if the version_numbers match
             elif self.version_number != version_number:
                 raise Exception(
@@ -286,8 +269,8 @@ class Results(object):
 
             # Only proceed if object is completely empty
             if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None:# and self.tau_ref_epoch is None :
-                self._set_sampler_name(sampler_name)
-                self._set_version_number(version_number)
+                self.sampler_name = sampler_name
+                self.version_number = version_number
                 self.add_samples(post, lnlike)#, self.labels)
 
             else:
