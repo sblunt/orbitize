@@ -113,7 +113,8 @@ def test_cov_input():
 
 def test_read_old_orbitize_format():
     """
-    Test the read_file function when using an old orbitize data file without `quant12_corr` and `instrument` fields. 
+    Test the read_file function when using an old orbitize data file without 
+    `quant12_corr` and `instrument` fields. 
     """
     # Check that main test input is read in with correct values
     input_file = os.path.join(orbitize.DATADIR, 'old_orbitize_format.csv')
