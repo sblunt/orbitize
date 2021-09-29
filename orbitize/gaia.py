@@ -1,5 +1,8 @@
 import numpy as np
-from astroquery.gaia import Gaia
+import contextlib
+
+with contextlib.redirect_stdout(None):
+    from astroquery.gaia import Gaia
 from astropy import units as u
 
 class GaiaLogProb(object):
@@ -21,14 +24,18 @@ class GaiaLogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         dr (str): either 'dr2' or 'edr3'
+
+    Written: Sarah Blunt, 2021
     """
     def __init__(self, gaia_num, hiplogprob, dr='dr2'):
 
+        self.gaia_num = gaia_num
         self.hiplogprob = hiplogprob
+        self.dr = dr
 
-        if dr == 'edr3':
+        if self.dr == 'edr3':
             self.gaia_epoch = 2016.0
-        elif dr == 'dr2':
+        elif self.dr == 'dr2':
             self.gaia_epoch = 2015.5
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
@@ -40,7 +47,7 @@ class GaiaLogProb(object):
         ra, dec, ra_error, dec_error
         FROM gaia{}.gaia_source
         WHERE source_id = {}
-        """.format(dr, gaia_num)
+        """.format(self.dr, self.gaia_num)
 
         job = Gaia.launch_job_async(query)
         gaia_data = job.get_results()
@@ -53,10 +60,17 @@ class GaiaLogProb(object):
         # keep this number on hand for use in lnlike computation 
         self.mas2deg = (u.mas).to(u.degree)
     
-    def save(self, hf):
+    def _save(self, hf):
+        """
+        Saves the current object to an hdf5 file
+
+        Args:
+            hf (h5py._hl.files.File): a currently open hdf5 file in which
+                to save the object.
+        """
         hf.attrs['gaia_num'] = self.gaia_num
         hf.attrs['dr'] = self.dr
-        self.hiplogprob.save(hf)
+        self.hiplogprob._save(hf)
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx

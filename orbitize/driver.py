@@ -25,18 +25,25 @@ class Driver(object):
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
-        system_kwargs (dict, optional): ``restrict_angle_ranges``, ``ref_tau_epoch``,
-            ``results`` for ``orbitize.system.System``.
+        system_kwargs (dict, optional): ``restrict_angle_ranges``, ``tau_ref_epoch``,
+            ``fit_secondary_mass``, ``hipparcos_IAD``, ``gaia``, 
+            ``use_rebound`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
+        fitting_basis (str, optional): the name of the class corresponding to 
+            the fitting basis to be used. See basis.py for a list of implemented 
+            fitting bases.
 
     Written: Sarah Blunt, 2018
     """
 
-    def __init__(self, input_data, sampler_str,
-                 num_secondary_bodies, system_mass, plx,
-                 mass_err=0, plx_err=0, lnlike='chi2_lnlike',
-                 system_kwargs=None, mcmc_kwargs=None, fitting_basis='Standard'):
+    def __init__(
+        self, input_data, sampler_str,
+        num_secondary_bodies, system_mass, plx,
+        mass_err=0, plx_err=0, lnlike='chi2_lnlike',
+        system_kwargs=None, mcmc_kwargs=None, 
+        fitting_basis='Standard'
+    ):
 
         # Read in data
         # Try to interpret input as a filename first

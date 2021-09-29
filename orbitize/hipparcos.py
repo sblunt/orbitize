@@ -57,6 +57,7 @@ class HipparcosLogProb(object):
     ):
 
         self.path_to_iad_file = path_to_iad_file
+        self.renormalize_errors = renormalize_errors
 
         # infer if the IAD file is an older DVD file or a new file
         with open(path_to_iad_file, 'r') as f:
@@ -160,7 +161,7 @@ class HipparcosLogProb(object):
         self.epochs = epochs.decimalyear
         self.epochs_mjd = epochs.mjd
 
-        if renormalize_errors:
+        if self.renormalize_errors:
             D = len(epochs) - 6
             G = f2
 
@@ -199,27 +200,21 @@ class HipparcosLogProb(object):
         self.delta_abs = self.R * self.sin_phi + changein_delta
 
 
-    def save(self, hf):
+    def _save(self, hf):
+        """
+        Saves the current object to an hdf5 file
+
+        Args:
+            hf (h5py._hl.files.File): a currently open hdf5 file in which
+                to save the object.
+        """
         with open(self.path_to_iad_file, 'r') as f:
-            hf.create_dataset("IAD_datafile", data=f.readlines())
+            iad_data = np.array(f.readlines(), dtype='S')
+            hf.create_dataset("IAD_datafile", data=iad_data)
 
         hf.attrs['hip_num'] = self.hip_num
         hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
         hf.attrs['renormalize_errors'] = self.renormalize_errors
-        
-        # hf.create_dataset("hip_epochs", data=self.epochs)
-        # hf.create_dataset("X", data=self.X)
-        # hf.create_dataset("Y", data=self.Y)
-        # hf.create_dataset("Z", data=self.Z)
-        # hf.create_dataset("alpha_abs_st", data=self.alpha_abs_st)
-        # hf.create_dataset("delta_abs", data=self.delta_abs)
-        # hf.attrs['alpha0'] = self.alpha0
-        # hf.attrs['delta0'] = self.delta0
-        # hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
-        # hf.attrs['cos_phi'] = self.cos_phi
-        # hf.attrs['sin_phi'] = self.sin_phi
-        # hf.attrs['eps'] = self.eps
-
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx

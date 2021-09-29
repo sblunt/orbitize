@@ -62,10 +62,6 @@ class System(object):
         self.fitting_basis = fitting_basis
         self.use_rebound = use_rebound
 
-
-
-        # self.results = []
-
         self.best_epochs = []
         self.input_table = self.data_table.copy()
 
@@ -253,7 +249,9 @@ class System(object):
 
     def save(self, hf):
         """
+        TODO
         """
+
         hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
 
         hf.create_dataset('data', data=self.data_table)
@@ -266,10 +264,10 @@ class System(object):
         hf.attrs['plx_err'] = self.plx_err
         hf.attrs['fit_secondary_mass'] = self.fit_secondary_mass
 
-        if self.hipparcos_IAD is not None:
-            self.hipparcos_IAD.save(hf)
         if self.gaia is not None:
-            self.gaia.save(hf)
+            self.gaia._save(hf)
+        elif self.hipparcos_IAD is not None:
+            self.hipparcos_IAD._save(hf)
         hf.attrs['fitting_basis'] = self.fitting_basis
         hf.attrs['use_rebound'] = self.use_rebound
 
@@ -584,21 +582,6 @@ class System(object):
             self.radec[body_num] = np.delete(
                 self.radec[body_num], np.where(self.radec[body_num] == i)[0])
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
-
-    # def add_results(self, results):
-    #     """
-    #     Adds an orbitize.results.Results object to the list in system.results
-
-    #     Args:
-    #         results (orbitize.results.Results object): add this object to list
-    #     """
-    #     self.results.append(results)
-
-    # def clear_results(self):
-    #     """
-    #     Removes all stored results
-    #     """
-    #     self.results = []
 
 
 def radec2seppa(ra, dec, mod180=False):

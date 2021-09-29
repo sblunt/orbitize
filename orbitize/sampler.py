@@ -218,7 +218,7 @@ class OFTI(Sampler,):
             self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None,
+            lnlike=None
         )
 
     def prepare_samples(self, num_samples):

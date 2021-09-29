@@ -61,27 +61,13 @@ class Results(object):
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
             self.labels = self.system.labels
-            # if self.labels is not None:
-            #     self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
-            # else:
-            #     self.param_idx = None
             self.data = self.system.data_table
             self.num_secondary_bodies = self.system.num_secondary_bodies
             self.fitting_basis = self.system.fitting_basis
             self.basis = self.system.basis
             self.param_idx = self.system.param_idx
 
-
-        # Params necessary for constructing a basis object
-        # self.required_basis_attrs = ['stellar_mass', 'mass_err', 'plx', 'plx_err', 'fit_secondary_mass']
-
-        # Additional params necessary for making conversions
-        # self.extra_basis_args = extra_basis_args
-
-
-
-
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): #labels, 
+    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number to the results
 
@@ -102,8 +88,6 @@ class Results(object):
         if self.post is None:
             self.post = orbital_params
             self.lnlike = lnlikes
-            # self.labels = labels
-            # self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
 
         # Otherwise, need to append properly
         else:
@@ -139,39 +123,24 @@ class Results(object):
         that are members of the root group.
 
         Written: Henry Ngo, 2018
+        API Update: Sarah Blunt, 2021
         """
-
-        ###### need to save: sampler_name, version_number, post, lnlike, curr_pos (&  system)
 
         hf = h5py.File(filename, 'w')  # Creates h5py file object
         # Add sampler_name as attribute of the root group
-        hf.attrs['sampler_name'] = self.sampler_name
-        # hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
-        hf.attrs['version_number'] = self.version_number
-        # hf.attrs['fitting_basis'] = self.fitting_basis
 
-        # For the basis object, we only need to save attributes relevant for conversions
-        # if self.basis is not None:
-        #     basis_attr = vars(self.basis)
-        #     for attribute in self.required_basis_attrs:
-        #         hf.attrs[attribute] = basis_attr[attribute]
-        #     for attribute in self.extra_basis_args:
-        #         hf.attrs[attribute + "_extra_arg"] = self.extra_basis_args[attribute]
+        hf.attrs['sampler_name'] = self.sampler_name
+        hf.attrs['version_number'] = self.version_number
 
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
-        # if self.labels is not None:
-        #     hf['col_names'] = np.array(self.labels).astype('S')
-        # hf.attrs['parameter_labels'] = self.labels 
-        # if self.num_secondary_bodies is not None:
-        #     hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
+
         if self.curr_pos is not None:
             hf.create_dataset("curr_pos", data=self.curr_pos)
 
-        #### SAVE system object
         self.system.save(hf)
 
         hf.close()  # Closes file object, which writes file to disk
@@ -189,10 +158,8 @@ class Results(object):
         data is structured.
 
         Written: Henry Ngo, 2018
+        API Update: Sarah Blunt, 2021
         """
-        ######
-        ### need to load: sampler_name, version_number, post, lnlike, curr_pos (&  system)
-        ######
 
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
@@ -245,7 +212,7 @@ class Results(object):
         if iad_data is not None:
             
             tmpfile = 'thisisprettyhackysorrylmao'
-            iad_data.write(tmpfile)
+            np.array(iad_data).tofile(tmpfile)
 
             hip_num = str(hf.attrs['hip_num'])
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
@@ -257,7 +224,7 @@ class Results(object):
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
-                gaia = orbitize.gaia.Gaia(gaia_num, hipparcos_IAD, dr)
+                gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
             except KeyError:
                 gaia = None
         else:
@@ -279,71 +246,16 @@ class Results(object):
 
         self.tau_ref_epoch = self.system.tau_ref_epoch
         self.labels = self.system.labels
-        # if self.labels is not None:
-        #     self.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
-        # else:
-        #     self.param_idx = None
         self.data = self.system.data_table
         self.num_secondary_bodies = self.system.num_secondary_bodies
         self.fitting_basis = self.system.fitting_basis
         self.basis = self.system.basis
         self.param_idx = self.system.param_idx
 
-
-
-
-        # data = np.array(hf.get('data'))
-        # self.data = table.Table(data) # turn back into astropy table, also keeps str formatted right
-
-        # get the tau reference epoch
-        # try:
-        #     tau_ref_epoch = float(hf.attrs['tau_ref_epoch'])
-        # except KeyError:
-        #     # probably a old results file when reference epoch was fixed at MJD = 0
-        #     tau_ref_epoch = 0
-        # try:
-        #     labels = np.array([hf.attrs['parameter_labels']])[0]
-        # except KeyError:
-        #     # again, probably an old file without saved parameter labels
-        #     # old files only fit single planets
-        #     labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
-        
-        # # rebuild parameter dictionary
-        # self.param_idx = dict(zip(labels, np.arange(len(labels))))
-
-        # try:
-        #     num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
-        # except KeyError:
-        #     # old, has to be single planet fit
-        #     num_secondary_bodies = 1
         try:
             curr_pos = np.array(hf.get('curr_pos'))
         except KeyError:
             curr_pos = None
-
-        # try:
-        #     fitting_basis = np.str(hf.attrs['fitting_basis'])
-        # except KeyError:
-        #     # if key does not exist, then it was fit in the standard basis
-        #     fitting_basis = 'Standard'
-
-        # # Rebuild Basis Object
-        # keys = [item for item in hf.attrs if item.endswith('_extra_arg') or item in self.required_basis_attrs]
-        # args = {}
-        # extra_args = {}
-        # try:
-        #     for item in keys:
-        #         if (item.endswith('_extra_arg')):
-        #             args[item[:-10]] = hf.attrs[item]
-        #             extra_args[item] = hf.attrs[item]
-        #         else:
-        #             args[item] = hf.attrs[item]
-        #     args['num_secondary_bodies'] = num_secondary_bodies
-        #     basis_obj = getattr(orbitize.basis, fitting_basis)
-        #     basis = basis_obj(**args)
-        # except:
-        #     # If some key does not exist, then we cannot build basis object
-        #     basis = None
 
         hf.close()  # Closes file object
 
@@ -367,23 +279,6 @@ class Results(object):
             elif self.version_number != version_number:
                 raise Exception(
                     'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
-            # if no tau reference epoch is set, use input file's value
-            # if self.tau_ref_epoch is None:
-            #     self.tau_ref_epoch = tau_ref_epoch
-            # # otherwise, only proceed if they are identical
-            # elif self.tau_ref_epoch != tau_ref_epoch:
-            #     raise ValueError("Loaded data has tau reference epoch of {0} while Results object has already been initialized to {1}".format(
-            #         tau_ref_epoch, self.tau_ref_epoch))
-            # if self.labels is None:
-            #     self.labels = labels
-            # elif self.labels.any() != labels.any():
-            #     raise ValueError("Loaded data has parameter labels {} while Results object has already been initialized to {}.".format(
-            #         labels, self.labels))
-            # if self.num_secondary_bodies == 0:
-            #     self.num_secondary_bodies = num_secondary_bodies
-            # elif self.num_secondary_bodies != num_secondary_bodies:
-            #     raise ValueError("Loaded data has {} number of secondary bodies while Results object has already been initialized to {}.".format(
-            #         num_secondary_bodies, self.num_secondary_bodies))
 
             # Now append post and lnlike
             self.add_samples(post, lnlike)#, self.labels)
@@ -392,14 +287,9 @@ class Results(object):
             # Only proceed if object is completely empty
             if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None:# and self.tau_ref_epoch is None :
                 self._set_sampler_name(sampler_name)
-                # self.labels = labels
                 self._set_version_number(version_number)
                 self.add_samples(post, lnlike)#, self.labels)
-                # self.tau_ref_epoch = tau_ref_epoch
-                # self.num_secondary_bodies = num_secondary_bodies
-                # self.fitting_basis = fitting_basis
-                # self.basis = basis
-                # self.extra_basis_args = extra_args
+
             else:
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))

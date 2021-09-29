@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results, read_input, system, DATADIR
+from orbitize import results, read_input, system, DATADIR, hipparcos, gaia, sampler
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -85,7 +85,7 @@ def test_init_and_add_samples(radec_input=False):
     # Create object
     results_obj = results.Results(
         test_system, 
-        sampler_name='testing',
+        sampler_name='testing'
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
@@ -238,20 +238,85 @@ def test_plot_orbits(results_to_test):
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
 def test_save_and_load_hipparcos_only():
-    pass
+    """
+    Test that a Results object for a Hipparcos-only fit (i.e. no Gaia data)
+    is saved and loaded properly.
+    """
 
-def test_save_and_load_gaia_and_gaia():
-    pass
+    hip_num = '027321' 
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+
+    input_file = os.path.join(DATADIR, 'betaPic.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip, fit_secondary_mass=True
+    )
+
+    mySamp = sampler.MCMC(mySys, num_temps=1, num_walkers=50)
+    mySamp.run_sampler(1, burn_steps=0)
+
+    save_name = 'test_results.h5'
+    mySamp.results.save_results(save_name)
+
+    loadedResults = results.Results()
+    loadedResults.load_results(save_name)
+
+    assert np.all(loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs)
+    assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
+
+    os.system('rm {}'.format(save_name))
+
+def test_save_and_load_gaia_and_hipparcos():
+    """
+    Test that a Results object for a Gaia+Hipparcos fit
+    is saved and loaded properly.
+    """
+
+    hip_num = '027321' 
+    gaia_num = 4792774797545105664
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myGaia = gaia.GaiaLogProb(gaia_num, myHip)
+
+    input_file = os.path.join(DATADIR, 'betaPic.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip, gaia=myGaia, fit_secondary_mass=True
+    )
+
+    mySamp = sampler.MCMC(mySys, num_temps=1, num_walkers=50)
+    mySamp.run_sampler(1, burn_steps=0)
+
+    save_name = 'test_results.h5'
+    mySamp.results.save_results(save_name)
+
+    loadedResults = results.Results()
+    loadedResults.load_results(save_name)
+
+    assert np.all(loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs)
+    assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
+    assert np.all(loadedResults.system.gaia.ra == mySys.gaia.ra)
+
+    os.system('rm {}'.format(save_name))
 
 if __name__ == "__main__":
     
-    # test_load_v1_results()
+    test_load_v1_results()
+    test_save_and_load_hipparcos_only()
+    test_save_and_load_gaia_and_hipparcos()
 
     test_results = test_init_and_add_samples()
 
-    # test_results_printing(test_results)
-    # test_plot_long_periods(test_results)
-    # test_results_radec = test_init_and_add_samples(radec_input=True)
+    test_results_printing(test_results)
+    test_plot_long_periods(test_results)
+    test_results_radec = test_init_and_add_samples(radec_input=True)
     
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
@@ -259,7 +324,7 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results, has_lnlike=False)
     test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
-    # test_orbit_figs = test_plot_orbits(test_results_radec)
+    test_orbit_figs = test_plot_orbits(test_results_radec)
     test_corner_fig1.savefig('test_corner1.png');
     test_corner_fig2.savefig('test_corner2.png')
     test_corner_fig3.savefig('test_corner3.png')
