@@ -22,6 +22,13 @@ def test_load_v1_results():
     myResults = results.Results()
     myResults.load_results('{}v1_posterior.hdf5'.format(DATADIR))
 
+    n_draws = 100
+
+    assert myResults.post.shape == (n_draws, 8)
+    assert myResults.lnlike.shape == (n_draws,)
+    assert myResults.tau_ref_epoch == 0
+    assert myResults.labels == std_labels
+    assert myResults.fitting_basis == 'Standard'
 
 def simulate_orbit_sampling(n_sim_orbits):
     """
@@ -77,7 +84,7 @@ def test_init_and_add_samples(radec_input=False):
 
     # Create object
     results_obj = results.Results(
-        # test_system, 
+        test_system, 
         sampler_name='testing',
     )
     # Simulate some sample draws, assign random likelihoods
@@ -108,7 +115,10 @@ def results_to_test():
     input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data = orbitize.read_input.read_file(input_file)
 
+    test_system = system.System(1, data, 1, 1)
+
     results_obj = results.Results(
+        test_system, 
         sampler_name='testing'
     )
     # Simulate some sample draws, assign random likelihoods
@@ -116,13 +126,13 @@ def results_to_test():
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)
     # Return object for testing
     return results_obj
 
@@ -235,13 +245,13 @@ def test_save_and_load_gaia_and_gaia():
 
 if __name__ == "__main__":
     
-    test_load_v1_results()
+    # test_load_v1_results()
 
     test_results = test_init_and_add_samples()
 
-    test_results_printing(test_results)
-    test_plot_long_periods(test_results)
-    test_results_radec = test_init_and_add_samples(radec_input=True)
+    # test_results_printing(test_results)
+    # test_plot_long_periods(test_results)
+    # test_results_radec = test_init_and_add_samples(radec_input=True)
     
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
@@ -249,7 +259,7 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results, has_lnlike=False)
     test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
     test_orbit_figs = test_plot_orbits(test_results)
-    test_orbit_figs = test_plot_orbits(test_results_radec)
+    # test_orbit_figs = test_plot_orbits(test_results_radec)
     test_corner_fig1.savefig('test_corner1.png');
     test_corner_fig2.savefig('test_corner2.png')
     test_corner_fig3.savefig('test_corner3.png')

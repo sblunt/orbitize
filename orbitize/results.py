@@ -70,14 +70,6 @@ class Results(object):
             self.fitting_basis = self.system.fitting_basis
             self.basis = self.system.basis
             self.param_idx = self.system.param_idx
-        else:
-            self.tau_ref_epoch = None
-            self.labels = None
-            self.data = None
-            self.num_secondary_bodies = None
-            self.fitting_basis = None
-            self.basis = None
-            self.param_idx = None
 
 
         # Params necessary for constructing a basis object
@@ -213,15 +205,41 @@ class Results(object):
         lnlike = np.array(hf.get('lnlike'))
 
 
-        num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
-        data_table = table.Table(np.array(hf.get('data')))
-        restrict_angle_ranges = bool(hf.attrs['restrict_angle_ranges'])
-        tau_ref_epoch = float(hf.attrs['tau_ref_epoch'])
-        stellar_mass = float(hf.attrs['stellar_mass'])
-        mass_err = float(hf.attrs['mass_err'])
-        plx_err = float(hf.attrs['plx_err'])
-        plx = float(hf.attrs['plx'])
-        fit_secondary_mass = bool(hf.attrs['fit_secondary_mass'])
+        try:
+            num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
+        except KeyError:
+            # old, has to be single planet fit
+            num_secondary_bodies = 1  
+
+        try:
+            data_table = table.Table(np.array(hf.get('data')))
+        except ValueError: # old version of results; add a dummy table
+            data_table = table.Table(
+                names = ('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type', 'instrument'),
+                dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')
+            )
+
+        try: # these are all saved keywords introduced in v2
+            restrict_angle_ranges = bool(hf.attrs['restrict_angle_ranges'])
+            stellar_mass = float(hf.attrs['stellar_mass'])
+            mass_err = float(hf.attrs['mass_err'])
+            plx_err = float(hf.attrs['plx_err'])
+            plx = float(hf.attrs['plx'])
+            fit_secondary_mass = bool(hf.attrs['fit_secondary_mass'])
+            use_rebound = bool(hf.attrs['use_rebound'])
+        except KeyError:
+            restrict_angle_ranges = False
+            stellar_mass = np.nan
+            plx = np.nan
+            plx_err = 0
+            mass_err = 0
+            fit_secondary_mass = False
+            use_rebound = False
+        try:
+            tau_ref_epoch = float(hf.attrs['tau_ref_epoch'])
+        except KeyError:
+            # probably an old results file when reference epoch was fixed at MJD = 0
+            tau_ref_epoch = 0
 
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
@@ -246,15 +264,11 @@ class Results(object):
             hipparcos_IAD = None
             gaia = None
 
-
         try:
             fitting_basis = np.str(hf.attrs['fitting_basis'])
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
             fitting_basis = 'Standard'
-
-        use_rebound = bool(hf.attrs['use_rebound'])
-
 
         self.system = orbitize.system.System(
             num_secondary_bodies, data_table, stellar_mass,

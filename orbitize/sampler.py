@@ -215,15 +215,10 @@ class OFTI(Sampler,):
 
         # create an empty results object
         self.results = orbitize.results.Results(
+            self.system,
             sampler_name=self.__class__.__name__,
             post=None,
             lnlike=None,
-            tau_ref_epoch=self.system.tau_ref_epoch,
-            data=self.system.data_table,
-            num_secondary_bodies=self.system.num_secondary_bodies,
-            fitting_basis=self.system.fitting_basis,
-            basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs
         )
 
     def prepare_samples(self, num_samples):
@@ -504,7 +499,7 @@ class OFTI(Sampler,):
 
             self.results.add_samples(
                 np.array(output_orbits),
-                output_lnlikes, labels=self.system.labels
+                output_lnlikes
             )
             return output_orbits
 
@@ -536,7 +531,7 @@ class OFTI(Sampler,):
 
             self.results.add_samples(
                 np.array(output_orbits),
-                output_lnlikes, labels=self.system.labels
+                output_lnlikes
             )
 
             return output_orbits
@@ -578,15 +573,10 @@ class MCMC(Sampler):
         
         # create an empty results object
         self.results = orbitize.results.Results(
+            self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None,
-            tau_ref_epoch=system.tau_ref_epoch,
-            data=self.system.data_table,
-            num_secondary_bodies=system.num_secondary_bodies,
-            fitting_basis=self.system.fitting_basis,
-            basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs
+            lnlike=None
         )
         
         if self.num_temps > 1:
@@ -895,7 +885,7 @@ class MCMC(Sampler):
 
                         # add this current chunk to the results object (which already has all the previous chunks saved)
                         self.results.add_samples(curr_chunk, curr_lnlike_chunk, 
-                                                    labels=self.system.labels, curr_pos=self.curr_pos)
+                                                    curr_pos=self.curr_pos)
                         self.results.save_results(output_filename)
                         saved_upto = i+1
 
@@ -904,7 +894,7 @@ class MCMC(Sampler):
 
             if periodic_save_freq is None:
                 # need to save everything
-                self.results.add_samples(self.post, self.lnlikes, labels=self.system.labels, curr_pos=self.curr_pos)
+                self.results.add_samples(self.post, self.lnlikes, curr_pos=self.curr_pos)
             elif saved_upto < nsteps:
                 # just need to save the last few
                 # same code as above except we just need to grab the last few
@@ -917,7 +907,7 @@ class MCMC(Sampler):
                 curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
 
                 self.results.add_samples(curr_chunk, curr_lnlike_chunk, 
-                                                    labels=self.system.labels, curr_pos=self.curr_pos)
+                                                     curr_pos=self.curr_pos)
 
             if output_filename is not None:
                 self.results.save_results(output_filename)
@@ -1013,7 +1003,6 @@ class MCMC(Sampler):
         flatchain = np.copy(self.results.post)
         total_samples, n_params = flatchain.shape
         n_steps = np.int(total_samples/self.num_walkers)
-        # TODO: May have to change this to merge with other branches
         flatlnlikes = np.copy(self.results.lnlike)
 
         # Reshape chain to (nwalkers, nsteps, nparams)
@@ -1040,16 +1029,10 @@ class MCMC(Sampler):
 
         # Update results object associated with this sampler
         self.results = orbitize.results.Results(
+            self.system, 
             sampler_name=self.__class__.__name__,
             post=flat_chopped_chain,
-            lnlike=flat_chopped_lnlikes,
-            tau_ref_epoch=self.system.tau_ref_epoch,
-            labels=self.system.labels,
-            num_secondary_bodies=self.system.num_secondary_bodies,
-            fitting_basis=self.system.fitting_basis,
-            basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs,
-            data = self.results.data
+            lnlike=flat_chopped_lnlikes
         )
 
         # Print a confirmation
