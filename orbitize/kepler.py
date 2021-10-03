@@ -7,13 +7,13 @@ import astropy.constants as consts
 
 from orbitize import cuda_ext
 from orbitize import cext
-from orbitize import gpu_context
 
 if cext:
     from . import _kepler
 
 if cuda_ext:
     # Configure GPU context for CUDA accelerated compute
+    from orbitize import gpu_context
     kep_gpu_ctx = gpu_context.gpu_context()
 
 def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
