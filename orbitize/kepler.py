@@ -4,34 +4,17 @@ This module solves for the orbit of the planet given Keplerian parameters.
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
-<<<<<<< HEAD
-import os
-import sys
-from orbitize import cuda_ext
-import warnings # to be removed after tau_ref_epoch warning is removed. 
-=======
->>>>>>> 21c519ffe5b67a695c64b6482c5a196f8a685b3c
 
-try:
+from orbitize import cuda_ext
+from orbitize import cext
+from orbitize import gpu_context
+
+if cext:
     from . import _kepler
-    cext = True
-except ImportError:
-    print("WARNING: KEPLER: Unable to import C-based Kepler's \
-equation solver. Falling back to the slower NumPy implementation.")
-    cext = False
 
 if cuda_ext:
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    from pycuda.compiler import SourceModule
-    len_gpu_arrays = 10000000
-    gpu_initalized = False
-    d_max_iter = None
-    d_tol = None
-    d_manom = None
-    d_ecc = None
-    d_eanom = None
-    newton_gpu = None
+    # Configure GPU context for CUDA accelerated compute
+    kep_gpu_ctx = gpu_context.gpu_context()
 
 def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
@@ -63,11 +46,7 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-<<<<<<< HEAD
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, tau_warning=True, use_c=True, use_gpu = False):
-=======
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
->>>>>>> 21c519ffe5b67a695c64b6482c5a196f8a685b3c
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, use_c=True, use_gpu=False):
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -91,6 +70,8 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
     Return:
         3-tuple:
@@ -120,7 +101,7 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu = use_gpu)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
@@ -166,6 +147,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
         ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
     Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
 
@@ -200,91 +183,51 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
     ind_high = np.where(~ecc_zero & ~ecc_low)
-    #ind_high = np.array(0)
+
     if cuda_ext and use_gpu:
         if len(ind_low[0]) > 0: 
-            # print("len(ind_high) before: {}".format(len(ind_high[0])))
             eanom[ind_low] = _CUDA_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-            # print("cuda: {}, {}, {}".format(cuda_ext, use_c, use_gpu))
             # the CUDA solver returns eanom = -1 if it doesnt converge after max_iter iterations
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     elif cext and use_c:
         if len(ind_low[0]) > 0: 
             eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-            # print("c++: {}, {}, {}".format(cuda_ext, use_c, use_gpu))
             # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
             m_one = eanom == -1
             ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
     else:
         if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-        # print("python: {}, {}, {}".format(cuda_ext, use_c, use_gpu))
         ind_high = np.where(~ecc_zero & ~ecc_low)
 
     # Now high eccentricities
-    # print("len(ind_high) after: {}".format(len(ind_high[0])))
     if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c = use_c, use_gpu = use_gpu)
 
     return np.squeeze(eanom)[()]
 
 def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
-    global len_gpu_arrays, gpu_initalized, d_manom, d_ecc, d_eanom, d_tol, d_max_iter, newton_gpu
-
-    # print("initalizing GPU parameters")
-    if gpu_initalized == False:
-        init_gpu()
+    global kep_gpu_ctx
 
     # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.array(manom)
-    ecc = np.array(ecc)
-
-    # Initialize at E=M, E=pi is better at very high eccentricities
-    if eanom0 is None:
-        eanom = np.copy(manom)
-    else:
-        eanom = np.copy(eanom0)
-
-    #print("Doing some GPU stuff, idk")
-
-    # Check to make sure we have enough data to process orbits
-    if (len_gpu_arrays < manom.nbytes):
-        print("Warning: Need more GPU memory")
-        len_gpu_arrays = manom.nbytes
-        d_manom = cuda.mem_alloc(len_gpu_arrays)
-        d_ecc = cuda.mem_alloc(len_gpu_arrays)
-        d_eanom = cuda.mem_alloc(len_gpu_arrays)
-
-    cuda.memcpy_htod(d_manom, manom)
-    cuda.memcpy_htod(d_ecc, ecc)
-
-    newton_gpu(d_manom, d_ecc, d_eanom, d_max_iter, d_tol, grid = (len(manom)//64+1,1,1), block = (64,1,1))
-
-    cuda.memcpy_dtoh(eanom, d_eanom)
+    manom = np.asarray(manom)
+    ecc = np.asarray(ecc)
+    eanom = np.empty_like(manom)
+    tolerance = np.asarray(tolerance, dtype = np.float64)
+    max_iter = np.asarray(max_iter)
+    
+    kep_gpu_ctx.newton(manom, ecc, eanom, eanom0, tolerance, max_iter)
 
     return eanom
 
 def _CUDA_mikkola_solver(manom, ecc):
-    global len_gpu_arrays, gpu_initalized, d_manom, d_ecc, d_eanom, mikkola_gpu
+    global kep_gpu_ctx
 
-    # print("initalizing GPU parameters")
-    if gpu_initalized == False:
-        init_gpu()
+    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
+    manom = np.asarray(manom)
+    ecc = np.asarray(ecc)
+    eanom = np.empty_like(manom)
 
-    # Check to make sure we have enough data to process orbits
-    if (len_gpu_arrays < manom.nbytes):
-        print("Warning: Need more memory")
-        len_gpu_arrays = manom.nbytes
-        d_manom = cuda.mem_alloc(len_gpu_arrays)
-        d_ecc = cuda.mem_alloc(len_gpu_arrays)
-        d_eanom = cuda.mem_alloc(len_gpu_arrays)
-
-    cuda.memcpy_htod(d_manom, manom)
-    cuda.memcpy_htod(d_ecc, ecc)
-
-    mikkola_gpu(d_manom, d_ecc, d_eanom, grid = (len(manom)//64+1,1,1), block = (64,1,1))
-
-    eanom = np.zeros_like(manom)
-    cuda.memcpy_dtoh(eanom, d_eanom)
+    kep_gpu_ctx.mikkola(manom, ecc, eanom)
 
     return eanom
 
@@ -302,8 +245,8 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     """
     # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.array(manom)
-    ecc = np.array(ecc)
+    manom = np.asarray(manom)
+    ecc = np.asarray(ecc)
 
     # Initialize at E=M, E=pi is better at very high eccentricities
     if eanom0 is None:
@@ -331,11 +274,7 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-<<<<<<< HEAD
         eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
-=======
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind], cext) # Send remaining orbits to the analytical version, this has not happened yet...
->>>>>>> 21c519ffe5b67a695c64b6482c5a196f8a685b3c
 
     return eanom
 
@@ -347,6 +286,8 @@ def _mikkola_solver_wrapper(manom, ecc, use_c = False, use_gpu = False):
     Args:
         manom (np.array): array of mean anomalies between 0 and 2pi
         ecc (np.array): eccentricity
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
     Return:
         eanom (np.array): array of eccentric anomalies
 
@@ -404,49 +345,3 @@ def _mikkola_solver(manom, ecc):
     u4 = -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3**3.0))
 
     return (e0 + u4)
-
-
-def init_gpu():
-    global gpu_initalized, len_gpu_arrays, d_manom, d_ecc, d_eanom, newton_gpu, mikkola_gpu, d_max_iter, d_tol
-
-    try:
-        import pycuda.driver as cuda
-        import pycuda.autoinit
-        from pycuda.compiler import SourceModule
-
-        print("Compiling kernel")
-        if "win" in sys.platform:
-            f_newton = open(os.path.dirname(__file__) + "\\kernels\\newton.cu", 'r')
-            f_mikkola = open(os.path.dirname(__file__) + "\\kernels\\mikkola.cu", 'r')
-        else:
-            f_newton = open(os.path.dirname(__file__) + "/kernels/newton.cu", 'r')
-            f_mikkola = open(os.path.dirname(__file__) + "/kernels/mikkola.cu", 'r')
-
-        fstr_newton = "".join(f_newton.readlines())
-        mod_newton = SourceModule(fstr_newton)
-        newton_gpu = mod_newton.get_function("newton_gpu")
-
-        fstr_mikkola = "".join(f_mikkola.readlines())
-        mod_mikkola = SourceModule(fstr_mikkola)
-        mikkola_gpu = mod_mikkola.get_function("mikkola_gpu")
-
-        print("Allocating with {} bytes".format(len_gpu_arrays))
-        tolerance = np.array([1e-9], dtype = np.float64)
-        max_iter = np.array([100])
-
-        d_manom = cuda.mem_alloc(len_gpu_arrays)
-        d_ecc = cuda.mem_alloc(len_gpu_arrays)
-        d_eanom = cuda.mem_alloc(len_gpu_arrays)
-
-        d_tol = cuda.mem_alloc(tolerance.nbytes)
-        d_max_iter = cuda.mem_alloc(max_iter.nbytes)
-        
-        print("Copying parameters to GPU")
-        cuda.memcpy_htod(d_tol, tolerance)
-        cuda.memcpy_htod(d_max_iter, max_iter)
-
-    except Exception as e:
-        print("Error: KEPLER: Unable to import GPU Kepler solver")
-        raise(e)
-
-    gpu_initalized = True

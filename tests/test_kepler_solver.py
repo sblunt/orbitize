@@ -6,6 +6,7 @@ import sys, pstats, cProfile, os
 import numpy as np
 import orbitize.kepler as kepler
 from orbitize import cuda_ext
+from orbitize import cext
 
 threshold = 1e-5
 

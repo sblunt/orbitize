@@ -15,3 +15,9 @@ try:
     cuda_ext = True
 except:
     cuda_ext = False
+
+try:
+    from . import _kepler
+    cext = True
+except ImportError:
+    cext = False
