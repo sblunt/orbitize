@@ -31,6 +31,187 @@ class Prior(ABC):
     def compute_lnprob(self, element_array):
         pass
 
+class NearestNDInterpPrior(Prior):
+    """
+    Nearest Neighbor interp. This class is
+    a wrapper for scipy.interpolate.NearestNDInterpolator.
+    Args:
+        interp_fct (scipy.interpolate.NearestNDInterpolator): scipy Interpolator object containing the NDInterpolator defined by the user
+        total_params (float): number of parameters 
+
+    """
+    is_correlated = True
+
+    def __init__(self, interp_fct,total_params):
+        self.interp_fct = interp_fct
+        self.total_params = total_params
+        self.param_num = 0
+        self.correlated_drawn_samples = None 
+        self.correlated_input_samples = None
+        self.num_priorsFromArr = interp_fct.values.size
+        self.ind_draw = None
+
+    def increment_param_num(self):
+        """
+        Increment the index to evaluate the appropriate parameter.
+        """
+        self.param_num += 1
+        self.param_num = self.param_num % (self.total_params + 1)
+        self.param_num = self.param_num % self.total_params
+
+    def draw_samples(self, num_samples):
+        """
+        Draw positive samples from the ND interpolator.
+        Negative samples will not be returned.
+
+        Args:
+            num_samples (float): the number of samples to generate.
+
+        Returns:
+            numpy array of float: samples drawn from the ND interpolator 
+            distribution. Array has length `num_samples`.
+        """
+        if self.param_num == 0:
+            ind_draw = np.random.randint(self.num_priorsFromArr,size=num_samples)
+            self.ind_draw = ind_draw
+            return_me = self.interp_fct.points[self.ind_draw,self.param_num]
+            self.increment_param_num()
+            return return_me
+        else:
+            return_me = self.interp_fct.points[self.ind_draw,self.param_num]
+            self.increment_param_num()
+            return return_me
+
+    def compute_lnprob(self, element_array):
+        """
+        Compute log(probability) of an array of numbers wrt a the defined ND interpolator.
+        Negative numbers return a probability of -inf.
+
+        Args:
+            element_array (float or np.array of float): array of numbers. We want the
+                probability of drawing each of these from the ND interpolator.
+
+        Returns:
+            numpy array of float: array of log(probability) values,
+            corresponding to the probability of drawing each of the numbers
+            in the input `element_array`.
+        """
+        if self.param_num == 0:
+            self.correlated_input_samples = element_array
+        else:
+            self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+        if self.param_num == self.total_params-1:
+            lnlike = self.interp_fct(self.correlated_input_samples)
+            self.increment_param_num()
+            self.logparam_corr = 1
+            return lnlike
+        else:
+            self.increment_param_num()
+            return 0
+
+class KDEPrior(Prior):
+    """
+    Gaussian kernel density estimation (KDE) prior. This class is
+    a wrapper for scipy.stats.gaussian_kde.
+    Args:
+        gaussian_kde (scipy.stats.gaussian_kde): scipy KDE object containing the KDE defined by the user
+        total_params (float): number of parameters in the KDE
+        bounds (array_like, optional): bounds for the KDE out of which the prob returned is -Inf
+        bounds (array_like of bool, optional): if True for a parameter the parameter is fit to the KDE in log-scale
+    """
+    is_correlated = True
+    
+    def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
+        self.gaussian_kde = gaussian_kde
+        self.total_params = total_params
+        self.param_num = 0
+        self.logparam_corr = 1
+        if not bounds:
+            self.bounds = [[-np.inf,np.inf] for i in range(total_params)]
+        else:
+            self.bounds = bounds
+        if not log_scale_arr:
+            self.log_scale_arr = [False for i in range(total_params)] 
+        else:
+            self.log_scale_arr = log_scale_arr
+        self.correlated_drawn_samples = None 
+        self.correlated_input_samples = None
+
+    def __repr__(self):
+        return "Gaussian KDE"
+
+    def increment_param_num(self):
+        """
+        Increment the index to evaluate the appropriate parameter.
+        """
+        self.param_num += 1
+        self.param_num = self.param_num % (self.total_params + 1)
+        self.param_num = self.param_num % self.total_params
+
+    def draw_samples(self, num_samples):
+        """
+        Draw positive samples from the KDE.
+        Negative samples will not be returned.
+
+        Args:
+            num_samples (float): the number of samples to generate.
+
+        Returns:
+            numpy array of float: samples drawn from the KDE 
+            distribution. Array has length `num_samples`.
+        """
+        if self.param_num == 0:
+            self.correlated_drawn_samples = self.gaussian_kde.resample(num_samples)
+            self.increment_param_num()
+            return self.correlated_drawn_samples[0]
+        else:
+            return_me = self.correlated_drawn_samples[self.param_num]
+            self.increment_param_num()
+            return return_me
+            
+    def compute_lnprob(self, element_array):
+        """
+        Compute log(probability) of an array of numbers wrt a the defined KDE.
+        Negative numbers return a probability of -inf.
+
+        Args:
+            element_array (float or np.array of float): array of numbers. We want the
+                probability of drawing each of these from the KDE.
+
+        Returns:
+            numpy array of float: array of log(probability) values,
+            corresponding to the probability of drawing each of the numbers
+            in the input `element_array`.
+        """
+        if element_array<self.bounds[self.param_num][0] or element_array>self.bounds[self.param_num][1]:
+            if self.log_scale_arr[self.param_num]:
+                element_array_lin = element_array
+                element_array = np.log10(element_array)
+                if np.isnan(element_array):
+                    element_array = 0 #set to zero bc doesn't matter what it is since we're already returning a small prob
+            if self.param_num == 0:
+                self.correlated_input_samples = element_array
+            else:
+                self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+            self.increment_param_num()
+            self.logparam_corr = 1
+            return -1e10
+        if self.log_scale_arr[self.param_num]:
+            element_array_lin = element_array
+            element_array = np.log10(element_array)
+            self.logparam_corr = self.logparam_corr*(element_array_lin)
+        if self.param_num == 0:
+            self.correlated_input_samples = element_array
+        else:
+            self.correlated_input_samples = np.append(self.correlated_input_samples, element_array)
+        if self.param_num == self.total_params-1:
+            lnlike = self.gaussian_kde.logpdf(self.correlated_input_samples)
+            self.increment_param_num()
+            self.logparam_corr = 1
+            return lnlike
+        else:
+            self.increment_param_num()
+            return 0
 
 class GaussianPrior(Prior):
     """Gaussian prior.

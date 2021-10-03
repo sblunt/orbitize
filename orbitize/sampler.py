@@ -1,11 +1,8 @@
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
-import sys
 import abc
-import math
 import time
-import orbitize.conversions
 
 import emcee
 import ptemcee
@@ -16,9 +13,8 @@ import orbitize.lnlike
 import orbitize.priors
 import orbitize.kepler
 from orbitize import cuda_ext
-from orbitize.system import radec2seppa
+
 import orbitize.results
-import copy
 import matplotlib.pyplot as plt
 
 class Sampler(abc.ABC):
@@ -275,7 +271,7 @@ class OFTI(Sampler,):
             # compute sep/PA of generated orbits
             ra, dec, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch], sma, ecc, inc, argp, lan, tau, plx, mtot, 
-                tau_ref_epoch=0, mass_for_Kamp=m1, tau_warning=False, use_c = use_c, use_gpu = use_gpu
+                tau_ref_epoch=0, mass_for_Kamp=m1, use_c = use_c, use_gpu = use_gpu
             )
             sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
@@ -325,7 +321,7 @@ class OFTI(Sampler,):
                 has size ``num_samples``. This should be the output of \
                 ``prepare_samples()``.
 
-        Return:spectrum_index = trueorder - config['ordmin']
+        Return:
             tuple:
 
                 np.array: a subset of ``samples`` that are accepted based on the

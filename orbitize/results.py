@@ -1,21 +1,18 @@
-from plistlib import Data
 import numpy as np
 import warnings
 import h5py
-import copy
 import itertools
 
 import astropy.units as u
 import astropy.constants as consts
-from astropy.io import fits
 from astropy.time import Time
+import astropy.table as table
 from erfa import ErfaWarning
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
-import pandas as pd
 
 import corner
 
@@ -208,8 +205,11 @@ class Results(object):
             version_number = "<= 1.13"
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
-        data=np.array(hf.get('data'))
-        self.data=data
+        data = np.array(hf.get('data'))
+        try:
+            self.data = table.Table(data) # turn back into astropy table, also keeps str formatted right
+        except ValueError: # old version of results
+            self.data = None
 
         # get the tau reference epoch
         try:
@@ -318,6 +318,25 @@ class Results(object):
             else:
                 raise Exception(
                     'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
+
+    def print_results(self):
+        """
+        Prints median and 68% credible intervals alongside fitting labels
+        """
+
+        print('\nparam: med [68% CI]')
+        print('-------------------\n')
+        for i, l in enumerate(self.labels):
+            print(
+                '{}: {:.3f} [{:.3f} - {:.3f}]'.format(
+                    l, 
+                    np.median(self.post[:,i]),
+                    np.quantile(self.post[:,i], 0.16),
+                    np.quantile(self.post[:,i], 0.84)
+                )
+            )
+        print('-------------------\n')
+
 
     def plot_corner(self, param_list=None, **corner_kwargs):
         """
@@ -561,6 +580,7 @@ class Results(object):
                 # Compute period (from Kepler's third law)
                 period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
                 period = period.to(u.day).value
+
                 # Create an epochs array to plot num_epochs_to_plot points over one orbital period
                 epochs[i, :] = np.linspace(start_mjd, float(
                     start_mjd+period[i]), num_epochs_to_plot)
@@ -568,7 +588,7 @@ class Results(object):
                 # Calculate ra/dec offsets for all epochs of this orbit
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
-                    tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                    tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch
                 )
 
                 raoff[i, :] = raoff0
@@ -583,11 +603,19 @@ class Results(object):
                     cbar_param_arr), vmax=np.max(cbar_param_arr))
 
             elif cbar_param == 'Epoch [year]':
-                norm = mpl.colors.Normalize(vmin=np.min(epochs), vmax=np.max(epochs[-1, :]))
+
+                min_cbar_date = np.min(epochs)
+                max_cbar_date = np.max(epochs[-1, :])
+
+                # if we're plotting orbital periods greater than 1,000 yrs, limit the colorbar dynamic range
+                if max_cbar_date - min_cbar_date > 1000 * 365.25:
+                    max_cbar_date = min_cbar_date + 1000 * 365.25
+
+                norm = mpl.colors.Normalize(vmin=min_cbar_date, vmax=max_cbar_date)
 
                 norm_yr = mpl.colors.Normalize(
-                    vmin=np.min(Time(epochs, format='mjd').decimalyear),
-                    vmax=np.max(Time(epochs, format='mjd').decimalyear)
+                    vmin=Time(min_cbar_date, format='mjd').decimalyear,
+                    vmax=Time(max_cbar_date, format='mjd').decimalyear
                 )
 
             # Before starting to plot rv data, make sure rv data exists:
@@ -739,7 +767,7 @@ class Results(object):
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
                         tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch,
-                        mass_for_Kamp=m0[i], tau_warning=False
+                        mass_for_Kamp=m0[i]
                     )
 
                     raoff[i, :] = raoff0
@@ -747,7 +775,7 @@ class Results(object):
                 else:
                     raoff0, deoff0, _ = kepler.calc_orbit(
                         epochs_seppa[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
-                        tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch, tau_warning=False
+                        tau[i], plx[i], mtot[i], tau_ref_epoch=self.tau_ref_epoch
                     )
 
                     raoff[i, :] = raoff0

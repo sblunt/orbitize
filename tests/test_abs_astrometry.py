@@ -30,7 +30,7 @@ def test_1planet():
 
     ra_model, dec_model, _ = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, 
-        tau_ref_epoch=tau_ref_epoch, tau_warning=False
+        tau_ref_epoch=tau_ref_epoch
     )
 
     # generate some fake measurements to feed into system.py to test bookkeeping

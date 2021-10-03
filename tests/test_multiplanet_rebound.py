@@ -43,7 +43,7 @@ def test_1planet():
 
     ra_model, dec_model, vz_model = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, 
-        tau_ref_epoch=tau_ref_epoch, tau_warning=False
+        tau_ref_epoch=tau_ref_epoch
     )
 
     # generate some fake measurements just to feed into system.py to test bookkeeping
@@ -130,7 +130,7 @@ def test_2planet_massive():
     # just want to generate some measurements of plaent b to test compute model
     b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
         epochs, params[0], params[1], params[2], params[3], params[4], params[5], 
-        params[-2], params[-1], tau_ref_epoch=tau_ref_epoch, tau_warning=False
+        params[-2], params[-1], tau_ref_epoch=tau_ref_epoch
     )
 
     # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping
@@ -284,8 +284,7 @@ def test_2planet_massive_reverse_order():
     # just want to generate some measurements of plaent b to test compute model
     b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
         epochs, params[6+0], params[6+1], params[6+2], params[6+3], params[6+4], 
-        params[6+5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch,
-        tau_warning=False
+        params[6+5], params[-2], params[-1], tau_ref_epoch=tau_ref_epoch
     )
 
     # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping
@@ -373,7 +372,7 @@ def test_2planet_nomass():
     # just want to generate some measurements of plaent b to test compute model
     b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
         epochs, params[0], params[1], params[2], params[3], params[4], params[5], 
-        params[-2], params[-1], tau_ref_epoch=tau_ref_epoch, tau_warning=False
+        params[-2], params[-1], tau_ref_epoch=tau_ref_epoch
     )
 
     # generate some fake measurements of planet b, just to feed into system.py to test bookkeeping

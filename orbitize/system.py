@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import nbody, kepler, conversions, basis
+from orbitize import nbody, kepler, basis
 
 class System(object):
     """
@@ -116,11 +116,17 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], rv_indices)
             )
 
-        # we should track the influence of the planet(s) on each other/the star if we are not fitting massless planets and 
-        # we are not fitting relative astrometry of just a single body
-        self.track_planet_perturbs = self.fit_secondary_mass and \
-                                     ((len(self.radec[1]) + len(self.seppa[1]) + len(self.rv[1]) < len(data_table)) or \
-                                      (self.num_secondary_bodies > 1))
+        # we should track the influence of the planet(s) on each other/the star if:
+        # we are not fitting massless planets and 
+        # we have more than 1 companion OR we have stellar astrometry
+        self.track_planet_perturbs = (
+            self.fit_secondary_mass and 
+            (
+                (len(self.radec[0]) + len(self.seppa[0] > 0) or
+                (self.num_secondary_bodies > 1)
+                )
+            )
+        )
 
         if self.hipparcos_IAD is not None:
             self.track_planet_perturbs = True
@@ -290,8 +296,6 @@ class System(object):
             masses = np.zeros((self.num_secondary_bodies + 1, n_orbits))
             mtots = np.zeros((self.num_secondary_bodies + 1, n_orbits))
 
-        total_rv0 = 0
-
         if comp_rebound or self.use_rebound:
                 
             sma = params_arr[self.sma_indx]
@@ -352,8 +356,7 @@ class System(object):
                     # solve Kepler's equation
                     raoff, decoff, vz_i = kepler.calc_orbit(
                         epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch, 
-                        tau_warning=False
+                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
                     )
 
                     # raoff, decoff, vz are scalers if the length of epochs is 1

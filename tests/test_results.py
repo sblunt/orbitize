@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results, read_input
+from orbitize import results, read_input, DATADIR
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -13,6 +13,14 @@ std_labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
 std_param_idx = {
     'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
 }
+
+def test_load_v1_results():
+    """
+    Tests that loading a posterior generated with v1.0.0 of the code works.
+    """
+
+    myResults = results.Results()
+    myResults.load_results('{}v1_posterior.hdf5'.format(DATADIR))
 
 
 def simulate_orbit_sampling(n_sim_orbits):
@@ -117,6 +125,21 @@ def results_to_test():
     # Return object for testing
     return results_obj
 
+def test_results_printing(results_to_test):
+    """
+    Tests that `results.print_results()` doesn't fail
+    """
+
+    results_to_test.print_results()
+
+
+def test_plot_long_periods(results_to_test):
+
+    # make all orbits in the results posterior have absurdly long orbits
+    mtot_idx = results_to_test.param_idx['mtot']
+    results_to_test.post[:,mtot_idx] = 1e-10
+
+    results_to_test.plot_orbits()
 
 def test_save_and_load_results(results_to_test, has_lnlike=True):
     """
@@ -152,6 +175,10 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
 
     # check tau reference epoch is stored
     assert loaded_results.tau_ref_epoch == 50000
+
+    # check that str fields are indeed strs
+    # checking just one str entry probably is good enough
+    assert isinstance(loaded_results.data['quant_type'][0], str)
 
     # Clean up: Remove save file
     os.remove(save_filename)
@@ -199,7 +226,13 @@ def test_plot_orbits(results_to_test):
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
 if __name__ == "__main__":
+    
+    test_load_v1_results()
+
     test_results = test_init_and_add_samples()
+
+    test_results_printing(test_results)
+    test_plot_long_periods(test_results)
     test_results_radec = test_init_and_add_samples(radec_input=True)
     
     test_save_and_load_results(test_results, has_lnlike=True)

@@ -70,6 +70,32 @@ In joining our team, we ask that you read and (optionally) suggest changes to th
 Changelog:
 ++++++++++
 
+**2.0b1 (2021-09-03)**
+
+This is the beta release of orbitize! version 2.
+
+Big changes:
+- N-body Kepler solver backend! (@sofiacovarrubias)
+- Fitting in XYZ orbital basis! (@rferrerc)
+- API for fitting in arbitrary new orbital bases! (@TirthDS)
+- compute_all_orbits separated out, streamlining stellar astrometry & RV calculations (@sblunt)
+- Hip IAD! (@sblunt)
+- param_idx now used everywhere under the hood (system parsing updated) (@sblunt)
+- KDE prior added (inspiration=training on RV fits) (@jorgellop)
+
+Small changes:
+- HD 4747 rv data file fix for the RV tutorial (@lhirsch238)
+- Add check_prior_support to sampler.MCMC (@adj-smith)
+- Update example generation code in MCMC v OFTI tutorial (@semaphoreP)
+- Fixed plotting bug (issue #243) (@TirthDS)
+- Expand FAQ section (@semaphoreP)
+- use astropy tables in results (@semaphoreP)
+- Expand converge section of MCMC tutorial (@semaphoreP)
+- Deprecated functions and deprecation warnings officially removed (@semaphoreP)
+- Fix logic in setting of track_planet_perturbs (@sblunt)
+- Fix plotting error if orbital periods are > 1e9 days (@sblunt)
+- Add method for printing results of a fit (@sblunt)
+
 **1.16.1 (2021-06-27)**
 
 * Fixed chop_chains() function to copy original data over when updating Results object (@TirthDS)
