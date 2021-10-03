@@ -35,7 +35,7 @@ class Sampler(abc.ABC):
             self.lnlike = getattr(orbitize.lnlike, like)
 
         self.custom_lnlike = custom_lnlike
-        self.use_c =use_c
+        self.use_c = use_c
         self.use_gpu = use_gpu
 
         # check if need to handle covariances
@@ -56,6 +56,8 @@ class Sampler(abc.ABC):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
         Returns:
             lnlikes (float): sum of all log likelihoods of the data given input model
@@ -312,7 +314,7 @@ class OFTI(Sampler,):
 
         return samples
 
-    def reject(self, samples, use_c = None, use_gpu = None):
+    def reject(self, samples, use_c=None, use_gpu=None):
         """
         Runs rejection sampling on some prepared samples.
 
@@ -378,7 +380,7 @@ class OFTI(Sampler,):
 
         return saved_orbits, lnlikes
 
-    def _sampler_process(self, output, total_orbits, use_c, use_gpu, num_samples=10000, Value=0, lock=None):
+    def _sampler_process(self, output, total_orbits, use_c=True, use_gpu=False, num_samples=10000, Value=0, lock=None):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
         Meant to be called by run_sampler.
@@ -391,6 +393,8 @@ class OFTI(Sampler,):
             Value (mp.Value(int)): global counter for the orbits generated
             lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
         Returns:
             tuple of:
                 output_orbits (np.array): array of accepted orbits,
@@ -438,6 +442,8 @@ class OFTI(Sampler,):
                 rejection sampling on. Defaults to 10000.
             num_cores (int): the number of cores to run OFTI on. Defaults to
                              number of cores availabe.
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
         Return:
             output_orbits (np.array): array of accepted orbits. Size: total_orbits.
 
@@ -569,6 +575,8 @@ class MCMC(Sampler):
             length M, or it can be a single float if M = 1.
         prev_result_filename (str): if passed a filename to an HDF5 file containing a orbitize.Result data,
             MCMC will restart from where it left off. 
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -693,7 +701,8 @@ class MCMC(Sampler):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
-
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
             include_logp (bool): if True, also include log prior in this function
 
         Returns:
@@ -823,6 +832,8 @@ class MCMC(Sampler):
             output_filename (str): Optional filepath for where results file can be saved.
             periodic_save_freq (int): Optionally, save the current results into ``output_filename``
                 every nth step while running, where n is value passed into this variable. 
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC

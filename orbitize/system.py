@@ -31,6 +31,8 @@ class System(object):
             IAD fitting. See hipparcos.py for more details.
         fitting_basis (str): the name of the class corresponding to the fitting 
             basis to be used. See basis.py for a list of implemented fitting bases.
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class, 
@@ -44,7 +46,8 @@ class System(object):
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
-                 hipparcos_IAD=None, fitting_basis='Standard', use_rebound=False, use_c=True, use_gpu=False):
+                 hipparcos_IAD=None, fitting_basis='Standard', use_rebound=False,
+                 use_c=True, use_gpu=False):
 
         self.use_rebound = use_rebound
         self.num_secondary_bodies = num_secondary_bodies
@@ -257,6 +260,8 @@ class System(object):
             comp_rebound (bool, optional): A secondary optional input for 
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead. 
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
         
         Returns:
             tuple of:
@@ -356,7 +361,8 @@ class System(object):
                     # solve Kepler's equation
                     raoff, decoff, vz_i = kepler.calc_orbit(
                         epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
+                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch,
+                        use_c=use_c, use_gpu=use_gpu
                     )
 
                     # raoff, decoff, vz are scalers if the length of epochs is 1
@@ -452,6 +458,8 @@ class System(object):
             comp_rebound (bool, optional): A secondary optional input for 
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
+            use_c (bool, optional): Use the C solver if configured. Defaults to True
+            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
@@ -462,9 +470,9 @@ class System(object):
         standard_params_arr = self.basis.to_standard_basis(to_convert)      
 
         if use_rebound:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, comp_rebound=True)
+            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, comp_rebound=True, use_c=use_c, use_gpu=use_gpu)
         else:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
+            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, use_c=use_c, use_gpu=use_gpu)
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
