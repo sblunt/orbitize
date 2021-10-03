@@ -2,7 +2,10 @@
 Test the orbitize.kepler module which solves for the orbits of the planets
 """
 import pytest
-import sys, pstats, cProfile, os
+import sys
+import pstats
+import cProfile
+import os
 import numpy as np
 import orbitize.kepler as kepler
 from orbitize import cuda_ext
@@ -251,6 +254,65 @@ def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = Fal
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, use_c = use_c, use_gpu = use_gpu)
 
+def profile_all(n_orbits, print_profiles = False):
+        profile_name = "Profile.prof"
+        n_print_lines = 15
+        d = dict()
+
+        if cuda_ext:
+            cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Newton: CUDA with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Newton GPU Solver"] = s.__dict__["total_tt"]
+        else:
+            print("System not configured for CUDA")
+        
+        if cext:
+            cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Newton: C with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Newton C Solver"] = s.__dict__["total_tt"]
+        else:
+            print("System not configured for C Solver")
+
+        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), profile_name)
+        s = pstats.Stats(profile_name)
+        if print_profiles:
+            print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
+            s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+        d["Newton Python Solver"] = s.__dict__["total_tt"]
+
+        if cuda_ext:
+            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Mikkola: CUDA with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Mikkola GPU Solver"] = s.__dict__["total_tt"]
+
+        if cext:
+            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True, use_gpu = False)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Mikkola C Solver"] = s.__dict__["total_tt"]
+
+        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = False)", globals(), locals(), profile_name)
+        s = pstats.Stats(profile_name)
+        if print_profiles:
+            print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
+            s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+        d["Mikkola Python Solver"] = s.__dict__["total_tt"]
+
+        for i in d.keys():
+            print(f"{i}: {d[i]:.2f} seconds")
+
+        os.remove(profile_name)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '-profile':
@@ -258,44 +320,9 @@ if __name__ == "__main__":
             n_orbits = int(sys.argv[2])
         except:
             n_orbits = 20000
-
-        profile_name = "Profile.prof"
-
-        if cuda_ext:
-            print("Profiling Newton: CUDA with {} orbits".format(n_orbits**2))
-            cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), "Profile.prof")
-            s = pstats.Stats(profile_name)
-            s.strip_dirs().sort_stats("time").print_stats()
-        else:
-            print("System not configured for CUDA")
         
-        print("Profiling Newton: C with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        if cuda_ext:
-            print("Profiling Mikkola: CUDA with {} orbits".format(n_orbits**2))
-            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), "Profile.prof")
-            s = pstats.Stats(profile_name)
-            s.strip_dirs().sort_stats("time").print_stats()
-
-        print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True, use_gpu = False)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = False)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        os.remove(profile_name)
+        profile_all(n_orbits)
+        print("Done!")
     else:
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()
