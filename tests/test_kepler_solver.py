@@ -263,10 +263,13 @@ if __name__ == "__main__":
 
         profile_name = "Profile.prof"
 
-        print("Profiling Newton: CUDA with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
+        if cuda_ext:
+            print("Profiling Newton: CUDA with {} orbits".format(n_orbits**2))
+            cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), "Profile.prof")
+            s = pstats.Stats(profile_name)
+            s.strip_dirs().sort_stats("time").print_stats()
+        else:
+            print("System not configured for CUDA")
         
         print("Profiling Newton: C with {} orbits".format(n_orbits**2))
         cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
@@ -278,10 +281,11 @@ if __name__ == "__main__":
         s = pstats.Stats(profile_name)
         s.strip_dirs().sort_stats("time").print_stats()
 
-        print("Profiling Mikkola: CUDA with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
+        if cuda_ext:
+            print("Profiling Mikkola: CUDA with {} orbits".format(n_orbits**2))
+            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), "Profile.prof")
+            s = pstats.Stats(profile_name)
+            s.strip_dirs().sort_stats("time").print_stats()
 
         print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
         cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True, use_gpu = False)", globals(), locals(), "Profile.prof")

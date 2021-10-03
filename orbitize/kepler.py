@@ -249,7 +249,7 @@ def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     # Check to make sure we have enough data to process orbits
     if (len_gpu_arrays < manom.nbytes):
-        print("Warning: Need more memory")
+        print("Warning: Need more GPU memory")
         len_gpu_arrays = manom.nbytes
         d_manom = cuda.mem_alloc(len_gpu_arrays)
         d_ecc = cuda.mem_alloc(len_gpu_arrays)
