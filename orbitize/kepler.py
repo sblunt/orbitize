@@ -182,52 +182,27 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    ind_high = np.where(~ecc_zero & ~ecc_low)
-
-    if cuda_ext and use_gpu:
-        if len(ind_low[0]) > 0: 
-            eanom[ind_low] = _CUDA_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-            # the CUDA solver returns eanom = -1 if it doesnt converge after max_iter iterations
-            m_one = eanom == -1
-            ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
-    elif cext and use_c:
-        if len(ind_low[0]) > 0: 
-            eanom[ind_low] = _kepler._c_newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-            # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
-            m_one = eanom == -1
-            ind_high = np.where(~ecc_zero & ~ecc_low | m_one)
-    else:
-        if len(ind_low[0]) > 0: eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance=tolerance, max_iter=max_iter)
-        ind_high = np.where(~ecc_zero & ~ecc_low)
-
+    if len(ind_low[0]) > 0: 
+        eanom[ind_low] = _newton_solver_wrapper(manom[ind_low], ecc[ind_low], tolerance, max_iter, use_c=use_c, use_gpu=use_gpu)
+    
     # Now high eccentricities
-    if len(ind_high[0]) > 0: eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c = use_c, use_gpu = use_gpu)
+    ind_high = np.where(~ecc_zero & ~ecc_low | (eanom == -1)) # The C and CUDA solvers return the unphysical value -1 if they fail to converge
+    if len(ind_high[0]) > 0: 
+        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c=use_c, use_gpu=use_gpu)
 
     return np.squeeze(eanom)[()]
 
-def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
-    global kep_gpu_ctx
-
-    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.asarray(manom)
-    ecc = np.asarray(ecc)
+def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu=False):
     eanom = np.empty_like(manom)
-    tolerance = np.asarray(tolerance, dtype = np.float64)
-    max_iter = np.asarray(max_iter)
     
-    kep_gpu_ctx.newton(manom, ecc, eanom, eanom0, tolerance, max_iter)
-
-    return eanom
-
-def _CUDA_mikkola_solver(manom, ecc):
-    global kep_gpu_ctx
-
-    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.asarray(manom)
-    ecc = np.asarray(ecc)
-    eanom = np.empty_like(manom)
-
-    kep_gpu_ctx.mikkola(manom, ecc, eanom)
+    if cuda_ext and use_gpu:
+        # the CUDA solver returns eanom = -1 if it doesnt converge after max_iter iterations
+        eanom = _CUDA_newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
+    elif cext and use_c:
+        # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
+        eanom = _kepler._c_newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
+    else:
+        eanom = _newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
 
     return eanom
 
@@ -278,7 +253,21 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     return eanom
 
-def _mikkola_solver_wrapper(manom, ecc, use_c = False, use_gpu = False):
+def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+    global kep_gpu_ctx
+
+    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
+    manom = np.asarray(manom)
+    ecc = np.asarray(ecc)
+    eanom = np.empty_like(manom)
+    tolerance = np.asarray(tolerance, dtype = np.float64)
+    max_iter = np.asarray(max_iter)
+    
+    kep_gpu_ctx.newton(manom, ecc, eanom, eanom0, tolerance, max_iter)
+
+    return eanom
+
+def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
     """
     Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
     Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
@@ -345,3 +334,15 @@ def _mikkola_solver(manom, ecc):
     u4 = -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3**3.0))
 
     return (e0 + u4)
+
+def _CUDA_mikkola_solver(manom, ecc):
+    global kep_gpu_ctx
+
+    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
+    manom = np.asarray(manom)
+    ecc = np.asarray(ecc)
+    eanom = np.empty_like(manom)
+
+    kep_gpu_ctx.mikkola(manom, ecc, eanom)
+
+    return eanom
