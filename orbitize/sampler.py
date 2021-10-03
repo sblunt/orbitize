@@ -25,7 +25,7 @@ class Sampler(abc.ABC):
     Written: Sarah Blunt, 2018
     """
 
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c = True, use_gpu = False):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c=True, use_gpu=False):
         self.system = system
 
         # check if `like` is a string or a function
@@ -35,14 +35,14 @@ class Sampler(abc.ABC):
             self.lnlike = getattr(orbitize.lnlike, like)
 
         self.custom_lnlike = custom_lnlike
-        self.use_c = use_c
+        self.use_c =use_c
         self.use_gpu = use_gpu
 
         # check if need to handle covariances
         self.has_corr = np.any(~np.isnan(self.system.data_table['quant12_corr']))
 
     @abc.abstractmethod
-    def run_sampler(self, total_orbits, use_c = None, use_gpu = None):
+    def run_sampler(self, total_orbits, use_c=None, use_gpu=None):
         pass
 
     def _logl(self, params, use_c=True, use_gpu=False, hipparcos=False):
@@ -62,7 +62,7 @@ class Sampler(abc.ABC):
 
         """
         # compute the model based on system params
-        model, jitter = self.system.compute_model(params, use_c = use_c, use_gpu = use_gpu)
+        model, jitter = self.system.compute_model(params, use_c=use_c, use_gpu=use_gpu)
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array([self.system.data_table['quant1'], self.system.data_table['quant2']]).T
@@ -119,9 +119,9 @@ class OFTI(Sampler,):
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c = True, use_gpu = False):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, use_c=True, use_gpu=False):
 
-        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c = use_c, use_gpu = use_gpu)
+        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c=use_c, use_gpu=use_gpu)
 
         if (
             (self.system.hipparcos_IAD is not None) or 
@@ -210,7 +210,7 @@ class OFTI(Sampler,):
             extra_basis_args=self.system.extra_basis_kwargs
         )
 
-    def prepare_samples(self, num_samples, use_c = True, use_gpu = False):
+    def prepare_samples(self, num_samples, use_c=True, use_gpu=False):
         """
         Prepare some orbits for rejection sampling. This draws random orbits
         from priors, and performs scale & rotate.
@@ -271,7 +271,7 @@ class OFTI(Sampler,):
             # compute sep/PA of generated orbits
             ra, dec, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch], sma, ecc, inc, argp, lan, tau, plx, mtot, 
-                tau_ref_epoch=0, mass_for_Kamp=m1, use_c = use_c, use_gpu = use_gpu
+                tau_ref_epoch=0, mass_for_Kamp=m1, use_c=use_c, use_gpu=use_gpu
             )
             sep, pa = orbitize.system.radec2seppa(ra, dec) # sep[mas], PA[deg]
 
@@ -409,8 +409,8 @@ class OFTI(Sampler,):
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
 
-            samples = self.prepare_samples(num_samples, use_c = use_c, use_gpu = use_gpu)
-            accepted_orbits, lnlikes = self.reject(samples, use_c = use_c, use_gpu = use_gpu)
+            samples = self.prepare_samples(num_samples, use_c=use_c, use_gpu=use_gpu)
+            accepted_orbits, lnlikes = self.reject(samples, use_c=use_c, use_gpu=use_gpu)
 
             if len(accepted_orbits) == 0:
                 pass
@@ -521,8 +521,8 @@ class OFTI(Sampler,):
 
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
-                samples = self.prepare_samples(num_samples, use_c = use_c, use_gpu = use_gpu)
-                accepted_orbits, lnlikes = self.reject(samples, use_c = use_c, use_gpu = use_gpu)
+                samples = self.prepare_samples(num_samples, use_c=use_c, use_gpu=use_gpu)
+                accepted_orbits, lnlikes = self.reject(samples, use_c=use_c, use_gpu=use_gpu)
 
                 if len(accepted_orbits) == 0:
                     pass
@@ -572,9 +572,9 @@ class MCMC(Sampler):
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None, use_c = True, use_gpu = False):
+    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None, use_c=True, use_gpu=False):
 
-        super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c = use_c, use_gpu = use_gpu)
+        super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c=use_c, use_gpu=use_gpu)
 
         self.num_temps = num_temps
         self.num_walkers = num_walkers

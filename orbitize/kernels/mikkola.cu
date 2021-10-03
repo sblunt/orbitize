@@ -5,6 +5,7 @@
 __global__ void mikkola_gpu(const double *manom, const double *ecc, double *eanom){
     /*
     Vectorized C Analtyical Mikkola solver for the eccentric anomaly.
+    See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
     Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
     Args:
         manom (double[]): mean anomaly, must be between 0 and pi.

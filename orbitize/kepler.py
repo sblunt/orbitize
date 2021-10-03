@@ -147,7 +147,7 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
         ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
-        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_c (bool, optional): Use the C solver if configured. Defaults to False
         use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
     Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
@@ -183,16 +183,31 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
     if len(ind_low[0]) > 0: 
-        eanom[ind_low] = _newton_solver_wrapper(manom[ind_low], ecc[ind_low], tolerance, max_iter, use_c=use_c, use_gpu=use_gpu)
+        eanom[ind_low] = _newton_solver_wrapper(manom[ind_low], ecc[ind_low], tolerance, max_iter, use_c, use_gpu)
     
     # Now high eccentricities
     ind_high = np.where(~ecc_zero & ~ecc_low | (eanom == -1)) # The C and CUDA solvers return the unphysical value -1 if they fail to converge
     if len(ind_high[0]) > 0: 
-        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c=use_c, use_gpu=use_gpu)
+        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c, use_gpu)
 
     return np.squeeze(eanom)[()]
 
 def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu=False):
+    """
+    Wrapper for the various (Python, C, CUDA) implementations of the Newton-Raphson solver 
+    for eccentric anomaly.
+
+    Args:
+        manom (np.array): array of mean anomalies
+        ecc (np.array): array of eccentricities
+        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
+        use_c (bool, optional): Use the C solver if configured. Defaults to False
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
+    Return:
+        eanom (np.array): array of eccentric anomalies
+
+    Written: Devin Cody, 2021
+    """
     eanom = np.empty_like(manom)
     
     if cuda_ext and use_gpu:
@@ -209,15 +224,15 @@ def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
     Newton-Raphson solver for eccentric anomaly.
+
     Args:
         manom (np.array): array of mean anomalies
         ecc (np.array): array of eccentricities
-        eanom0 (np.array): array of first guess for eccentric anomaly, same shape as manom (optional)
+        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
     Return:
         eanom (np.array): array of eccentric anomalies
 
     Written: Rob De Rosa, 2018
-
     """
     # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
     manom = np.asarray(manom)
@@ -254,6 +269,18 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     return eanom
 
 def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+    """
+    Helper function for calling the CUDA implementation of the Newton-Raphson solver for eccentric anomaly.
+
+    Args:
+        manom (np.array): array of mean anomalies
+        ecc (np.array): array of eccentricities
+        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
+    Return:
+        eanom (np.array): array of eccentric anomalies
+
+    Written: Devin Cody, 2021
+    """
     global kep_gpu_ctx
 
     # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
@@ -269,13 +296,12 @@ def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
 def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
     """
-    Analtyical Mikkola solver (S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.) for the eccentric anomaly.
-    Wrapper for the python implemenation of the IDL version. From Rob De Rosa.
+    Wrapper for the various (Python, C, CUDA) implementations of Analtyical Mikkola solver 
 
     Args:
         manom (np.array): array of mean anomalies between 0 and 2pi
         ecc (np.array): eccentricity
-        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_c (bool, optional): Use the C solver if configured. Defaults to False
         use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
     Return:
         eanom (np.array): array of eccentric anomalies
@@ -298,7 +324,7 @@ def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
 
 def _mikkola_solver(manom, ecc):
     """
-    Analtyical Mikkola solver for the eccentric anomaly.
+    Analtyical Mikkola solver for the eccentric anomaly. See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
     Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
 
     Args:
@@ -336,6 +362,17 @@ def _mikkola_solver(manom, ecc):
     return (e0 + u4)
 
 def _CUDA_mikkola_solver(manom, ecc):
+    """
+    Helper function for calling the CUDA implementation of the Analtyical Mikkola solver for the eccentric anomaly.
+
+    Args:
+        manom (float or np.array): mean anomaly, must be between 0 and pi.
+        ecc (float or np.array): eccentricity
+    Return:
+        eanom (np.array): array of eccentric anomalies
+
+    Written: Devin Cody, 2021
+    """
     global kep_gpu_ctx
 
     # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)

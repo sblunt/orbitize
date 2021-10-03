@@ -10,6 +10,8 @@ class gpu_context:
     """
     GPU context which manages the allocation of memory, the movement of memory between python and the GPU, 
     and the calling of GPU funcitons
+
+    Written: Devin Cody, 2021
     """
     def __init__(self, len_gpu_arrays = 10000000):
         self.gpu_initalized = False
@@ -53,6 +55,21 @@ class gpu_context:
             raise(e)
 
     def newton(self, manom, ecc, eanom, eanom0 = None, tolerance=1e-9, max_iter=100):
+        """
+        Moves numpy arrays onto the GPU memory, calls the Newton-Raphson solver for eccentric anomaly
+        and copies the result back into a numpy array.
+
+        Args:
+            manom (np.array): array of mean anomalies
+            ecc (np.array): array of eccentricities
+            eanom (np.array): array of eccentric anomalies (return by reference)
+            eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
+        Return:
+            None: eanom is changed by reference
+
+        Written: Devin Cody, 2021
+
+        """
         # Check to make sure we have enough data to process orbits
         if (self.len_gpu_arrays < manom.nbytes):
             self.len_gpu_arrays = manom.nbytes
@@ -75,6 +92,19 @@ class gpu_context:
         cuda.memcpy_dtoh(eanom, self.d_eanom)
 
     def mikkola(self, manom, ecc, eanom):
+        """
+        Moves numpy arrays onto the GPU memory, calls the analtyical Mikkola solver for eccentric anomaly
+        and copies the result back into a numpy array.
+        
+        Args:
+            manom (np.array): array of mean anomalies between 0 and 2pi
+            ecc (np.array): eccentricity
+            eanom (np.array): array of eccentric anomalies (return by reference)
+        Return:
+            None: eanom is changed by reference
+
+        Written: Devin Cody, 2021
+        """
         # Check to make sure we have enough data to process orbits
         if (self.len_gpu_arrays < manom.nbytes):
             self.len_gpu_arrays = manom.nbytes
