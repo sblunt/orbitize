@@ -35,6 +35,11 @@ to learn more about ``conda`` virtual environments.
 For Windows Users
 +++++++++++++++++
 
+Many of the packages that we use in ``orbitize`` were originally written for Linux or macOS.
+For that reason, we highly reccomend installing the 
+`Windows Subsystem for Linux (WSL) <https://docs.microsoft.com/en-us/windows/wsl/about>`_
+which is an entire Linux development environment within Windows.
+
 There is a bug with the ``ptemcee`` installation that, as far as we know, only affects Windows users. 
 To work around this, download ``ptemcee`` from `its pypi page <https://pypi.org/project/ptemcee/>`_. 
 Navigate to the root ``ptemcee`` folder, remove the ``README.md`` file, then install:
@@ -44,6 +49,13 @@ Navigate to the root ``ptemcee`` folder, remove the ``README.md`` file, then ins
 	$ cd ptemcee
 	$ rm README.md
 	$ pip install . --upgrade
+
+Some users have reported issues with installing curses. If this happens to you, you can install 
+``windows-curses`` which should work as a replacement.
+
+.. code-block:: bash
+
+	$ pip install windows-curses
 
 For Developers
 ++++++++++++++
