@@ -209,44 +209,44 @@ class System(object):
         self.sys_priors, self.labels = self.basis.construct_priors()
 
         self.secondary_mass_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('m') and
                 not i.endswith('0')
             )
         ]
     
         self.sma_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('sma')
             )
         ]
         self.ecc_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('ecc')
             )
         ]
         self.inc_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('inc')
             )
         ]
         self.aop_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('aop')
             )
         ]
         self.pan_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('pan')
             )
         ]
         self.tau_indx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('tau')
             )
         ]
         self.mpl_idx = [
-            self.basis.param_idx[i] for i in self.basis.param_idx.keys() if (
+            self.basis.standard_basis_idx[i] for i in self.basis.standard_basis_idx.keys() if (
                 i.startswith('m') and i[1:] not in ['tot', '0']
             )
         ]
@@ -341,7 +341,7 @@ class System(object):
             argp = params_arr[self.aop_indx]
             lan = params_arr[self.pan_indx]
             tau = params_arr[self.tau_indx]
-            plx = params_arr[self.basis.param_idx['plx']]
+            plx = params_arr[self.basis.standard_basis_idx['plx']]
 
             if self.fit_secondary_mass:
                 m_pl = params_arr[self.mpl_idx]
@@ -357,18 +357,18 @@ class System(object):
         else:
                 for body_num in np.arange(self.num_secondary_bodies)+1:
 
-                    sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
-                    ecc = params_arr[self.basis.param_idx['ecc{}'.format(body_num)]]
-                    inc = params_arr[self.basis.param_idx['inc{}'.format(body_num)]]
-                    argp = params_arr[self.basis.param_idx['aop{}'.format(body_num)]]
-                    lan = params_arr[self.basis.param_idx['pan{}'.format(body_num)]]
-                    tau = params_arr[self.basis.param_idx['tau{}'.format(body_num)]]
-                    plx = params_arr[self.basis.param_idx['plx']]
+                    sma = params_arr[self.basis.standard_basis_idx['sma{}'.format(body_num)]]
+                    ecc = params_arr[self.basis.standard_basis_idx['ecc{}'.format(body_num)]]
+                    inc = params_arr[self.basis.standard_basis_idx['inc{}'.format(body_num)]]
+                    argp = params_arr[self.basis.standard_basis_idx['aop{}'.format(body_num)]]
+                    lan = params_arr[self.basis.standard_basis_idx['pan{}'.format(body_num)]]
+                    tau = params_arr[self.basis.standard_basis_idx['tau{}'.format(body_num)]]
+                    plx = params_arr[self.basis.standard_basis_idx['plx']]
 
                     if self.fit_secondary_mass:
                         # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                        mass = params_arr[self.basis.param_idx['m{}'.format(body_num)]]
-                        m0 = params_arr[self.basis.param_idx['m0']]
+                        mass = params_arr[self.basis.standard_basis_idx['m{}'.format(body_num)]]
+                        m0 = params_arr[self.basis.standard_basis_idx['m0']]
 
                         # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet. 
                         # We need to select all planets with sma < this planet. 
@@ -384,7 +384,7 @@ class System(object):
                         # if not fitting for secondary mass, then total mass must be stellar mass
                         mass = None
                         m0 = None
-                        mtot = params_arr[self.basis.param_idx['mtot']]
+                        mtot = params_arr[self.basis.standard_basis_idx['mtot']]
                     
                     if self.track_planet_perturbs:
                         masses[body_num] = mass
@@ -422,7 +422,7 @@ class System(object):
 
                         if body_num > 0:
                             # for companions, only perturb companion orbits at larger SMAs than this one. 
-                            sma = params_arr[self.basis.param_idx['sma{}'.format(body_num)]]
+                            sma = params_arr[self.basis.standard_basis_idx['sma{}'.format(body_num)]]
                             all_smas = params_arr[self.sma_indx]
                             outside_orbit = np.where(all_smas > sma)[0]
                             which_perturb_bodies = outside_orbit + 1
@@ -515,13 +515,13 @@ class System(object):
             for rv_idx in range(len(self.rv_instruments)):
 
                 jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[ # [km/s]
-                    self.basis.param_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
+                    self.basis.standard_basis_idx['sigma_{}'.format(self.rv_instruments[rv_idx])]
                 ]
                 jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
 
                 gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
-                    self.basis.param_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
+                    self.basis.standard_basis_idx['gamma_{}'.format(self.rv_instruments[rv_idx])]
                 ] 
                 gamma[self.rv_inst_indices[rv_idx], 1] = np.nan
 
