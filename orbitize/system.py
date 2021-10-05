@@ -487,8 +487,11 @@ class System(object):
                 to false and a Kepler solver will be used instead.
 
         Returns:
-            np.array of float: Nobsx2xM array model predictions. If M=1, this is
-                a 2d array, otherwise it is a 3d array.
+            tuple of:
+                np.array of float: Nobsx2xM array model predictions. If M=1, this is
+                    a 2d array, otherwise it is a 3d array.
+                np.array of float: Nobsx2xM array jitter predictions. If M=1, this is
+                    a 2d array, otherwise it is a 3d array.
         """
 
         to_convert = np.copy(params_arr)

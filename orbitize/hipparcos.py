@@ -426,6 +426,6 @@ if __name__ == '__main__':
     hip_num = '027321' # beta Pic
 
     nielsen_iad_refitting_test(
-        '{}HIP027321.d'.format(DATADIR), hip_num=hip_num, 
+        '{}HIP{}.d'.format(DATADIR, hip_num), hip_num=hip_num, 
         saveplot='bPic_IADrefit.png', burn_steps=100, mcmc_steps=500
     )
