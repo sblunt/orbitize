@@ -30,6 +30,7 @@ class Results(object):
             current walker positions that is used for restarting a MCMC sampler. 
 
     Written: Henry Ngo, Sarah Blunt, 2018
+
     API Update: Sarah Blunt, 2021
     """
 
@@ -57,7 +58,7 @@ class Results(object):
     def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number 
-            to the results
+        to the results
 
         Args:
             orbital_params (np.array): add sets of orbital params (could be multiple) 
@@ -67,6 +68,7 @@ class Results(object):
                 current walker positions
 
         Written: Henry Ngo, 2018
+
         API Update: Sarah Blunt, 2021
         """
         
@@ -101,6 +103,7 @@ class Results(object):
         that are members of the root group.
 
         Written: Henry Ngo, 2018
+
         API Update: Sarah Blunt, 2021
         """
 

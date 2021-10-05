@@ -21,15 +21,15 @@ class HipparcosLogProb(object):
     They are added to the vector of fitting parameters in system.py, but 
     are described here for completeness. See Nielsen+ 2020 for more detail.
 
-        alpha0: RA offset from the reported Hipparcos position at a particular
-            epoch (usually 1991.25) [mas]
-        delta0: Dec offset from the reported Hipparcos position at a particular
-            epoch (usually 1991.25) [mas]
-        pm_ra: RA proper motion [mas/yr]
-        pm_dec: Dec proper motion [mas/yr]
-        plx: parallax [mas]
+    - alpha0: RA offset from the reported Hipparcos position at a particular
+        epoch (usually 1991.25) [mas]
+    - delta0: Dec offset from the reported Hipparcos position at a particular
+        epoch (usually 1991.25) [mas]
+    - pm_ra: RA proper motion [mas/yr]
+    - pm_dec: Dec proper motion [mas/yr]
+    - plx: parallax [mas]
 
-    . Note:: in orbitize, it is possible to perform a fit to just the Hipparcos
+    .. Note:: in orbitize, it is possible to perform a fit to just the Hipparcos
     IAD, but not to just the Gaia astrometric data.
 
     Args:
@@ -45,7 +45,7 @@ class HipparcosLogProb(object):
         renormalize_errors (bool): if True, normalize the scan errors to get
             chisq_red = 1, following Nielsen+ 2020 (eq 10). In general, this 
             should be False, but it's helpful for testing. Check out 
-            `test_hipparcos._nielsen_iad_refitting_test()` for an example
+            `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
 
     Written: Sarah Blunt & Rob de Rosa, 2021
@@ -311,8 +311,10 @@ def nielsen_iad_refitting_test(
         mcmc_steps (int): number of MCMC production steps to run.
 
     Returns:
-        tuple of:
+        tuple:
+
             numpy.array of float: n_steps x 5 array of posterior samples
+            
             orbitize.hipparcos.HipparcosLogProb: the object storing relevant
                 metadata for the performed Hipparcos IAD fit
     """

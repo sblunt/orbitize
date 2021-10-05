@@ -35,12 +35,8 @@ Attribution:
 * If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
 * If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
 * If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
-* If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, 
-please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_
-and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
-* If you use Gaia data, please also cite 
-`Gaia Collaboration et al (2018; for DR2) <https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract>`, or
-`Gaia Collaboration et al (2021; for eDR3) https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract>`.
+* If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_ and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
+* If you use Gaia data, please also cite `Gaia Collaboration et al (2018; for DR2) <https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract>`_, or `Gaia Collaboration et al (2021; for eDR3) <https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract>`_.
 
 
 User Guide:

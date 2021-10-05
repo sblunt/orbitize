@@ -126,10 +126,13 @@ class OFTI(Sampler,):
     Args:
         system (system.System): ``system.System`` object
         like (string): name of likelihood function in ``lnlike.py``
-        custom_lnlike (func): ability to include an addition custom likelihood function in the fit.
-            the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
-            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
-            and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
+        custom_lnlike (func): ability to include an addition custom likelihood 
+            function in the fit. The function looks like 
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters 
+            (can be passed in system.compute_model()),
+            and M is the number of orbits we need model predictions for. 
+            It returns ``clnlikes`` which is an array of
             length M, or it can be a single float if M = 1.
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
@@ -393,11 +396,13 @@ class OFTI(Sampler,):
             lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
         Returns:
-            tuple of:
+            tuple:
+
                 output_orbits (np.array): array of accepted orbits,
-                                        size: total_orbits
+                    size: total_orbits
+
                 output_lnlikes (np.array): array of log probabilities,
-                                       size: total_orbits
+                    size: total_orbits
 
         """
 
@@ -433,12 +438,14 @@ class OFTI(Sampler,):
     def run_sampler(self, total_orbits, num_samples=10000, num_cores=None):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
+
         Args:
             total_orbits (int): total number of accepted orbits desired by user
             num_samples (int): number of orbits to prepare for OFTI to run
                 rejection sampling on. Defaults to 10000.
             num_cores (int): the number of cores to run OFTI on. Defaults to
-                             number of cores availabe.
+                number of cores availabe.
+
         Return:
             np.array: array of accepted orbits. Size: total_orbits.
 
@@ -547,18 +554,21 @@ class MCMC(Sampler):
 
     Args:
         system (system.System): system.System object
-        num_temps (int): number of temperatures to run the sampler at. Parallel tempering will be
-            used if num_temps > 1 (default=20)
+        num_temps (int): number of temperatures to run the sampler at. 
+            Parallel tempering will be used if num_temps > 1 (default=20)
         num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
         like (str): name of likelihood function in ``lnlike.py``
-        custom_lnlike (func): ability to include an addition custom likelihood function in the fit.
-            the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
-            of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
-            and M is the number of orbits we need model predictions for. It returns ``clnlikes`` which is an array of
-            length M, or it can be a single float if M = 1.
-        prev_result_filename (str): if passed a filename to an HDF5 file containing a orbitize.Result data,
-            MCMC will restart from where it left off. 
+        custom_lnlike (func): ability to include an addition custom likelihood 
+            function in the fit. The function looks like 
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array 
+            of fitting parameters, where R is the number of orbital paramters 
+            (can be passed in system.compute_model()), and M is the number of 
+            orbits we need model predictions for. It returns ``clnlikes`` 
+            which is an array of length M, or it can be a single float if M = 1.
+        prev_result_filename (str): if passed a filename to an HDF5 file 
+            containing a orbitize.Result data, MCMC will restart from where it 
+            left off. 
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -989,16 +999,15 @@ class MCMC(Sampler):
 
     def chop_chains(self, burn, trim=0):
         """
-        Permanently removes steps from beginning (and/or end) of chains from the Results object.
-        Also updates `curr_pos` if steps are removed from the end of the chain
+        Permanently removes steps from beginning (and/or end) of chains from the 
+        Results object. Also updates `curr_pos` if steps are removed from the 
+        end of the chain.
 
         Args:
             burn (int): The number of steps to remove from the beginning of the chains
             trim (int): The number of steps to remove from the end of the chians (optional)
 
-        Returns:
-            None. Updates self.curr_pos and the `Results` object.
-            .. Warning:: Does not update bookkeeping arrays within `MCMC` sampler object.
+        .. Warning:: Does not update bookkeeping arrays within `MCMC` sampler object.
 
         (written): Henry Ngo, 2019
         """

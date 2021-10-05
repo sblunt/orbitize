@@ -11,8 +11,11 @@ For an advanced plotting demo, see "Advanced Plotting," and to learn
 about the differences between OFTI and MCMC algorithms,
 we suggest "MCMC vs OFTI Comparison."
 
+We also have a bunch of tutorials designed to introduce you to specific features
+of our code, listed below.
+
 Many of these tutorials are also available as jupyter notebooks 
-`here <https://github.com/sblunt/orbitize/tree/master/docs>`_.
+`here <https://github.com/sblunt/orbitize/tree/main/docs/tutorials>`_.
 
 If you find a bug, or if something is unclear, please create an issue
 on GitHub! We'd love any feedback on how to make ``orbitize`` more
@@ -40,12 +43,21 @@ us if you are still confused).
 .. toctree::
    :maxdepth: 1
 
-   tutorials/RV_MCMC_Tutorial.ipynb
-   tutorials/Multiplanet_Tutorial.ipynb
    tutorials/Modifying_Priors.ipynb
-   tutorials/Using_nonOrbitize_Posteriors_as_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
    tutorials/Modifying_MCMC_initial_positions.ipynb
+
+**Feature Tutorials:**   
+
+.. toctree::
+   :maxdepth: 1
+
+   tutorials/RV_MCMC_Tutorial.ipynb
+   tutorials/Multiplanet_Tutorial.ipynb
+   tutorials/Using_nonOrbitize_Posteriors_as_Priors.ipynb
+   tutorials/Changing_bases_tutorial.ipynb
+   tutorials/Hipparcos_IAD.ipynb
+
 
 

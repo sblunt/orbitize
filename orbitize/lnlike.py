@@ -113,7 +113,16 @@ def _chi2_2x2cov(residual, var, corrs):
 def chi2_norm_term(errors, corrs):
     """
     Return only the normalization term of the Gaussian likelihood: 
-    -log(sqrt(2pi*error^2)) or -0.5 * (log(det(C)) + N * log(2pi))
+
+    .. math::
+
+        -log(\\sqrt(2\\pi*error^2)) 
+
+    or 
+
+    .. math::
+    
+        -0.5 * (log(det(C)) + N * log(2\\pi))
 
     Args:
         errors (np.array): Nobsx2 array of errors for each data point. Same

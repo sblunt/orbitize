@@ -301,11 +301,14 @@ class System(object):
                 to false and a Kepler solver will be used instead. 
         
         Returns:
-            tuple of:
+            tuple:
+
                 raoff (np.array of float): N_epochs x N_bodies x N_orbits array of
                     RA offsets from barycenter at each epoch.
+
                 decoff (np.array of float): N_epochs x N_bodies x N_orbits array of
                     Dec offsets from barycenter at each epoch.
+                    
                 vz (np.array of float): N_epochs x N_bodies x N_orbits array of
                     radial velocities at each epoch.
 
