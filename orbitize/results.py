@@ -139,6 +139,7 @@ class Results(object):
         data is structured.
 
         Written: Henry Ngo, 2018
+        
         API Update: Sarah Blunt, 2021
         """
 

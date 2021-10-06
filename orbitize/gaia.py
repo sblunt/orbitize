@@ -15,8 +15,10 @@ class GaiaLogProb(object):
 
     Follows Nielsen+ 2020 (studying the orbit of beta Pic b).
 
-    .. Note:: in orbitize, it is possible to perform a fit to just the Hipparcos
-    IAD, but not to just the Gaia astrometric data.
+    .. Note:: 
+    
+        In orbitize, it is possible to perform a fit to just the Hipparcos
+        IAD, but not to just the Gaia astrometric data.
 
     Args:
         gaia_num (int): the Gaia source ID of the object you're fitting. Note

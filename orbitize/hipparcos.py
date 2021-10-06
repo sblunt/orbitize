@@ -29,8 +29,10 @@ class HipparcosLogProb(object):
     - pm_dec: Dec proper motion [mas/yr]
     - plx: parallax [mas]
 
-    .. Note:: in orbitize, it is possible to perform a fit to just the Hipparcos
-    IAD, but not to just the Gaia astrometric data.
+    .. Note:: 
+    
+        In orbitize, it is possible to perform a fit to just the Hipparcos
+        IAD, but not to just the Gaia astrometric data.
 
     Args:
         path_to_iad_file (str): location of IAD file to be used in your fit.
