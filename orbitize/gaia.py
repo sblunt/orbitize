@@ -81,6 +81,7 @@ class GaiaLogProb(object):
         Computes the log likelihood of an orbit model with respect to a single 
         Gaia astrometric point. This is added to the likelihoods calculated with 
         respect to other data types in ``sampler._logl()``. 
+
         Args:
             raoff_model (np.array of float): 2xM primary RA
                 offsets from the barycenter incurred from orbital motion of 
@@ -100,6 +101,7 @@ class GaiaLogProb(object):
             param_idx: a dictionary matching fitting parameter labels to their
                 indices in an array of fitting parameters (generally 
                 set to System.basis.param_idx).
+                
         Returns:
             np.array of float: array of length M, where M is the number of input 
                 orbits, representing the log likelihood of each orbit with 
