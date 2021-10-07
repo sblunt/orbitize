@@ -29,7 +29,7 @@ class Driver(object):
             be used to compute likelihood. (default="chi2_lnlike")
         system_kwargs (dict, optional): ``restrict_angle_ranges``, ``tau_ref_epoch``,
             ``fit_secondary_mass``, ``hipparcos_IAD``, ``gaia``, 
-            ``use_rebound`` for ``orbitize.system.System``.
+            ``use_rebound``, ``fitting_basis`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
         fitting_basis (str, optional): the name of the class corresponding to 
@@ -43,8 +43,7 @@ class Driver(object):
         self, input_data, sampler_str,
         num_secondary_bodies, stellar_or_total_mass, plx,
         mass_err=0, plx_err=0, lnlike='chi2_lnlike',
-        system_kwargs=None, mcmc_kwargs=None, 
-        fitting_basis='Standard'
+        system_kwargs=None, mcmc_kwargs=None
     ):
 
         # Read in data

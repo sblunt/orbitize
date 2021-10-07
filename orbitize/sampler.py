@@ -222,7 +222,8 @@ class OFTI(Sampler,):
             self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None
+            lnlike=None,
+            version_number=orbitize.__version__
         )
 
     def prepare_samples(self, num_samples, use_c=True, use_gpu=False):
@@ -609,7 +610,8 @@ class MCMC(Sampler):
             self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None
+            lnlike=None,
+            version_number=orbitize.__version__
         )
         
         if self.num_temps > 1:
@@ -1077,7 +1079,9 @@ class MCMC(Sampler):
             self.system, 
             sampler_name=self.__class__.__name__,
             post=flat_chopped_chain,
-            lnlike=flat_chopped_lnlikes
+            lnlike=flat_chopped_lnlikes,
+            version_number = orbitize.__version__,
+            curr_pos = self.curr_pos
         )
 
         # Print a confirmation
