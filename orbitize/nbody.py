@@ -2,9 +2,13 @@ import numpy as np
 import orbitize.basis as basis
 import rebound
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=58849, m_pl=None, output_star=False):
+def calc_orbit(
+    epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=58849, 
+    m_pl=None, output_star=False
+):
     """
     Solves for position for a set of input orbital elements using rebound.
+
     Args:
         epochs (np.array): MJD times for which we want the positions of the planet
         sma (np.array): semi-major axis of orbit [au]
@@ -12,19 +16,28 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=58
         inc (np.array): inclination [radians]
         aop (np.array): argument of periastron [radians]
         pan (np.array): longitude of the ascending node [radians]
-        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        tau (np.array): epoch of periastron passage in fraction of orbital period 
+            past MJD=0 [0,1]
         plx (np.array): parallax [mas]
-        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
-        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
+        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) 
+            [Solar masses]
+        tau_ref_epoch (float, optional): reference date that tau is defined with
+            respect to
         m_pl (np.array, optional): mass of the planets[units]
+        output_star (bool): if True, also return the position of the star
+            relative to the barycenter.
+
     Returns:
         3-tuple:
-            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies
-            (origin is at the other body) [mas]
-            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
-                (see `mass_for_Kamp` description)  [km/s]
-        return is in format [raoff[planet1, planet2,...,planetn], deoff[planet1, planet2,...,planetn], vz[planet1, planet2,...,planetn]
+            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between 
+                the bodies (origin is at the other body) [mas]
+            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between 
+                the bodies [mas]
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of 
+                one of the bodies (see `mass_for_Kamp` description)  [km/s]
+
+    . Note:: return is in format [raoff[planet1, planet2,...,planetn], 
+        deoff[planet1, planet2,...,planetn], vz[planet1, planet2,...,planetn]
     """
     
     sim = rebound.Simulation()      #creating the simulation in Rebound
