@@ -19,7 +19,7 @@ import orbitize.kepler as kepler
 
 
 # TODO: deprecatation warning for plots in results
-=
+
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
@@ -202,7 +202,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', ErfaWarning)
 
-        data = results.data
+        data = results.data[results.data['object'] == object_to_plot]
         possible_cbar_params = [
             'sma',
             'ecc',
