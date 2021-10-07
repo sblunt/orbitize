@@ -244,20 +244,20 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
         standard_post = np.array(standard_post)
 
-        sma = standard_post[:, results.param_idx['sma{}'.format(object_to_plot)]]
-        ecc = standard_post[:, results.param_idx['ecc{}'.format(object_to_plot)]]
-        inc = standard_post[:, results.param_idx['inc{}'.format(object_to_plot)]]
-        aop = standard_post[:, results.param_idx['aop{}'.format(object_to_plot)]]
-        pan = standard_post[:, results.param_idx['pan{}'.format(object_to_plot)]]
-        tau = standard_post[:, results.param_idx['tau{}'.format(object_to_plot)]]
-        plx = standard_post[:, results.param_idx['plx']]
+        sma = standard_post[:, results.standard_param_idx['sma{}'.format(object_to_plot)]]
+        ecc = standard_post[:, results.standard_param_idx['ecc{}'.format(object_to_plot)]]
+        inc = standard_post[:, results.standard_param_idx['inc{}'.format(object_to_plot)]]
+        aop = standard_post[:, results.standard_param_idx['aop{}'.format(object_to_plot)]]
+        pan = standard_post[:, results.standard_param_idx['pan{}'.format(object_to_plot)]]
+        tau = standard_post[:, results.standard_param_idx['tau{}'.format(object_to_plot)]]
+        plx = standard_post[:, results.standard_param_idx['plx']]
 
         # Then, get the other parameters
         if 'mtot' in results.labels:
-            mtot = standard_post[:, results.param_idx['mtot']]
+            mtot = standard_post[:, results.standard_param_idx['mtot']]
         elif 'm0' in results.labels:
-            m0 = standard_post[:, results.param_idx['m0']]
-            m1 = standard_post[:, results.param_idx['m{}'.format(object_to_plot)]]
+            m0 = standard_post[:, results.standard_param_idx['m0']]
+            m1 = standard_post[:, results.standard_param_idx['m{}'.format(object_to_plot)]]
             mtot = m0 + m1
 
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -529,8 +529,8 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             best_post = results.basis.to_standard_basis(results.post[best_like].copy())
 
             # Get the masses for the best posteriors:
-            best_m0 = best_post[results.param_idx['m0']]
-            best_m1 = best_post[results.param_idx['m{}'.format(object_to_plot)]]
+            best_m0 = best_post[results.standard_param_idx['m0']]
+            best_m1 = best_post[results.standard_param_idx['m{}'.format(object_to_plot)]]
             best_mtot = best_m0 + best_m1
 
             # colour/shape scheme scheme for rv data points
@@ -557,13 +557,13 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             # calculate the predicted rv trend using the best orbit 
             _, _, vz = kepler.calc_orbit(
                 epochs_seppa[0, :], 
-                best_post[results.param_idx['sma{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['ecc{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['inc{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['aop{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['pan{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['tau{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['plx']], best_mtot, 
+                best_post[results.standard_param_idx['sma{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['ecc{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['inc{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['aop{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['pan{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['tau{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['plx']], best_mtot, 
                 tau_ref_epoch=results.tau_ref_epoch, mass_for_Kamp=best_m0
             )
             

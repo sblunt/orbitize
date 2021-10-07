@@ -53,6 +53,7 @@ class Results(object):
             self.fitting_basis = self.system.fitting_basis
             self.basis = self.system.basis
             self.param_idx = self.system.param_idx
+            self.standard_param_idx = self.system.basis.standard_basis_idx
 
     def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
         """
@@ -234,6 +235,7 @@ class Results(object):
         self.fitting_basis = self.system.fitting_basis
         self.basis = self.system.basis
         self.param_idx = self.system.param_idx
+        self.standard_param_idx = self.basis.standard_basis_idx
 
         try:
             curr_pos = np.array(hf.get('curr_pos'))
