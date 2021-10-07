@@ -29,14 +29,19 @@ def calc_orbit(
 
     Returns:
         3-tuple:
+
             raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between 
                 the bodies (origin is at the other body) [mas]
+
             deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between 
                 the bodies [mas]
+                
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of 
                 one of the bodies (see `mass_for_Kamp` description)  [km/s]
 
-    . Note:: return is in format [raoff[planet1, planet2,...,planetn], 
+    .. Note:: 
+    
+        return is in format [raoff[planet1, planet2,...,planetn], 
         deoff[planet1, planet2,...,planetn], vz[planet1, planet2,...,planetn]
     """
     

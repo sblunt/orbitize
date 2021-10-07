@@ -182,8 +182,11 @@ class Standard(Basis):
         and mass priors are added at the end.
 
         Returns:
-            list: list of strings (labels) that indicate the names of each parameter to sample
-            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
         '''
         base_labels = ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
@@ -228,7 +231,8 @@ class Standard(Basis):
                 where R is the number of parameters being fit, and M is the number of orbits. If 
                 M=1 (for MCMC), this can be a 1d array.
 
-        Returns: 'param_arr' without any modification
+        Returns: 
+            np.array of float: ``param_arr`` without any modification
         '''
         return param_arr
 
@@ -265,8 +269,11 @@ class Period(Basis):
         and mass priors are added at the end.
 
         Returns:
-            list: list of strings (labels) that indicate the names of each parameter to sample
-            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
         '''
         base_labels = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau']
         basis_priors = []
@@ -374,8 +381,7 @@ class SemiAmp(Basis):
     Modification of the standard basis, swapping our sma for period and additionally sampling in
     the stellar radial velocity semi-amplitude: (per, ecc, inc, aop, pan, tau, K).
 
-    NOTES: 
-        Ideally, 'fit_secondary_mass' is true and rv data is supplied.
+    .. Note:: Ideally, 'fit_secondary_mass' is true and rv data is supplied.
 
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
@@ -408,7 +414,10 @@ class SemiAmp(Basis):
         The mass parameter will always be m0.
 
         Returns:
+            tuple:
+
             list: list of strings (labels) that indicate the names of each parameter to sample
+            
             list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
         '''
         base_labels = ['per', 'ecc', 'inc', 'aop', 'pan', 'tau', 'K']
@@ -616,9 +625,9 @@ class XYZ(Basis):
     The conversion algorithms used for this basis are defined in the following paper:
     http://www.dept.aoe.vt.edu/~lutze/AOE4134/9OrbitInSpace.pdf
 
-    Notes:
-        Does not have support with sep,pa data yet.
-        Does not work for all multi-body data.
+    .. Note:: Does not have support with sep,pa data yet.
+
+    .. Note:: Does not work for all multi-body data.
 
     Args:
         stellar_mass (float): mean mass of the primary, in M_sol
@@ -666,8 +675,11 @@ class XYZ(Basis):
         system (the origin of the system is star).
 
         Returns:
-            list: list of strings (labels) that indicate the names of each parameter to sample
-            list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
         '''
 
         basis_priors = []
@@ -1123,7 +1135,7 @@ def tau_to_tp(tau, ref_epoch, period, after_date=None):
         after_date (float): tp will be the first periastron after this date. If None, use ref_epoch.
 
     Returns:
-        tp (float or np.array): corresponding t_p of the taus
+        float or np.array: corresponding t_p of the taus
     """
     period_days = period * u.year.to(u.day)
 
@@ -1147,7 +1159,7 @@ def tp_to_tau(tp, ref_epoch, period):
         period (float or np.array): period (in years) that tau is defined by
 
     Returns:
-        tau (float or np.array): corresponding taus
+        float or np.array: corresponding taus
     """
     tau = (tp - ref_epoch)/(period * u.year.to(u.day))
     tau %= 1
@@ -1165,7 +1177,7 @@ def switch_tau_epoch(old_tau, old_epoch, new_epoch, period):
         period (float or np.array): orbital period (years)
 
     Returns:
-        new_tau (float or np.array): new taus
+        float or np.array: new taus
     """
     
     tp = tau_to_tp(old_tau, old_epoch, period)
@@ -1186,7 +1198,7 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         tau_ref_epoch (float): reference epoch for tau
         
     Returns:
-        mean_anom (float or np.array): mean anomaly on that date [0, 2pi)
+        float or np.array: mean anomaly on that date [0, 2pi)
     """
 
     return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)
