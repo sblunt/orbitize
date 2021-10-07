@@ -8,13 +8,14 @@ basis_names = {'Standard' : ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau'],
 	'XYZ' : ['x', 'y', 'z', 'xdot', 'ydot', 'zdot']}
 
 def test_no_extra_data():
-	'''
-	Make sure that the labels are generated properly for all of the basis sets for configurations
-	of the driver where (1) system mass, (2) single companion mass, and (3) two companion masses
-	are being fitted. In any case, RV or Hipparcos parameters are not being fitted.
+	"""
+	Make sure that the labels are generated properly for all of the basis sets 
+	for configurations of the driver where (1) system mass, (2) single companion 
+	mass, and (3) two companion masses are being fitted. In any case, RV or 
+	Hipparcos parameters are not being fitted.
 
 	For XYZ, expect there to be exceptions thrown when making the driver.
-	'''
+	"""
 	filename = "{}/GJ504.csv".format(DATADIR)
 
 	num_secondary_bodies = 1

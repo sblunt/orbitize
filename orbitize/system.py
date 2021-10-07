@@ -1,5 +1,6 @@
 import numpy as np
 from orbitize import nbody, kepler, basis
+from astropy import table
 
 class System(object):
     """
@@ -29,10 +30,15 @@ class System(object):
         hipparcos_IAD (orbitize.hipparcos.HipparcosLogProb): an object 
             containing information & precomputed values relevant to Hipparcos
             IAD fitting. See hipparcos.py for more details.
+        gaia (orbitize.gaia.GaiaLogProb): an object 
+            containing information & precomputed values relevant to Gaia
+            astrometrry fitting. See gaia.py for more details.
         fitting_basis (str): the name of the class corresponding to the fitting 
             basis to be used. See basis.py for a list of implemented fitting bases.
         use_c (bool, optional): Use the C solver if configured. Defaults to True
         use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
+        use_rebound (bool): if True, use an n-body backend solver instead
+            of a Keplerian solver.
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class, 
@@ -44,21 +50,26 @@ class System(object):
     """
 
     def __init__(self, num_secondary_bodies, data_table, stellar_mass,
-                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=None,
+                 plx, mass_err=0, plx_err=0, restrict_angle_ranges=False,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
-                 hipparcos_IAD=None, fitting_basis='Standard', use_rebound=False,
+                 hipparcos_IAD=None, gaia=None, fitting_basis='Standard', use_rebound=False,
                  use_c=True, use_gpu=False):
 
-        self.use_rebound = use_rebound
         self.num_secondary_bodies = num_secondary_bodies
-        self.results = []
-        self.fit_secondary_mass = fit_secondary_mass
-        self.tau_ref_epoch = tau_ref_epoch
-        self.restrict_angle_ranges = restrict_angle_ranges
-        self.hipparcos_IAD = hipparcos_IAD
-        self.fitting_basis = fitting_basis
-        self.best_epochs = []
         self.data_table = data_table
+        self.stellar_mass = stellar_mass
+        self.plx = plx
+        self.mass_err = mass_err
+        self.plx_err = plx_err
+        self.restrict_angle_ranges = restrict_angle_ranges
+        self.tau_ref_epoch = tau_ref_epoch
+        self.fit_secondary_mass = fit_secondary_mass
+        self.hipparcos_IAD = hipparcos_IAD
+        self.gaia = gaia
+        self.fitting_basis = fitting_basis
+        self.use_rebound = use_rebound
+
+        self.best_epochs = []
         self.input_table = self.data_table.copy()
 
         # Group the data in some useful ways
@@ -134,7 +145,7 @@ class System(object):
         if self.hipparcos_IAD is not None:
             self.track_planet_perturbs = True
 
-        if restrict_angle_ranges:
+        if self.restrict_angle_ranges:
             angle_upperlim = np.pi
         else:
             angle_upperlim = 2.*np.pi
@@ -149,7 +160,7 @@ class System(object):
         basis_obj = getattr(basis, self.fitting_basis)
 
         # Obtain extra necessary data to assign priors for XYZ
-        if fitting_basis == 'XYZ':
+        if self.fitting_basis == 'XYZ':
             # Get epochs with least uncertainty, as is done in sampler.py
             convert_warning_print = False
             for body_num in np.arange(self.num_secondary_bodies) + 1:
@@ -188,9 +199,8 @@ class System(object):
 
             self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
-
         self.basis = basis_obj(
-            stellar_mass, mass_err, plx, plx_err, self.num_secondary_bodies, 
+            self.stellar_mass, self.mass_err, self.plx, self.plx_err, self.num_secondary_bodies, 
             self.fit_secondary_mass, angle_upperlim=angle_upperlim, 
             hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, 
             rv_instruments=self.rv_instruments, **self.extra_basis_kwargs
@@ -243,6 +253,36 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
+
+    def save(self, hf):
+        """
+        Saves the current object to an hdf5 file
+
+        Args:
+            hf (h5py._hl.files.File): a currently open hdf5 file in which
+                to save the object.        
+        """
+
+        hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
+
+        hf.create_dataset('data', data=self.data_table)
+
+        hf.attrs['restrict_angle_ranges'] = self.restrict_angle_ranges
+        hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
+        hf.attrs['stellar_mass'] = self.stellar_mass
+        hf.attrs['plx'] = self.plx
+        hf.attrs['mass_err'] = self.mass_err
+        hf.attrs['plx_err'] = self.plx_err
+        hf.attrs['fit_secondary_mass'] = self.fit_secondary_mass
+
+        if self.gaia is not None:
+            self.gaia._save(hf)
+        elif self.hipparcos_IAD is not None:
+            self.hipparcos_IAD._save(hf)
+        hf.attrs['fitting_basis'] = self.fitting_basis
+        hf.attrs['use_rebound'] = self.use_rebound
+
+        
 
     def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False, use_c=True, use_gpu=False):
         """
@@ -423,10 +463,6 @@ class System(object):
 
                 raoff = ra_kepler + ra_perturb
                 deoff = dec_kepler + dec_perturb
-                # if n_orbits == 1:
-                #     import pdb; pdb.set_trace()
-                #     total_rv0 = np.reshape(total_rv0, (n_epochs, n_orbits))
-                # vz[:, 0, :] = total_rv0
 
         if self.fitting_basis == 'XYZ':
             # Find and filter out unbound orbits
@@ -455,7 +491,7 @@ class System(object):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in ``System()`` above. If M=1, this can be a 1d array.
-            comp_rebound (bool, optional): A secondary optional input for 
+            use_rebound (bool, optional): A secondary optional input for 
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
             use_c (bool, optional): Use the C solver if configured. Defaults to True
@@ -463,7 +499,7 @@ class System(object):
 
         Returns:
             np.array of float: Nobsx2xM array model predictions. If M=1, this is
-            a 2d array, otherwise it is a 3d array.
+                a 2d array, otherwise it is a 3d array.
         """
 
         to_convert = np.copy(params_arr)
@@ -568,21 +604,6 @@ class System(object):
                 self.radec[body_num], np.where(self.radec[body_num] == i)[0])
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
 
-    def add_results(self, results):
-        """
-        Adds an orbitize.results.Results object to the list in system.results
-
-        Args:
-            results (orbitize.results.Results object): add this object to list
-        """
-        self.results.append(results)
-
-    def clear_results(self):
-        """
-        Removes all stored results
-        """
-        self.results = []
-
 
 def radec2seppa(ra, dec, mod180=False):
     """
@@ -630,19 +651,25 @@ def seppa2radec(sep, pa):
 
 def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=100000):
     """
-    Transform errors and covariances from one basis to another using a Monte Carlo apporach
+    Transform errors and covariances from one basis to another using a Monte Carlo 
+    apporach
     
    Args:
-        x1 (float): planet location in first coordinate (e.g., RA, sep) before transformation
-        x2 (float): planet location in the second coordinate (e.g., Dec, PA) before transformation)
+        x1 (float): planet location in first coordinate (e.g., RA, sep) before 
+            transformation
+        x2 (float): planet location in the second coordinate (e.g., Dec, PA) 
+            before transformation)
         x1_err (float): error in x1
         x2_err (float): error in x2
         x12_corr (float): correlation between x1 and x2
-        transform_func (function): function that transforms between (x1, x2) and (x1p, x2p) (the transformed coordinates)
-                                    The function signature should look like: `x1p, x2p = transform_func(x1, x2)`
-        nsamps (int): number of samples to draw more the Monte Carlo approach. More is slower but more accurate. 
+        transform_func (function): function that transforms between (x1, x2) 
+            and (x1p, x2p) (the transformed coordinates). The function signature 
+            should look like: `x1p, x2p = transform_func(x1, x2)`
+        nsamps (int): number of samples to draw more the Monte Carlo approach. 
+            More is slower but more accurate. 
     Returns:
-        tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for x1p,x2p (the transformed coordinates)
+        tuple (x1p_err, x2p_err, x12p_corr): the errors and correlations for 
+            x1p,x2p (the transformed coordinates)
     """
 
     if np.isnan(x12_corr):

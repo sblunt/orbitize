@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as consts
 import abc
 import time
+from astropy.time import Time
 
 import emcee
 import ptemcee
@@ -60,7 +61,7 @@ class Sampler(abc.ABC):
             use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
         Returns:
-            lnlikes (float): sum of all log likelihoods of the data given input model
+            float: sum of all log likelihoods of the data given input model
 
         """
         # compute the model based on system params
@@ -100,8 +101,25 @@ class Sampler(abc.ABC):
 
             # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
             lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
-                raoff_model[:,0,:], deoff_model[:,0,:], params
+                raoff_model[:,0,:], deoff_model[:,0,:], params, self.system.param_idx
             )
+
+            if self.system.gaia is not None:
+
+                gaiahip_epochs = Time(
+                    [self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch], 
+                    format='decimalyear'
+                ).mjd
+
+                # compute Ra/Dec predictions at the Gaia epoch
+                raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+                    params, epochs=gaiahip_epochs
+                ) 
+
+                # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
+                lnlikes_sum += self.system.gaia.compute_lnlike(
+                    raoff_model[:,0,:], deoff_model[:,0,:], params, self.system.param_idx
+                )
 
         return lnlikes_sum
 
@@ -111,8 +129,8 @@ class OFTI(Sampler,):
     OFTI Sampler
 
     Args:
-        like (string): name of likelihood function in ``lnlike.py``
         system (system.System): ``system.System`` object
+        like (string): name of likelihood function in ``lnlike.py``
         custom_lnlike (func): ability to include an addition custom likelihood function in the fit.
             the function looks like ``clnlikes = custon_lnlike(params)`` where ``params is a RxM array
             of fitting parameters, where R is the number of orbital paramters (can be passed in system.compute_model()),
@@ -201,15 +219,10 @@ class OFTI(Sampler,):
 
         # create an empty results object
         self.results = orbitize.results.Results(
+            self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None,
-            tau_ref_epoch=self.system.tau_ref_epoch,
-            data=self.system.data_table,
-            num_secondary_bodies=self.system.num_secondary_bodies,
-            fitting_basis=self.system.fitting_basis,
-            basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs
+            lnlike=None
         )
 
     def prepare_samples(self, num_samples, use_c=True, use_gpu=False):
@@ -445,7 +458,7 @@ class OFTI(Sampler,):
             use_c (bool, optional): Use the C solver if configured. Defaults to True
             use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
         Return:
-            output_orbits (np.array): array of accepted orbits. Size: total_orbits.
+            np.array: array of accepted orbits. Size: total_orbits.
 
         Written by: Vighnesh Nagpal(2019)
 
@@ -515,7 +528,7 @@ class OFTI(Sampler,):
 
             self.results.add_samples(
                 np.array(output_orbits),
-                output_lnlikes, labels=self.system.labels
+                output_lnlikes
             )
             return output_orbits
 
@@ -547,7 +560,7 @@ class OFTI(Sampler,):
 
             self.results.add_samples(
                 np.array(output_orbits),
-                output_lnlikes, labels=self.system.labels
+                output_lnlikes
             )
 
             return output_orbits
@@ -580,7 +593,10 @@ class MCMC(Sampler):
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    def __init__(self, system, num_temps=20, num_walkers=1000, num_threads=1, like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None, use_c=True, use_gpu=False):
+    def __init__(
+        self, system, num_temps=20, num_walkers=1000, num_threads=1, 
+        like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None, use_c=True, use_gpu=False
+    ):
 
         super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike, use_c=use_c, use_gpu=use_gpu)
 
@@ -590,15 +606,10 @@ class MCMC(Sampler):
         
         # create an empty results object
         self.results = orbitize.results.Results(
+            self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None,
-            tau_ref_epoch=system.tau_ref_epoch,
-            data=self.system.data_table,
-            num_secondary_bodies=system.num_secondary_bodies,
-            fitting_basis=self.system.fitting_basis,
-            basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs
+            lnlike=None
         )
         
         if self.num_temps > 1:
@@ -669,10 +680,12 @@ class MCMC(Sampler):
         Fills in the missing parameters from the chain that aren't being sampled
 
         Args:
-            sampled_params (np.array): either 1-D array of size = number of sampled params, or 2-D array of shape (num_models, num_params)
+            sampled_params (np.array): either 1-D array of size = number of 
+                sampled params, or 2-D array of shape (num_models, num_params)
 
         Returns:
-            full_params (np.array): same number of dimensions as sampled_params, but with num_params including the fixed parameters
+            np.array: same number of dimensions as sampled_params, 
+                but with num_params including the fixed parameters
         """
         if len(self.fixed_params) == 0:
             # nothing to add
@@ -762,8 +775,9 @@ class MCMC(Sampler):
 
     def validate_xyz_positions(self):
         """
-        If using the XYZ basis, walkers might be initialized in an invalid region of parameter space. This function fixes that
-        by replacing invalid positions by new randomly generated positions until all are valid.
+        If using the XYZ basis, walkers might be initialized in an invalid 
+        region of parameter space. This function fixes that by replacing invalid 
+        positions by new randomly generated positions until all are valid.
         """
         if self.system.fitting_basis == 'XYZ':
             if self.use_pt:
@@ -811,7 +825,11 @@ class MCMC(Sampler):
                         print('All walker positions validated.')
 
 
-    def run_sampler(self, total_orbits, burn_steps=0, thin=1, examine_chains=False, output_filename=None, periodic_save_freq=None, use_c=True, use_gpu=False):
+
+    def run_sampler(
+        self, total_orbits, burn_steps=0, thin=1, examine_chains=False, 
+        output_filename=None, periodic_save_freq=None, use_c=True, use_gpu=False
+    ):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
@@ -860,10 +878,6 @@ class MCMC(Sampler):
                     ntemps=self.num_temps, threads=self.num_threads, logpargs=[self.priors, ]
                 )
             else:
-                # if self.num_threads != 1:
-                #     print('Setting num_threads=1. If you want parallel processing for emcee implemented in orbitize, let us know.')
-                #     self.num_threads = 1
-
                 sampler = emcee.EnsembleSampler(
                     self.num_walkers, self.num_params, self._logl, pool=pool,
                     kwargs={'include_logp': True}
@@ -916,7 +930,7 @@ class MCMC(Sampler):
 
                         # add this current chunk to the results object (which already has all the previous chunks saved)
                         self.results.add_samples(curr_chunk, curr_lnlike_chunk, 
-                                                    labels=self.system.labels, curr_pos=self.curr_pos)
+                                                    curr_pos=self.curr_pos)
                         self.results.save_results(output_filename)
                         saved_upto = i+1
 
@@ -925,7 +939,7 @@ class MCMC(Sampler):
 
             if periodic_save_freq is None:
                 # need to save everything
-                self.results.add_samples(self.post, self.lnlikes, labels=self.system.labels, curr_pos=self.curr_pos)
+                self.results.add_samples(self.post, self.lnlikes, curr_pos=self.curr_pos)
             elif saved_upto < nsteps:
                 # just need to save the last few
                 # same code as above except we just need to grab the last few
@@ -938,7 +952,7 @@ class MCMC(Sampler):
                 curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
 
                 self.results.add_samples(curr_chunk, curr_lnlike_chunk, 
-                                                    labels=self.system.labels, curr_pos=self.curr_pos)
+                                                     curr_pos=self.curr_pos)
 
             if output_filename is not None:
                 self.results.save_results(output_filename)
@@ -1034,7 +1048,6 @@ class MCMC(Sampler):
         flatchain = np.copy(self.results.post)
         total_samples, n_params = flatchain.shape
         n_steps = np.int(total_samples/self.num_walkers)
-        # TODO: May have to change this to merge with other branches
         flatlnlikes = np.copy(self.results.lnlike)
 
         # Reshape chain to (nwalkers, nsteps, nparams)
@@ -1061,30 +1074,21 @@ class MCMC(Sampler):
 
         # Update results object associated with this sampler
         self.results = orbitize.results.Results(
+            self.system, 
             sampler_name=self.__class__.__name__,
             post=flat_chopped_chain,
-            lnlike=flat_chopped_lnlikes,
-            tau_ref_epoch=self.system.tau_ref_epoch,
-            labels=self.system.labels,
-            num_secondary_bodies=self.system.num_secondary_bodies,
-            fitting_basis=self.system.fitting_basis,
-            basis=self.system.basis,
-            extra_basis_args=self.system.extra_basis_kwargs,
-            data = self.results.data
+            lnlike=flat_chopped_lnlikes
         )
 
         # Print a confirmation
         print('Chains successfully chopped. Results object updated.')
 
-    def check_prior_support(self,):
+    def check_prior_support(self):
         """
         Review the positions of all MCMC walkers, to verify that they are supported by the prior space.
         This function will raise a descriptive ValueError if any positions lie outside prior support.
         Otherwise, it will return nothing.
-        Args:
-            None.
-        Returns:
-            None.
+
         (written): Adam Smith, 2021
         """
 

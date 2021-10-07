@@ -46,7 +46,11 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, use_c=True, use_gpu=False):
+def calc_orbit(
+  epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
+  max_iter=100, use_c=True, use_gpu=False
+):
+
     """
     Returns the separation and radial velocity of the body given array of
     orbital parameters (size n_orbs) at given epochs (array of size n_dates)
@@ -149,7 +153,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
         use_c (bool, optional): Use the C solver if configured. Defaults to False
         use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
-    Return:
+
+Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
 
     Written: Jason Wang, 2018
@@ -228,7 +233,14 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     Args:
         manom (np.array): array of mean anomalies
         ecc (np.array): array of eccentricities
-        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
+        tolerance (float, optional): absolute tolerance of iterative computation. 
+            Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. 
+            Defaults to 100.
+        eanom0 (np.array): array of first guess for eccentric anomaly, same 
+            shape as manom (optional)
+
+
     Return:
         eanom (np.array): array of eccentric anomalies
 
@@ -303,6 +315,8 @@ def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
         ecc (np.array): eccentricity
         use_c (bool, optional): Use the C solver if configured. Defaults to False
         use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
+
+
     Return:
         eanom (np.array): array of eccentric anomalies
 

@@ -3,7 +3,7 @@ Test the routines in the orbitize.Results module
 """
 
 import orbitize
-from orbitize import results, read_input, DATADIR
+from orbitize import results, read_input, system, DATADIR, hipparcos, gaia, sampler
 import numpy as np
 import matplotlib.pyplot as plt
 import pytest
@@ -22,6 +22,13 @@ def test_load_v1_results():
     myResults = results.Results()
     myResults.load_results('{}v1_posterior.hdf5'.format(DATADIR))
 
+    n_draws = 100
+
+    assert myResults.post.shape == (n_draws, 8)
+    assert myResults.lnlike.shape == (n_draws,)
+    assert myResults.tau_ref_epoch == 0
+    assert myResults.labels == std_labels
+    assert myResults.fitting_basis == 'Standard'
 
 def simulate_orbit_sampling(n_sim_orbits):
     """
@@ -73,28 +80,30 @@ def test_init_and_add_samples(radec_input=False):
 
     data = read_input.read_file(input_file)
 
+    test_system = system.System(1, data, 1, 1)
+
     # Create object
     results_obj = results.Results(
-        sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1, data=data
+        test_system, 
+        sampler_name='testing'
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)#, labels=std_labels)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)#, labels=std_labels)
     # Check shape of results.post
     expected_length = n_orbit_draws1 + n_orbit_draws2
     assert results_obj.post.shape == (expected_length, 8)
     assert results_obj.lnlike.shape == (expected_length,)
-    assert results_obj.tau_ref_epoch == 50000
+    assert results_obj.tau_ref_epoch == 58849
     assert results_obj.labels == std_labels
 
     return results_obj
@@ -106,22 +115,24 @@ def results_to_test():
     input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data = orbitize.read_input.read_file(input_file)
 
+    test_system = system.System(1, data, 1, 1)
+
     results_obj = results.Results(
-        sampler_name='testing', tau_ref_epoch=50000,
-        labels=std_labels, num_secondary_bodies=1, data=data
+        test_system, 
+        sampler_name='testing'
     )
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results_obj.add_samples(sim_post, sim_lnlike, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)
     # Return object for testing
     return results_obj
 
@@ -137,7 +148,7 @@ def test_plot_long_periods(results_to_test):
 
     # make all orbits in the results posterior have absurdly long orbits
     mtot_idx = results_to_test.param_idx['mtot']
-    results_to_test.post[:,mtot_idx] = 1e-10
+    results_to_test.post[:,mtot_idx] = 1e-5
 
     results_to_test.plot_orbits()
 
@@ -168,13 +179,13 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     original_length = results_to_save.post.shape[0]
     expected_length = original_length * 2
     assert loaded_results.post.shape == (expected_length, 8)
-    assert loaded_results.labels.tolist() == std_labels
+    assert loaded_results.labels == std_labels
     assert loaded_results.param_idx == std_param_idx
     if has_lnlike:
         assert loaded_results.lnlike.shape == (expected_length,)
 
     # check tau reference epoch is stored
-    assert loaded_results.tau_ref_epoch == 50000
+    assert loaded_results.tau_ref_epoch == 58849
 
     # check that str fields are indeed strs
     # checking just one str entry probably is good enough
@@ -189,6 +200,7 @@ def test_plot_corner(results_to_test):
     Tests plot_corner() with plotting simulated posterior samples
     for all 8 parameters and for just four selected parameters
     """
+
     Figure1 = results_to_test.plot_corner()
     assert Figure1 is not None
     Figure2 = results_to_test.plot_corner(param_list=['sma1', 'ecc1', 'inc1', 'mtot'])
@@ -225,9 +237,80 @@ def test_plot_orbits(results_to_test):
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
+def test_save_and_load_hipparcos_only():
+    """
+    Test that a Results object for a Hipparcos-only fit (i.e. no Gaia data)
+    is saved and loaded properly.
+    """
+
+    hip_num = '027321' 
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+
+    input_file = os.path.join(DATADIR, 'betaPic.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip, fit_secondary_mass=True
+    )
+
+    mySamp = sampler.MCMC(mySys, num_temps=1, num_walkers=50)
+    mySamp.run_sampler(1, burn_steps=0)
+
+    save_name = 'test_results.h5'
+    mySamp.results.save_results(save_name)
+
+    loadedResults = results.Results()
+    loadedResults.load_results(save_name)
+
+    assert np.all(loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs)
+    assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
+
+    os.system('rm {}'.format(save_name))
+
+def test_save_and_load_gaia_and_hipparcos():
+    """
+    Test that a Results object for a Gaia+Hipparcos fit
+    is saved and loaded properly.
+    """
+
+    hip_num = '027321' 
+    gaia_num = 4792774797545105664
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myGaia = gaia.GaiaLogProb(gaia_num, myHip)
+
+    input_file = os.path.join(DATADIR, 'betaPic.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip, gaia=myGaia, fit_secondary_mass=True
+    )
+
+    mySamp = sampler.MCMC(mySys, num_temps=1, num_walkers=50)
+    mySamp.run_sampler(1, burn_steps=0)
+
+    save_name = 'test_results.h5'
+    mySamp.results.save_results(save_name)
+
+    loadedResults = results.Results()
+    loadedResults.load_results(save_name)
+
+    assert np.all(loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs)
+    assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
+    assert np.all(loadedResults.system.gaia.ra == mySys.gaia.ra)
+
+    os.system('rm {}'.format(save_name))
+
 if __name__ == "__main__":
     
     test_load_v1_results()
+    test_save_and_load_hipparcos_only()
+    test_save_and_load_gaia_and_hipparcos()
 
     test_results = test_init_and_add_samples()
 
