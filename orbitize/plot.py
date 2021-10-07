@@ -18,10 +18,8 @@ import orbitize
 import orbitize.kepler as kepler
 
 
-# TODO: read through documentation
 # TODO: deprecatation warning for plots in results
-# TODO: errors for Results saving/loading
-
+=
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
@@ -88,7 +86,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         'pm_dec': '$\\mu_{{\\delta}}$ [mas/yr]',
         'alpha0': '$\\alpha^{{*}}_{{0}}$ [mas]',
         'delta0': '$\\delta_0$ [mas]',
-        'm': '$M_{0}$ [M$_\{{Jup\}}$]',
+        'm': '$M_{0}$ [M$_{{\\rm Jup}}$]',
         'per' : '$P_{0}$ [yr]',
         'K' : '$K_{0}$ [km/s]',
         'x' : '$X_{0}$ [AU]',
