@@ -6,6 +6,15 @@ import matplotlib.pyplot as plt
 
 import pandas as pd
 import os
+
+"""
+Simulates RV data from multiple instruments and relative astroemtric data 
+from a single instrument, then runs an orbit-fit and recovers the input
+parameters.
+
+Written: Vighnesh Nagpal, 2021
+"""
+
 def plot_rv(epochs,rvs):
     plt.plot(epochs,rvs)
     plt.savefig('rv_trend')
