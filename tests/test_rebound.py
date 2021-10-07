@@ -33,7 +33,7 @@ input_file = '{}/GJ504.csv'.format(DATADIR)
 data_table = read_file(input_file)
 num_secondary_bodies = 4
 
-epochs = Time(np.linspace(2020, 2025, num=int(1000)), format='decimalyear').mjd
+epochs = Time(np.linspace(2020, 2022, num=int(1000)), format='decimalyear').mjd
 
 sma1 = sma[0]
 ecc1 = ecc[0]
@@ -79,93 +79,82 @@ params_arr = np.array([
     m1, m2, m3, m4, m_st
 ])
 
-# these arrays have shape (n_epochs x n_bodies x 1)
-ra, dec, _ = hr8799_sys.compute_all_orbits(params_arr, epochs, comp_rebound=True)
+def test_8799_rebound_vs_kepler(plotname=None):
+    """
+    Test that for the HR 8799 system between 2020 and 2022, the rebound and
+    keplerian (with epicycle approximation) backends produce similar results.
+    """
 
-
-def test_calc_diff():
-    import matplotlib.pyplot as plt
-    from astropy.time import Time
+    assert hr8799_sys.track_planet_perturbs
     
-    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=True)
-    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=False)
-    #ora = ra
-    #odec = dec
+    rra, rde, _ = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=True)
+    kra, kde, _ = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=False)
 
     delta_ra = abs(rra-kra[:,:,0])
     delta_de = abs(rde-kde[:,:,0])
-    #delta_vz = abs(rvz-_)
     yepochs = Time(epochs, format='mjd').decimalyear
 
-    if len(sma)==1:
-        plt.plot(yepochs, delta_ra, label = 'Planet X: RA offsets')
-        plt.plot(yepochs, delta_de, label = 'Planet X: Dec offsets')
-        #plt.plot(yepochs, delta_vz, label = 'Planet X: RV offsets')
+    # check that the difference between these two solvers is smaller than 
+    #   GRAVITY precision over the next two years
+    gravity_precision_mas = 100 * 1e-3
+    assert np.all(delta_ra < gravity_precision_mas)
+    assert np.all(delta_de < gravity_precision_mas)
 
-    elif len(sma)==4:
-        
+    # check that the difference between these two solvers is larger than 
+    #   10 uas, though
+    assert np.max(delta_ra) > 10 * 1e-3
+    assert np.max(delta_de) > 10 * 1e-3
+
+    if plotname is not None:
+
+        # plot 1: RA & Dec differences over time
         fig, (ax1, ax2) = plt.subplots(2)
         fig.suptitle('Massive Orbits in Rebound vs. Orbitize approx.')
 
-        ax1.plot(yepochs, delta_ra[:,0], 'black', label = 'Star') #fourth planet
+        ax1.plot(yepochs, delta_ra[:,0], 'black', label = 'Star')
         ax2.plot(yepochs, delta_de[:,0], 'dimgray', label = 'Star')
-        #plt.plot(yepochs, delta_vz[:,0], 'silver', label = 'Star')
 
         ax1.plot(yepochs, delta_ra[:,1], 'brown', label = 'Planet E: RA offsets') #first planet
         ax2.plot(yepochs, delta_de[:,1], 'red', label = 'Planet E: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,1], 'pink', label = 'Planet B: RV offsets')
 
         ax1.plot(yepochs, delta_ra[:,2], 'coral', label = 'Planet D: RA offsets') #second planet
         ax2.plot(yepochs, delta_de[:,2], 'orange', label = 'Planet D: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,2], 'gold', label = 'Planet C: RV offsets')
 
         ax1.plot(yepochs, delta_ra[:,3], 'greenyellow', label = 'Planet C: RA offsets') #third planet
         ax2.plot(yepochs, delta_de[:,3], 'green', label = 'Planet C: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,3], 'darkgreen', label = 'Planet D: RV offsets')
-
 
         ax1.plot(yepochs, delta_ra[:,4], 'dodgerblue', label = 'Planet B: RA offsets') #fourth planet
         ax2.plot(yepochs, delta_de[:,4], 'blue', label = 'Planet B: Dec offsets')
-        #plt.plot(yepochs, delta_vz[:,4], 'indigo', label = 'Planet E: RV offsets')
-
         
+        plt.xlabel('year')
+        plt.ylabel('milliarcseconds')
+        ax1.legend()
+        ax2.legend()
+        plt.savefig('{}_differences.png'.format(plotname), dpi=250)
+
+        # plot 2: orbit tracks over time
+        plt.figure()
+        plt.plot(kra[:,1:5,0], kde[:,1:5,0], 'indigo', label = 'Orbitize approx.')
+        plt.plot(kra[-1,1:5,0], kde[-1,1:5,0],'o')
         
+        plt.plot(rra, rde, 'r', label = 'Rebound', alpha = 0.25)
+        plt.plot(rra[-1], rde[-1], 'o', alpha = 0.25)
+            
+        plt.plot(0, 0, '*')
+        plt.legend()
+        plt.savefig('{}_orbittracks.png'.format(plotname), dpi=250)
 
-    else:
-        print('I dont feel like it')
-
-    plt.xlabel('year')
-    plt.ylabel('milliarcseconds')
-    ax1.legend()
-    ax2.legend()
-    plt.savefig('foo.png')
-
-def test_plot_orbit():
-
-    kra, kde, kvz = kepler.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch=tau_ref_epoch)
-    rra, rdec, rvz = nbody.calc_orbit(epochs,sma,ecc,inc,aop,pan,tau,plx,mtot,tau_ref_epoch=tau_ref_epoch)
-    
-    plt.plot(kra[:,1:5], kde[:,1:5], 'indigo', label = 'Orbitize approx.')
-    plt.plot(kra[-1,1:5], kde[-1,1:5],'o')
-    
-    plt.plot(rra, rdec, 'r', label = 'Rebound', alpha = 0.25)
-    plt.plot(rra[-1], rdec[-1], 'o', alpha = 0.25)
+        # plot 3: primary orbit track over time
+        plt.figure()
+        plt.plot(kra[:,0,0], kde[:,0,0], 'indigo', label = 'Orbitize approx.')
+        plt.plot(kra[-1,0,0], kde[-1,0,0],'o')
         
-    plt.plot(0, 0, '*')
-    plt.legend()
-    plt.savefig('foo.png')
+        plt.plot(rra[:,0], rde[:,0], 'r', label = 'Rebound', alpha = 0.25)
+        plt.plot(rra[-1,0], rde[-1,0], 'o', alpha = 0.25)
+            
+        plt.plot(0, 0, '*')
+        plt.legend()
+        plt.savefig('{}_primaryorbittrack.png'.format(plotname), dpi=250)
 
-def test_plot_orbit2():
-
-    rra, rde, rvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=True)
-    kra, kde, kvz = hr8799_sys.compute_all_orbits(params_arr, epochs=epochs, comp_rebound=False)
-    
-    plt.plot(kra[:,0], kde[:,0], 'indigo', label = 'Orbitize approx.')
-    plt.plot(kra[-1,0], kde[-1,0],'o')
-    
-    plt.plot(rra[:,0], rde[:,0], 'r', label = 'Rebound', alpha = 0.25)
-    plt.plot(rra[-1,0], rde[-1,0], 'o', alpha = 0.25)
-        
-    plt.plot(0, 0, '*')
-    plt.legend()
-    plt.savefig('foo.png')
+if __name__=='__main__':
+    test_8799_rebound_vs_kepler(plotname='hr8799_diffs')
