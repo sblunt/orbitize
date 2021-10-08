@@ -519,7 +519,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 labels=results.labels
             
             # get the indices corresponding to each gamma within results.labels
-            gam_idx=[np.where(labels==inst_gamma)[0][0] for inst_gamma in gams]
+            gam_idx=[np.where(labels==inst_gamma)[0] for inst_gamma in gams]
 
             # indices corresponding to each instrument in the datafile
             inds={}
