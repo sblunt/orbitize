@@ -506,10 +506,9 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             plt.sca(ax3)
     
             # get list of rv instruments
-            insts = np.unique(rv_data['instrument'][rv_indices])
-            if not insts:
+            insts = np.unique(rv_data['instrument'])
+            if len(insts) == 0:
                 insts = ['defrv']
-
 
             # get gamma/sigma labels and corresponding positions in the posterior
             gams=['gamma_'+inst for inst in insts]
