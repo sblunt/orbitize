@@ -174,7 +174,7 @@ class Results(object):
 
         try: # these are all saved keywords introduced in v2
             restrict_angle_ranges = bool(hf.attrs['restrict_angle_ranges'])
-            stellar_mass = float(hf.attrs['stellar_mass'])
+            stellar_or_system_mass = float(hf.attrs['stellar_or_system_mass'])
             mass_err = float(hf.attrs['mass_err'])
             plx_err = float(hf.attrs['plx_err'])
             plx = float(hf.attrs['plx'])
@@ -182,7 +182,7 @@ class Results(object):
             use_rebound = bool(hf.attrs['use_rebound'])
         except KeyError:
             restrict_angle_ranges = False
-            stellar_mass = np.nan
+            stellar_or_system_mass = np.nan
             plx = np.nan
             plx_err = 0
             mass_err = 0
@@ -226,7 +226,7 @@ class Results(object):
             fitting_basis = 'Standard'
 
         self.system = orbitize.system.System(
-            num_secondary_bodies, data_table, stellar_mass,
+            num_secondary_bodies, data_table, stellar_or_system_mass,
             plx, mass_err, plx_err, restrict_angle_ranges,
             tau_ref_epoch, fit_secondary_mass,
             hipparcos_IAD, gaia, fitting_basis, use_rebound

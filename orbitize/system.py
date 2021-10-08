@@ -13,10 +13,11 @@ class System(object):
             Should be at least 1.
         data_table (astropy.table.Table): output from 
             ``orbitize.read_input.read_file()``
-        stellar_mass (float): mean mass of the primary, in M_sol. See 
-            ``fit_secondary_mass`` docstring below.
+        stellar_or_total_mass (float): mass of the primary star (if fitting for
+            dynamical masses of both components) or total system mass (if
+            fitting using relative astrometry only) [M_sol]
         plx (float): mean parallax of the system, in mas
-        mass_err (float, optional): uncertainty on ``stellar_mass``, in M_sol
+        mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
             of the position angle of nodes to [0,180)
@@ -25,7 +26,7 @@ class System(object):
             Default is 58849 (Jan 1, 2020).
         fit_secondary_mass (bool, optional): if True, include the dynamical
             mass of the orbiting body as a fitted parameter. If this is set to 
-            False, ``stellar_mass`` is taken to be the total mass of the system. 
+            False, ``stellar_or_system_mass`` is taken to be the total mass of the system. 
             (default: False)
         hipparcos_IAD (orbitize.hipparcos.HipparcosLogProb): an object 
             containing information & precomputed values relevant to Hipparcos
@@ -49,7 +50,7 @@ class System(object):
     Written: Sarah Blunt, Henry Ngo, Jason Wang, 2018
     """
 
-    def __init__(self, num_secondary_bodies, data_table, stellar_mass,
+    def __init__(self, num_secondary_bodies, data_table, stellar_or_system_mass,
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=False,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
                  hipparcos_IAD=None, gaia=None, fitting_basis='Standard', use_rebound=False,
@@ -57,7 +58,7 @@ class System(object):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.data_table = data_table
-        self.stellar_mass = stellar_mass
+        self.stellar_or_system_mass = stellar_or_system_mass
         self.plx = plx
         self.mass_err = mass_err
         self.plx_err = plx_err
@@ -200,7 +201,7 @@ class System(object):
             self.extra_basis_kwargs = {'data_table':astr_data, 'best_epoch_idx':self.best_epoch_idx, 'epochs':epochs}
 
         self.basis = basis_obj(
-            self.stellar_mass, self.mass_err, self.plx, self.plx_err, self.num_secondary_bodies, 
+            self.stellar_or_system_mass, self.mass_err, self.plx, self.plx_err, self.num_secondary_bodies, 
             self.fit_secondary_mass, angle_upperlim=angle_upperlim, 
             hipparcos_IAD=self.hipparcos_IAD, rv=contains_rv, 
             rv_instruments=self.rv_instruments, **self.extra_basis_kwargs
@@ -269,7 +270,7 @@ class System(object):
 
         hf.attrs['restrict_angle_ranges'] = self.restrict_angle_ranges
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
-        hf.attrs['stellar_mass'] = self.stellar_mass
+        hf.attrs['stellar_or_system_mass'] = self.stellar_or_system_mass
         hf.attrs['plx'] = self.plx
         hf.attrs['mass_err'] = self.mass_err
         hf.attrs['plx_err'] = self.plx_err

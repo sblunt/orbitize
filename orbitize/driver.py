@@ -19,11 +19,11 @@ class Driver(object):
             Markov Chain Monte Carlo, "OFTI" for Orbits for the Impatient
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        stellar_or_total_mass (float): mass of the primary star (if fitting for
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
             dynamical masses of both components) or total system mass (if
             fitting using relative astrometry only) [M_sol]
         plx (float): mean parallax of the system [mas]
-        mass_err (float, optional): uncertainty on ``stellar_or_total_mass`` [M_sol]
+        mass_err (float, optional): uncertainty on ``stellar_or_system_mass`` [M_sol]
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
@@ -38,7 +38,7 @@ class Driver(object):
 
     def __init__(
         self, input_data, sampler_str,
-        num_secondary_bodies, stellar_or_total_mass, plx,
+        num_secondary_bodies, stellar_or_system_mass, plx,
         mass_err=0, plx_err=0, lnlike='chi2_lnlike',
         system_kwargs=None, mcmc_kwargs=None
     ):
@@ -66,7 +66,7 @@ class Driver(object):
             raise Exception('Run Astrometry+RV in MCMC for now.')
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
-            num_secondary_bodies, data_table, stellar_or_total_mass,
+            num_secondary_bodies, data_table, stellar_or_system_mass,
             plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
         )
 
