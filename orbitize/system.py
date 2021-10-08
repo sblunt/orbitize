@@ -265,7 +265,7 @@ class System(object):
 
         hf.attrs['num_secondary_bodies'] = self.num_secondary_bodies
 
-        hf.create_dataset('data', data=self.data_table)
+        hf.create_dataset('data', data=self.input_table)
 
         hf.attrs['restrict_angle_ranges'] = self.restrict_angle_ranges
         hf.attrs['tau_ref_epoch'] = self.tau_ref_epoch
