@@ -29,7 +29,7 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     """
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
@@ -41,9 +41,7 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
         mcmc_kwargs={
             'num_temps': num_temps, 'num_threads': num_threads, 
             'num_walkers': n_walkers
-        },
-        system_kwargs={'fit_secondary_mass':True}
-        
+        }
     )
 
     # run it a little (tests 0 burn-in steps)
@@ -104,7 +102,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     """
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
@@ -164,7 +162,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
 def test_mcmc_param_idx():
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
 
     # Manually set 'object' column of data table
@@ -174,33 +172,30 @@ def test_mcmc_param_idx():
     n_walkers = 100
     myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
                       mcmc_kwargs={'num_temps': 0, 'num_threads': 1,
-                                   'num_walkers': n_walkers},
-                     system_kwargs={'fit_secondary_mass':True}
+                                   'num_walkers': n_walkers}
                       )
 
     # check that sampler.param_idx behaves as expected
-    import pdb; pdb.set_trace()
     assert myDriver.sampler.sampled_param_idx == std_param_idx_fixed_mtot_plx
 
     # construct Driver with no fixed params
     myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01, mass_err=0.1, plx_err=0.2,
                       mcmc_kwargs={'num_temps': 0, 'num_threads': 1,
-                                   'num_walkers': n_walkers},
-                    system_kwargs={'fit_secondary_mass':True}
+                                   'num_walkers': n_walkers}
                       )
 
     assert myDriver.sampler.sampled_param_idx == std_param_idx
 
 
 if __name__ == "__main__":
-    # # Parallel Tempering tests
-    # test_mcmc_runs(num_temps=2, num_threads=1)
-    # test_mcmc_runs(num_temps=2, num_threads=4)
-    # # Ensemble MCMC tests
-    # test_mcmc_runs(num_temps=0, num_threads=1)
-    # test_mcmc_runs(num_temps=0, num_threads=8)
-    # # Test examine/chop chains
-    # test_examine_chop_chains(num_temps=5)  # PT
-    # test_examine_chop_chains(num_temps=0)  # Ensemble
+    # Parallel Tempering tests
+    test_mcmc_runs(num_temps=2, num_threads=1)
+    test_mcmc_runs(num_temps=2, num_threads=4)
+    # Ensemble MCMC tests
+    test_mcmc_runs(num_temps=0, num_threads=1)
+    test_mcmc_runs(num_temps=0, num_threads=8)
+    # Test examine/chop chains
+    test_examine_chop_chains(num_temps=5)  # PT
+    test_examine_chop_chains(num_temps=0)  # Ensemble
     # param_idx utility tests
     test_mcmc_param_idx()
