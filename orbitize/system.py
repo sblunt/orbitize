@@ -13,7 +13,7 @@ class System(object):
             Should be at least 1.
         data_table (astropy.table.Table): output from 
             ``orbitize.read_input.read_file()``
-        stellar_or_total_mass (float): mass of the primary star (if fitting for
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
             dynamical masses of both components) or total system mass (if
             fitting using relative astrometry only) [M_sol]
         plx (float): mean parallax of the system, in mas
