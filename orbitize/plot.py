@@ -190,6 +190,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
     Additions by Malena Rice, 2019
 
     """
+
     if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
         raise ValueError('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
 
@@ -497,11 +498,18 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
         if rv_time_series:
+
+            rv_data = results.data[results.data['object'] == 0]
+            rv_data = rv_data[rv_data['quant_type'] == 'rv']
+
             # switch current axis to rv panel
             plt.sca(ax3)
     
             # get list of rv instruments
-            insts = np.unique(data['instrument'][rv_indices])
+            insts = np.unique(rv_data['instrument'][rv_indices])
+            if not insts:
+                insts = ['defrv']
+
 
             # get gamma/sigma labels and corresponding positions in the posterior
             gams=['gamma_'+inst for inst in insts]
@@ -517,7 +525,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             # indices corresponding to each instrument in the datafile
             inds={}
             for i in range(len(insts)):
-                inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
+                inds[insts[i]]=np.where(rv_data['instrument']==insts[i].encode())[0]
 
             # choose the orbit with the best log probability
             best_like=np.where(results.lnlike==np.amax(results.lnlike))[0][0] 
@@ -540,17 +548,17 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             
             # get rvs and plot them
             for i,name in enumerate(inds.keys()):
-                rv_inds=np.where((np.isnan(data['quant2'])))
-                inst_data=data[inds[name]]
+                inst_data=rv_data[inds[name]]
                 rvs=inst_data['quant1']
                 epochs=inst_data['epoch']
                 epochs=Time(epochs, format='mjd').decimalyear
                 rvs-=med_ga[i]
+                rvs -= best_post[results.param_idx[gams[i]]]
                 plt.scatter(epochs,rvs,s=5,marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5)
-            
-            inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
-            plt.legend()
-
+            if len(inds.keys()) == 1 and 'defrv' in inds.keys():
+                pass
+            else:
+                plt.legend()
             
             # calculate the predicted rv trend using the best orbit 
             _, _, vz = kepler.calc_orbit(
