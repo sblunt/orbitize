@@ -32,9 +32,6 @@ class Driver(object):
             ``use_rebound``, ``fitting_basis`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
-        fitting_basis (str, optional): the name of the class corresponding to 
-            the fitting basis to be used. See basis.py for a list of implemented 
-            fitting bases.
 
     Written: Sarah Blunt, 2018
     """
