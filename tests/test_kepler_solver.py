@@ -2,9 +2,14 @@
 Test the orbitize.kepler module which solves for the orbits of the planets
 """
 import pytest
-import sys, pstats, cProfile, os
+import sys
+import pstats
+import cProfile
+import os
 import numpy as np
 import orbitize.kepler as kepler
+from orbitize import cuda_ext
+from orbitize import cext
 
 threshold = 1e-5
 
@@ -12,7 +17,7 @@ def angle_diff(ang1, ang2):
     # Return the difference between two angles
     return np.arctan2(np.sin(ang1 - ang2), np.cos(ang1 - ang2))
 
-def test_analytical_ecc_anom_solver(use_c = False):
+def test_analytical_ecc_anom_solver(use_c = False, use_gpu = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the analytical solver regime (e > 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -20,12 +25,12 @@ def test_analytical_ecc_anom_solver(use_c = False):
     mean_anoms = np.linspace(0,2.0*np.pi,1000)
     eccs = np.linspace(0.95,0.999999,100)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c, use_gpu = use_gpu)
         calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
 
-def test_iterative_ecc_anom_solver(use_c = False):
+def test_iterative_ecc_anom_solver(use_c = False, use_gpu = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -33,7 +38,7 @@ def test_iterative_ecc_anom_solver(use_c = False):
     mean_anoms = np.linspace(0,2.0*np.pi,100)
     eccs = np.linspace(0,0.9499999,100)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c, use_gpu = use_gpu)
         calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
             assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
@@ -46,6 +51,13 @@ def test_c_ecc_anom_solver():
     if kepler.cext:
         test_iterative_ecc_anom_solver(use_c = True)
         test_analytical_ecc_anom_solver(use_c = True)
+
+def test_pycuda_ecc_anom_solver():
+    if cuda_ext:
+        test_iterative_ecc_anom_solver(use_gpu = True)
+        test_analytical_ecc_anom_solver(use_gpu = True)
+
+
 
 def test_orbit_e03():
     """
@@ -221,7 +233,7 @@ def test_orbit_scalar():
     assert true_deoff == pytest.approx(deoffs, abs=threshold)
     assert true_vz    == pytest.approx(vzs, abs=1e-8)
 
-def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True):
+def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -230,9 +242,9 @@ def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True):
     mean_anoms=np.linspace(0, 2.0*np.pi,n_orbits)
     eccs=np.linspace(0,0.9499999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c = use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c = use_c, use_gpu = use_gpu)
 
-def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True):
+def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = False):
     """
     Test orbitize.kepler._calc_ecc_anom() in the iterative solver regime (e < 0.95) by comparing the mean anomaly computed from
     _calc_ecc_anom() output vs the input mean anomaly
@@ -240,8 +252,67 @@ def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True):
     mean_anoms=np.linspace(0, 2.0*np.pi,n_orbits)
     eccs=np.linspace(.95,0.999999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, use_c = use_c)
+        ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, use_c = use_c, use_gpu = use_gpu)
 
+def profile_all(n_orbits, print_profiles = False):
+        profile_name = "Profile.prof"
+        n_print_lines = 15
+        d = dict()
+
+        if cuda_ext:
+            cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Newton: CUDA with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Newton GPU Solver"] = s.__dict__["total_tt"]
+        else:
+            print("System not configured for CUDA")
+        
+        if cext:
+            cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Newton: C with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Newton C Solver"] = s.__dict__["total_tt"]
+        else:
+            print("System not configured for C Solver")
+
+        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), profile_name)
+        s = pstats.Stats(profile_name)
+        if print_profiles:
+            print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
+            s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+        d["Newton Python Solver"] = s.__dict__["total_tt"]
+
+        if cuda_ext:
+            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = True)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Mikkola: CUDA with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Mikkola GPU Solver"] = s.__dict__["total_tt"]
+
+        if cext:
+            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True, use_gpu = False)", globals(), locals(), profile_name)
+            s = pstats.Stats(profile_name)
+            if print_profiles:
+                print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
+                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+            d["Mikkola C Solver"] = s.__dict__["total_tt"]
+
+        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False, use_gpu = False)", globals(), locals(), profile_name)
+        s = pstats.Stats(profile_name)
+        if print_profiles:
+            print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
+            s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
+        d["Mikkola Python Solver"] = s.__dict__["total_tt"]
+
+        for i in d.keys():
+            print(f"{i}: {d[i]:.2f} seconds")
+
+        os.remove(profile_name)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '-profile':
@@ -249,34 +320,14 @@ if __name__ == "__main__":
             n_orbits = int(sys.argv[2])
         except:
             n_orbits = 20000
-
-        profile_name = "Profile.prof"
-
-        print("Profiling Newton: C with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_iterative_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
-        cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), "Profile.prof")
-        s = pstats.Stats(profile_name)
-        s.strip_dirs().sort_stats("time").print_stats()
-
-        os.remove(profile_name)
+        
+        profile_all(n_orbits)
+        print("Done!")
     else:
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()
         test_c_ecc_anom_solver()
+        test_pycuda_ecc_anom_solver()
         test_orbit_e03()
         test_orbit_e03_array()
         test_orbit_e99()
