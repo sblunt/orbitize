@@ -29,6 +29,7 @@ one tutorial, we suggest looking at some of the others (and then contacting
 us if you are still confused).
 
 **Basic Tutorials:**
+:caption: Basic Tutorials
 
 .. toctree::
    :maxdepth: 1
@@ -39,6 +40,7 @@ us if you are still confused).
    tutorials/MCMC_tutorial.ipynb
 
 **Advanced Tutorials:**
+:caption: Advanced Tutorials
 
 .. toctree::
    :maxdepth: 1
@@ -49,6 +51,7 @@ us if you are still confused).
    tutorials/Modifying_MCMC_initial_positions.ipynb
 
 **Feature Tutorials:**   
+:caption: Feature Tutorials
 
 .. toctree::
    :maxdepth: 1
