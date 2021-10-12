@@ -397,15 +397,3 @@ def nielsen_iad_refitting_test(
         plt.savefig(saveplot, dpi=250)
 
     return sampler.flatchain, myHipLogProb
-
-
-if __name__ == '__main__':
-
-    from orbitize import DATADIR
-
-    hip_num = '027321' # beta Pic
-
-    nielsen_iad_refitting_test(
-        '{}HIP027321.d'.format(DATADIR), hip_num=hip_num, 
-        saveplot='bPic_IADrefit.png', burn_steps=100, mcmc_steps=500
-    )
