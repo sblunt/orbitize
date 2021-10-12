@@ -68,7 +68,7 @@ the command line.
 .. code-block:: bash
 
     $ git clone https://github.com/sblunt/orbitize.git
-	$ cd orbitize
+    $ cd orbitize
 
 Open up orbitize/requirements.txt, remove ``rebound``, and save.
 
