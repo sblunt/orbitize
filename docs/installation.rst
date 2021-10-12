@@ -38,9 +38,13 @@ For Windows Users
 Many of the packages that we use in ``orbitize`` were originally written for Linux or macOS.
 For that reason, we highly recommend installing the 
 `Windows Subsystem for Linux (WSL) <https://docs.microsoft.com/en-us/windows/wsl/about>`_
-which is an entire Linux development environment within Windows.
+which is an entire Linux development environment within Windows. See `here <https://github.com/semaphoreP/codeastro/blob/main/Day0/INSTALL_WINDOWS.md#windows-subsystem-for-linux-wsl>`_ 
+for a handy getting started guide.
 
-There is a bug with the ``ptemcee`` installation that, as far as we know, only affects Windows users. 
+If you don't want to use WSL, there are a few extra steps you'll need to follow
+to get ``orbitize`` running:
+
+1. There is a bug with the ``ptemcee`` installation that, as far as we know, only affects Windows users. 
 To work around this, download ``ptemcee`` from `its pypi page <https://pypi.org/project/ptemcee/>`_. 
 Navigate to the root ``ptemcee`` folder, remove the ``README.md`` file, then install:
 
@@ -50,12 +54,28 @@ Navigate to the root ``ptemcee`` folder, remove the ``README.md`` file, then ins
 	$ rm README.md
 	$ pip install . --upgrade
 
-Some users have reported issues with installing ``curses``. If this happens to you, you can install 
+2. Some users have reported issues with installing ``curses``. If this happens to you, you can install 
 ``windows-curses`` which should work as a replacement.
 
 .. code-block:: bash
 
 	$ pip install windows-curses
+
+3. Finally, ``rebound`` is not compatible with windows, so you'll need to git clone
+orbitize, remove rebound from orbitize/requirements.txt, then install from
+the command line. 
+
+.. code-block:: bash
+
+    $ git clone https://github.com/sblunt/orbitize.git
+	$ cd orbitize
+
+Open up orbitize/requirements.txt, remove ``rebound``, and save.
+
+.. code-block:: bash
+
+    $ pip install . --upgrade
+
 
 For Developers
 ++++++++++++++
