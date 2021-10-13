@@ -220,7 +220,9 @@ def profile_system():
     # test to make sure outputs are reasonable
     pycuda.driver.start_profiler()
     start=time.time()
-    orbits = s.run_sampler(30000, num_samples=10000, use_c = True, use_gpu = True, num_cores = 1)
+    orbitize.cext = True
+    orbitize.cuda_ext = True
+    orbits = s.run_sampler(30000, num_samples=10000, num_cores = 1)
     end=time.time()
     
     print()
@@ -229,7 +231,9 @@ def profile_system():
     print(orbits[0])
 
     start=time.time()
-    orbits = s.run_sampler(30000, use_c = True, use_gpu = False)
+    orbitize.cext = True
+    orbitize.cuda_ext = False
+    orbits = s.run_sampler(30000)
     end=time.time()
     pycuda.driver.stop_profiler()
     
@@ -239,7 +243,9 @@ def profile_system():
     print(orbits[0])
 
     start=time.time()
-    orbits = s.run_sampler(30000, use_c = True, use_gpu = False, num_cores = 1)
+    orbitize.cext = True
+    orbitize.cuda_ext = False
+    orbits = s.run_sampler(30000, num_cores = 1)
     end=time.time()
     pycuda.driver.stop_profiler()
     pycuda.autoinit.context.detach()
