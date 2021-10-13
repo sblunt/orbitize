@@ -36,8 +36,6 @@ class System(object):
             astrometrry fitting. See gaia.py for more details.
         fitting_basis (str): the name of the class corresponding to the fitting 
             basis to be used. See basis.py for a list of implemented fitting bases.
-        use_c (bool, optional): Use the C solver if configured. Defaults to True
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
         use_rebound (bool): if True, use an n-body backend solver instead
             of a Keplerian solver.
 
@@ -54,7 +52,7 @@ class System(object):
                  plx, mass_err=0, plx_err=0, restrict_angle_ranges=False,
                  tau_ref_epoch=58849, fit_secondary_mass=False,
                  hipparcos_IAD=None, gaia=None, fitting_basis='Standard', use_rebound=False,
-                 use_c=True, use_gpu=False):
+                 ):
 
         self.num_secondary_bodies = num_secondary_bodies
         self.data_table = data_table
@@ -285,7 +283,7 @@ class System(object):
 
         
 
-    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False, use_c=True, use_gpu=False):
+    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
         interactions. Also computes total quantities like RV (without jitter/gamma)
@@ -301,8 +299,6 @@ class System(object):
             comp_rebound (bool, optional): A secondary optional input for 
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead. 
-            use_c (bool, optional): Use the C solver if configured. Defaults to True
-            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
         
         Returns:
             tuple:
@@ -318,10 +314,6 @@ class System(object):
 
         """
 
-        if use_c == None:
-            use_c = self.use_c
-        if use_gpu == None:
-            use_gpu = self.use_gpu
         if epochs is None:
             epochs = self.data_table['epoch']
 
@@ -405,8 +397,7 @@ class System(object):
                     # solve Kepler's equation
                     raoff, decoff, vz_i = kepler.calc_orbit(
                         epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch,
-                        use_c=use_c, use_gpu=use_gpu
+                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
                     )
 
                     # raoff, decoff, vz are scalers if the length of epochs is 1
@@ -482,7 +473,7 @@ class System(object):
             return raoff, deoff, vz
 
 
-    def compute_model(self, params_arr, use_rebound=False, use_c=True, use_gpu=False):
+    def compute_model(self, params_arr, use_rebound=False):
         """
         Compute model predictions for an array of fitting parameters. 
         Calls the above compute_all_orbits() function, adds jitter/gamma to
@@ -498,8 +489,6 @@ class System(object):
             use_rebound (bool, optional): A secondary optional input for 
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
-            use_c (bool, optional): Use the C solver if configured. Defaults to True
-            use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
         Returns:
             tuple of:
@@ -513,9 +502,9 @@ class System(object):
         standard_params_arr = self.basis.to_standard_basis(to_convert)      
 
         if use_rebound:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, comp_rebound=True, use_c=use_c, use_gpu=use_gpu)
+            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, comp_rebound=True)
         else:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr, use_c=use_c, use_gpu=use_gpu)
+            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
