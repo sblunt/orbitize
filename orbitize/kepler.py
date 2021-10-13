@@ -5,8 +5,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as consts
 
-from orbitize import cuda_ext
-from orbitize import cext
+from orbitize import cuda_ext, cext
 
 if cext:
     from . import _kepler
