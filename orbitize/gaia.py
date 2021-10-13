@@ -1,5 +1,8 @@
 import numpy as np
-from astroquery.gaia import Gaia
+import contextlib
+
+with contextlib.redirect_stdout(None):
+    from astroquery.gaia import Gaia
 from astropy import units as u
 
 class GaiaLogProb(object):
@@ -14,8 +17,10 @@ class GaiaLogProb(object):
     class currently only fits for the position of the star in the Gaia epoch,
     not the star's proper motion.
 
-    NOTE: in orbitize, it is possible to perform a fit to just the Hipparcos
-    IAD, but not to just the Gaia astrometric data.
+    .. Note:: 
+    
+        In orbitize, it is possible to perform a fit to just the Hipparcos
+        IAD, but not to just the Gaia astrometric data.
 
     Args:
         gaia_num (int): the Gaia source ID of the object you're fitting. Note
@@ -23,14 +28,18 @@ class GaiaLogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         dr (str): either 'dr2' or 'edr3'
+
+    Written: Sarah Blunt, 2021
     """
     def __init__(self, gaia_num, hiplogprob, dr='dr2'):
 
+        self.gaia_num = gaia_num
         self.hiplogprob = hiplogprob
+        self.dr = dr
 
-        if dr == 'edr3':
+        if self.dr == 'edr3':
             self.gaia_epoch = 2016.0
-        elif dr == 'dr2':
+        elif self.dr == 'dr2':
             self.gaia_epoch = 2015.5
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
@@ -42,7 +51,7 @@ class GaiaLogProb(object):
         ra, dec, ra_error, dec_error
         FROM gaia{}.gaia_source
         WHERE source_id = {}
-        """.format(dr, gaia_num)
+        """.format(self.dr, self.gaia_num)
 
         job = Gaia.launch_job_async(query)
         gaia_data = job.get_results()
@@ -54,6 +63,18 @@ class GaiaLogProb(object):
 
         # keep this number on hand for use in lnlike computation 
         self.mas2deg = (u.mas).to(u.degree)
+    
+    def _save(self, hf):
+        """
+        Saves the current object to an hdf5 file
+
+        Args:
+            hf (h5py._hl.files.File): a currently open hdf5 file in which
+                to save the object.
+        """
+        hf.attrs['gaia_num'] = self.gaia_num
+        hf.attrs['dr'] = self.dr
+        self.hiplogprob._save(hf)
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx
@@ -62,6 +83,7 @@ class GaiaLogProb(object):
         Computes the log likelihood of an orbit model with respect to a single 
         Gaia astrometric point. This is added to the likelihoods calculated with 
         respect to other data types in ``sampler._logl()``. 
+
         Args:
             raoff_model (np.array of float): 2xM primary RA
                 offsets from the barycenter incurred from orbital motion of 
@@ -81,6 +103,7 @@ class GaiaLogProb(object):
             param_idx: a dictionary matching fitting parameter labels to their
                 indices in an array of fitting parameters (generally 
                 set to System.basis.param_idx).
+                
         Returns:
             np.array of float: array of length M, where M is the number of input 
                 orbits, representing the log likelihood of each orbit with 
@@ -131,7 +154,7 @@ class GaiaLogProb(object):
 
         delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
 
-        chi2 = np.sum(alpha_chi2) + np.sum(delta_chi2)
+        chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2 
 
         return lnlike

@@ -28,7 +28,7 @@ def get_requires():
 def get_extensions():
     extensions = []
     if(USE_C_KEPLER_MODULE):
-        extensions = cythonize([Extension("orbitize._kepler", ["orbitize/_kepler.pyx"])])
+        extensions = cythonize([Extension("orbitize._kepler", ["orbitize/_kepler.pyx"], include_dirs=[numpy.get_include()])])
     return extensions
 
 setup(
@@ -40,21 +40,15 @@ setup(
     author_email='',
     license='BSD',
     packages=find_packages(),
+    package_data={"":["kernels/*.cu"]},
     ext_modules=get_extensions(),
     include_dirs=[numpy.get_include()],
     include_package_data = True,
     zip_safe=False,
     classifiers=[
-        # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Astronomy',
-
-        # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: BSD License',
-
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.6',
         ],
     keywords='Orbits Astronomy Astrometry',

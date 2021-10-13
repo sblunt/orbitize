@@ -103,8 +103,8 @@ else:
 num_threads = 100
 num_temps = 20
 num_walkers = 1000
-num_steps = 1000000 #10000000 # n_walkers x n_steps_per_walker
-burn_steps = 1000 #10000
+num_steps = 1000000 # n_walkers x n_steps_per_walker
+burn_steps = 1000
 thin = 100
 
 betaPic_sampler = sampler.MCMC(

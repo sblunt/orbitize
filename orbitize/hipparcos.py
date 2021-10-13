@@ -21,16 +21,18 @@ class HipparcosLogProb(object):
     They are added to the vector of fitting parameters in system.py, but 
     are described here for completeness. See Nielsen+ 2020 for more detail.
 
-        alpha0: RA offset from the reported Hipparcos position at a particular
-            epoch (usually 1991.25) [mas]
-        delta0: Dec offset from the reported Hipparcos position at a particular
-            epoch (usually 1991.25) [mas]
-        pm_ra: RA proper motion [mas/yr]
-        pm_dec: Dec proper motion [mas/yr]
-        plx: parallax [mas]
+    - alpha0: RA offset from the reported Hipparcos position at a particular
+        epoch (usually 1991.25) [mas]
+    - delta0: Dec offset from the reported Hipparcos position at a particular
+        epoch (usually 1991.25) [mas]
+    - pm_ra: RA proper motion [mas/yr]
+    - pm_dec: Dec proper motion [mas/yr]
+    - plx: parallax [mas]
 
-    NOTE: in orbitize, it is possible to perform a fit to just the Hipparcos
-    IAD, but not to just the Gaia astrometric data.
+    .. Note:: 
+    
+        In orbitize, it is possible to perform a fit to just the Hipparcos
+        IAD, but not to just the Gaia astrometric data.
 
     Args:
         path_to_iad_file (str): location of IAD file to be used in your fit.
@@ -45,7 +47,7 @@ class HipparcosLogProb(object):
         renormalize_errors (bool): if True, normalize the scan errors to get
             chisq_red = 1, following Nielsen+ 2020 (eq 10). In general, this 
             should be False, but it's helpful for testing. Check out 
-            `test_hipparcos._nielsen_iad_refitting_test()` for an example
+            `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
 
     Written: Sarah Blunt & Rob de Rosa, 2021
@@ -55,6 +57,9 @@ class HipparcosLogProb(object):
         self, path_to_iad_file, hip_num, num_secondary_bodies,
         alphadec0_epoch=1991.25, renormalize_errors=False
     ):
+
+        self.path_to_iad_file = path_to_iad_file
+        self.renormalize_errors = renormalize_errors
 
         # infer if the IAD file is an older DVD file or a new file
         with open(path_to_iad_file, 'r') as f:
@@ -158,7 +163,7 @@ class HipparcosLogProb(object):
         self.epochs = epochs.decimalyear
         self.epochs_mjd = epochs.mjd
 
-        if renormalize_errors:
+        if self.renormalize_errors:
             D = len(epochs) - 6
             G = f2
 
@@ -195,6 +200,23 @@ class HipparcosLogProb(object):
         # compute abcissa point (Nielsen+ Eq 3)
         self.alpha_abs_st = self.R * self.cos_phi + changein_alpha_st
         self.delta_abs = self.R * self.sin_phi + changein_delta
+
+
+    def _save(self, hf):
+        """
+        Saves the current object to an hdf5 file
+
+        Args:
+            hf (h5py._hl.files.File): a currently open hdf5 file in which
+                to save the object.
+        """
+        with open(self.path_to_iad_file, 'r') as f:
+            iad_data = np.array(f.readlines(), dtype='S')
+            hf.create_dataset("IAD_datafile", data=iad_data)
+
+        hf.attrs['hip_num'] = self.hip_num
+        hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
+        hf.attrs['renormalize_errors'] = self.renormalize_errors
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx
@@ -291,8 +313,10 @@ def nielsen_iad_refitting_test(
         mcmc_steps (int): number of MCMC production steps to run.
 
     Returns:
-        tuple of:
+        tuple:
+
             numpy.array of float: n_steps x 5 array of posterior samples
+            
             orbitize.hipparcos.HipparcosLogProb: the object storing relevant
                 metadata for the performed Hipparcos IAD fit
     """
