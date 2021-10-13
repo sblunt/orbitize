@@ -28,7 +28,7 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         tau_ref_epoch (float): reference epoch for tau
         
     Returns:
-        mean_anom (float or np.array): mean anomaly on that date [0, 2pi)
+        float or np.array: mean anomaly on that date [0, 2pi)
     """
 
     period = np.sqrt(

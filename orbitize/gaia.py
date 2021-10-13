@@ -15,8 +15,10 @@ class GaiaLogProb(object):
 
     Follows Nielsen+ 2020 (studying the orbit of beta Pic b).
 
-    . Note:: in orbitize, it is possible to perform a fit to just the Hipparcos
-    IAD, but not to just the Gaia astrometric data.
+    .. Note:: 
+    
+        In orbitize, it is possible to perform a fit to just the Hipparcos
+        IAD, but not to just the Gaia astrometric data.
 
     Args:
         gaia_num (int): the Gaia source ID of the object you're fitting. Note
@@ -79,6 +81,7 @@ class GaiaLogProb(object):
         Computes the log likelihood of an orbit model with respect to a single 
         Gaia astrometric point. This is added to the likelihoods calculated with 
         respect to other data types in ``sampler._logl()``. 
+
         Args:
             raoff_model (np.array of float): 2xM primary RA
                 offsets from the barycenter incurred from orbital motion of 
@@ -98,6 +101,7 @@ class GaiaLogProb(object):
             param_idx: a dictionary matching fitting parameter labels to their
                 indices in an array of fitting parameters (generally 
                 set to System.basis.param_idx).
+                
         Returns:
             np.array of float: array of length M, where M is the number of input 
                 orbits, representing the log likelihood of each orbit with 

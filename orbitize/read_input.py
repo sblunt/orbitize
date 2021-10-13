@@ -88,6 +88,7 @@ def read_file(filename):
         if ``quant_type`` is "rv", the units of quant are km/s
 
     Written: Henry Ngo, 2018
+    
     Updated: Vighnesh Nagpal, Jason Wang (2020-2021)
     """
     # initialize output table

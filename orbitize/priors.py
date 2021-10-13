@@ -6,14 +6,8 @@ import abc
 This module defines priors with methods to draw samples and compute log(probability)
 """
 
-# Python 2 & 3 handle ABCs differently
-if sys.version_info[0] < 3:
-    ABC = abc.ABCMeta('ABC', (), {})
-else:
-    ABC = abc.ABC
 
-
-class Prior(ABC):
+class Prior(abc.ABC):
     """
     Abstract base class for prior objects.
     All prior objects should inherit from this class.
@@ -126,7 +120,7 @@ class KDEPrior(Prior):
         bounds (array_like of bool, optional): if True for a parameter the 
             parameter is fit to the KDE in log-scale
 
-    Written: Jorge LLop-Sayson, Sarah Blunt(2021)
+    Written: Jorge LLop-Sayson, Sarah Blunt (2021)
     """
     is_correlated = True
     
@@ -510,7 +504,7 @@ class LinearPrior(Prior):
             num_samples (float): the number of samples to generate
 
         Returns:
-            samples (np.array):  samples ranging from [0, -b/m) as floats.
+            np.array:  samples ranging from [0, -b/m) as floats.
         """
         norm = -0.5*self.b**2/self.m
 
