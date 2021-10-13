@@ -29,7 +29,7 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     """
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
@@ -102,7 +102,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     """
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
     # Manually set 'object' column of data table
     data_table['object'] = 1
@@ -110,7 +110,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
     # construct the system
     orbit = system.System(1, data_table, 1, 0.01)
 
-    # construct Driver
+    # construct sampler
     n_walkers = 20
     mcmc = sampler.MCMC(orbit, num_temps, n_walkers, num_threads=num_threads)
 
@@ -162,7 +162,7 @@ def test_examine_chop_chains(num_temps=0, num_threads=1):
 def test_mcmc_param_idx():
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
     data_table = read_input.read_file(input_file)
 
     # Manually set 'object' column of data table
