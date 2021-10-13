@@ -35,9 +35,8 @@ Attribution:
 * If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
 * If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
 * If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
-* If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, 
-please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_
-and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
+* If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_ and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
+* If you use Gaia data, please also cite `Gaia Collaboration et al (2018; for DR2) <https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract>`_, or `Gaia Collaboration et al (2021; for eDR3) <https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract>`_.
 
 
 User Guide:
@@ -49,20 +48,8 @@ User Guide:
    installation
    tutorials
    faq
+   contributing
    api
-
-Contributing:
-+++++++++++++
-
-``orbitize`` is under active development, and we've still got a lot to do! To get involved,
-check out our `contributor guidelines <https://github.com/sblunt/orbitize/blob/master/contributor_guidelines.md>`_,
-look over our `issues list <https://github.com/sblunt/orbitize/issues>`_, and/or reach out to 
-`Sarah <https://sites.google.com/g.harvard.edu/sarah/contact?authuser=0>`_. We'd love to have
-you on our team!
-
-Members of our team have collectively drafted `this community agreement <https://docs.google.com/document/d/1ZzjkoB20vVTlg2wbNpS7sRjmcSrECdh8kQ11-waZQhw/edit>`_ stating both our values and ground rules. 
-In joining our team, we ask that you read and (optionally) suggest changes to this document. 
-
 
 Changelog:
 ++++++++++
@@ -72,6 +59,7 @@ Changelog:
 This is the beta release of orbitize! version 2.
 
 Big changes:
+
 - N-body Kepler solver backend! (@sofiacovarrubias)
 - Fitting in XYZ orbital basis! (@rferrerc)
 - API for fitting in arbitrary new orbital bases! (@TirthDS)
@@ -81,6 +69,7 @@ Big changes:
 - KDE prior added (inspiration=training on RV fits) (@jorgellop)
 
 Small changes:
+
 - HD 4747 rv data file fix for the RV tutorial (@lhirsch238)
 - Add check_prior_support to sampler.MCMC (@adj-smith)
 - Update example generation code in MCMC v OFTI tutorial (@semaphoreP)

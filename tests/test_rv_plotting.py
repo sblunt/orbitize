@@ -61,7 +61,7 @@ def test_rv_multiple_inst():
 	# MCMC parameters
 	num_temps = 5
 	num_walkers = 30
-	num_threads = mp.cpu_count() # or a different number if you prefer
+	num_threads = 2
 
 	my_driver = driver.Driver(
 	    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
@@ -69,7 +69,7 @@ def test_rv_multiple_inst():
 	    mcmc_kwargs={'num_temps': num_temps, 'num_walkers': num_walkers, 'num_threads': num_threads}
 	)
 
-	total_orbits = 5000
+	total_orbits = 500
 	burn_steps = 10
 	thin = 2
 

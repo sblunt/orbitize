@@ -3,11 +3,11 @@ import numpy as np
 from orbitize import system, read_input, DATADIR
 
 def test_period_basis():
-	'''
-	For both MCMC and OFTI formats, make the conversion to standard basis and go back to original
-	basis and check to see original params are retrieved. Do this with system mass parameter,
-	single companion, and two companions.
-	'''
+	"""
+	For both MCMC and OFTI formats, make the conversion to standard basis and go 
+	back to original basis and check to see original params are retrieved. Do 
+	this with system mass parameter, single companion, and two companions.
+	"""
 	# 1. With System Total Mass
 	filename = "{}/GJ504.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
@@ -91,11 +91,11 @@ def test_period_basis():
 	assert np.allclose(original, sample_copy)
 
 def test_semi_amp_basis():
-	'''
-	For both MCMC and OFTI param formats, make the conversion to the standard basis from semi-amplitude
-	and back to verify the valdity of conversions. Do this with a single companion and with two
-	companions.
-	'''
+	"""
+	For both MCMC and OFTI param formats, make the conversion to the standard 
+	basis from semi-amplitude and back to verify the valdity of conversions. Do 
+	this with a single companion and with two companions.
+	"""
 	# 1. Single Body (with RV)
 	filename = "{}/HD4747.csv".format(DATADIR)
 	data_table = read_input.read_file(filename)
@@ -146,16 +146,18 @@ def test_semi_amp_basis():
 	assert np.allclose(original, sample_copy[:, 0])
 
 def test_xyz_basis():
-	'''
-	For both MCMC and OFTI param formats, make the conversion to the standard basis from XYZ basis
-	and back to verify the valdity of conversions. Do this with a single companion and with two
-	companions.
-	'''
+	"""
+	For both MCMC and OFTI param formats, make the conversion to the standard 
+	basis from XYZ basis and back to verify the valdity of conversions. Do this 
+	with a single companion and with two companions.
+	"""
 	# 1. Single Body
 	filename = '{}/xyz_test_data.csv'.format(DATADIR)
 	data = read_input.read_file(filename)
 	single = data[np.where(data['object'] == 1)[0]]
-	my_system = system.System(1, single, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
+	my_system = system.System(
+		1, single, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ'
+	)
 
 	num_samples = 1000 # Do more samples to be safe
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -182,7 +184,9 @@ def test_xyz_basis():
 	assert np.allclose(original, sample_copy)
 
 	# 2. Multi Body
-	my_system = system.System(2, data, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ')
+	my_system = system.System(
+		2, data, 1.22, 56.89, mass_err=0.05, plx_err=0.12, fitting_basis='XYZ'
+	)
 
 	num_samples = 1000 # Do more samples to be safe
 	samples = np.empty([len(my_system.sys_priors), num_samples])
@@ -194,7 +198,9 @@ def test_xyz_basis():
 
 	sample_copy = samples.copy()
 	conversion = my_system.basis.to_standard_basis(samples)
-	locs = np.where((conversion[[1, 7], :] >= 1.0) | (conversion[[1, 7], :] < 0.))[1]
+	locs = np.where(
+		(conversion[[1, 7], :] >= 1.0) | (conversion[[1, 7], :] < 0.)
+	)[1]
 	locs = np.unique(locs)
 	sample_copy = np.delete(sample_copy, locs, axis=1)
 
