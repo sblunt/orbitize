@@ -67,7 +67,8 @@ def test_create_driver_from_filename():
                              1.0, # total system mass [M_sun]
                              50.0, # total parallax of system [mas]
                              mass_err=0.1, # mass error [M_sun]
-                             plx_err=0.1) # parallax error [mas]
+                             plx_err=0.1, # parallax error [mas]
+                             system_kwargs={'fit_secondary_mass':True}) 
     _compare_table(myDriver.system.data_table)
 
 
@@ -83,7 +84,8 @@ def test_create_driver_from_table():
                              1.0, # total system mass [M_sun]
                              50.0, # total parallax of system [mas]
                              mass_err=0.1, # mass error [M_sun]
-                             plx_err=0.1) # parallax error [mas]
+                             plx_err=0.1, # parallax error [mas]
+                             system_kwargs={'fit_secondary_mass':True}) 
     _compare_table(myDriver.system.data_table)
 
 def test_system_kwargs():
@@ -97,8 +99,9 @@ def test_system_kwargs():
                              1.0, # total system mass [M_sun]
                              50.0, # total parallax of system [mas]
                              mass_err=0.1, # mass error [M_sun]
-                             plx_err=0.1,
-                             system_kwargs={"tau_ref_epoch": 50000}) # parallax error [mas]
+                             plx_err=0.1, # parallax error [mas]
+                             system_kwargs={"tau_ref_epoch": 50000, 'fit_secondary_mass':True}
+    )
     assert myDriver.system.tau_ref_epoch == 50000
 
 if __name__ == '__main__':
