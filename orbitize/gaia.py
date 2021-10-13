@@ -152,7 +152,7 @@ class GaiaLogProb(object):
 
         delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
 
-        chi2 = np.sum(alpha_chi2) + np.sum(delta_chi2)
+        chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2 
 
         return lnlike
