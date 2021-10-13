@@ -13,7 +13,9 @@ class GaiaLogProb(object):
     orbitize.hipparcos.HipLogProb; see documentation for that object for more
     detail. 
 
-    Follows Nielsen+ 2020 (studying the orbit of beta Pic b).
+    Follows Nielsen+ 2020 (studying the orbit of beta Pic b). Note that this
+    class currently only fits for the position of the star in the Gaia epoch,
+    not the star's proper motion.
 
     .. Note:: 
     
