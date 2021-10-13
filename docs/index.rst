@@ -54,6 +54,27 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.0.0 (2021-10-13)**
+
+This is the official release of orbitize! version 2.
+
+Big changes:
+
+- Fit Gaia positions (@sblunt)
+- New plotting module & API (@sblunt)
+- Relative planet RVs now officially supported & tested (@sblunt)
+- GPU Kepler solver (@devincody)
+- RV end-to-end test added (@vighnesh-nagpal)
+
+Small changes:
+
+- Hipparcos calculation bugfix (@sblunt)
+- v1 results backwards compatibility bugfix (@sblunt)
+- windows install docs update (@sblunt
+- basis bugfix with new API (@TirthDS, @sblunt)
+- handle Hipparcos 2021 data format (@sblunt)
+- clarify API on mtot/mstar (@lhirsch238, @sblunt)
+
 **2.0b1 (2021-09-03)**
 
 This is the beta release of orbitize! version 2.
