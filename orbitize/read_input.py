@@ -58,6 +58,11 @@ def read_file(filename):
     the orbitize format (see the example in description of what this method returns). This may
     be useful if you are wanting to use the output of the `write_orbitize_input` method.
 
+    .. Note:: RV measurements of objects that are not the primary should be relative to
+        the barycenter RV. For example, if the barycenter has a RV
+        of 20 +/- 1 km/s, and you've measured an absolute RV for the secondary of 15 +/- 2 km/s, 
+        you should input an RV of -5.0 +/- 2.2 for object 1.
+
     .. Note:: When providing data with columns in the orbitize format, there should be no
         empty cells. As in the example below, when quant2 is not applicable, the cell should
         contain nan.
