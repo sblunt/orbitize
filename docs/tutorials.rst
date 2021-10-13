@@ -28,30 +28,27 @@ style of using and explaining the code. If you are confused by part of
 one tutorial, we suggest looking at some of the others (and then contacting
 us if you are still confused).
 
-**Basic Tutorials:**
-
 .. toctree::
    :maxdepth: 1
+   :caption: Basic Tutorials
 
    tutorials/Quick-Start.ipynb
    formatting_inputs
    tutorials/OFTI_tutorial.ipynb
    tutorials/MCMC_tutorial.ipynb
 
-**Advanced Tutorials:**
-
 .. toctree::
    :maxdepth: 1
+   :caption: Advanced Tutorials
 
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
    tutorials/Modifying_MCMC_initial_positions.ipynb
 
-**Feature Tutorials:**   
-
 .. toctree::
    :maxdepth: 1
+   :caption: Feature Tutorials
 
    tutorials/RV_MCMC_Tutorial.ipynb
    tutorials/Multiplanet_Tutorial.ipynb
