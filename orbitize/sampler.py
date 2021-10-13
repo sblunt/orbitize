@@ -46,7 +46,7 @@ class Sampler(abc.ABC):
     def run_sampler(self, total_orbits, use_c=None, use_gpu=None):
         pass
 
-    def _logl(self, params, use_c=True, use_gpu=False, hipparcos=False):
+    def _logl(self, params, use_c=True, use_gpu=False):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -98,6 +98,14 @@ class Sampler(abc.ABC):
             raoff_model, deoff_model, _ = self.system.compute_all_orbits(
                 params, epochs=self.system.hipparcos_IAD.epochs_mjd
             ) 
+
+            raoff_model_hip_epoch, deoff_model_hip_epoch, _ = self.system.compute_all_orbits(
+                params, epochs=Time([1991.25], format='decimalyear').mjd
+            ) 
+
+            # subtract off position of star at reference Hipparcos epoch
+            raoff_model[:,0,:] -= raoff_model_hip_epoch[:,0,:]
+            deoff_model[:,0,:] -= deoff_model_hip_epoch[:,0,:]
 
             # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
             lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
@@ -225,7 +233,8 @@ class OFTI(Sampler,):
             self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None
+            lnlike=None,
+            version_number=orbitize.__version__
         )
 
     def prepare_samples(self, num_samples, use_c=True, use_gpu=False):
@@ -260,19 +269,19 @@ class OFTI(Sampler,):
         
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
 
-            sma = samples[self.system.basis.param_idx['sma{}'.format(body_num)],:]
-            ecc = samples[self.system.basis.param_idx['ecc{}'.format(body_num)],:]
-            inc = samples[self.system.basis.param_idx['inc{}'.format(body_num)],:]
-            argp = samples[self.system.basis.param_idx['aop{}'.format(body_num)],:]
-            lan = samples[self.system.basis.param_idx['pan{}'.format(body_num)],:]
-            tau = samples[self.system.basis.param_idx['tau{}'.format(body_num)],:]
-            plx = samples[self.system.basis.param_idx['plx'],:]
+            sma = samples[self.system.basis.standard_basis_idx['sma{}'.format(body_num)],:]
+            ecc = samples[self.system.basis.standard_basis_idx['ecc{}'.format(body_num)],:]
+            inc = samples[self.system.basis.standard_basis_idx['inc{}'.format(body_num)],:]
+            argp = samples[self.system.basis.standard_basis_idx['aop{}'.format(body_num)],:]
+            lan = samples[self.system.basis.standard_basis_idx['pan{}'.format(body_num)],:]
+            tau = samples[self.system.basis.standard_basis_idx['tau{}'.format(body_num)],:]
+            plx = samples[self.system.basis.standard_basis_idx['plx'],:]
             if self.system.fit_secondary_mass:
-                m0 = samples[self.system.basis.param_idx['m0'],:]
-                m1 = samples[self.system.basis.param_idx['m{}'.format(body_num)],:]
+                m0 = samples[self.system.basis.standard_basis_idx['m0'],:]
+                m1 = samples[self.system.basis.standard_basis_idx['m{}'.format(body_num)],:]
                 mtot = m0 + m1
             else:
-                mtot = samples[self.system.basis.param_idx['mtot'],:]
+                mtot = samples[self.system.basis.standard_basis_idx['mtot'],:]
                 m1 = None
             
             min_epoch = self.epoch_idx[body_num - 1]
@@ -323,10 +332,10 @@ class OFTI(Sampler,):
             tau = (self.epochs[min_epoch]/period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
-            samples[self.system.basis.param_idx['sma{}'.format(body_num)],:] = sma
-            samples[self.system.basis.param_idx['aop{}'.format(body_num)],:] = argp
-            samples[self.system.basis.param_idx['pan{}'.format(body_num)],:] = lan
-            samples[self.system.basis.param_idx['tau{}'.format(body_num)],:] = tau
+            samples[self.system.basis.standard_basis_idx['sma{}'.format(body_num)],:] = sma
+            samples[self.system.basis.standard_basis_idx['aop{}'.format(body_num)],:] = argp
+            samples[self.system.basis.standard_basis_idx['pan{}'.format(body_num)],:] = lan
+            samples[self.system.basis.standard_basis_idx['tau{}'.format(body_num)],:] = tau
 
         return samples
 
@@ -368,7 +377,7 @@ class OFTI(Sampler,):
         # account for user-set priors on PAN that were destroyed by scale-and-rotate
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
 
-            pan_idx = self.system.basis.param_idx['pan{}'.format(body_num)]
+            pan_idx = self.system.basis.standard_basis_idx['pan{}'.format(body_num)]
 
             pan_prior = self.system.sys_priors[pan_idx]
             if pan_prior is not orbitize.priors.UniformPrior:
@@ -618,7 +627,8 @@ class MCMC(Sampler):
             self.system,
             sampler_name=self.__class__.__name__,
             post=None,
-            lnlike=None
+            lnlike=None,
+            version_number=orbitize.__version__
         )
         
         if self.num_temps > 1:
@@ -1085,7 +1095,9 @@ class MCMC(Sampler):
             self.system, 
             sampler_name=self.__class__.__name__,
             post=flat_chopped_chain,
-            lnlike=flat_chopped_lnlikes
+            lnlike=flat_chopped_lnlikes,
+            version_number = orbitize.__version__,
+            curr_pos = self.curr_pos
         )
 
         # Print a confirmation

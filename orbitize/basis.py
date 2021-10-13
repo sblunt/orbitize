@@ -16,12 +16,12 @@ class Basis(abc.ABC):
     """
 
     def __init__(
-        self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        self, stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, 
         fit_secondary_mass, angle_upperlim=2*np.pi, hipparcos_IAD=None, 
         rv=False, rv_instruments=None
     ):
 
-        self.stellar_mass = stellar_mass
+        self.stellar_or_system_mass = stellar_or_system_mass
         self.mass_err=mass_err
         self.plx=plx
         self.plx_err=plx_err
@@ -144,9 +144,9 @@ class Basis(abc.ABC):
             labels_arr.append('mtot')
 
         if self.mass_err > 0:
-            priors_arr.append(priors.GaussianPrior(self.stellar_mass, self.mass_err))
+            priors_arr.append(priors.GaussianPrior(self.stellar_or_system_mass, self.mass_err))
         else:
-            priors_arr.append(self.stellar_mass)
+            priors_arr.append(self.stellar_or_system_mass)
 
 
 class Standard(Basis):
@@ -154,13 +154,15 @@ class Standard(Basis):
     Standard basis set based upon the 6 standard Keplarian elements: (sma, ecc, inc, aop, pan, tau).
 
     Args:
-        stellar_mass (float): mean mass of the primary, in M_sol
-        mass_err (float): uncertainty on 'stellar_mass', in M_sol
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
+            dynamical masses of both components) or total system mass (if
+            fitting using relative astrometry only) [M_sol]
+        mass_err (float): uncertainty on 'stellar_or_system_mass', in M_sol
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
-            'stellar_mass' is taken to be total mass
+            'stellar_or_system_mass' is taken to be total mass
         angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2pi)
         hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
@@ -168,10 +170,10 @@ class Standard(Basis):
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+    def __init__(self, stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
         angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(Standard, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        super(Standard, self).__init__(stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, 
             fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
@@ -241,13 +243,15 @@ class Period(Basis):
     Modification of the standard basis, swapping our sma for period: (per, ecc, inc, aop, pan, tau).
 
     Args:
-        stellar_mass (float): mean mass of the primary, in M_sol
-        mass_err (float): uncertainty on 'stellar_mass', in M_sol
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
+            dynamical masses of both components) or total system mass (if
+            fitting using relative astrometry only) [M_sol]
+        mass_err (float): uncertainty on 'stellar_or_system_mass', in M_sol
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
-            'stellar_mass' is taken to be total mass
+            'stellar_or_system_mass' is taken to be total mass
         angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2pi)
         hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
@@ -255,10 +259,10 @@ class Period(Basis):
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+    def __init__(self, stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
         angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(Period, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        super(Period, self).__init__(stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, 
             fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
@@ -384,13 +388,15 @@ class SemiAmp(Basis):
     .. Note:: Ideally, 'fit_secondary_mass' is true and rv data is supplied.
 
     Args:
-        stellar_mass (float): mean mass of the primary, in M_sol
-        mass_err (float): uncertainty on 'stellar_mass', in M_sol
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
+            dynamical masses of both components) or total system mass (if
+            fitting using relative astrometry only) [M_sol]
+        mass_err (float): uncertainty on 'stellar_or_system_mass', in M_sol
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
-            'stellar_mass' is taken to be total mass
+            'stellar_or_system_mass' is taken to be total mass
         angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2*pi)
         hipparcos_IAD (orbitize.HipparcosLogProb object): if not 'None', then add relevant priors to this data (default: None)
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
@@ -398,10 +404,10 @@ class SemiAmp(Basis):
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
     '''
 
-    def __init__(self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
+    def __init__(self, stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, fit_secondary_mass, 
         angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, rv_instruments=None):
 
-        super(SemiAmp, self).__init__(stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        super(SemiAmp, self).__init__(stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, 
             fit_secondary_mass, angle_upperlim, hipparcos_IAD, rv, rv_instruments)
 
     def construct_priors(self):
@@ -448,9 +454,9 @@ class SemiAmp(Basis):
 
         # Add star mass prior (for now, regardless of whether 'fit_secondary_mass' is true)
         if self.mass_err > 0:
-            basis_priors.append(priors.GaussianPrior(self.stellar_mass, self.mass_err))
+            basis_priors.append(priors.GaussianPrior(self.stellar_or_system_mass, self.mass_err))
         else:
-            basis_priors.append(self.stellar_mass)
+            basis_priors.append(self.stellar_or_system_mass)
 
         basis_labels.append('m0')
 
@@ -630,13 +636,15 @@ class XYZ(Basis):
     .. Note:: Does not work for all multi-body data.
 
     Args:
-        stellar_mass (float): mean mass of the primary, in M_sol
-        mass_err (float): uncertainty on 'stellar_mass', in M_sol
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
+            dynamical masses of both components) or total system mass (if
+            fitting using relative astrometry only) [M_sol]
+        mass_err (float): uncertainty on 'stellar_or_system_mass', in M_sol
         plx (float): mean parallax of the system, in mas
         plx_err (float): uncertainty on 'plx', in mas
         num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
         fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
-            'stellar_mass' is taken to be total mass
+            'stellar_or_system_mass' is taken to be total mass
         input_table (astropy.table.Table): output from 'orbitize.read_input.read_file()'
         best_epoch_idx (list): indices of the epochs corresponding to the smallest uncertainties
         epochs (list): all of the astrometric epochs from 'input_table'
@@ -649,13 +657,13 @@ class XYZ(Basis):
     Author: Rodrigo
     '''
     def __init__(
-        self, stellar_mass, mass_err, plx, plx_err, num_secondary_bodies, 
+        self, stellar_or_system_mass, mass_err, plx, plx_err, num_secondary_bodies, 
         fit_secondary_mass, data_table, best_epoch_idx, epochs, 
         angle_upperlim=2*np.pi, hipparcos_IAD=None, rv=False, 
         rv_instruments=None
     ):
 
-        super(XYZ, self).__init__(stellar_mass, mass_err, plx, plx_err, 
+        super(XYZ, self).__init__(stellar_or_system_mass, mass_err, plx, plx_err, 
             num_secondary_bodies, fit_secondary_mass, angle_upperlim, 
             hipparcos_IAD, rv, rv_instruments
         )
@@ -731,7 +739,7 @@ class XYZ(Basis):
             y_vel_err = ((y_vel_err * u.AU / u.day).to(u.km / u.s)).value
 
             # Propose bounds on absolute Z and Z dot given the energy equation
-            mu = consts.G * self.stellar_mass * u.Msun
+            mu = consts.G * self.stellar_or_system_mass * u.Msun
 
             mu_vel = 2 * mu / ((x_vel**2 + y_vel**2) * (u.km / u.s * u.km / u.s))
             z_bound = (np.sqrt(mu_vel**2 - (best_xs[0]**2 + best_ys[0]**2)*u.AU *u.AU)).to(u.AU)

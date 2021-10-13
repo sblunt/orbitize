@@ -18,9 +18,7 @@ import orbitize
 import orbitize.kepler as kepler
 
 
-# TODO: read through documentation
 # TODO: deprecatation warning for plots in results
-# TODO: errors for Results saving/loading
 
 # define modified color map for default use in orbit plots
 cmap = mpl.cm.Purples_r
@@ -88,7 +86,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         'pm_dec': '$\\mu_{{\\delta}}$ [mas/yr]',
         'alpha0': '$\\alpha^{{*}}_{{0}}$ [mas]',
         'delta0': '$\\delta_0$ [mas]',
-        'm': '$M_{0}$ [M$_\{{Jup\}}$]',
+        'm': '$M_{0}$ [M$_{{\\rm Jup}}$]',
         'per' : '$P_{0}$ [yr]',
         'K' : '$K_{0}$ [km/s]',
         'x' : '$X_{0}$ [AU]',
@@ -192,6 +190,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
     Additions by Malena Rice, 2019
 
     """
+
     if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
         raise ValueError('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
 
@@ -204,7 +203,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', ErfaWarning)
 
-        data = results.data
+        data = results.data[results.data['object'] == object_to_plot]
         possible_cbar_params = [
             'sma',
             'ecc',
@@ -244,20 +243,20 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
         standard_post = np.array(standard_post)
 
-        sma = standard_post[:, results.param_idx['sma{}'.format(object_to_plot)]]
-        ecc = standard_post[:, results.param_idx['ecc{}'.format(object_to_plot)]]
-        inc = standard_post[:, results.param_idx['inc{}'.format(object_to_plot)]]
-        aop = standard_post[:, results.param_idx['aop{}'.format(object_to_plot)]]
-        pan = standard_post[:, results.param_idx['pan{}'.format(object_to_plot)]]
-        tau = standard_post[:, results.param_idx['tau{}'.format(object_to_plot)]]
-        plx = standard_post[:, results.param_idx['plx']]
+        sma = standard_post[:, results.standard_param_idx['sma{}'.format(object_to_plot)]]
+        ecc = standard_post[:, results.standard_param_idx['ecc{}'.format(object_to_plot)]]
+        inc = standard_post[:, results.standard_param_idx['inc{}'.format(object_to_plot)]]
+        aop = standard_post[:, results.standard_param_idx['aop{}'.format(object_to_plot)]]
+        pan = standard_post[:, results.standard_param_idx['pan{}'.format(object_to_plot)]]
+        tau = standard_post[:, results.standard_param_idx['tau{}'.format(object_to_plot)]]
+        plx = standard_post[:, results.standard_param_idx['plx']]
 
         # Then, get the other parameters
         if 'mtot' in results.labels:
-            mtot = standard_post[:, results.param_idx['mtot']]
+            mtot = standard_post[:, results.standard_param_idx['mtot']]
         elif 'm0' in results.labels:
-            m0 = standard_post[:, results.param_idx['m0']]
-            m1 = standard_post[:, results.param_idx['m{}'.format(object_to_plot)]]
+            m0 = standard_post[:, results.standard_param_idx['m0']]
+            m1 = standard_post[:, results.standard_param_idx['m{}'.format(object_to_plot)]]
             mtot = m0 + m1
 
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -499,11 +498,17 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
 
         if rv_time_series:
+
+            rv_data = results.data[results.data['object'] == 0]
+            rv_data = rv_data[rv_data['quant_type'] == 'rv']
+
             # switch current axis to rv panel
             plt.sca(ax3)
     
             # get list of rv instruments
-            insts = np.unique(data['instrument'][rv_indices])
+            insts = np.unique(rv_data['instrument'])
+            if len(insts) == 0:
+                insts = ['defrv']
 
             # get gamma/sigma labels and corresponding positions in the posterior
             gams=['gamma_'+inst for inst in insts]
@@ -514,12 +519,12 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 labels=results.labels
             
             # get the indices corresponding to each gamma within results.labels
-            gam_idx=[np.where(labels==inst_gamma)[0][0] for inst_gamma in gams]
+            gam_idx=[np.where(labels==inst_gamma)[0] for inst_gamma in gams]
 
             # indices corresponding to each instrument in the datafile
             inds={}
             for i in range(len(insts)):
-                inds[insts[i]]=np.where(data['instrument']==insts[i].encode())[0]
+                inds[insts[i]]=np.where(rv_data['instrument']==insts[i].encode())[0]
 
             # choose the orbit with the best log probability
             best_like=np.where(results.lnlike==np.amax(results.lnlike))[0][0] 
@@ -529,8 +534,8 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             best_post = results.basis.to_standard_basis(results.post[best_like].copy())
 
             # Get the masses for the best posteriors:
-            best_m0 = best_post[results.param_idx['m0']]
-            best_m1 = best_post[results.param_idx['m{}'.format(object_to_plot)]]
+            best_m0 = best_post[results.standard_param_idx['m0']]
+            best_m1 = best_post[results.standard_param_idx['m{}'.format(object_to_plot)]]
             best_mtot = best_m0 + best_m1
 
             # colour/shape scheme scheme for rv data points
@@ -542,28 +547,28 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             
             # get rvs and plot them
             for i,name in enumerate(inds.keys()):
-                rv_inds=np.where((np.isnan(data['quant2'])))
-                inst_data=data[inds[name]]
+                inst_data=rv_data[inds[name]]
                 rvs=inst_data['quant1']
                 epochs=inst_data['epoch']
                 epochs=Time(epochs, format='mjd').decimalyear
                 rvs-=med_ga[i]
+                rvs -= best_post[results.param_idx[gams[i]]]
                 plt.scatter(epochs,rvs,s=5,marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5)
-            
-            inds[insts[i]]=np.where(data['instrument']==insts[i])[0]
-            plt.legend()
-
+            if len(inds.keys()) == 1 and 'defrv' in inds.keys():
+                pass
+            else:
+                plt.legend()
             
             # calculate the predicted rv trend using the best orbit 
             _, _, vz = kepler.calc_orbit(
                 epochs_seppa[0, :], 
-                best_post[results.param_idx['sma{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['ecc{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['inc{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['aop{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['pan{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['tau{}'.format(object_to_plot)]], 
-                best_post[results.param_idx['plx']], best_mtot, 
+                best_post[results.standard_param_idx['sma{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['ecc{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['inc{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['aop{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['pan{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['tau{}'.format(object_to_plot)]], 
+                best_post[results.standard_param_idx['plx']], best_mtot, 
                 tau_ref_epoch=results.tau_ref_epoch, mass_for_Kamp=best_m0
             )
             
