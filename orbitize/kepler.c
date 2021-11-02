@@ -13,12 +13,14 @@ void newton_array(const int n_elements,
                     double eanom[]){
     /* 
     Vectorized C Newton-Raphson solver for eccentric anomaly.
+
     Args:
         manom (double[]): array of mean anomalies
         ecc (double[]): array of eccentricities
         eanom0 (double[]): array of first guess for eccentric anomaly, same shape as manom (optional)
     Return:
         None: eanom (double[]): is changed by reference
+
     Written: Devin Cody, 2018
     */
     int i;
@@ -57,6 +59,7 @@ void newton_array(const int n_elements,
 void mikkola_array(const int n_elements, const double manom[], const double ecc[], double eanom[]){
     /*
     Vectorized C Analtyical Mikkola solver for the eccentric anomaly.
+    See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
     Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
 
     Args:

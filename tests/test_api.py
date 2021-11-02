@@ -23,11 +23,11 @@ def test_compute_model():
 
     params_arr = np.array([[1., 0.5], [0., 0.], [0., 0.], [0., 0.], [
                           0., 0.], [245000., 245000.], [10, 10], [10, 10]])
-    model, jitter = testSystem_parsing.compute_model(params_arr)
+    model, _ = testSystem_parsing.compute_model(params_arr)
     assert model.shape == (4, 2, 2)
 
     params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 10])
-    model, jitter = testSystem_parsing.compute_model(params_arr)
+    model, _ = testSystem_parsing.compute_model(params_arr)
 
     assert model.shape == (4, 2)
 
@@ -105,7 +105,9 @@ def test_custom_likelihood():
     # construct sampler
     n_walkers = 100
     mcmc1 = sampler.MCMC(orbit, 0, n_walkers, num_threads=1)
-    mcmc2 = sampler.MCMC(orbit, 0, n_walkers, num_threads=1, custom_lnlike=my_likelihood)
+    mcmc2 = sampler.MCMC(
+        orbit, 0, n_walkers, num_threads=1, custom_lnlike=my_likelihood
+    )
 
     param = np.array([2, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.01])
 
@@ -129,6 +131,5 @@ def test_radec2seppa():
 if __name__ == "__main__":
     test_compute_model()
     test_systeminit()
-    test_chi2lnlike()
     test_custom_likelihood()
     test_radec2seppa()

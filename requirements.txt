@@ -13,4 +13,6 @@ pandas
 radvel
 pyerfa
 astroquery
-sphinx==3.5.3
+sphinx
+docutils<0.17
+rebound

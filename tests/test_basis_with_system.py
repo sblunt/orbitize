@@ -1,4 +1,4 @@
-from orbitize import driver, system, basis, DATADIR, read_input
+from orbitize import driver, system, basis, DATADIR, read_input, hipparcos
 import numpy as np
 import pytest
 
@@ -8,13 +8,14 @@ basis_names = {'Standard' : ['sma', 'ecc', 'inc', 'aop', 'pan', 'tau'],
 	'XYZ' : ['x', 'y', 'z', 'xdot', 'ydot', 'zdot']}
 
 def test_no_extra_data():
-	'''
-	Make sure that the labels are generated properly for all of the basis sets for configurations
-	of the driver where (1) system mass, (2) single companion mass, and (3) two companion masses
-	are being fitted. In any case, RV or Hipparcos parameters are not being fitted.
+	"""
+	Make sure that the labels are generated properly for all of the basis sets 
+	for configurations of the driver where (1) system mass, (2) single companion 
+	mass, and (3) two companion masses are being fitted. In any case, RV or 
+	Hipparcos parameters are not being fitted.
 
 	For XYZ, expect there to be exceptions thrown when making the driver.
-	'''
+	"""
 	filename = "{}/GJ504.csv".format(DATADIR)
 
 	num_secondary_bodies = 1
@@ -34,13 +35,13 @@ def test_no_extra_data():
 			with pytest.raises(Exception) as excinfo:
 				my_driver = driver.Driver(
 				    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-				    fitting_basis=basis
+				    system_kwargs = {'fitting_basis': basis}
 				)
 			assert str(excinfo.value) == "For now, the XYZ basis requires data in RA and DEC offsets."
 		else:
 			my_driver = driver.Driver(
 			    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-			    fitting_basis=basis
+			    system_kwargs = {'fitting_basis': basis}
 			)
 
 			assert expected_labels == my_driver.system.labels
@@ -56,14 +57,14 @@ def test_no_extra_data():
 			with pytest.raises(Exception) as excinfo:
 				my_driver = driver.Driver(
 				    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-				    fitting_basis=basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0}
+				    system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 'fitting_basis':basis}
 				)
 			assert str(excinfo.value) == "For now, the XYZ basis requires data in RA and DEC offsets."
 
 		else:
 			my_driver = driver.Driver(
 			    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-			    fitting_basis=basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0}
+			    system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 'fitting_basis':basis}
 			)
 
 			assert expected_labels == my_driver.system.labels	
@@ -79,13 +80,13 @@ def test_no_extra_data():
 
 		if basis == 'XYZ': # Should throw error for XYZ basis
 			with pytest.raises(Exception) as excinfo:
-				my_driver = driver.Driver(filename, 'MCMC', 2, 1.52, 24.76, mass_err=0.15, plx_err=0.64, fitting_basis=basis,
-					system_kwargs={'fit_secondary_mass':True, 'tau_ref_epoch':True}
+				my_driver = driver.Driver(filename, 'MCMC', 2, 1.52, 24.76, mass_err=0.15, plx_err=0.64,
+					system_kwargs={'fit_secondary_mass':True, 'tau_ref_epoch':True, 'fitting_basis':basis}
 				)
 			assert str(excinfo.value) == "For now, the epoch with the lowest sepparation error should not be one of the last two entries for body1"
 		else:
-			my_driver = driver.Driver(filename, 'MCMC', 2, 1.52, 24.76, mass_err=0.15, plx_err=0.64, fitting_basis=basis,
-				system_kwargs={'fit_secondary_mass':True, 'tau_ref_epoch':True}
+			my_driver = driver.Driver(filename, 'MCMC', 2, 1.52, 24.76, mass_err=0.15, plx_err=0.64,
+				system_kwargs={'fit_secondary_mass':True, 'tau_ref_epoch':True, 'fitting_basis':basis}
 			)
 			assert expected_labels == my_driver.system.labels
 
@@ -113,13 +114,13 @@ def test_with_rv():
 			with pytest.raises(Exception) as excinfo:
 				my_driver = driver.Driver(
 				    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-				    fitting_basis=basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0}
+				    system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 'fitting_basis':basis}
 				)
 			assert str(excinfo.value) == "For now, the XYZ basis requires data in RA and DEC offsets."
 		else:
 			my_driver = driver.Driver(
 			    filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-			    fitting_basis=basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0}
+			    system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 'fitting_basis':basis}
 			)
 			assert expected_labels == my_driver.system.labels
 
@@ -129,13 +130,16 @@ def test_with_hip_iad():
 	the driver where Hipparcos data is supplied. Again, for the XYZ basis, expect there to be errors thrown.
 	'''
 	filename = "{}/betaPic.csv".format(DATADIR)
-	hipp_filename = "{}/HIP027321.d".format(DATADIR)
+	hip_num = '027321'
+	hipp_filename = "{}/HIP{}.d".format(DATADIR, hip_num)
 
 	num_secondary_bodies = 1
 	system_mass = 1.75
 	mass_err = 0
 	plx = 51.44
 	plx_err = 0.12
+
+	myHip = hipparcos.HipparcosLogProb(hipp_filename, hip_num, num_secondary_bodies)
 
 	hip_labels = ['pm_ra', 'pm_dec', 'alpha0', 'delta0']
 
@@ -149,15 +153,15 @@ def test_with_hip_iad():
 			with pytest.raises(Exception) as excinfo:
 				my_driver = driver.Driver(
 					filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-					fitting_basis = basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 
-					'hipparcos_number':27321, 'hipparcos_filename':hipp_filename}
+					system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 
+					'hipparcos_IAD':myHip, 'fitting_basis':basis}
 				)
 			assert str(excinfo.value) == "For now, the XYZ basis requires data in RA and DEC offsets."
 		else:
 			my_driver = driver.Driver(
 				filename, 'MCMC', num_secondary_bodies, system_mass, plx, mass_err=mass_err, plx_err=plx_err,
-				fitting_basis = basis, system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 
-				'hipparcos_number':27321, 'hipparcos_filename':hipp_filename}
+				system_kwargs = {'fit_secondary_mass':True, 'tau_ref_epoch':0, 
+				'hipparcos_IAD':myHip, 'fitting_basis':basis}
 			)
 			assert expected_labels == my_driver.system.labels
 
