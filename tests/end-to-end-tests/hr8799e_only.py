@@ -53,6 +53,10 @@ my_sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=10)
 
 my_sampler.results.save_results("hr8799e_gravity_chains.hdf5")
 
+#import orbitize.results as results
+#my_sampler.results = results.Results()
+#my_sampler.results.load_results("hr8799e_gravity_chains.hdf5")
+
 # make corner plot
 fig = my_sampler.results.plot_corner()
 plt.savefig('corner_hr8799e_gravity.png', dpi=250)
@@ -61,7 +65,10 @@ plt.savefig('corner_hr8799e_gravity.png', dpi=250)
 labels = ["sma", "ecc", "inc"]
 paper_vals = ["16.4 (+2.1/-1.1)", "0.15 +/- 0.08", "25 +/- 8"]
 for i in range(len(labels)):
-    med_val = np.median(my_sampler.results.chain[:,i])
-    ci_vals = np.percentile(my_sampler.results.chain[:,i], [84, 16]) - med_val
+    med_val = np.median(my_sampler.results.post[:,i])
+    ci_vals = np.percentile(my_sampler.results.post[:,i], [84, 16]) - med_val
+    if labels[i] == 'inc':
+        med_val = np.degrees(med_val)
+        ci_vals = np.degrees(ci_vals)
     print("{0}: paper value is {1}".format(labels[i], paper_vals[i]))
-    print("{0}: this fit obtained {0:.2f} (+{1:.2f}/-{2:.2f})".format(med_val, ci_vals[0], ci_vals[1]))
+    print("{3}: this fit obtained {0:.2f} (+{1:.2f}/-{2:.2f})".format(med_val, ci_vals[0], ci_vals[1], labels[i]))
