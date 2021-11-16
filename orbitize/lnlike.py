@@ -73,7 +73,7 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_type='st
             chi2[:,yes_corr] = _chi2_2x2cov(residual[:,yes_corr], sigma2[:,yes_corr], corrs[yes_corr])
 
     elif chi2_type == 'log':
-        pdb.set_trace()
+        #pdb.set_trace()
         #using the log version of chi squared
         #split the data up into sep, pa, and rv data using seppa_indices and quant
         sep_data = data[seppa_indices, 0]
@@ -87,7 +87,8 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_type='st
         sep_chi2_log = (np.log(sep_data)-np.log(sep_model))**2/(sep_error/sep_data)**2
 
         #calculting pa chi squared Log
-        pa_chi2_log = 2*(1-np.cos(pa_model-pa_data))/pa_error**2
+        pa_resid = (pa_model-pa_data +180.) % 360. - 180.
+        pa_chi2_log = 2*(1-np.cos(pa_resid*np.pi/180))/pa_error**2
 
         residual = (data - model)
         sigma2 = errors**2 + jitter**2 # diagonal error term
