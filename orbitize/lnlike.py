@@ -32,10 +32,18 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_type='st
 
     .. note::
 
-        **Example**: We have 8 epochs of data for a system. OFTI returns an
+        (1) **Example**: We have 8 epochs of data for a system. OFTI returns an
         array of 10,000 sets of orbital parameters. The ``model`` input for
         this function should be an array of dimension 8 x 2 x 10,000.
 
+        (2) Chi2_log: redefining chi-sqaured in log scale may give a more stable optimization. \
+        This works on separation and position angle data (seppa) not right ascension and declination \
+        (radec) data, but it is possible to convert between the two within Orbitize! using the \
+        function 'orbitize.system'radec2seppa' (see docuemntation). This implementation defines sep chi-squared \
+        in log scale, and defines pa chi-sq using complex phase representation.
+            log sep chisq = (log sep - log sep_true)^2 / (sep_sigma / sep_true)^2
+            pa chisq = 2 * (1 - cos(pa-pa_true))/pa_sigma^2
+i
     """
 
     if np.ndim(model) == 3:
@@ -73,7 +81,6 @@ def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_type='st
             chi2[:,yes_corr] = _chi2_2x2cov(residual[:,yes_corr], sigma2[:,yes_corr], corrs[yes_corr])
 
     elif chi2_type == 'log':
-        #pdb.set_trace()
         #using the log version of chi squared
         #split the data up into sep, pa, and rv data using seppa_indices and quant
         sep_data = data[seppa_indices, 0]
