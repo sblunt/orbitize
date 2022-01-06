@@ -2,7 +2,6 @@
 Module to read user input from files and create standardized input for orbitize
 """
 
-import deprecation
 import numpy as np
 import orbitize
 from astropy.table import Table
@@ -59,12 +58,17 @@ def read_file(filename):
     the orbitize format (see the example in description of what this method returns). This may
     be useful if you are wanting to use the output of the `write_orbitize_input` method.
 
+    .. Note:: RV measurements of objects that are not the primary should be relative to
+        the barycenter RV. For example, if the barycenter has a RV
+        of 20 +/- 1 km/s, and you've measured an absolute RV for the secondary of 15 +/- 2 km/s, 
+        you should input an RV of -5.0 +/- 2.2 for object 1.
+
     .. Note:: When providing data with columns in the orbitize format, there should be no
         empty cells. As in the example below, when quant2 is not applicable, the cell should
         contain nan.
 
     Args:
-        filename (str): Input file name
+        filename (str or astropy.table.Table): Input filename or the actual table object
 
     Returns:
         astropy.Table: Table containing orbitize-readable input for given
@@ -84,6 +88,8 @@ def read_file(filename):
         if ``quant_type`` is "rv", the units of quant are km/s
 
     Written: Henry Ngo, 2018
+    
+    Updated: Vighnesh Nagpal, Jason Wang (2020-2021)
     """
     # initialize output table
     output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type', 'instrument'),
@@ -91,7 +97,11 @@ def read_file(filename):
 
     # read file
     try:
-        input_table = read(filename)
+        # load from file, unless a table is passed in
+        if not isinstance(filename, Table):
+            input_table = read(filename)
+        else:
+            input_table = filename
 
         # convert to masked table
         if input_table.has_masked_columns:
@@ -272,7 +282,7 @@ def read_file(filename):
                 if have_inst[index]:
                     this_inst = row['instrument']
                 else:
-                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    # sets the row with a default instrument name if none is provided
                     this_inst = 'defrd'
 
                 output_table.add_row([MJD, row['object'], row['raoff'],
@@ -291,7 +301,7 @@ def read_file(filename):
                 if have_inst[index]:
                     this_inst = row['instrument']
                 else:
-                    # Vighnesh: sets the row with a default instrument name if none is provided
+                    # sets the row with a default instrument name if none is provided
                     this_inst = 'defsp'
 
                 output_table.add_row([MJD, row['object'], row['sep'],
@@ -309,19 +319,6 @@ def read_file(filename):
 
     return output_table
 
-
-@deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
-                        current_version=orbitize.__version__,
-                        details="Use read_file() instead. v1.0.2 replaces read_formatted_file and read_orbitize_input with read_file(). For now, this will be a wrapper for read_file and will be removed in the v2.0 release.")
-def read_formatted_file(filename):
-    """
-    Version 1.0.2 replaces this function with `read_file`.
-    Currently exists as a wrapper for `read_file` and will be removed in v2.0
-
-    Written: Henry Ngo, 2018
-    """
-
-    return read_file(filename)
 
 
 def write_orbitize_input(table, output_filename, file_type='csv'):
@@ -349,14 +346,3 @@ def write_orbitize_input(table, output_filename, file_type='csv'):
     write(table, output=output_filename, format=file_type)
 
 
-@deprecation.deprecated(deprecated_in="1.0.2", removed_in="2.0",
-                        current_version=orbitize.__version__,
-                        details="Use read_file() instead. v1.0.2 replaces read_orbitize_input and read_formatted_file with read_file(). For now, this will be a wrapper for read_file and will be removed in the v2.0 release.")
-def read_orbitize_input(filename):
-    """
-    Version 1.0.2 replaces this function with `read_file`.
-    Currently exists as a wrapper for `read_file` and will be removed in v2.0
-
-    Written: Henry Ngo, 2018
-    """
-    return read_file(filename)

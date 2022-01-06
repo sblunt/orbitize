@@ -89,6 +89,7 @@ def test_2x2_analytical_solution():
 
 
 if __name__ == "__main__":
+    test_chi2lnlike()
     test_chi2lnlike_withcov()
     test_2x2_analytical_solution()
 

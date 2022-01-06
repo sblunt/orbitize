@@ -1,37 +1,41 @@
+#!/usr/bin/env python
+
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
 import numpy as np
 import os
 import pytest
-import matplotlib.pyplot as plt
 import time
 import orbitize
 import orbitize.sampler as sampler
 import orbitize.driver
 import orbitize.priors as priors
 import orbitize.system as system
-from orbitize.lnlike import chi2_lnlike
-from orbitize.kepler import calc_orbit
 import orbitize.system
-
+from orbitize.hipparcos import HipparcosLogProb
 
 input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
 input_file_1epoch = os.path.join(orbitize.DATADIR, 'GJ504_1epoch.csv')
-
+input_file_rvs = os.path.join(orbitize.DATADIR, 'HD4747.csv')
 
 def test_scale_and_rotate():
 
     # perform scale-and-rotate
-    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+    myDriver = orbitize.driver.Driver(
+        input_file, 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26
+    )
 
     s = myDriver.sampler
+
     samples = s.prepare_samples(100)
+
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    ra, dec, vc = orbitize.kepler.calc_orbit(
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
+    )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -56,7 +60,9 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    ra, dec, vc = orbitize.kepler.calc_orbit(
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
+    )
     assert np.max(lan) > np.pi
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
@@ -76,7 +82,9 @@ def test_scale_and_rotate():
     assert np.max(lan) < np.pi
     assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0)
+    ra, dec, vc = orbitize.kepler.calc_orbit(
+        s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
+    )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
@@ -92,7 +100,7 @@ def test_run_sampler():
 
     # initialize sampler
     myDriver = orbitize.driver.Driver(input_file, 'OFTI',
-                                      1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+    1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
 
     s = myDriver.sampler
 
@@ -103,12 +111,12 @@ def test_run_sampler():
     s.run_sampler(0, num_samples=1)
 
     # test to make sure outputs are reasonable
-    start = time.time()
+    start=time.time()
     orbits = s.run_sampler(1000, num_cores=4)
+    end=time.time()
 
-    end = time.time()
     print()
-    print("Runtime: "+str(end-start) + " s")
+    print("Runtime: " + str(end-start) +" s")
     print()
     print(orbits[0])
 
@@ -147,6 +155,40 @@ def test_run_sampler():
     s.run_sampler(1)
     print()
 
+def test_not_implemented():
+    """
+    Check that not implemented errors for RVs & Hipparcos IAD + OFTI work
+    """
+
+    data_table = orbitize.read_input.read_file(input_file)
+
+    # test that if the `hipparcosIAD` attribute is set, OFTI won't work
+    try:
+
+        hip_num = '027321'
+        num_secondary_bodies = 1
+        iad_file = '{}/HIP{}.d'.format(orbitize.DATADIR, hip_num)
+        myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies)
+        mySystem = system.System(
+            1, data_table, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+            hipparcos_IAD=myHip
+        )
+        _ = sampler.OFTI(mySystem)
+        assert False, 'test failed'
+    except NotImplementedError:
+        pass
+
+    # test that if there are RVs in the data file, OFTI won't work
+    data_table_with_rvs = orbitize.read_input.read_file(input_file_rvs)
+    try:
+        _ = system.System(
+            1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26
+        )
+        _ = sampler.OFTI(mySystem)
+        assert False, 'test failed'
+    except NotImplementedError:
+        pass
+
 
 def test_fixed_sys_params_sampling():
     # test in case of fixed mass and parallax
@@ -158,6 +200,60 @@ def test_fixed_sys_params_sampling():
     assert np.all(samples[-1] == s.priors[-1])
     assert isinstance(samples[-3], np.ndarray)
 
+
+def profile_system():
+    import pycuda.driver
+    # pycuda.driver.initialize_profiler()
+
+    # initialize sampler
+    myDriver = orbitize.driver.Driver(input_file, 'OFTI',
+    1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+
+    s = myDriver.sampler
+
+    # change eccentricity prior
+    myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
+
+    # test num_samples=1
+    s.run_sampler(0, num_samples=1)
+
+    # test to make sure outputs are reasonable
+    pycuda.driver.start_profiler()
+    start=time.time()
+    orbitize.cext = True
+    orbitize.cuda_ext = True
+    orbits = s.run_sampler(30000, num_samples=10000, num_cores = 1)
+    end=time.time()
+    
+    print()
+    print("CUDA Runtime: " + str(end-start) +" s")
+    print()
+    print(orbits[0])
+
+    start=time.time()
+    orbitize.cext = True
+    orbitize.cuda_ext = False
+    orbits = s.run_sampler(30000)
+    end=time.time()
+    pycuda.driver.stop_profiler()
+    
+    print()
+    print("MULTIPROCESSING Runtime: " + str(end-start) +" s")
+    print()
+    print(orbits[0])
+
+    start=time.time()
+    orbitize.cext = True
+    orbitize.cuda_ext = False
+    orbits = s.run_sampler(30000, num_cores = 1)
+    end=time.time()
+    pycuda.driver.stop_profiler()
+    pycuda.autoinit.context.detach()
+    
+    print()
+    print("single threaded Runtime: " + str(end-start) +" s")
+    print()
+    print(orbits[0])
 
 def test_OFTI_multiplanet():
     # initialize sampler
@@ -250,10 +346,46 @@ def test_OFTI_covariances():
     # test against seppa fits to see they are similar
     assert sma_seppa == pytest.approx(sma, abs=0.2 * sma_seppa)
 
+def test_OFTI_pan_priors():
+
+    # initialize sampler
+    myDriver = orbitize.driver.Driver(
+        input_file, 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+
+    s = myDriver.sampler
+
+    # change PAN prior
+    new_min = 0.05
+    new_max = np.pi - 0.05
+    myDriver.system.sys_priors[4] = priors.UniformPrior(new_min, new_max)
+
+    # run sampler
+    orbits = s.run_sampler(100)
+
+    # check that bounds were applied correctly
+    assert np.max(orbits[:,4]) < new_max
+    assert np.min(orbits[:,4]) > new_min
+
+    # change PAN prior again
+    mu = np.pi / 2
+    sigma = 0.05
+    myDriver.system.sys_priors[4] = priors.GaussianPrior(mu, sigma = sigma)
+
+    # run sampler again
+    orbits = s.run_sampler(250)
+
+    # check that bounds were applied correctly
+    assert mu == pytest.approx(np.mean(orbits[:,4]), abs=0.01) 
+    assert sigma == pytest.approx(np.std(orbits[:,4]), abs=0.01)
 
 if __name__ == "__main__":
-    #test_scale_and_rotate()
+
+    test_scale_and_rotate()
     test_run_sampler()
     test_OFTI_covariances()
-    # test_OFTI_multiplanet()
-    # print("Done!")
+    test_OFTI_multiplanet()
+    test_not_implemented()
+    test_fixed_sys_params_sampling()
+    test_OFTI_pan_priors()
+    # profile_system()
+    print("Done!")

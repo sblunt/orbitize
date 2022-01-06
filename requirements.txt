@@ -12,4 +12,7 @@ pytest
 pandas
 radvel
 pyerfa
-sphinx==3.5.3
+astroquery
+sphinx
+docutils<0.17
+rebound
