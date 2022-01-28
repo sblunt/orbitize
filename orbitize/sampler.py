@@ -143,10 +143,11 @@ class OFTI(Sampler,):
             and M is the number of orbits we need model predictions for. 
             It returns ``clnlikes`` which is an array of
             length M, or it can be a single float if M = 1.
+        max_like: the maximum possible likelihood result from prior mapfit. 
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, max_like=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
 
@@ -349,6 +350,7 @@ class OFTI(Sampler,):
 
         """
 
+
         lnp = self._logl(samples)
 
         # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
@@ -360,6 +362,13 @@ class OFTI(Sampler,):
         else:
             corrs = None
         lnp_scaled = lnp - orbitize.lnlike.chi2_norm_term(errs, corrs)
+
+        
+        if self.max_like == None:
+            upper_bound = 1
+        else:
+            upper_bound = self.max_like - orbitize.lnlike.chi2_norm_term(errs, corrs)
+
 
         # account for user-set priors on PAN that were destroyed by scale-and-rotate
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
@@ -385,12 +394,18 @@ class OFTI(Sampler,):
                 lnp_scaled[samples_outside_pan_prior] = -np.inf
 
         # reject orbits with probability less than a uniform random number
-        random_samples = np.log(np.random.random(len(lnp)))
+        random_samples = np.log(np.random.uniform(low=0, high=np.exp(upper_bound), size=len(lnp)))
         saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
-        return saved_orbits, lnlikes
+
+        count = np.sum(lnlikes>max_like)
+        if count>0.1*len(saved_orbits_idx):
+            print('WARNING: mmore than 10% of samples exceed user provided maximum likelihood value. Your likelihood value is too low!')            
+
+
+        return saved_orbits, lnlikes, count
 
     def _sampler_process(self, output, total_orbits, num_samples=10000, Value=0, lock=None):
         """
