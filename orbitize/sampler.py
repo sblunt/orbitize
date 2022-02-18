@@ -146,9 +146,9 @@ class OFTI(Sampler,):
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None,chi2_type='standard'):
 
-        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+        super(OFTI, self).__init__(system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike)
 
         if (
             (self.system.hipparcos_IAD is not None) or 

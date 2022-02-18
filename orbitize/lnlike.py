@@ -88,7 +88,7 @@ i
         sep_error = errors[seppa_indices, 0]
         pa_data = data[seppa_indices, 1]
         pa_model = model[:, seppa_indices, 1]
-        pa_error = errors[seppa_indices, 1]
+        pa_error = errors[seppa_indices, 1]*np.pi/180
 
         #calculating sep chi squared
         sep_chi2_log = (np.log(sep_data)-np.log(sep_model))**2/(sep_error/sep_data)**2
