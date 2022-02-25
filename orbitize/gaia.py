@@ -196,9 +196,9 @@ class HGCALogProb(object):
             hgtable = hdulist[1].data
         entry = hgtable[np.where(hgtable['hip_id'] == hip_id)]
         # check we matched on a single target. mainly check if we typed hip id number incorrectly
-        if len(entry) != 0:
+        if len(entry) != 1:
             raise ValueError("HIP {0} encountered {1} matches. Expected 1 match.".format(hip_id, len(entry)))
-        self.hgca_entry = entry
+        #  self.hgca_entry = entry
 
         # grav the relevant values
         hip_pm = np.array([entry['pmra_hip'][0], entry['pmdec_hip'][0]])
@@ -218,12 +218,12 @@ class HGCALogProb(object):
         self.gaia_hg_dpm_err = np.sqrt(gaia_pm_err**2 + hg_pm_err**2)
 
         # save the hipparcos object for use later
-        self.hiplogprob = hiplogprob
+        #  self.hiplogprob = hiplogprob
         self.hipparcos_epoch = hiplogprob.epochs # in decimal year
 
         # read in the GOST file to get the estimated Gaia epochs
         gost_dat = read(gost_filepath)
-        self.gaia_epoch = time.Time(gost_dat).decimalyear # in decimal year
+        self.gaia_epoch = time.Time(gost_dat["ObservationTimeAtGaia[UTC]"]).decimalyear # in decimal year
 
     
     def _save(self, hf):
@@ -235,7 +235,8 @@ class HGCALogProb(object):
                 to save the object.
         """
         # TODO: save stuff here if needed
-        self.hiplogprob._save(hf)
+        #  self.hiplogprob._save(hf)
+        pass
 
     def compute_lnlike(
         self, raoff_model, deoff_model, samples, param_idx
