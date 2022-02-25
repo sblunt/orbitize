@@ -172,7 +172,7 @@ class HGCALogProb(object):
     data will be considered. Do not need to pass in the Hipparcos class into System!
 
     Required auxiliary data:
-      * HCGA of acceleration (either DR2 or EDR3)
+      * HGCA of acceleration (either DR2 or EDR3)
       * Hipparcos IAD file (see orbitize.hipparcos for more info)
       * Gaia Observation Forecast Tool (GOST) CSV output (https://gaia.esac.esa.int/gost/). 
 
@@ -182,7 +182,7 @@ class HGCALogProb(object):
 
     Args:
         hip_id (int): the Hipparcos source ID of the object you're fitting.
-        hcga_filepath (str): path to HCGA catalog FITS file
+        hcga_filepath (str): path to HGCA catalog FITS file
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
@@ -191,7 +191,7 @@ class HGCALogProb(object):
     """
     def __init__(self, hip_id, hcga_filepath, hiplogprob, gost_filepath):
 
-        # grab the entry from the HCGA
+        # grab the entry from the HGCA
         with fits.open(hcga_filepath) as hdulist:
             hgtable = hdulist[1].data
         entry = hgtable[np.where(hgtable['hip_id'] == hip_id)]
@@ -275,7 +275,7 @@ class HGCALogProb(object):
         # find the split between hipparcos and gaia data
         gaia_index = len(self.hipparcos_epoch)
 
-        # Begin forward modeling the data of the HCGA: linear motion during the Hip
+        # Begin forward modeling the data of the HGCA: linear motion during the Hip
         # and Gaia missions, and the linear motion of the star between the two missions 
 
         # fit linear motion in RA/Dec to the star during the Hipparcos epoch
