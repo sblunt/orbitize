@@ -1,6 +1,7 @@
 import orbitize.read_input
 import orbitize.system
 import orbitize.sampler
+import pdb 
 
 """
 This module reads input and constructs ``orbitize`` objects
@@ -40,7 +41,7 @@ class Driver(object):
         self, input_data, sampler_str,
         num_secondary_bodies, stellar_or_system_mass, plx,
         mass_err=0, plx_err=0, lnlike='chi2_lnlike',
-        system_kwargs=None, mcmc_kwargs=None
+        system_kwargs=None, mcmc_kwargs=None, max_like=None
     ):
 
         # Read in data
@@ -77,4 +78,4 @@ class Driver(object):
             kwargs = {}
 
         sampler_func = getattr(orbitize.sampler, sampler_str)
-        self.sampler = sampler_func(self.system, like=lnlike, **kwargs)
+        self.sampler = sampler_func(self.system, like=lnlike, max_like=max_like,**kwargs)

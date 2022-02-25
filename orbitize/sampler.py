@@ -17,6 +17,7 @@ from orbitize import cuda_ext
 
 import orbitize.results
 import matplotlib.pyplot as plt
+import pdb
 
 class Sampler(abc.ABC):
     """
@@ -147,6 +148,7 @@ class OFTI(Sampler,):
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
+
     def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, max_like=None):
 
         super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
@@ -163,7 +165,9 @@ class OFTI(Sampler,):
                 this functionality, let us know!)
                 """
             )
-
+        
+        self.max_like = max_like
+       
         # compute priors and columns containing ra/dec and sep/pa
         self.priors = self.system.sys_priors
 
@@ -394,18 +398,19 @@ class OFTI(Sampler,):
                 lnp_scaled[samples_outside_pan_prior] = -np.inf
 
         # reject orbits with probability less than a uniform random number
+        #pdb.set_trace()
         random_samples = np.log(np.random.uniform(low=0, high=np.exp(upper_bound), size=len(lnp)))
         saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
 
-        count = np.sum(lnlikes>max_like)
-        if count>0.1*len(saved_orbits_idx):
+        count = np.sum(lnlikes>self.max_like)
+        if count>0.1*len(saved_orbit_idx):
             print('WARNING: mmore than 10% of samples exceed user provided maximum likelihood value. Your likelihood value is too low!')            
 
 
-        return saved_orbits, lnlikes, count
+        return saved_orbits, lnlikes
 
     def _sampler_process(self, output, total_orbits, num_samples=10000, Value=0, lock=None):
         """
@@ -430,7 +435,7 @@ class OFTI(Sampler,):
                     size: total_orbits
 
         """
-
+        pdb.set_trace()
         np.random.seed()
 
         n_orbits_saved = 0
@@ -476,7 +481,6 @@ class OFTI(Sampler,):
         Written by: Vighnesh Nagpal(2019)
 
         """
-
         if num_cores!=1:
             if num_cores==None:
                 num_cores=mp.cpu_count()
@@ -533,6 +537,11 @@ class OFTI(Sampler,):
                 np.array(output_orbits),
                 output_lnlikes
             )
+
+            count = np.sum(output_lnlikes>self.max_like)
+            print('{:.2f}% of samples exceed user provided maximum likelihood value.'.format(count/len(output_lnlikes)*100))            
+
+
             return output_orbits
 
         else:
@@ -565,6 +574,10 @@ class OFTI(Sampler,):
                 np.array(output_orbits),
                 output_lnlikes
             )
+
+            count = np.sum(output_lnlikes>self.max_like)
+            print('{:.2f}% of samples exceed user provided maximum likelihood value.'.format(count/len(output_lnlikes)*100))
+
 
             return output_orbits
 
