@@ -111,7 +111,7 @@ class Sampler(abc.ABC):
             if self.system.gaia is not None:
 
                 gaiahip_epochs = Time(
-                    [self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch], 
+                    np.append(self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch), 
                     format='decimalyear'
                 ).mjd
 
