@@ -404,10 +404,10 @@ class OFTI(Sampler,):
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
         lnlikes = np.array([lnp[i] for i in saved_orbit_idx])
 
-
-        count = np.sum(lnlikes>self.max_like)
-        if count>0.1*len(saved_orbit_idx):
-            print('WARNING: mmore than 10% of samples exceed user provided maximum likelihood value. Your likelihood value is too low!')            
+        if self.max_like:
+            count = np.sum(lnlikes>self.max_like)
+            if count > 0.1*len(saved_orbit_idx):
+                print('WARNING: more than 10% of samples exceed user provided maximum likelihood value. Your likelihood value is too low!')            
 
 
         return saved_orbits, lnlikes
