@@ -538,8 +538,9 @@ class OFTI(Sampler,):
                 output_lnlikes
             )
 
-            count = np.sum(output_lnlikes>self.max_like)
-            print('{:.2f}% of samples exceed user provided maximum likelihood value.'.format(count/len(output_lnlikes)*100))            
+            if self.max_like:
+                count = np.sum(output_lnlikes>self.max_like)
+                print('{:.2f}% of samples exceed user provided maximum likelihood value.'.format(count/len(output_lnlikes)*100))            
 
 
             return output_orbits
@@ -574,9 +575,9 @@ class OFTI(Sampler,):
                 np.array(output_orbits),
                 output_lnlikes
             )
-
-            count = np.sum(output_lnlikes>self.max_like)
-            print('{:.2f}% of samples exceed user provided maximum likelihood value.'.format(count/len(output_lnlikes)*100))
+            if self.max_like:
+                count = np.sum(output_lnlikes>self.max_like)
+                print('{:.2f}% of samples exceed user provided maximum likelihood value.'.format(count/len(output_lnlikes)*100))
 
 
             return output_orbits
