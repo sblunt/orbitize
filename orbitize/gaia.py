@@ -281,16 +281,16 @@ class HGCALogProb(object):
 
         # fit linear motion in RA/Dec to the star during the Hipparcos epoch
         model_ra_hip = raoff_model[:gaia_index]
-        model_hip_pmra = np.polyfit(self.hipparcos_epoch, model_ra_hip, 1)[0] # mas/yr
+        model_hip_pmra = np.polyfit(self.hipparcos_epoch, model_ra_hip, 1)[0,0] # mas/yr (get slope from polyfit)
         model_dec_hip = deoff_model[:gaia_index]
-        model_hip_pmdec = np.polyfit(self.hipparcos_epoch, model_dec_hip, 1)[0] # mas/yr
+        model_hip_pmdec = np.polyfit(self.hipparcos_epoch, model_dec_hip, 1)[0,0] # mas/yr
         model_hip_pm = np.array([model_hip_pmra, model_hip_pmdec])
 
         # fit linear motion in RA/Dec to the star in Gaia epoch
         model_ra_gaia = raoff_model[gaia_index:]
-        model_gaia_pmra = np.polyfit(self.gaia_epoch, model_ra_gaia, 1)[0]  # mas/yr
+        model_gaia_pmra = np.polyfit(self.gaia_epoch, model_ra_gaia, 1)[0,0]  # mas/yr
         model_dec_gaia = deoff_model[gaia_index:]
-        model_gaia_pmdec = np.polyfit(self.gaia_epoch, model_dec_gaia, 1)[0] # mas/yr
+        model_gaia_pmdec = np.polyfit(self.gaia_epoch, model_dec_gaia, 1)[0,0] # mas/yr
         model_gaia_pm = np.array([model_gaia_pmra, model_gaia_pmdec])
 
         # compute the PM difference betwen Hipparcos and Gaia positions. 
