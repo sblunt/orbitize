@@ -78,4 +78,9 @@ class Driver(object):
             kwargs = {}
 
         sampler_func = getattr(orbitize.sampler, sampler_str)
-        self.sampler = sampler_func(self.system, like=lnlike, max_like=max_like,**kwargs)
+
+        if sampler_str == 'OFTI':  
+            
+            self.sampler = sampler_func(self.system, like=lnlike, max_like=max_like,**kwargs)
+        else: 
+            self.sampler = sampler_func(self.system, like=lnlike,**kwargs)
