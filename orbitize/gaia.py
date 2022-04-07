@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import contextlib
+import requests
 
 with contextlib.redirect_stdout(None):
     from astroquery.gaia import Gaia
@@ -7,6 +9,7 @@ from astropy import units as u
 import astropy.io.fits as fits
 import astropy.time as time
 from astropy.io.ascii import read
+from orbitize import DATADIR
 
 class GaiaLogProb(object):
     """
@@ -182,17 +185,31 @@ class HGCALogProb(object):
 
     Args:
         hip_id (int): the Hipparcos source ID of the object you're fitting.
-        hcga_filepath (str): path to HGCA catalog FITS file
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
+        hgca_filepath (str): path to HGCA catalog FITS file. 
+            If None, will download and store in orbitize.DATADIR
 
     Written: Jason Wang, 2022
     """
-    def __init__(self, hip_id, hcga_filepath, hiplogprob, gost_filepath):
+    def __init__(self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None):
+
+        # use default HGCA catalog if not supplied
+        if hgca_filepath is None:
+            # check orbitize.DATAIDR and download if needed
+            hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
+            if not os.path.exists(hgca_filepath):
+                hgca_url = 'http://physics.ucsb.edu/~tbrandt/HGCA_vEDR3.fits'
+                print("No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(hgca_url, hgca_filepath))
+                hgca_file = requests.get(hgca_url)
+                with open(hgca_filepath, 'wb') as f:
+                    f.write(hgca_file.content)
+            else:
+                print("Using HGCA catalog stored in {0}".format(hgca_filepath))
 
         # grab the entry from the HGCA
-        with fits.open(hcga_filepath) as hdulist:
+        with fits.open(hgca_filepath) as hdulist:
             hgtable = hdulist[1].data
         entry = hgtable[np.where(hgtable['hip_id'] == hip_id)]
         # check we matched on a single target. mainly check if we typed hip id number incorrectly
