@@ -1,3 +1,4 @@
+import orbitize.driver 
 import numpy as np
 import orbitize.lnlike as lnlike
 
@@ -86,6 +87,49 @@ def test_2x2_analytical_solution():
         numpy_chi2 = -0.5 * (res_cov_res + logdet + 2 * np.log(2 * np.pi)) 
 
         assert np.sum(chi2) == numpy_chi2
+
+
+def test_chi2_log():
+    #initiate OFTI driver with chi2 log
+    myDriver = orbitize.driver.Driver(
+    '{}/GJ504.csv'.format(orbitize.DATADIR), 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26, chi2_type='log')
+    s = myDriver.sampler
+    params = [44, 0, 45*np.pi/180, 0, 325*np.pi/180, 0, 56.95, 1.22]
+    log_chi2 = s._logl(params)
+
+    sys = myDriver.system
+    data = np.array([sys.data_table['quant1'], sys.data_table['quant2']]).T
+    errors = np.array([sys.data_table['quant1_err'], sys.data_table['quant2_err']]).T
+    model, jitter = sys.compute_model(params)
+
+    sep_data = data[:,0]
+    sep_model = model[:, 0]
+    sep_error = errors[:,0]
+    pa_data = data[:,1]
+    pa_model = model[:, 1]
+    pa_error = errors[:,1]*np.pi/180
+
+
+    #calculating sep chi squared
+    sep_chi2_log = (np.log(sep_data)-np.log(sep_model))**2/(sep_error/sep_data)**2
+
+    #calculting pa chi squared Log
+    pa_resid = (pa_model-pa_data +180.) % 360. - 180.
+    pa_chi2_log = 2*(1-np.cos(pa_resid*np.pi/180))/pa_error**2
+
+    chi2 = np.zeros((len(sep_data),2))
+
+    sigma2 = errors**2 + jitter**2 
+
+    chi2[:,0] = sep_chi2_log
+    chi2[:,1] = pa_chi2_log
+
+    chi2 = -0.5 * chi2 - np.log(np.sqrt(2*np.pi*sigma2))
+
+    lnlike = np.sum(chi2)
+
+    assert lnlike == log_chi2
+
 
 
 if __name__ == "__main__":
