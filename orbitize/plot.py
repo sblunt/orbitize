@@ -528,7 +528,6 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
             # choose the orbit with the best log probability
             best_like=np.where(results.lnlike==np.amax(results.lnlike))[0][0] 
-            med_ga=[results.post[best_like,i] for i in gam_idx]
 
             # Get the posteriors for this index and convert to standard basis
             best_post = results.basis.to_standard_basis(results.post[best_like].copy())
@@ -551,7 +550,6 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 rvs=inst_data['quant1']
                 epochs=inst_data['epoch']
                 epochs=Time(epochs, format='mjd').decimalyear
-                rvs-=med_ga[i]
                 rvs -= best_post[results.param_idx[gams[i]]]
                 plt.scatter(epochs,rvs,s=5,marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5)
             if len(inds.keys()) == 1 and 'defrv' in inds.keys():
