@@ -150,7 +150,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 square_plot=True, show_colorbar=True, cmap=cmap,
                 sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
                 cbar_param='Epoch [year]', mod180=False, rv_time_series=False, plot_astrometry=True,
-                plot_astrometry_insts=False, fig=None):
+                plot_astrometry_insts=False, plot_errorbars=True, fig=None):
     """
     Plots one orbital period for a select number of fitted orbits
     for a given object, with line segments colored according to time
@@ -179,6 +179,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             display time series, set to True.
         plot_astrometry (Boolean): set to True by default. Plots the astrometric data.
         plot_astrometry_insts (Boolean): set to False by default. Plots the astrometric data by instruments.
+        plot_errorbars (Boolean): set to True by default. Plots error bars of measurements
         fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
             Most users will not need this keyword. 
 
@@ -336,6 +337,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
         radec_inds = np.where(data['quant_type'] == 'radec')
         seppa_inds = np.where(data['quant_type'] == 'seppa')
 
+        # transform RA/Dec points to Sep/PA
         sep_data = np.copy(data['quant1'])
         sep_err = np.copy(data['quant1_err'])
         pa_data = np.copy(data['quant2'])
@@ -363,6 +365,35 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
             pa_data[radec_inds] = pa_from_dec_data
             pa_err[radec_inds] = pa_err_from_dec_data
+
+        # Transform Sep/PA points to RA/Dec
+        ra_data = np.copy(data['quant1'])
+        ra_err = np.copy(data['quant1_err'])
+        dec_data = np.copy(data['quant2'])
+        dec_err = np.copy(data['quant2_err'])
+
+        if len(seppa_inds[0] > 0):
+
+            ra_from_seppa_data, dec_from_seppa_data = orbitize.system.seppa2radec(
+                data['quant1'][seppa_inds], data['quant2'][seppa_inds]
+            )
+
+            num_seppa_pts = len(seppa_inds[0])
+            ra_err_from_seppa_data = np.empty(num_seppa_pts)
+            dec_err_from_seppa_data = np.empty(num_seppa_pts)
+            for j in np.arange(num_seppa_pts):
+
+                ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], _ = orbitize.system.transform_errors(
+                    np.array(data['quant1'][seppa_inds][j]), np.array(data['quant2'][seppa_inds][j]), 
+                    np.array(data['quant1_err'][seppa_inds][j]), np.array(data['quant2_err'][seppa_inds][j]), 
+                    np.array(data['quant12_corr'][seppa_inds][j]), orbitize.system.seppa2radec
+                )
+
+            ra_data[seppa_inds] = ra_from_seppa_data
+            ra_err[seppa_inds] = ra_err_from_seppa_data
+
+            dec_data[seppa_inds] = dec_from_seppa_data
+            dec_err[seppa_inds] = dec_err_from_seppa_data
 
         # For plotting different astrometry instruments
         if plot_astrometry_insts:
@@ -394,16 +425,29 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             ax.add_collection(lc)
 
         if plot_astrometry:
-            ra_data,dec_data=orbitize.system.seppa2radec(sep_data,pa_data)
 
             # Plot astrometry along with instruments
             if plot_astrometry_insts:
                 for i in range(len(astr_insts)):
                     ra = ra_data[astr_inst_inds[astr_insts[i]]]
                     dec = dec_data[astr_inst_inds[astr_insts[i]]]
-                    ax.scatter(ra, dec, marker=next(ax_symbols), c=next(ax_colors), zorder=10, s=60, label=astr_insts[i])
+                    if plot_errorbars:
+                        xerr = ra_err[astr_inst_inds[astr_insts[i]]]
+                        yerr = dec_err[astr_inst_inds[astr_insts[i]]]
+                    else:
+                        xerr = None
+                        yerr = None
+
+                    ax.errorbar(ra, dec, xerr=xerr, yerr=yerr, marker=next(ax_symbols), c=next(ax_colors), zorder=10, label=astr_insts[i], linestyle='', capsize=2)
             else:
-                ax.scatter(ra_data, dec_data, marker='*', c='#FF7F11', zorder=10, s=60)
+                if plot_errorbars:
+                    xerr = ra_err
+                    yerr = dec_err
+                else:
+                    xerr = None
+                    yerr = None
+
+                ax.errorbar(ra_data, dec_data, xerr=xerr, yerr=yerr, marker='*', c='#FF7F11', zorder=10, linestyle='', capsize=2)
 
         # modify the axes
         if square_plot:
@@ -487,17 +531,31 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 sep = sep_data[astr_inst_inds[astr_insts[i]]]
                 pa = pa_data[astr_inst_inds[astr_insts[i]]]
                 epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
+                if plot_errorbars:
+                    serr = sep_err[astr_inst_inds[astr_insts[i]]]
+                    perr = pa_err[astr_inst_inds[astr_insts[i]]]
+                else:
+                    yerr = None
+                    perr = None
+
                 plt.sca(ax1)
-                plt.scatter(Time(epochs,format='mjd').decimalyear,sep,s=10,marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i])
+                plt.errorbar(Time(epochs,format='mjd').decimalyear,sep,yerr=serr,ms=10, linestyle='',marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i], capsize=2)
                 plt.sca(ax2)
-                plt.scatter(Time(epochs,format='mjd').decimalyear,pa,s=10,marker=next(ax2_symbols),c=next(ax2_colors),zorder=10)
+                plt.errorbar(Time(epochs,format='mjd').decimalyear,pa,yerr=perr,ms=10, linestyle='',marker=next(ax2_symbols),c=next(ax2_colors),zorder=10, capsize=2)
             plt.sca(ax1)
             plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
         else:
+            if plot_errorbars:
+                serr = sep_err
+                perr = pa_err
+            else:
+                yerr = None
+                perr = None
+
             plt.sca(ax1)
-            plt.scatter(Time(astr_epochs,format='mjd').decimalyear,sep_data,s=10,marker='*',c='purple',zorder=10)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr,ms=10, linestyle='',marker='*',c='purple',zorder=2, capsize=2)
             plt.sca(ax2)
-            plt.scatter(Time(astr_epochs,format='mjd').decimalyear,pa_data,s=10,marker='*',c='purple',zorder=10)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr,ms=10, linestyle='',marker='*',c='purple',zorder=2, capsize=2)
 
         if rv_time_series:
 
@@ -514,6 +572,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
             # get gamma/sigma labels and corresponding positions in the posterior
             gams=['gamma_'+inst for inst in insts]
+            sigs = ['sigma_'+inst for inst in insts]
 
             if isinstance(results.labels,list):
                 labels=np.array(results.labels)
@@ -553,7 +612,10 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 epochs=inst_data['epoch']
                 epochs=Time(epochs, format='mjd').decimalyear
                 rvs -= best_post[results.param_idx[gams[i]]]
-                plt.scatter(epochs,rvs,s=5,marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5)
+                if plot_errorbars:
+                    yerr = inst_data['quant1_err']
+                    yerr = np.sqrt(yerr**2 + best_post[results.param_idx[sigs[i]]]**2)
+                plt.errorbar(epochs,rvs,yerr=yerr,ms=5, linestyle='',marker=next(ax3_symbols),c=next(ax3_colors),label=name,zorder=5,capsize=2)
             if len(inds.keys()) == 1 and 'defrv' in inds.keys():
                 pass
             else:

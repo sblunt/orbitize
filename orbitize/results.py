@@ -313,7 +313,8 @@ class Results(object):
         sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
         cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
         plot_astrometry=True,
-        plot_astrometry_insts=False, fig=None
+        plot_astrometry_insts=False,
+        plot_errorbars=True, fig=None
     ):
         """
         Wrapper for orbitize.plot.plot_orbits
@@ -327,7 +328,8 @@ class Results(object):
             sep_pa_color=sep_pa_color, sep_pa_end_year=sep_pa_end_year,
             cbar_param=cbar_param, mod180=mod180, rv_time_series=rv_time_series, 
             plot_astrometry=plot_astrometry,
-            plot_astrometry_insts=plot_astrometry_insts, fig=fig
+            plot_astrometry_insts=plot_astrometry_insts, 
+            plot_errorbars=plot_errorbars, fig=fig
         )
 
 
