@@ -336,8 +336,10 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
         radec_inds = np.where(data['quant_type'] == 'radec')
         seppa_inds = np.where(data['quant_type'] == 'seppa')
 
-        sep_data, sep_err=data['quant1'][seppa_inds],data['quant1_err'][seppa_inds]
-        pa_data, pa_err=data['quant2'][seppa_inds],data['quant2_err'][seppa_inds]
+        sep_data = np.copy(data['quant1'])
+        sep_err = np.copy(data['quant1_err'])
+        pa_data = np.copy(data['quant2'])
+        pa_err = np.copy(data['quant2_err'])
 
         if len(radec_inds[0] > 0):
 
@@ -356,11 +358,11 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                     np.array(data['quant12_corr'][radec_inds][j]), orbitize.system.radec2seppa
                 )
 
-            sep_data = np.append(sep_data, sep_from_ra_data)
-            sep_err = np.append(sep_err, sep_err_from_ra_data)
+            sep_data[radec_inds] = sep_from_ra_data
+            sep_err[radec_inds] = sep_err_from_ra_data
 
-            pa_data = np.append(pa_data, pa_from_dec_data)
-            pa_err = np.append(pa_err, pa_err_from_dec_data)
+            pa_data[radec_inds] = pa_from_dec_data
+            pa_err[radec_inds] = pa_err_from_dec_data
 
         # For plotting different astrometry instruments
         if plot_astrometry_insts:
