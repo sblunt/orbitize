@@ -3,7 +3,8 @@ import os
 
 import matplotlib.pyplot as plt
 
-from orbitize import DATADIR, read_input, system
+from orbitize import DATADIR, read_input, system, sampler, results
+from orbitize.gaia import GaiaLogProb
 from orbitize.hipparcos import HipparcosLogProb, nielsen_iad_refitting_test
 
 def test_hipparcos_api():
@@ -71,7 +72,6 @@ def test_hipparcos_api():
     rejected_scansHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
     assert len(rejected_scansHip.cos_phi) == len(raw_iad_data[0]) - 1
 
-
 def test_dvd_vs_2021catalog():
     """
     Test code's ability to parse both a DVD data file and a 2021
@@ -128,9 +128,41 @@ def test_iad_refitting():
     assert np.isclose(0, np.median(post[:, -1]), atol=0.1)
     assert np.isclose(myHipLogProb.plx0, np.median(post[:, 0]), atol=0.1)
 
+def test_save_load():
+    """
+    Set up a Hip IAD + Gaia fit, save the results, and load them.
+    """
+
+    hip_num = '027321' # beta Pic
+
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myGaia = GaiaLogProb(4792774797545800832, myHip, dr='edr3')
+
+    input_file = os.path.join(DATADIR, 'HD4747.csv')
+    data_table_with_rvs = read_input.read_file(input_file)
+    mySys = system.System(
+        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
+        hipparcos_IAD=myHip, fit_secondary_mass=True, gaia=myGaia
+    )
+    n_walkers = 50
+    mySamp = sampler.MCMC(mySys, num_walkers=n_walkers)
+    mySamp.run_sampler(n_walkers, burn_steps=0)
+    filename = 'tmp.hdf5'
+    mySamp.results.save_results(filename)
+
+    myResults = results.Results()
+    myResults.load_results(filename)
+
+    os.system('rm tmp.hdf5')
+
+
 
 if __name__ == '__main__':
-    test_hipparcos_api()
-    test_iad_refitting()
-    test_dvd_vs_2021catalog()
+    test_save_load()
+    # test_hipparcos_api()
+    # test_iad_refitting()
+    # test_dvd_vs_2021catalog()
 
