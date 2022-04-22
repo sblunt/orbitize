@@ -397,8 +397,8 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
         # For plotting different astrometry instruments
         if plot_astrometry_insts:
-            astr_colors = ('#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF1919')
-            astr_symbols = ('*', 'o', 'p', 's')
+            astr_colors = ('purple','#FF7F11', '#11FFE3', '#14FF11', '#7A11FF', '#FF1919')
+            astr_symbols = ( 'o', '*', 'p', 's')
 
             ax_colors = itertools.cycle(astr_colors)
             ax_symbols = itertools.cycle(astr_symbols)
@@ -424,30 +424,30 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 lc.set_array(epochs[i, :])
             ax.add_collection(lc)
 
-        if plot_astrometry:
+        # if plot_astrometry:
 
-            # Plot astrometry along with instruments
-            if plot_astrometry_insts:
-                for i in range(len(astr_insts)):
-                    ra = ra_data[astr_inst_inds[astr_insts[i]]]
-                    dec = dec_data[astr_inst_inds[astr_insts[i]]]
-                    if plot_errorbars:
-                        xerr = ra_err[astr_inst_inds[astr_insts[i]]]
-                        yerr = dec_err[astr_inst_inds[astr_insts[i]]]
-                    else:
-                        xerr = None
-                        yerr = None
+        #     # Plot astrometry along with instruments
+        #     if plot_astrometry_insts:
+        #         for i in range(len(astr_insts)):
+        #             ra = ra_data[astr_inst_inds[astr_insts[i]]]
+        #             dec = dec_data[astr_inst_inds[astr_insts[i]]]
+        #             if plot_errorbars:
+        #                 xerr = ra_err[astr_inst_inds[astr_insts[i]]]
+        #                 yerr = dec_err[astr_inst_inds[astr_insts[i]]]
+        #             else:
+        #                 xerr = None
+        #                 yerr = None
 
-                    ax.errorbar(ra, dec, xerr=xerr, yerr=yerr, marker=next(ax_symbols), c=next(ax_colors), zorder=10, label=astr_insts[i], linestyle='', capsize=2)
-            else:
-                if plot_errorbars:
-                    xerr = ra_err
-                    yerr = dec_err
-                else:
-                    xerr = None
-                    yerr = None
+        #             ax.errorbar(ra, dec, xerr=xerr, yerr=yerr, marker=next(ax_symbols), c=next(ax_colors), zorder=10, label=astr_insts[i], linestyle='', ms=5, capsize=2)
+        #     else:
+        #         if plot_errorbars:
+        #             xerr = ra_err
+        #             yerr = dec_err
+        #         else:
+        #             xerr = None
+        #             yerr = None
 
-                ax.errorbar(ra_data, dec_data, xerr=xerr, yerr=yerr, marker='*', c='#FF7F11', zorder=10, linestyle='', capsize=2)
+        #         ax.errorbar(ra_data, dec_data, xerr=xerr, yerr=yerr, marker='o', c='#FF7F11', zorder=10, linestyle='', capsize=2, ms=5)
 
         # modify the axes
         if square_plot:
@@ -520,10 +520,10 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             seps, pas = orbitize.system.radec2seppa(raoff[i, :], deoff[i, :], mod180=mod180)
 
             plt.sca(ax1)
-            plt.plot(yr_epochs, seps, color=sep_pa_color)
+            plt.plot(yr_epochs, seps, color=sep_pa_color, zorder=1)
 
             plt.sca(ax2)
-            plt.plot(yr_epochs, pas, color=sep_pa_color)
+            plt.plot(yr_epochs, pas, color=sep_pa_color, zorder=1)
 
         # Plot sep/pa instruments
         if plot_astrometry_insts:
@@ -539,9 +539,9 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                     perr = None
 
                 plt.sca(ax1)
-                plt.errorbar(Time(epochs,format='mjd').decimalyear,sep,yerr=serr,ms=10, linestyle='',marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i], capsize=2)
+                plt.errorbar(Time(epochs,format='mjd').decimalyear,sep,yerr=serr,ms=5, linestyle='',marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i], capsize=2)
                 plt.sca(ax2)
-                plt.errorbar(Time(epochs,format='mjd').decimalyear,pa,yerr=perr,ms=10, linestyle='',marker=next(ax2_symbols),c=next(ax2_colors),zorder=10, capsize=2)
+                plt.errorbar(Time(epochs,format='mjd').decimalyear,pa,yerr=perr,ms=5, linestyle='',marker=next(ax2_symbols),c=next(ax2_colors),zorder=10, capsize=2)
             plt.sca(ax1)
             plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
         else:
@@ -553,9 +553,9 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 perr = None
 
             plt.sca(ax1)
-            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr,ms=10, linestyle='',marker='*',c='purple',zorder=2, capsize=2)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr,ms=5, linestyle='',marker='o',c='purple',zorder=2, capsize=2)
             plt.sca(ax2)
-            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr,ms=10, linestyle='',marker='*',c='purple',zorder=2, capsize=2)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr,ms=5, linestyle='',marker='o',c='purple',zorder=2, capsize=2)
 
         if rv_time_series:
 
@@ -599,7 +599,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             best_mtot = best_m0 + best_m1
 
             # colour/shape scheme scheme for rv data points
-            clrs=('#0496FF','#372554','#FF1053','#3A7CA5','#143109')
+            clrs=('purple', '#0496FF','#372554','#FF1053','#3A7CA5','#143109')
             symbols=('o','^','v','s')
 
             ax3_colors = itertools.cycle(clrs)
@@ -637,7 +637,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             vz=vz*-(best_m1)/np.median(best_m0)
 
             # plot rv trend
-            plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
+            plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color, zorder=1)
 
 
         # add colorbar
