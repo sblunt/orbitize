@@ -1,6 +1,7 @@
 import orbitize.driver 
 import numpy as np
 import orbitize.lnlike as lnlike
+import pytest
 
 def test_chi2lnlike():
     """
@@ -130,6 +131,24 @@ def test_chi2_log():
 
     assert lnlike == log_chi2
 
+
+def test_log_vs_standard():
+    
+    #initiate driver with standard chi2
+    myDriver_standard = orbitize.driver.Driver('{}/GJ504.csv'.format(orbitize.DATADIR),'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26)
+    s_standard = myDriver_standard.sampler
+    orbits = s_standard.run_sampler(1000)
+
+    #initiate driver with log chi2
+    myDriver_log = orbitize.driver.Driver('{}/GJ504.csv'.format(orbitize.DATADIR), 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26, chi2_type = 'log')
+    s_log = myDriver_log.sampler
+    orbits = s_log.run_sampler(1000)   
+
+    #take mean of result objects
+    myResults_standard = np.mean(s_standard.results.post,axis=0)
+    myResults_log = np.mean(s_log.results.post,axis=0)
+
+    assert myResults_log == pytest.approx(myResults_standard, rel=0.1) 
 
 
 if __name__ == "__main__":
