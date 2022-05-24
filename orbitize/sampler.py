@@ -26,7 +26,7 @@ class Sampler(abc.ABC):
     Written: Sarah Blunt, 2018
     """
 
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None, chi2_type='standard'):
         self.system = system
 
         # check if `like` is a string or a function
@@ -36,7 +36,7 @@ class Sampler(abc.ABC):
             self.lnlike = getattr(orbitize.lnlike, like)
 
         self.custom_lnlike = custom_lnlike
-
+        self.chi2_type = chi2_type
         # check if need to handle covariances
         self.has_corr = np.any(~np.isnan(self.system.data_table['quant12_corr']))
 
@@ -80,7 +80,7 @@ class Sampler(abc.ABC):
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
-        lnlikes = self.lnlike(data, errs, corrs, model, jitter, seppa_indices)
+        lnlikes = self.lnlike(data, errs, corrs, model, jitter, seppa_indices, chi2_type=self.chi2_type)
 
         # return sum of lnlikes (aka product of likeliehoods)
         lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
@@ -146,9 +146,9 @@ class OFTI(Sampler,):
 
     Written: Isabel Angelo, Sarah Blunt, Logan Pearce, 2018
     """
-    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None):
+    def __init__(self, system, like='chi2_lnlike', custom_lnlike=None,chi2_type='standard'):
 
-        super(OFTI, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+        super(OFTI, self).__init__(system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike)
 
         if (
             (self.system.hipparcos_IAD is not None) or 
@@ -170,7 +170,7 @@ class OFTI(Sampler,):
         convert_warning_print = False
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
             if len(self.system.radec[body_num]) > 0:
-                # only print the warning once. 
+                # only print the warning once.
                 if not convert_warning_print:
                     print('Converting ra/dec data points in data_table to sep/pa. Original data are stored in input_table.')
                     convert_warning_print = True
@@ -199,7 +199,7 @@ class OFTI(Sampler,):
             self.system.data_table['quant_type'] == 'rv')]['epoch']) - self.system.tau_ref_epoch
 
         # choose scale-and-rotate epoch
-        # for multiplanet support, this is now a list. 
+        # for multiplanet support, this is now a list.
         # For each planet, we find the measurment for it that corresponds to the smallest astrometric error
         self.epoch_idx = []
         min_sep_indices = np.argsort(self.sep_err) # indices of sep err sorted from smallest to higheset
@@ -214,7 +214,7 @@ class OFTI(Sampler,):
             # get the smallest measurement belonging to this body
             best_epoch = min_sep_indices[this_object_meas][0] # already sorted by argsort
             self.epoch_idx.append(best_epoch)
-        
+
         if len(self.system.rv[0]) > 0 and self.system.fit_secondary_mass:  # checking for RV data
             self.rv_observed = self.system.data_table[np.where(
                 self.system.data_table['quant_type'] == 'rv')]['quant1'].copy()
@@ -568,6 +568,7 @@ class MCMC(Sampler):
             Parallel tempering will be used if num_temps > 1 (default=20)
         num_walkers (int): number of walkers at each temperature (default=1000)
         num_threads (int): number of threads to use for parallelization (default=1)
+        chi2_type (str, optional): either  "standard", or "log"
         like (str): name of likelihood function in ``lnlike.py``
         custom_lnlike (func): ability to include an addition custom likelihood 
             function in the fit. The function looks like 
@@ -583,16 +584,16 @@ class MCMC(Sampler):
     Written: Jason Wang, Henry Ngo, 2018
     """
     def __init__(
-        self, system, num_temps=20, num_walkers=1000, num_threads=1, 
+        self, system, num_temps=20, num_walkers=1000, num_threads=1, chi2_type='standard', 
         like='chi2_lnlike', custom_lnlike=None, prev_result_filename=None
     ):
 
-        super(MCMC, self).__init__(system, like=like, custom_lnlike=custom_lnlike)
+        super(MCMC, self).__init__(system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike)
 
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
-        
+
         # create an empty results object
         self.results = orbitize.results.Results(
             self.system,
@@ -601,7 +602,7 @@ class MCMC(Sampler):
             lnlike=None,
             version_number=orbitize.__version__
         )
-        
+
         if self.num_temps > 1:
             self.use_pt = True
         else:
@@ -656,7 +657,7 @@ class MCMC(Sampler):
 
             prev_pos = self.results.curr_pos
 
-            # check previous positions has the correct dimensions as we need given how this sampler was created. 
+            # check previous positions has the correct dimensions as we need given how this sampler was created.
             expected_shape = (self.num_walkers, len(self.priors))
             if self.use_pt:
                 expected_shape = (self.num_temps,) + expected_shape
@@ -837,7 +838,7 @@ class MCMC(Sampler):
                 running `examine_chains` after `total_orbits` sampled.
             output_filename (str): Optional filepath for where results file can be saved.
             periodic_save_freq (int): Optionally, save the current results into ``output_filename``
-                every nth step while running, where n is value passed into this variable. 
+                every nth step while running, where n is value passed into this variable.
 
         Returns:
             ``emcee.sampler`` object: the sampler used to run the MCMC
@@ -847,7 +848,7 @@ class MCMC(Sampler):
             raise ValueError("output_filename must be defined for periodic saving of the chains")
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
-        
+
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
@@ -1005,7 +1006,7 @@ class MCMC(Sampler):
             if step_range is not None:  # Limit range shown if step_range is set
                 ax.set_xlim(step_range)
             output_figs.append(fig)
-        
+
         # Return
         return output_figs
 
