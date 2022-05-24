@@ -54,6 +54,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.1.0 (2022-05-24)**
+
+- Added a (more numerically stable) log-chi2 option for calculating likelihood (@Mireya-A and @lhirsch238)
+
 **2.0.1 (2022-04-22)**
 
 - Addressed plotting bugs: issues #316/#309, #314, #311 (@semaphoreP)
