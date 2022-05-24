@@ -18,7 +18,9 @@ def test_chi2lnlike():
 
     chi2 = lnlike.chi2_lnlike(data, errors, None, model, jitter, seppa_indices)
     assert chi2.shape == (3, 2)
-    assert (chi2 == -0.5 * np.ones((3, 2)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2))))).all()
+    assert chi2 == pytest.approx(
+        -0.5 * np.ones((3, 2)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2))))
+    )
 
     # test with multiple models
     model = np.zeros((3, 2, 5))
@@ -30,7 +32,9 @@ def test_chi2lnlike():
 
     chi2 = lnlike.chi2_lnlike(data, errors, None, model, jitter, seppa_indices)
     assert chi2.shape == (3, 2, 5)
-    assert (chi2 == -0.5 * np.ones((3, 2, 5)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2, 5))))).all()
+    assert chi2 == pytest.approx(
+        -0.5 * np.ones((3, 2, 5)) - np.log(np.sqrt(2*np.pi*np.ones((3, 2, 5))))
+    )
 
 
 def test_chi2lnlike_withcov():
@@ -56,14 +60,14 @@ def test_chi2lnlike_withcov():
         res_cov_res = res.dot(cov_inv_dot_diff)
         numpy_chi2 = -0.5 * (res_cov_res + logdet + 2 * np.log(2 * np.pi)) 
 
-        assert np.sum(chi2) == numpy_chi2
+        assert np.sum(chi2) == pytest.approx(numpy_chi2)
 
     ### only one covariance term
     covs = np.array([1, np.nan, np.nan])
     corrs = covs/errs[:,0]/errs[:,1]
     new_chi2s = lnlike.chi2_lnlike(data, errs, corrs, model, jitter, [])
 
-    assert np.all(chi2s[0] == new_chi2s[0])
+    assert chi2s[0] == pytest.approx(new_chi2s[0])
 
 
 def test_2x2_analytical_solution():
@@ -87,7 +91,7 @@ def test_2x2_analytical_solution():
         res_cov_res = res.dot(cov_inv_dot_diff)
         numpy_chi2 = -0.5 * (res_cov_res + logdet + 2 * np.log(2 * np.pi)) 
 
-        assert np.sum(chi2) == numpy_chi2
+        assert np.sum(chi2) == pytest.approx(numpy_chi2)
 
 
 def test_chi2_log():
@@ -129,7 +133,7 @@ def test_chi2_log():
 
     lnlike = np.sum(chi2)
 
-    assert lnlike == log_chi2
+    assert lnlike == pytest.approx(log_chi2)
 
 
 def test_log_vs_standard():
