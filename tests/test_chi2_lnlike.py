@@ -153,6 +153,8 @@ def test_log_vs_standard():
 
 if __name__ == "__main__":
     test_chi2lnlike()
+    test_chi2_log()
+    test_chi2lnlike_withcov()
     test_chi2lnlike_withcov()
     test_2x2_analytical_solution()
 
