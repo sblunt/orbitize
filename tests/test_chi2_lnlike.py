@@ -146,7 +146,7 @@ def test_log_vs_standard():
     #initiate driver with log chi2
     myDriver_log = orbitize.driver.Driver('{}/GJ504.csv'.format(orbitize.DATADIR), 'OFTI', 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26, chi2_type = 'log')
     s_log = myDriver_log.sampler
-    orbits = s_log.run_sampler(3000)   
+    orbits = s_log.run_sampler(10000)   
 
     #take mean of result objects
     myResults_standard = np.mean(s_standard.results.post,axis=0)
