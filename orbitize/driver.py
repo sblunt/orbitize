@@ -28,6 +28,7 @@ class Driver(object):
         plx_err (float, optional): uncertainty on ``plx`` [mas]
         lnlike (str, optional): name of function in ``orbitize.lnlike`` that will
             be used to compute likelihood. (default="chi2_lnlike")
+        chi2_type (str, optional): either  "standard", or "log"
         system_kwargs (dict, optional): ``restrict_angle_ranges``, ``tau_ref_epoch``,
             ``fit_secondary_mass``, ``hipparcos_IAD``, ``gaia``, 
             ``use_rebound``, ``fitting_basis`` for ``orbitize.system.System``.
@@ -40,7 +41,7 @@ class Driver(object):
     def __init__(
         self, input_data, sampler_str,
         num_secondary_bodies, stellar_or_system_mass, plx,
-        mass_err=0, plx_err=0, lnlike='chi2_lnlike',
+        mass_err=0, plx_err=0, lnlike='chi2_lnlike', chi2_type = 'standard',
         system_kwargs=None, mcmc_kwargs=None, max_like=None
     ):
 
@@ -81,6 +82,6 @@ class Driver(object):
 
         if sampler_str == 'OFTI':  
             
-            self.sampler = sampler_func(self.system, like=lnlike, max_like=max_like,**kwargs)
+            self.sampler = sampler_func(self.system, like=lnlike, chi2_type=chi2_type, max_like=max_like, **kwargs)
         else: 
-            self.sampler = sampler_func(self.system, like=lnlike,**kwargs)
+            self.sampler = sampler_func(self.system, like=lnlike, chi2_type=chi2_type, **kwargs)
