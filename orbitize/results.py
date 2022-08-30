@@ -199,8 +199,12 @@ class Results(object):
 
             tmpfile = 'thisisprettyhackysorrylmao'
             with open(tmpfile, 'w+') as f:
-                for l in np.array(iad_data):
-                    f.write(l)
+                try:
+                    for l in np.array(iad_data):
+                        f.write(l)
+                except TypeError:
+                    for l in np.array(iad_data):
+                        f.write(l.decode('UTF-8'))
 
             hip_num = str(hf.attrs['hip_num'])
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
