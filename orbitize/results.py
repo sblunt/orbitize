@@ -199,9 +199,7 @@ class Results(object):
 
             tmpfile = 'thisisprettyhackysorrylmao'
             with open(tmpfile, 'w+') as f:
-                for l in  np.array(
-                    [l.decode('UTF-8') for l in np.array(iad_data)]
-                ):
+                for l in np.array(iad_data):
                     f.write(l)
 
             hip_num = str(hf.attrs['hip_num'])
