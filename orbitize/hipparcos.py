@@ -211,8 +211,8 @@ class HipparcosLogProb(object):
                 to save the object.
         """
         with open(self.path_to_iad_file, 'r') as f:
-            iad_data = np.array(f.readlines(), dtype='S')
-            hf.create_dataset("IAD_datafile", data=iad_data)
+            iad_data = np.array(f.readlines(), dtype='str')
+            hf.create_dataset("IAD_datafile", data=iad_data, dtype=hf.string_dtype(encoding='UTF-8'))
 
         hf.attrs['hip_num'] = self.hip_num
         hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
