@@ -54,6 +54,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.1.2 (2022-08-31)**
+
+- Bugfix for saving/loading fits using IAD (issue #324; @sblunt)
+
 **2.1.1 (2022-05-24)**
 
 - Hotfix for one of the log-chi2 unit tests (@sblunt)
