@@ -4,6 +4,7 @@ import pandas as pd
 import emcee
 from scipy.stats import norm
 import matplotlib.pyplot as plt
+import h5py
 
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
@@ -211,8 +212,8 @@ class HipparcosLogProb(object):
                 to save the object.
         """
         with open(self.path_to_iad_file, 'r') as f:
-            iad_data = np.array(f.readlines(), dtype='S')
-            hf.create_dataset("IAD_datafile", data=iad_data)
+            iad_data = np.array(f.readlines(), h5py.string_dtype(encoding='UTF-8'))
+            hf.create_dataset("IAD_datafile", data=iad_data, dtype=h5py.string_dtype(encoding='UTF-8'))
 
         hf.attrs['hip_num'] = self.hip_num
         hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch

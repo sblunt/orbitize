@@ -196,9 +196,15 @@ class Results(object):
 
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
-            
+
             tmpfile = 'thisisprettyhackysorrylmao'
-            np.array(iad_data).tofile(tmpfile)
+            with open(tmpfile, 'w+') as f:
+                try:
+                    for l in np.array(iad_data):
+                        f.write(l)
+                except TypeError:
+                    for l in np.array(iad_data):
+                        f.write(l.decode('UTF-8'))
 
             hip_num = str(hf.attrs['hip_num'])
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
