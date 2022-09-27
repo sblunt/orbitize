@@ -398,7 +398,6 @@ class OFTI(Sampler,):
                 lnp_scaled[samples_outside_pan_prior] = -np.inf
 
         # reject orbits with probability less than a uniform random number
-        #pdb.set_trace()
         random_samples = np.log(np.random.uniform(low=0, high=np.exp(upper_bound), size=len(lnp)))
         saved_orbit_idx = np.where(lnp_scaled > random_samples)[0]
         saved_orbits = np.array([samples[:, i] for i in saved_orbit_idx])
@@ -435,7 +434,7 @@ class OFTI(Sampler,):
                     size: total_orbits
 
         """
-        pdb.set_trace()
+        #pdb.set_trace()
         np.random.seed()
 
         n_orbits_saved = 0
