@@ -5,6 +5,7 @@ import abc
 import time
 from astropy.time import Time
 
+import dynesty
 import emcee
 import ptemcee
 import multiprocessing as mp
@@ -1105,3 +1106,44 @@ class MCMC(Sampler):
         
         # otherwise exit the function and continue.
         return
+
+class NestedSampler(Sampler):
+    '''
+     Implements nested sampling using Dynesty package.
+    '''
+
+    def ptform(self, u):
+        """
+        Prior transform function.
+        """
+        utform = np.zeros(len(u))
+        for i in range(len(u)):
+            if issubclass(type(self.system.sys_priors[i]), orbitize.priors.Prior):
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            else: # prior is a fixed numbers
+                utform[i] = self.system.sys_priors[i]
+        return utform
+
+
+    def run_sampler(self, total_orbits, static = True):
+        '''Runs the nested sampler from the Dynesty package. 
+
+            Args:
+                lnlike: log likelihood function
+                ptform: prior transform function
+                ndim (int): number of dimensions in parameter space
+                logl (list): args that go in lnlike function other than problem parameters
+                static (bool): true if using static nested sampling, false if using dynamic
+            
+            Returns:
+                Dynesty sampler results.
+        '''
+        if static:
+            sampler = dynesty.NestedSampler(self._logl, self.ptform, len(self.system.sys_priors))
+        else:
+            sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, len(self.system.sys_priors))
+        sampler.run_nested()
+        self.system.results.add_samples(sampler.results['samples'], sampler.results['logl'])
+
+        return sampler.results['samples']
+
