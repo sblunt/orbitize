@@ -2,6 +2,7 @@ import numpy as np
 import sys
 import abc
 import scipy.special
+import statistics
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -247,8 +248,9 @@ class GaussianPrior(Prior):
         from a Gaussian distribution.
         """
         #generate samples following a gaussian distribution
-        samples = scipy.special.ndtri(u)
-        samples = samples * self.sigma + self.mu
+        samples = np.zeros(len(u))
+        for i in range(len(u)):
+            samples[i] = statistics.NormalDist(self.mu, np.sqrt(self.sigma)).inv_cdf(u[i])
 
         return samples
 
@@ -268,7 +270,7 @@ class GaussianPrior(Prior):
         samples = np.random.normal(
             loc=self.mu, scale=self.sigma, size=num_samples
         )
-        #fully delete this?
+        # fully delete this?
         # bad = np.inf
 
         # if self.no_negatives:
