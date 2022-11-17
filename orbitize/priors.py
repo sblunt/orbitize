@@ -250,7 +250,7 @@ class GaussianPrior(Prior):
         #generate samples following a gaussian distribution
         samples = np.zeros(len(u))
         for i in range(len(u)):
-            samples[i] = statistics.NormalDist(self.mu, np.sqrt(self.sigma)).inv_cdf(u[i])
+            samples[i] = statistics.NormalDist(self.mu, self.sigma).inv_cdf(u[i])
 
         return samples
 
@@ -267,23 +267,10 @@ class GaussianPrior(Prior):
             Gaussian distribution. Array has length `num_samples`.
         """
 
-        samples = np.random.normal(
-            loc=self.mu, scale=self.sigma, size=num_samples
-        )
-        # fully delete this?
-        # bad = np.inf
-
-        # if self.no_negatives:
-
-        #     while bad != 0:
-
-        #         bad_samples = np.where(samples < 0)[0]
-        #         bad = len(bad_samples)
-
-        #         samples[bad_samples] = np.random.normal(
-        #             loc=self.mu, scale=self.sigma, size=bad
-        #         )
-
+        # samples = np.random.normal(
+        #     loc=self.mu, scale=self.sigma, size=num_samples
+        # )
+        samples = np.random.uniform(0, 1, num_samples)
         samples = self.transform_samples(samples)
 
         return samples
@@ -428,7 +415,7 @@ class UniformPrior(Prior):
             np.array:  samples ranging from [0, pi) as floats.
         """
         # sample from a uniform distribution in log space
-        samples = np.random.uniform(self.minval, self.maxval, num_samples)
+        samples = np.random.uniform(0, 1, num_samples)
         samples = self.transform_samples(samples)
 
         return samples
@@ -490,7 +477,7 @@ class SinPrior(Prior):
         """
 
         # draw uniform from -1 to 1
-        samples = np.random.uniform(-1, 1, num_samples)
+        samples = np.random.uniform(0, 1, num_samples)
 
         samples = self.transform_samples(samples)
 
