@@ -4,16 +4,16 @@ import numpy as np
 from orbitize import priors
 
 # test gaussian prior draw samples
-# mu = 0.5
-# sigma = 0.01
-# num_samples = 1000
-# gauss = priors.GaussianPrior(mu, sigma)
-# gauss_samp = gauss.draw_samples(num_samples)
-# analytical = np.random.normal(mu, sigma, num_samples)
-# analytical = np.sort(analytical)
-# plt.hist(gauss_samp)
-# plt.hist(analytical, alpha = 0.5)
-# plt.savefig("/home/tmckenna/orbitize/gauss_test.png")
+mu = 0.5
+sigma = 0.01
+num_samples = 1000
+gauss = priors.GaussianPrior(mu, sigma)
+gauss_samp = gauss.draw_samples(num_samples)
+analytical = np.random.normal(mu, sigma, num_samples)
+analytical = np.sort(analytical)
+plt.hist(gauss_samp)
+plt.hist(analytical, alpha = 0.5)
+plt.savefig("/home/tmckenna/orbitize/gauss_test.png")
 
 # test uniform prior draw samples
 # minval = 10
@@ -25,13 +25,13 @@ from orbitize import priors
 
 # test sin prior draw samples
 
-sin = priors.SinPrior()
-sin_samp = sin.draw_samples(1000)
-x = np.linspace(0, np.pi)
-y = np.sin(x)
-plt.plot(x,y)
-plt.hist(sin_samp, density = True)
-plt.savefig("/home/tmckenna/orbitize/sin_test.png")
+# sin = priors.SinPrior()
+# sin_samp = sin.draw_samples(1000)
+# x = np.linspace(0, np.pi)
+# y = np.sin(x)
+# plt.plot(x,y)
+# plt.hist(sin_samp, density = True)
+# plt.savefig("/home/tmckenna/orbitize/sin_test.png")
 
 # test log uniform prior draw samples
 # minval = 0.1

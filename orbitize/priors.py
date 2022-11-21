@@ -248,9 +248,11 @@ class GaussianPrior(Prior):
         from a Gaussian distribution.
         """
         #generate samples following a gaussian distribution
-        samples = np.zeros(len(u))
-        for i in range(len(u)):
-            samples[i] = statistics.NormalDist(self.mu, self.sigma).inv_cdf(u[i])
+        z = scipy.special.ndtri(u)
+        samples = z*self.sigma + self.mu
+        # samples = np.zeros(len(u))
+        # for i in range(len(u)):
+        #     samples[i] = statistics.NormalDist(self.mu, self.sigma).inv_cdf(u[i])
 
         return samples
 
@@ -461,7 +463,7 @@ class SinPrior(Prior):
         from a Sine distribution.
         """
         #generate samples following a sin distribution
-        samples = np.arccos(u) % np.pi
+        samples = np.arccos(1-2*u)
 
         return samples
 
