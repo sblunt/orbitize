@@ -1125,7 +1125,7 @@ class NestedSampler(Sampler):
         return utform
 
 
-    def run_sampler(self, total_orbits, static = True):
+    def run_sampler(self, total_orbits, static = True, bound = 'multi', pfrac = 1.0):
         '''Runs the nested sampler from the Dynesty package. 
 
             Args:
@@ -1134,14 +1134,21 @@ class NestedSampler(Sampler):
                 ndim (int): number of dimensions in parameter space
                 logl (list): args that go in lnlike function other than problem parameters
                 static (bool): true if using static nested sampling, false if using dynamic
+                bound (str): Method used to approximately bound the prior using the current 
+                set of live points. Conditions the sampling methods used to propose new live 
+                points.
+                pfrac (float): posterior weight, between 0 and 1.
             
             Returns:
                 Dynesty sampler results.
         '''
+        wt_kwargsdict = {'wt_kwargs': {'pfrac' : pfrac }}
         if static:
-            sampler = dynesty.NestedSampler(self._logl, self.ptform, len(self.system.sys_priors))
+            sampler = dynesty.NestedSampler(self._logl, self.ptform, len(self.system.sys_priors),
+            bound = bound)
         else:
-            sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, len(self.system.sys_priors))
+            sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, len(self.system.sys_priors), 
+            bound = bound)
         sampler.run_nested()
         self.system.results.add_samples(sampler.results['samples'], sampler.results['logl'])
 

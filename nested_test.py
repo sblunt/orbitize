@@ -27,14 +27,13 @@ sigma = 0.05
 
 sys.sys_priors[lab['ecc1']] = priors.GaussianPrior(mu, sigma)
 sys.sys_priors[lab['inc1']] = 2.5
-
 nested_sampler = sampler.NestedSampler(sys)
 
 # number of orbits to accept
 n_orbs = 500
 
-_ = nested_sampler.run_sampler(n_orbs)
-nested_sampler.results.save_results('test.hdf5')
+_ = nested_sampler.run_sampler(n_orbs, static = False, bound = 'single')
+nested_sampler.results.save_results('test2.hdf5')
 plt.figure()
 accepted_eccentricities = nested_sampler.results.post[:, lab['ecc1']]
 plt.hist(accepted_eccentricities)
