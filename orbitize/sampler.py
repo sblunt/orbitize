@@ -1149,7 +1149,7 @@ class NestedSampler(Sampler):
         else:
             sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, len(self.system.sys_priors), 
             bound = bound)
-        sampler.run_nested()
+        sampler.run_nested(**wt_kwargsdict)
         self.system.results.add_samples(sampler.results['samples'], sampler.results['logl'])
 
         return sampler.results['samples']
