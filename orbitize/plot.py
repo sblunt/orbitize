@@ -361,16 +361,21 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 )
 
             sep_data[radec_inds] = sep_from_ra_data
+            sep_data = sep_data[astr_inds]
             sep_err[radec_inds] = sep_err_from_ra_data
+            sep_err = sep_err[astr_inds]
 
             pa_data[radec_inds] = pa_from_dec_data
+            pa_data = pa_data[astr_inds]
             pa_err[radec_inds] = pa_err_from_dec_data
+            pa_err = pa_err[astr_inds]
 
         # Transform Sep/PA points to RA/Dec
         ra_data = np.copy(data['quant1'])
         ra_err = np.copy(data['quant1_err'])
         dec_data = np.copy(data['quant2'])
         dec_err = np.copy(data['quant2_err'])
+
 
         if len(seppa_inds[0] > 0):
 
@@ -390,10 +395,16 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 )
 
             ra_data[seppa_inds] = ra_from_seppa_data
+            ra_data = ra_data[astr_inds]
             ra_err[seppa_inds] = ra_err_from_seppa_data
+            ra_err = ra_err[astr_inds]
 
             dec_data[seppa_inds] = dec_from_seppa_data
+            dec_data = dec_data[astr_inds]
+
             dec_err[seppa_inds] = dec_err_from_seppa_data
+            dec_err = dec_err[astr_inds]
+
 
         # For plotting different astrometry instruments
         if plot_astrometry_insts:
@@ -527,6 +538,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
         # Plot sep/pa instruments
         if plot_astrometry_insts:
+
             for i in range(len(astr_insts)):
                 sep = sep_data[astr_inst_inds[astr_insts[i]]]
                 pa = pa_data[astr_inst_inds[astr_insts[i]]]
