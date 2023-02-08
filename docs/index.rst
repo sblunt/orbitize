@@ -54,6 +54,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.1.3 (2023-02-07)**
+
+- Compatibility with numpy v1.24 (issue #330 and #331; @tomasstolker)
+
 **2.1.2 (2022-08-31)**
 
 - Bugfix for saving/loading fits using IAD (issue #324; @sblunt)
