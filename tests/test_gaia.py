@@ -32,7 +32,7 @@ def test_system_setup():
     Test that a System object with Hipparcos and Gaia is initialized correctly
     """
     hip_num = '027321' # beta Pic
-    edr3_num = '4792774797545800832'
+    edr3_num = 4792774797545800832
     num_secondary_bodies = 1
     path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
 
@@ -61,13 +61,12 @@ def test_system_setup():
     assert betaPic_system.fit_secondary_mass
     assert betaPic_system.track_planet_perturbs
 
-
 def test_valueerror():
     """
     Check that if I don't say dr2 or edr3, I get a value error
     """
     hip_num = '027321' # beta Pic
-    edr3_num = '4792774797545800832'
+    edr3_num = 4792774797545800832
     num_secondary_bodies = 1
     path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
 
@@ -112,7 +111,7 @@ def test_orbit_calculation():
     d0 = 0
 
     hip_num = '027321' # beta Pic
-    edr3_num = '4792774797545800832'
+    edr3_num = 4792774797545800832
     num_secondary_bodies = 1
     path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
 
@@ -198,8 +197,27 @@ def test_orbit_calculation():
 
     assert np.isclose(np.exp(lnlike), 1)
 
+def test_nointernet():
+    """
+    Test that the internet-less object setup works
+    """
+    hip_num = '027321' # beta Pic
+    dr2_number = 4792774797545105664
+
+    num_secondary_bodies = 1
+    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+
+    dr3Gaia = gaia.GaiaLogProb(
+        dr2_number, myHip, dr='dr2', query=False, gaia_data = {'ra':0, 'dec':0, 'ra_error':0, 'dec_error':0}
+    )
+
+
+
 if __name__ == '__main__':
-    test_dr2_edr3()
+    test_nointernet()
+    # test_dr2_edr3()
     # test_system_setup()
     # test_valueerror()
     # test_orbit_calculation()

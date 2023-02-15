@@ -96,6 +96,10 @@ def test_scale_and_rotate():
 sma_seppa = 0
 seppa_lnprob_compare = None
 def test_run_sampler():
+    """
+    Test that OFTI produces statistically comparable output to an independent
+    implementation for a published orbit.
+    """
     global sma_seppa, seppa_lnprob_compare # use for covariances test
 
     # initialize sampler

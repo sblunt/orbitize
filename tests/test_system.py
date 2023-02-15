@@ -53,6 +53,11 @@ def test_multi_planets():
     print(result)
 
 def test_radec2seppa():
+    """
+    Tests basic functionality of the convenience function 
+    orbitize.system.radec2seppa for converting measurements in RA/Dec to
+    separation/position angle.
+    """
 
     ras = np.array([-1, -1, 1, 1])
     decs = np.array([-1, 1, -1, 1])

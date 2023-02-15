@@ -146,9 +146,9 @@ class Results(object):
 
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
-        sampler_name = np.str(hf.attrs['sampler_name'])
+        sampler_name = str(hf.attrs['sampler_name'])
         try:
-            version_number = np.str(hf.attrs['version_number'])
+            version_number = str(hf.attrs['version_number'])
         except KeyError:
             version_number = "<= 1.13"
         post = np.array(hf.get('post'))
@@ -196,9 +196,15 @@ class Results(object):
 
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
-            
+
             tmpfile = 'thisisprettyhackysorrylmao'
-            np.array(iad_data).tofile(tmpfile)
+            with open(tmpfile, 'w+') as f:
+                try:
+                    for l in np.array(iad_data):
+                        f.write(l)
+                except TypeError:
+                    for l in np.array(iad_data):
+                        f.write(l.decode('UTF-8'))
 
             hip_num = str(hf.attrs['hip_num'])
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
@@ -220,7 +226,7 @@ class Results(object):
             gaia = None
 
         try:
-            fitting_basis = np.str(hf.attrs['fitting_basis'])
+            fitting_basis = str(hf.attrs['fitting_basis'])
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
             fitting_basis = 'Standard'
@@ -313,7 +319,8 @@ class Results(object):
         sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
         cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
         plot_astrometry=True,
-        plot_astrometry_insts=False, fig=None
+        plot_astrometry_insts=False,
+        plot_errorbars=True, fig=None
     ):
         """
         Wrapper for orbitize.plot.plot_orbits
@@ -327,7 +334,8 @@ class Results(object):
             sep_pa_color=sep_pa_color, sep_pa_end_year=sep_pa_end_year,
             cbar_param=cbar_param, mod180=mod180, rv_time_series=rv_time_series, 
             plot_astrometry=plot_astrometry,
-            plot_astrometry_insts=plot_astrometry_insts, fig=fig
+            plot_astrometry_insts=plot_astrometry_insts, 
+            plot_errorbars=plot_errorbars, fig=fig
         )
 
 
