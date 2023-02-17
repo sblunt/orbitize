@@ -229,7 +229,8 @@ class GaussianPrior(Prior):
         mu (float): mean of the distribution
         sigma (float): standard deviation of the distribution
         no_negatives (bool): if True, only positive values will be drawn from
-            this prior, and the probability of negative values will be 0 (default:True).
+        this prior, and the probability of negative values will be 0 
+        (default:True).
 
     (written) Sarah Blunt, 2018
     """
@@ -246,14 +247,17 @@ class GaussianPrior(Prior):
         """
         Transform uniform 1D samples, u, to samples drawn
         from a Gaussian distribution.
-        """
-        #generate samples following a gaussian distribution
-        z = scipy.special.ndtri(u)
-        samples = z*self.sigma + self.mu
-        # samples = np.zeros(len(u))
-        # for i in range(len(u)):
-        #     samples[i] = statistics.NormalDist(self.mu, self.sigma).inv_cdf(u[i])
 
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Gaussian
+            distribution.
+        """
+        # generate samples following a gaussian distribution
+        z = scipy.special.ndtri(u)
+        samples = z*self.sigma + self.m
         return samples
 
     def draw_samples(self, num_samples):
@@ -268,10 +272,6 @@ class GaussianPrior(Prior):
             numpy array of float: samples drawn from the appropriate
             Gaussian distribution. Array has length `num_samples`.
         """
-
-        # samples = np.random.normal(
-        #     loc=self.mu, scale=self.sigma, size=num_samples
-        # )
         samples = np.random.uniform(0, 1, num_samples)
         samples = self.transform_samples(samples)
 
@@ -331,8 +331,15 @@ class LogUniformPrior(Prior):
         """
         Transform uniform 1D samples, u, to samples drawn
         from a Log Uniform distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Log Uniform
+            distribution.
         """
-        #generate samples following a log uniform distribution
+        # generate samples following a log uniform distribution
         samples = np.exp(u)
 
         return samples
@@ -400,8 +407,15 @@ class UniformPrior(Prior):
         """
         Transform uniform 1D samples, u, to samples drawn
         from a uniform distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a uniform
+            distribution.
         """
-        #generate samples following a uniform distribution
+        # generate samples following a uniform distribution
         samples = (self.maxval - self.minval) * u + self.minval
 
         return samples
@@ -461,8 +475,15 @@ class SinPrior(Prior):
         """
         Transform uniform 1D samples, u, to samples drawn
         from a Sine distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Sine
+            distribution.
         """
-        #generate samples following a sin distribution
+        # generate samples following a sin distribution
         samples = np.arccos(1-2*u)
 
         return samples
@@ -537,10 +558,17 @@ class LinearPrior(Prior):
         """
         Transform uniform 1D samples, u, to samples drawn
         from a Linear distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Linear
+            distribution.
         """
         norm = -0.5*self.b**2/self.m
 
-        #generate samples following a linear distribution
+        # generate samples following a linear distribution
         linear_samples = -np.sqrt(2.*norm*u/self.m +
         (self.b/self.m)**2) - (self.b/self.m)
 
@@ -598,7 +626,7 @@ def all_lnpriors(params, priors):
     for param, prior in zip(params, priors):
         param = np.array([param])
     
-        logp += prior.compute_lnprob(param)  # retrun a float
+        logp += prior.compute_lnprob(param)  # return a float
 
     return logp
 

@@ -1108,9 +1108,11 @@ class MCMC(Sampler):
         return
 
 class NestedSampler(Sampler):
-    '''
+    """
      Implements nested sampling using Dynesty package.
-    '''
+
+     Thea McKenna, 2023
+    """
     
     def __init__(self, system):
         super(NestedSampler, self).__init__(system)
@@ -1126,43 +1128,54 @@ class NestedSampler(Sampler):
     def ptform(self, u):
         """
         Prior transform function.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a chosen Prior
+            Class distribution.
         """
         utform = np.zeros(len(u))
         for i in range(len(u)):
-            if issubclass(type(self.system.sys_priors[i]), orbitize.priors.Prior):
+            if issubclass(type(self.system.sys_priors[i]), 
+            orbitize.priors.Prior):
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            else: # prior is a fixed numbers
+            else: # prior is a fixed number
                 utform[i] = self.system.sys_priors[i]
         return utform
 
 
-    def run_sampler(self, total_orbits, static = True, bound = 'multi', pfrac = 1.0):
-        '''Runs the nested sampler from the Dynesty package. 
+    def run_sampler(self, static = True, bound = 'multi', 
+    pfrac = 1.0):
+        """Runs the nested sampler from the Dynesty package. 
 
             Args:
-                lnlike: log likelihood function
-                ptform: prior transform function
-                ndim (int): number of dimensions in parameter space
-                logl (list): args that go in lnlike function other than problem parameters
-                static (bool): true if using static nested sampling, false if using dynamic
-                bound (str): Method used to approximately bound the prior using the current 
-                set of live points. Conditions the sampling methods used to propose new live 
-                points.
+                lnlike: log likelihood function.
+                ptform: prior transform function.
+                ndim (int): number of dimensions in parameter space.
+                logl (list): args that go in lnlike function other than
+                problem parameters.
+                static (bool): true if using static nested sampling, 
+                false if using dynamic.
+                bound (str): Method used to approximately bound the prior 
+                using the current set of live points. Conditions the 
+                sampling methods used to propose new live points.
                 pfrac (float): posterior weight, between 0 and 1.
             
             Returns:
                 Dynesty sampler results.
-        '''
-        wt_kwargs = pfrac #{'pfrac' : pfrac }
+        """
+        wt_kwargs = pfrac 
         if static:
-            sampler = dynesty.NestedSampler(self._logl, self.ptform, len(self.system.sys_priors),
-            bound = bound)
+            sampler = dynesty.NestedSampler(self._logl, self.ptform, 
+            len(self.system.sys_priors), bound = bound)
         else:
-            sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, len(self.system.sys_priors), 
-            bound = bound)
-        #import pdb; pdb.set_trace()
+            sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, 
+            len(self.system.sys_priors), bound = bound)
         sampler.run_nested(wt_kwargs)
-        self.results.add_samples(sampler.results['samples'], sampler.results['logl'])
+        self.results.add_samples(sampler.results['samples'], 
+        sampler.results['logl'])
 
         return sampler.results['samples']
 
