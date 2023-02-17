@@ -1111,6 +1111,17 @@ class NestedSampler(Sampler):
     '''
      Implements nested sampling using Dynesty package.
     '''
+    
+    def __init__(self, system):
+        super(NestedSampler, self).__init__(system)
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__
+        )
 
     def ptform(self, u):
         """
@@ -1142,15 +1153,16 @@ class NestedSampler(Sampler):
             Returns:
                 Dynesty sampler results.
         '''
-        wt_kwargsdict = {'wt_kwargs': {'pfrac' : pfrac }}
+        wt_kwargs = pfrac #{'pfrac' : pfrac }
         if static:
             sampler = dynesty.NestedSampler(self._logl, self.ptform, len(self.system.sys_priors),
             bound = bound)
         else:
             sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, len(self.system.sys_priors), 
             bound = bound)
-        sampler.run_nested(**wt_kwargsdict)
-        self.system.results.add_samples(sampler.results['samples'], sampler.results['logl'])
+        #import pdb; pdb.set_trace()
+        sampler.run_nested(wt_kwargs)
+        self.results.add_samples(sampler.results['samples'], sampler.results['logl'])
 
         return sampler.results['samples']
 

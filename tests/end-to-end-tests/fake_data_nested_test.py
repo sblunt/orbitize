@@ -9,7 +9,7 @@ from orbitize.read_input import read_file
 
 
 
-def generate_synthetic_data(filepath, sma=30., num_obs=4, unc=10.0):
+def generate_synthetic_data(filepath, sma=30., num_obs=4, unc=10):
     """ Generate an orbitize-table of synethic data
 
     Args:
@@ -24,7 +24,7 @@ def generate_synthetic_data(filepath, sma=30., num_obs=4, unc=10.0):
     """
 
     # assumed ground truth for non-input orbital parameters
-    ecc = 0.5 # eccentricity
+    ecc = 0. # eccentricity
     inc = np.pi/4 # inclination [rad]
     argp = 0.
     lan = 0.
@@ -71,6 +71,10 @@ sma = 2.3
 data_table, orbit_fraction = generate_synthetic_data('/home/tmckenna/orbitize/fake_data_test.png', sma=sma, num_obs=30)
 print('The orbit fraction is {}%'.format(np.round(orbit_fraction),1))
 
+#plot orbit coverage with fake data
+plt.errorbar(data_table['quant1'], data_table['quant2'], yerr = data_table['quant1_err'], xerr = data_table['quant2_err'])
+plt.savefig('/home/tmckenna/orbitize/results/fake_orbit_data.png')
+
 # initialize orbitize `System` object
 sys = system.System(1, data_table, mtot, plx)
 print(data_table)
@@ -94,12 +98,12 @@ _ = nested_sampler.run_sampler(n_orbs, static = True, bound = 'multi')
 nested_sampler.results.save_results('test1.hdf5')
 plt.figure()
 accepted_eccentricities = nested_sampler.results.post[:, lab['ecc1']]
-plt.hist(accepted_eccentricities)
+plt.hist(accepted_eccentricities, bins=50)
 plt.xlabel('ecc'); plt.ylabel('number of orbits')
 plt.savefig('/home/tmckenna/orbitize/results/ecc_test1.png')
 
 plt.figure()
 accepted_inclinations = nested_sampler.results.post[:, lab['inc1']]
-plt.hist(accepted_inclinations)
+plt.hist(accepted_inclinations, bins=50)
 plt.xlabel('inc'); plt.ylabel('number of orbits')
 plt.savefig('/home/tmckenna/orbitize/results/inc_test1.png')
