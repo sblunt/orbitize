@@ -490,12 +490,13 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             ax1.set_ylabel('$\\rho$ [mas]')
             ax2.set_xlabel('Epoch')
 
-        if plot_astrometry_insts:
-            ax1_colors = itertools.cycle(astr_colors)
-            ax1_symbols = itertools.cycle(astr_symbols)
+        if plot_astrometry:
+            if plot_astrometry_insts:
+                ax1_colors = itertools.cycle(astr_colors)
+                ax1_symbols = itertools.cycle(astr_symbols)
 
-            ax2_colors = itertools.cycle(astr_colors)
-            ax2_symbols = itertools.cycle(astr_symbols)
+                ax2_colors = itertools.cycle(astr_colors)
+                ax2_symbols = itertools.cycle(astr_symbols)
 
         epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
@@ -537,37 +538,38 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             plt.plot(yr_epochs, pas, color=sep_pa_color, zorder=1)
 
         # Plot sep/pa instruments
-        if plot_astrometry_insts:
+        if plot_astrometry:
+            if plot_astrometry_insts:
 
-            for i in range(len(astr_insts)):
-                sep = sep_data[astr_inst_inds[astr_insts[i]]]
-                pa = pa_data[astr_inst_inds[astr_insts[i]]]
-                epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
+                for i in range(len(astr_insts)):
+                    sep = sep_data[astr_inst_inds[astr_insts[i]]]
+                    pa = pa_data[astr_inst_inds[astr_insts[i]]]
+                    epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
+                    if plot_errorbars:
+                        serr = sep_err[astr_inst_inds[astr_insts[i]]]
+                        perr = pa_err[astr_inst_inds[astr_insts[i]]]
+                    else:
+                        yerr = None
+                        perr = None
+
+                    plt.sca(ax1)
+                    plt.errorbar(Time(epochs,format='mjd').decimalyear,sep,yerr=serr,ms=5, linestyle='',marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i], capsize=2)
+                    plt.sca(ax2)
+                    plt.errorbar(Time(epochs,format='mjd').decimalyear,pa,yerr=perr,ms=5, linestyle='',marker=next(ax2_symbols),c=next(ax2_colors),zorder=10, capsize=2)
+                plt.sca(ax1)
+                plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
+            else:
                 if plot_errorbars:
-                    serr = sep_err[astr_inst_inds[astr_insts[i]]]
-                    perr = pa_err[astr_inst_inds[astr_insts[i]]]
+                    serr = sep_err
+                    perr = pa_err
                 else:
                     yerr = None
                     perr = None
 
                 plt.sca(ax1)
-                plt.errorbar(Time(epochs,format='mjd').decimalyear,sep,yerr=serr,ms=5, linestyle='',marker=next(ax1_symbols),c=next(ax1_colors),zorder=10,label=astr_insts[i], capsize=2)
+                plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr,ms=5, linestyle='',marker='o',c='purple',zorder=2, capsize=2)
                 plt.sca(ax2)
-                plt.errorbar(Time(epochs,format='mjd').decimalyear,pa,yerr=perr,ms=5, linestyle='',marker=next(ax2_symbols),c=next(ax2_colors),zorder=10, capsize=2)
-            plt.sca(ax1)
-            plt.legend(title='Instruments', bbox_to_anchor=(1.3, 1), loc='upper right')
-        else:
-            if plot_errorbars:
-                serr = sep_err
-                perr = pa_err
-            else:
-                yerr = None
-                perr = None
-
-            plt.sca(ax1)
-            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr,ms=5, linestyle='',marker='o',c='purple',zorder=2, capsize=2)
-            plt.sca(ax2)
-            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr,ms=5, linestyle='',marker='o',c='purple',zorder=2, capsize=2)
+                plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr,ms=5, linestyle='',marker='o',c='purple',zorder=2, capsize=2)
 
         if rv_time_series:
 
