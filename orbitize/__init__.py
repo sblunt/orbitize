@@ -21,3 +21,5 @@ try:
     cext = True
 except ImportError:
     cext = False
+
+print('Hello Amanda :)')
