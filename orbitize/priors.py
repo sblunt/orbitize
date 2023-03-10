@@ -58,6 +58,13 @@ class NearestNDInterpPrior(Prior):
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
 
+    def transform_samples(self):
+        raise NotImplementedError(
+            """The transform_samples() method is not implemented for this Prior
+            class yet. We're working on it!
+            """
+        )
+
     def draw_samples(self, num_samples):
         """
         Draw positive samples from the ND interpolator.
@@ -152,6 +159,13 @@ class KDEPrior(Prior):
         self.param_num += 1
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
+
+    def transform_samples(self):
+        raise NotImplementedError(
+            """The transform_samples() method is not implemented for this Prior
+            class yet. We're working on it!
+            """
+        )
 
     def draw_samples(self, num_samples):
         """

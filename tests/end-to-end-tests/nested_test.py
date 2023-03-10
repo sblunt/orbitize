@@ -31,7 +31,7 @@ nested_sampler = sampler.NestedSampler(sys)
 # number of orbits to accept
 n_orbs = 500
 
-_ = nested_sampler.run_sampler(n_orbs, static = False, bound = 'single', pfrac = 0.8)
+_ = nested_sampler.run_sampler(static = False, bound = 'single', pfrac = 0.8)
 nested_sampler.results.save_results('test2.hdf5')
 plt.figure()
 accepted_eccentricities = nested_sampler.results.post[:, lab['ecc1']]
