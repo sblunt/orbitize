@@ -1146,7 +1146,7 @@ class NestedSampler(Sampler):
         return utform
 
 
-    def run_sampler(self, static = False, bound = 'multi', pfrac = 0.8):
+    def run_sampler(self, static = False, bound = 'multi', pfrac = None):
         """Runs the nested sampler from the Dynesty package. 
 
             Args:
@@ -1160,20 +1160,28 @@ class NestedSampler(Sampler):
                 bound (str): Method used to approximately bound the prior 
                 using the current set of live points. Conditions the 
                 sampling methods used to propose new live points.
-                pfrac (float): posterior weight, between 0 and 1.
+                pfrac (float): posterior weight, between 0 and 1. Can only be 
+                altered for the Dynamic nested sampler, otherwise deafault is 
+                0.8.
             
             Returns:
                 Dynesty sampler results.
         """
         wt_kwargsdict = {'pfrac': pfrac}
         if static:
+            if pfrac != None:
+                raise ValueError(
+                    """The static nested sampler does not take alternate values
+                    for pfrac. The default is 0.8.
+                    """
+                )
             sampler = dynesty.NestedSampler(self._logl, self.ptform, 
             len(self.system.sys_priors), bound = bound)
+            sampler.run_nested()
         else:
             sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, 
             len(self.system.sys_priors), bound = bound)
-        # used to pass in wt_kwargs, pfrac to run_nested()
-        sampler.run_nested(wt_kwargs = wt_kwargsdict)
+            sampler.run_nested(wt_kwargs = wt_kwargsdict)
         self.results.add_samples(sampler.results['samples'], 
         sampler.results['logl'])
 
