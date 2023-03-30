@@ -34,19 +34,19 @@ lab = sys.param_idx
 # set all parameters except eccentricity to fixed values for testing
 # sys.sys_priors[lab['inc1']] = np.pi/4
 sys.sys_priors[lab['sma1']] = sma
-# sys.sys_priors[lab['aop1']] = np.pi/4
+# sys.sys_priors[lab['aop1']] = np.pi/4 
 sys.sys_priors[lab['pan1']] = np.pi/4
-# sys.sys_priors[lab['tau1']] = 0.8
+# sys.sys_priors[lab['tau1']] = 0.8  
 sys.sys_priors[lab['plx']] = plx
 sys.sys_priors[lab['mtot']] = mtot
 
 
 # run nested sampler
 nested_sampler = sampler.NestedSampler(sys)
-_ = nested_sampler.run_sampler(static = True, bound = 'multi', pfrac = 0.8)
+_ = nested_sampler.run_sampler(static = False, bound = 'multi', pfrac = 1.0)
 
 # save results
-nested_sampler.results.save_results('test9.hdf')
+nested_sampler.results.save_results('test21.hdf')
 
 # assumed values for synthetic data
 ecc = 0.5 # eccentricity
@@ -61,7 +61,7 @@ accepted_eccentricities = nested_sampler.results.post[:, lab['ecc1']]
 plt.hist(accepted_eccentricities, alpha=0.5, bins=50)
 plt.axvline(x=ecc, color='red')
 plt.xlabel('ecc'); plt.ylabel('number of orbits')
-plt.savefig('/home/tmckenna/orbitize/results/ecc_test9.png')
+plt.savefig('/home/tmckenna/orbitize/results/ecc_test21.png')
 
 # plot inc
 plt.figure()
@@ -69,7 +69,7 @@ accepted_inclinations = nested_sampler.results.post[:, lab['inc1']]
 plt.hist(accepted_inclinations, alpha=0.5, bins=50)
 plt.axvline(x=inc, color='red')
 plt.xlabel('inc'); plt.ylabel('number of orbits')
-plt.savefig('/home/tmckenna/orbitize/results/inc_test9.png')
+plt.savefig('/home/tmckenna/orbitize/results/inc_test21.png')
 
 # plot aop
 plt.figure()
@@ -77,7 +77,7 @@ accepted_aop = nested_sampler.results.post[:, lab['aop1']]
 plt.hist(accepted_aop, bins=50)
 plt.axvline(x=aop, color='red')
 plt.xlabel('aop'); plt.ylabel('number of orbits')
-plt.savefig('/home/tmckenna/orbitize/results/aop_test9.png')
+plt.savefig('/home/tmckenna/orbitize/results/aop_test21.png')
 
 # plot pan
 # plt.figure()
@@ -93,8 +93,8 @@ accepted_tau = nested_sampler.results.post[:, lab['tau1']]
 plt.hist(accepted_tau, bins=50)
 plt.axvline(x=aop, color='red')
 plt.xlabel('tau'); plt.ylabel('number of orbits')
-plt.savefig('/home/tmckenna/orbitize/results/tau_test9.png')
+plt.savefig('/home/tmckenna/orbitize/results/tau_test21.png')
 
 #calculate script run time
-execution_time = time.time() - start
+execution_time = (time.time() - start) / 60 #minutes
 print("Execution time (s): " + str(execution_time))

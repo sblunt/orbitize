@@ -705,10 +705,10 @@ def generate_synthetic_data(mtot, plx, sma=30., num_obs=4, unc=0.1):
     """
 
     # assumed ground truth for non-input orbital parameters
-    ecc = 0. # eccentricity
+    ecc = 0.5 # eccentricity
     inc = np.pi/4 # inclination [rad]
-    argp = 0.
-    lan = 0.
+    argp = np.pi/4
+    lan = np.pi/4
     tau = 0.8
 
     # calculate RA/Dec at three observation epochs

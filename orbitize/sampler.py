@@ -1146,7 +1146,7 @@ class NestedSampler(Sampler):
         return utform
 
 
-    def run_sampler(self, static = True, bound = 'multi', pfrac = 1.0):
+    def run_sampler(self, static = False, bound = 'multi', pfrac = 0.8):
         """Runs the nested sampler from the Dynesty package. 
 
             Args:
@@ -1165,7 +1165,7 @@ class NestedSampler(Sampler):
             Returns:
                 Dynesty sampler results.
         """
-        wt_kwargsdict = {'pfrac' : pfrac}
+        wt_kwargsdict = {'pfrac': pfrac}
         if static:
             sampler = dynesty.NestedSampler(self._logl, self.ptform, 
             len(self.system.sys_priors), bound = bound)
