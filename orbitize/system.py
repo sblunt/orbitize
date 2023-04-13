@@ -739,6 +739,5 @@ def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=0.1):
     )
     # read into orbitize format
     data_table = read_file(data_table)
-    print(orbit_frac)
 
-    return data_table
+    return data_table, sma

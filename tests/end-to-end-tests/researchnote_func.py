@@ -20,7 +20,7 @@ def func(orbit_frac):
     mtot = 1.2 # total system mass [M_sol]
     plx = 60.0 # parallax [mas
     # sma = 2.3
-    data_table = generate_synthetic_data(orbit_frac, mtot, plx, num_obs=30)
+    data_table, sma = generate_synthetic_data(orbit_frac, mtot, plx, num_obs=30)
 
     # initialize orbitize System object
     sys = system.System(1, data_table, mtot, plx)
@@ -28,13 +28,13 @@ def func(orbit_frac):
     lab = sys.param_idx
 
     # set all parameters except eccentricity to fixed values for testing
-    sys.sys_priors[lab['inc1']] = np.pi/4
-    # sys.sys_priors[lab['sma1']] = sma
-    # sys.sys_priors[lab['aop1']] = np.pi/4 
-    # sys.sys_priors[lab['pan1']] = np.pi/4
-    # sys.sys_priors[lab['tau1']] = 0.8  
-    # sys.sys_priors[lab['plx']] = plx
-    # sys.sys_priors[lab['mtot']] = mtot
+    # sys.sys_priors[lab['inc1']] = np.pi/4
+    sys.sys_priors[lab['sma1']] = sma
+    sys.sys_priors[lab['aop1']] = np.pi/4 
+    sys.sys_priors[lab['pan1']] = np.pi/4
+    sys.sys_priors[lab['tau1']] = 0.8  
+    sys.sys_priors[lab['plx']] = plx
+    sys.sys_priors[lab['mtot']] = mtot
 
     #record start time
     start = time.time()
@@ -48,3 +48,6 @@ def func(orbit_frac):
     execution_time = (time.time() - start) / 60 #minutes
 
     return (samples, execution_time, num_iter)
+
+orbit_frac = 95
+samples, exec_time, niter = func(orbit_frac)
