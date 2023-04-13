@@ -686,13 +686,13 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
     return x1p_err, x2p_err, x12_corr
 
 
-def generate_synthetic_data(mtot, plx, sma=30., num_obs=4, unc=0.1):
+def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=0.1):
     """ Generate an orbitize-table of synethic data
 
         note: we should think about moving this to a better location.
 
     Args:
-        sma (float): semimajor axis (au)
+        orbit_frac (float): percentage of orbit covered by synthetic data
         num_obs (int): number of observations to generate
         unc (float): uncertainty on all simulated RA & Dec measurements (mas)
         mtot (float): total mass of the system [M_sol]
@@ -715,8 +715,16 @@ def generate_synthetic_data(mtot, plx, sma=30., num_obs=4, unc=0.1):
     # `num_obs` epochs between ~2000 and ~2003 [MJD]
     observation_epochs = np.linspace(51550., 52650., num_obs) 
     num_obs = len(observation_epochs)
-    ra, dec, _ = kepler.calc_orbit(observation_epochs, sma, ecc, inc, argp, lan, tau, 
-    plx, mtot)
+
+    # calculate the orbital fraction
+    orbit_coverage = (max(observation_epochs) - min(observation_epochs))/365.25 
+    period = 100*orbit_coverage/orbit_frac
+    sma = (period**2/mtot)**(1/3)
+
+    # calculate RA/Dec at three observation epochs
+    # `num_obs` epochs between ~2000 and ~2003 [MJD]
+    ra, dec, _ = kepler.calc_orbit(observation_epochs, sma, ecc, inc, argp, 
+    lan, tau, plx, mtot)
 
     # add Gaussian noise to simulate measurement
     ra += np.random.normal(scale=unc, size=num_obs)
@@ -725,17 +733,12 @@ def generate_synthetic_data(mtot, plx, sma=30., num_obs=4, unc=0.1):
     # define observational uncertainties
     ra_err = dec_err = np.ones(num_obs)*unc
 
-    # calculate the orbital fraction
-    period = np.sqrt((sma**3)/mtot)
-    # [yr]
-    orbit_coverage = (max(observation_epochs) - min(observation_epochs))/365.25 
-    orbit_fraction = 100*orbit_coverage/period
-
     data_table = table.Table(
         [observation_epochs, [1]*num_obs, ra, ra_err, dec, dec_err],
         names=('epoch', 'object', 'raoff', 'raoff_err', 'decoff', 'decoff_err')
     )
     # read into orbitize format
     data_table = read_file(data_table)
+    print(orbit_frac)
 
-    return data_table, orbit_fraction
+    return data_table

@@ -1165,7 +1165,9 @@ class NestedSampler(Sampler):
                 0.8.
             
             Returns:
-                Dynesty sampler results.
+                2-Tuple: 
+                    - Dynesty posterior sampler results
+                    - number of iterations it took to converge
         """
         wt_kwargsdict = {'pfrac': pfrac}
         if static:
@@ -1184,6 +1186,7 @@ class NestedSampler(Sampler):
             sampler.run_nested(wt_kwargs = wt_kwargsdict)
         self.results.add_samples(sampler.results['samples'], 
         sampler.results['logl'])
+        num_iter = sampler.results['niter']
 
-        return sampler.results['samples']
+        return sampler.results['samples'], num_iter
 
