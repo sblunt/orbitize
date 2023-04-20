@@ -18,7 +18,7 @@ mtot = 1.2 # total system mass [M_sol]
 plx = 60.0 # parallax [mas]
 n_orbs = 500
 sma = 2.3
-data_table = generate_synthetic_data(orbit_frac, mtot, plx, num_obs=30)
+data_table, sma = generate_synthetic_data(orbit_frac, mtot, plx, num_obs=30)
 # print('The orbit fraction is {}%'.format(np.round(orbit_fraction),1))
 
 # plot orbit coverage with fake data
@@ -37,10 +37,10 @@ sys.sys_priors[lab['sma1']] = sma
 sys.sys_priors[lab['aop1']] = np.pi/4 
 sys.sys_priors[lab['pan1']] = np.pi/4
 sys.sys_priors[lab['tau1']] = 0.8  
-sys.sys_priors[lab['plx']] = plx
+# sys.sys_priors[lab['plx']] = plx
 sys.sys_priors[lab['mtot']] = mtot
 
-
+print(sys.sys_priors[lab['plx']])
 # run nested sampler
 nested_sampler = sampler.NestedSampler(sys)
 samples, num_iter = nested_sampler.run_sampler(static = True, bound = 'multi')

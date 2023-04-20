@@ -1137,12 +1137,16 @@ class NestedSampler(Sampler):
             Class distribution.
         """
         utform = np.zeros(len(u))
+        times = np.zeros(len(u)) #timing array
         for i in range(len(u)):
-            if issubclass(type(self.system.sys_priors[i]), 
-            orbitize.priors.Prior):
+            s = time.time()
+            try:
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            else: # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
+            except AttributeError: # prior is a fixed number
+                utform[i] = self.system.sys_priors[i] 
+        times[i] = time.time() - s #input time for each sample
+        print("mean is: " + str(np.mean(times)))
+        print("std is: " + str(np.std(times)))
         return utform
 
 

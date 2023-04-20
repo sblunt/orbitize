@@ -4,10 +4,12 @@ import time
 from orbitize.system import generate_synthetic_data
 import time
 
-def func(orbit_frac):
+def func(orbit_frac, set_priors = None):
     """
     Args:
         orbit_frac (float): percentage of orbit covered by the synthetic data
+        set priors (4-array): inclination (radians), argument of periastron 
+        (radians), position angle of nodes (radians), tau
     Returns:
         3-tuple:
             -array: posterior samples
@@ -15,11 +17,9 @@ def func(orbit_frac):
             -int: number of iterations it took to converge on posterior
     """
     
-
     # generate data
-    mtot = 1.2 # total system mass [M_sol]
-    plx = 60.0 # parallax [mas
-    # sma = 2.3
+    plx = 60.0 # [mas]
+    mtot = 1.2 # [M_sol]
     data_table, sma = generate_synthetic_data(orbit_frac, mtot, plx, num_obs=30)
 
     # initialize orbitize System object
@@ -27,15 +27,22 @@ def func(orbit_frac):
     print(data_table)
     lab = sys.param_idx
 
-    # set all parameters except eccentricity to fixed values for testing
-    # sys.sys_priors[lab['inc1']] = np.pi/4
+    # set specified parameters except eccentricity to fixed values for testing
+    if set_priors != None:
+        sys.sys_priors[lab['inc1']] = set_priors[0]
+        sys.sys_priors[lab['aop1']] = set_priors[1] 
+        sys.sys_priors[lab['pan1']] = set_priors[2]
+        sys.sys_priors[lab['tau1']] = set_priors[3]  
+    else:
+        # sys.sys_priors[lab['inc1']] = np.pi/4
+        sys.sys_priors[lab['aop1']] = np.pi/4 
+        sys.sys_priors[lab['pan1']] = np.pi/4
+        sys.sys_priors[lab['tau1']] = 0.8
+
     sys.sys_priors[lab['sma1']] = sma
-    sys.sys_priors[lab['aop1']] = np.pi/4 
-    sys.sys_priors[lab['pan1']] = np.pi/4
-    sys.sys_priors[lab['tau1']] = 0.8  
     sys.sys_priors[lab['plx']] = plx
     sys.sys_priors[lab['mtot']] = mtot
-
+    
     #record start time
     start = time.time()
     
@@ -51,3 +58,5 @@ def func(orbit_frac):
 
 orbit_frac = 95
 samples, exec_time, niter = func(orbit_frac)
+print("execution time (min) is: " + str(exec_time))
+print("iteration number is: " + str(niter))
