@@ -1169,20 +1169,23 @@ class NestedSampler(Sampler):
                     - number of iterations it took to converge
         """
         wt_kwargsdict = {'pfrac': pfrac}
-        if static:
-            if pfrac != None:
-                raise ValueError(
-                    """The static nested sampler does not take alternate values
-                    for pfrac. The default is 0.8.
-                    """
-                )
-            sampler = dynesty.NestedSampler(self._logl, self.ptform, 
-            len(self.system.sys_priors), bound = bound)
-            sampler.run_nested()
-        else:
-            sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, 
-            len(self.system.sys_priors), bound = bound)
-            sampler.run_nested(wt_kwargs = wt_kwargsdict)
+        with dynesty.pool.Pool(10, self._logl, self.ptform) as pool:
+            if static:
+                if pfrac != None:
+                    raise ValueError(
+                            """The static nested sampler does not take alternate values
+                            for pfrac. The default is 0.8.
+                            """
+                    )
+                sampler = dynesty.NestedSampler(pool.loglike_0, 
+                pool.prior_transform, len(self.system.sys_priors),
+                pool = pool, bound = bound)
+                sampler.run_nested()
+            else:
+                sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, 
+                len(self.system.sys_priors), bound = bound)
+                sampler.run_nested(wt_kwargs = wt_kwargsdict)
+                
         self.results.add_samples(sampler.results['samples'], 
         sampler.results['logl'])
         num_iter = sampler.results['niter']

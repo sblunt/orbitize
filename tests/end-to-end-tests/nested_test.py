@@ -28,17 +28,19 @@ sys.sys_priors[lab['ecc1']] = priors.GaussianPrior(mu, sigma)
 sys.sys_priors[lab['inc1']] = 2.5
 nested_sampler = sampler.NestedSampler(sys)
 
-# number of orbits to accept
-n_orbs = 500
+samples, exec_time, num_iter = nested_sampler.run_sampler(static = True, bound = 'multi')
+nested_sampler.results.save_results('test34.hdf5')
+print("execution time (min) is: " + str(exec_time))
+print("iteration number is: " + str(num_iter))
 
-_ = nested_sampler.run_sampler(static = False, bound = 'single', pfrac = 0.8)
-nested_sampler.results.save_results('test2.hdf5')
 plt.figure()
 accepted_eccentricities = nested_sampler.results.post[:, lab['ecc1']]
 plt.hist(accepted_eccentricities)
 plt.xlabel('ecc'); plt.ylabel('number of orbits')
+plt.savefig('../../results/ecc_test34.png')
 
 plt.figure()
 accepted_inclinations = nested_sampler.results.post[:, lab['inc1']]
 plt.hist(accepted_inclinations)
 plt.xlabel('inc'); plt.ylabel('number of orbits')
+plt.savefig('../../results/inc_test34.png')

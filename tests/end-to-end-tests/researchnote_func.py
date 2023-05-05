@@ -2,7 +2,6 @@ from orbitize import system, priors, sampler
 import numpy as np
 import time
 from orbitize.system import generate_synthetic_data
-import time
 
 def func(orbit_frac, set_priors = None):
     """
@@ -34,7 +33,7 @@ def func(orbit_frac, set_priors = None):
         sys.sys_priors[lab['pan1']] = set_priors[2]
         sys.sys_priors[lab['tau1']] = set_priors[3]  
     else:
-        # sys.sys_priors[lab['inc1']] = np.pi/4
+        sys.sys_priors[lab['inc1']] = np.pi/4
         sys.sys_priors[lab['aop1']] = np.pi/4 
         sys.sys_priors[lab['pan1']] = np.pi/4
         sys.sys_priors[lab['tau1']] = 0.8
@@ -56,7 +55,9 @@ def func(orbit_frac, set_priors = None):
 
     return (samples, execution_time, num_iter)
 
-orbit_frac = 95
-samples, exec_time, niter = func(orbit_frac)
-print("execution time (min) is: " + str(exec_time))
-print("iteration number is: " + str(niter))
+if __name__ == '__main__':
+    orbit_frac = 95
+    samples, exec_time, niter = func(orbit_frac)
+    print("execution time (min) is: " + str(exec_time))
+    print("iteration number is: " + str(niter))
+

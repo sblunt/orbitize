@@ -271,7 +271,7 @@ class GaussianPrior(Prior):
         """
         # generate samples following a gaussian distribution
         z = scipy.special.ndtri(u)
-        samples = z*self.sigma + self.m
+        samples = z*self.sigma + self.mu
         return samples
 
     def draw_samples(self, num_samples):

@@ -43,7 +43,7 @@ sys.sys_priors[lab['mtot']] = mtot
 print(sys.sys_priors[lab['plx']])
 # run nested sampler
 nested_sampler = sampler.NestedSampler(sys)
-samples, num_iter = nested_sampler.run_sampler(static = True, bound = 'multi')
+samples, exec_time, num_iter = nested_sampler.run_sampler(static = True, bound = 'multi')
 
 # save results
 nested_sampler.results.save_results('test33.hdf')
