@@ -1144,8 +1144,12 @@ class NestedSampler(Sampler):
                 utform[i] = self.system.sys_priors[i] 
         return utform
 
+# TO-DO: write parallelization such that the if __name__ == '__main__': syntax
+# is not needed in the script that uses run_sampler(). 
 
-    def run_sampler(self, static = False, bound = 'multi', pfrac = None):
+
+    def run_sampler(self, static = False, bound = 'multi', pfrac = None, 
+                    num_threads = 1):
         """Runs the nested sampler from the Dynesty package. 
 
             Args:
@@ -1162,6 +1166,8 @@ class NestedSampler(Sampler):
                 pfrac (float): posterior weight, between 0 and 1. Can only be 
                 altered for the Dynamic nested sampler, otherwise deafault is 
                 0.8.
+                num_threads (int): number of threads to use for parallelization 
+                (default=1)
             
             Returns:
                 2-Tuple: 
@@ -1169,7 +1175,7 @@ class NestedSampler(Sampler):
                     - number of iterations it took to converge
         """
         wt_kwargsdict = {'pfrac': pfrac}
-        with dynesty.pool.Pool(10, self._logl, self.ptform) as pool:
+        with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
             if static:
                 if pfrac != None:
                     raise ValueError(
@@ -1177,13 +1183,14 @@ class NestedSampler(Sampler):
                             for pfrac. The default is 0.8.
                             """
                     )
-                sampler = dynesty.NestedSampler(pool.loglike_0, 
+                sampler = dynesty.NestedSampler(pool.loglike, 
                 pool.prior_transform, len(self.system.sys_priors),
                 pool = pool, bound = bound)
                 sampler.run_nested()
             else:
-                sampler = dynesty.DynamicNestedSampler(self._logl, self.ptform, 
-                len(self.system.sys_priors), bound = bound)
+                sampler = dynesty.DynamicNestedSampler(pool.loglike, 
+                pool.prior_transform, len(self.system.sys_priors), 
+                pool = pool, bound = bound)
                 sampler.run_nested(wt_kwargs = wt_kwargsdict)
                 
         self.results.add_samples(sampler.results['samples'], 

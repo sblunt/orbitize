@@ -47,8 +47,8 @@ def func(orbit_frac, set_priors = None):
     
     # run nested sampler
     nested_sampler = sampler.NestedSampler(sys)
-    samples, num_iter = nested_sampler.run_sampler(static = True, 
-    bound = 'multi')
+    samples, num_iter = nested_sampler.run_sampler(static = False, 
+    bound = 'multi', num_threads = 2, pfrac = 1)
 
     #calculate script run time
     execution_time = (time.time() - start) / 60 #minutes
