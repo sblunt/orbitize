@@ -1045,6 +1045,7 @@ def plot_with_system(objects, orbits, epochs, results, colors):
     orbits (int): number of orbits to plot
     epochs (int): number of epochs to plot for each orbit
     results (orbitize.results.Results): orbitize results object
+    did it update
     '''
     # get the eopchs (not sure if necessary)
 
@@ -1093,20 +1094,29 @@ def plot_with_system(objects, orbits, epochs, results, colors):
     plt.xlabel('RA')
     plt.ylabel('Dec')
     
-    # Create new figure subplot with a sep/PA plot for each planet
-    sep_pa_fig, (sep_ax, pa_ax) = plt.subplots(2, 1, figsize = (5,10))
+    #loop through the objects and create sep/PA plots for each
+    sep_pa_figures = []
+    seps = []
+    pas = []
+    for ob in range(objects):
+        # Create new figure subplot for each planet
+        sep_pa_fig, (sep_ax, pa_ax) = plt.subplots(2, 1, figsize = (5,10))
 
-    # plot sep/PA 
-    pa_ax.set_ylabel('PA [$^{{\\circ}}$]')
-    sep_ax.set_ylabel('$\\rho$ [mas]')
-    pa_ax.set_xlabel('Epoch')
-    sep_ax.set_title('All Sep-PAs')
+        # plot sep/PA 
+        pa_ax.set_ylabel('PA [$^{{\\circ}}$]')
+        sep_ax.set_ylabel('$\\rho$ [mas]')
+        pa_ax.set_xlabel('Epoch')
+        sep_ax.set_title('All Sep-PAs')
 
-    sep, pa = orbitize.system.radec2seppa(ras, decs)
-    plt.sca(sep_ax)
-    plt.plot(epochs_for_all, sep, zorder=1)
+        sep, pa = orbitize.system.radec2seppa(ras, decs)
+        # plt.sca(sep_ax)
+        # plt.plot(epochs_for_all, sep, zorder=1)
 
-    plt.sca(pa_ax)
-    plt.plot(epochs_for_all, pa, zorder=1)
+        # plt.sca(pa_ax)
+        # plt.plot(epochs_for_all, pa, zorder=1)
 
-    return fig, sep_pa_fig
+        # sep_pa_figures.append(sep_pa_fig)
+        seps.append(sep)
+        pas.append(pa)
+
+    return fig, seps, pas
