@@ -1094,11 +1094,50 @@ def plot_with_system(objects, orbits, epochs, results, colors):
     plt.xlabel('RA')
     plt.ylabel('Dec')
     
+
     #loop through the objects and create sep/PA plots for each
     sep_pa_figures = []
-    seps = []
-    pas = []
+
+    data = results.data
+
+    #transform ra dec measurements to sep PA (to plot orbits against given data points)
+    radec_inds = np.where(data['quant_type'] == 'radec')
+
+    # transform RA/Dec data points to Sep/PA
+    sep_data = np.copy(data['quant1'])
+    sep_err = np.copy(data['quant1_err'])
+    pa_data = np.copy(data['quant2'])
+    pa_err = np.copy(data['quant2_err'])
+
+    if len(radec_inds[0] > 0):
+
+        sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
+            data['quant1'][radec_inds], data['quant2'][radec_inds]
+        )
+
+        num_radec_pts = len(radec_inds[0])
+        sep_err_from_ra_data = np.empty(num_radec_pts)
+        pa_err_from_dec_data = np.empty(num_radec_pts)
+        for j in np.arange(num_radec_pts):
+
+            sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = orbitize.system.transform_errors(
+                np.array(data['quant1'][radec_inds][j]), np.array(data['quant2'][radec_inds][j]), 
+                np.array(data['quant1_err'][radec_inds][j]), np.array(data['quant2_err'][radec_inds][j]), 
+                np.array(data['quant12_corr'][radec_inds][j]), orbitize.system.radec2seppa
+            )
+
+        sep_data[radec_inds] = sep_from_ra_data
+        sep_err[radec_inds] = sep_err_from_ra_data
+
+        pa_data[radec_inds] = pa_from_dec_data
+        pa_err[radec_inds] = pa_err_from_dec_data
+
+
     for ob in range(objects):
+        # create indices for each object
+        ob_inds = np.where(data['object'] == (ob + 1))
+        ob_epochs = data['epoch'][ob_inds]
+
         # Create new figure subplot for each planet
         sep_pa_fig, (sep_ax, pa_ax) = plt.subplots(2, 1, figsize = (5,10))
 
@@ -1108,15 +1147,21 @@ def plot_with_system(objects, orbits, epochs, results, colors):
         pa_ax.set_xlabel('Epoch')
         sep_ax.set_title('All Sep-PAs')
 
-        sep, pa = orbitize.system.radec2seppa(ras, decs)
-        # plt.sca(sep_ax)
-        # plt.plot(epochs_for_all, sep, zorder=1)
+        
+        plt.sca(sep_ax)
+        plt.errorbar(Time(ob_epochs, format='mjd').decimalyear, sep_data[ob_inds], yerr= sep_err[ob_inds], zorder=1)
 
-        # plt.sca(pa_ax)
-        # plt.plot(epochs_for_all, pa, zorder=1)
+        plt.sca(pa_ax)
+        plt.errorbar(Time(ob_epochs, format='mjd').decimalyear, pa_data[ob_inds], yerr = pa_err[ob_inds], zorder=1)
 
-        # sep_pa_figures.append(sep_pa_fig)
-        seps.append(sep)
-        pas.append(pa)
+         # transform system.compute_all_orbits ra/decs to sep/pas
+        for orb in range(orbits):
+            seps, pas = orbitize.system.radec2seppa(ras[:, ob + 1, orb], decs[:, ob + 1, orb])
+            plt.sca(sep_ax)
+            plt.plot(epochs_for_all, seps, c='k', alpha = 0.3)
+            plt.sca(pa_ax)
+            plt.plot(epochs_for_all, pas, c='k', alpha = 0.3)
+        
+        sep_pa_figures.append(sep_pa_fig)
 
-    return fig, seps, pas
+    return fig, sep_pa_figures
