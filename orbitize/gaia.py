@@ -281,18 +281,18 @@ class HGCALogProb(object):
         self.gaia_bary_pos, _ = get_body_barycentric_posvel('earth', self.gaia_epoch)
 
         self.gaia_changein_alpha_st = (
-            entry['parallax_gaia'] * (
-                self.gaia_bary_pos.x.value * np.sin(np.radians(entry['gaia_ra'])) - 
-                self.gaia_bary_pos.y.value * np.cos(np.radians(entry['gaia_ra']))
-            ) + (self.gaia_epoch - entry['epoch_ra_gaia']) * entry['pmra_gaia']
+            self.gaia_plx0 * (
+                self.gaia_bary_pos.x.value * np.sin(np.radians(self.gaia_alpha0)) - 
+                self.gaia_bary_pos.y.value * np.cos(np.radians(self.gaia_alpha0))
+            ) + (self.gaia_epoch - entry['epoch_ra_gaia']) * self.gaia_pm_ra0
         )
 
         self.gaia_changein_delta = (
-            entry['parallax_gaia'] * (
-                self.gaia_bary_pos.x.value * np.cos(np.radians(entry['gaia_ra'])) * np.sin(np.radians(entry['gaia_dec'])) + 
-                self.gaia_bary_pos.y.value * np.sin(np.radians(entry['gaia_ra'])) * np.sin(np.radians(entry['gaia_dec'])) - 
-                self.gaia_bary_pos.z.value * np.cos(np.radians(entry['gaia_dec']))
-            ) + (self.gaia_epoch - entry['epoch_dec_gaia']) * entry['pmdec_gaia']
+            self.gaia_plx0 * (
+                self.gaia_bary_pos.x.value * np.cos(np.radians(self.gaia_alpha0)) * np.sin(np.radians(self.gaia_delta0)) + 
+                self.gaia_bary_pos.y.value * np.sin(np.radians(self.gaia_alpha0)) * np.sin(np.radians(self.gaia_delta0)) - 
+                self.gaia_bary_pos.z.value * np.cos(np.radians(self.gaia_delta0))
+            ) + (self.gaia_epoch - entry['epoch_dec_gaia']) * self.gaia_pm_dec0
         )
     
     def _save(self, hf):
