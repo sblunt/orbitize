@@ -10,6 +10,7 @@ import astropy.io.fits as fits
 import astropy.time as time
 from astropy.io.ascii import read
 from orbitize import DATADIR
+from astropy.coordinates import get_body_barycentric_posvel
 
 class GaiaLogProb(object):
     """
@@ -234,14 +235,65 @@ class HGCALogProb(object):
         self.gaia_hg_dpm = gaia_pm - hg_pm
         self.gaia_hg_dpm_err = np.sqrt(gaia_pm_err**2 + hg_pm_err**2)
 
+        # save gaia best fit values
+        self.gaia_plx0 = entry['parallax_gaia']
+        self.gaia_alpha0 = entry['gaia_ra']
+        self.gaia_delta0 = entry['gaia_dec']
+        self.gaia_pm_ra0 = entry['pmra_gaia']
+        self.gaia_pm_dec0 = entry['pmdec_gaia']
+
         # save the hipparcos object for use later
         #  self.hiplogprob = hiplogprob
         self.hipparcos_epoch = hiplogprob.epochs # in decimal year
+        self.hipparcos_cos_phi = hiplogprob.cos_phi
+        self.hipparcos_sin_phi = hiplogprob.sin_phi
+        self.hipparcos_plx0 = hiplogprob.plx0
+        self.hipparcos_alpha0 = hiplogprob.alpha0
+        self.hipparcos_delta0 = hiplogprob.delta0
+        self.hipparcos_pm_ra0 = hiplogprob.pm_ra0
+        self.hipparcos_pm_dec0 = hiplogprob.pm_dec0
 
         # read in the GOST file to get the estimated Gaia epochs
         gost_dat = read(gost_filepath)
         self.gaia_epoch = time.Time(gost_dat["ObservationTimeAtGaia[UTC]"]).decimalyear # in decimal year
+        self.gaia_scan_theta = gost_dat["scanAngle[rad]"]
 
+        # reconstruct the model 5 parameter RA/Dec curves for both hipparcos and gaia
+        # first for Hipparcos
+        self.hip_bary_pos, _ = get_body_barycentric_posvel('earth', self.hipparcos_epoch)
+
+        # reconstruct ephemeris of star given van Leeuwen best-fit (Nielsen+ 2020 Eqs 1-2) [mas]
+        self.hip_changein_alpha_st = (
+            self.hipparcos_plx0 * (
+                self.hip_bary_pos.x.value * np.sin(np.radians(self.hipparcos_alpha0)) - 
+                self.hip_bary_pos.y.value * np.cos(np.radians(self.hipparcos_alpha0))
+            ) + (self.hipparcos_epoch - 1991.25) * self.hipparcos_pm_ra0
+        )
+        self.hip_changein_delta = (
+            hiplogprob.plx0 * (
+                self.hip_bary_pos.x.value * np.cos(np.radians(self.hipparcos_alpha0)) * np.sin(np.radians(self.hipparcos_delta0)) + 
+                self.hip_bary_pos.y.value * np.sin(np.radians(self.hipparcos_alpha0)) * np.sin(np.radians(self.hipparcos_delta0)) - 
+                self.hip_bary_pos.z.value * np.cos(np.radians(self.hipparcos_delta0))
+            ) + (self.hipparcos_epoch - 1991.25) * self.hipparcos_pm_dec0
+        )
+
+        # now for Gaia
+        self.gaia_bary_pos, _ = get_body_barycentric_posvel('earth', self.gaia_epoch)
+
+        self.gaia_changein_alpha_st = (
+            entry['parallax_gaia'] * (
+                self.gaia_bary_pos.x.value * np.sin(np.radians(entry['gaia_ra'])) - 
+                self.gaia_bary_pos.y.value * np.cos(np.radians(entry['gaia_ra']))
+            ) + (self.gaia_epoch - entry['epoch_ra_gaia']) * entry['pmra_gaia']
+        )
+
+        self.gaia_changein_delta = (
+            entry['parallax_gaia'] * (
+                self.gaia_bary_pos.x.value * np.cos(np.radians(entry['gaia_ra'])) * np.sin(np.radians(entry['gaia_dec'])) + 
+                self.gaia_bary_pos.y.value * np.sin(np.radians(entry['gaia_ra'])) * np.sin(np.radians(entry['gaia_dec'])) - 
+                self.gaia_bary_pos.z.value * np.cos(np.radians(entry['gaia_dec']))
+            ) + (self.gaia_epoch - entry['epoch_dec_gaia']) * entry['pmdec_gaia']
+        )
     
     def _save(self, hf):
         """
