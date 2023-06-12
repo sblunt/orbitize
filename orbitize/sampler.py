@@ -1114,7 +1114,7 @@ class NestedSampler(Sampler):
      Thea McKenna, 2023
     """
     
-    def __init__(self, system):
+    def __init__(self, system, k_t = 172800):
         super(NestedSampler, self).__init__(system)
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -1125,22 +1125,31 @@ class NestedSampler(Sampler):
             version_number=orbitize.__version__
         )
         self.start = time.time()
+        self.kill_time = k_t 
 
-    def ptform(self, u, kill_time = 172800):
+    def set_kill_time(self, t):
+        """Allows the user to set a different kill time than the default of 2 
+        days.
+
+        Args:
+            t (int): time in seconds to allow the NestedSampler to run before
+            killing it.
+        """
+        self.kill_time = t
+
+    def ptform(self, u):
         """
         Prior transform function.
 
         Args:
             u (array of floats): list of samples with values 0 < u < 1.
-            kill_time (int): number of seconds the nested sampler will run
-            before cancelling the run. Default time is 2 days.
 
         Returns:
             numpy array of floats: 1D u samples transformed to a chosen Prior
             Class distribution.
         """
         now = time.time()
-        assert (now - self.start) < kill_time, "Nested sampler has taken too long."
+        assert (now - self.start) < self.kill_time, "Nested sampler has taken too long."
         utform = np.zeros(len(u))
         for i in range(len(u)):
             try:
