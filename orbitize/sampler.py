@@ -1124,18 +1124,23 @@ class NestedSampler(Sampler):
             lnlike=None,
             version_number=orbitize.__version__
         )
+        self.start = time.time()
 
-    def ptform(self, u):
+    def ptform(self, u, kill_time = 172800):
         """
         Prior transform function.
 
         Args:
             u (array of floats): list of samples with values 0 < u < 1.
+            kill_time (int): number of seconds the nested sampler will run
+            before cancelling the run. Default time is 2 days.
 
         Returns:
             numpy array of floats: 1D u samples transformed to a chosen Prior
             Class distribution.
         """
+        now = time.time()
+        assert (now - self.start) < kill_time, "Nested sampler has taken too long."
         utform = np.zeros(len(u))
         for i in range(len(u)):
             try:
