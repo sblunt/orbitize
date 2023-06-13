@@ -1049,18 +1049,36 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
     results (orbitize.results.Results): orbitize results object
     '''
 
-    posterior = results.post
-    posterior = posterior.transpose() # need for system.compute input format
+    # Get posteriors from random indices 
+    num_orbits = len(results.post[:, 0])
+    if orbits > num_orbits:
+        orbits = num_orbits
+    choose = np.random.randint(0, high= num_orbits, size=orbits)
 
-    #collected_epoch_arrays = []
+    standard_post = []
+    if results.sampler_name == 'MCMC':
+        for i in np.arange(orbits):
+            orb_ind = choose[i]
+            param_set = np.copy(results.post[orb_ind])
+            standard_post.append(results.basis.to_standard_basis(param_set))
+    else:
+        for i in np.arange(orbits):
+            orb_ind = choose[i]
+            standard_post.append(results.post[orb_ind])
+
+    standard_post = np.array(standard_post)
+
+    #posterior = results.post
+    posterior = standard_post.transpose() # need for system.compute input format (params, walkers * steps)
+        # transposed post.shape = (param, total_orbits)
 
     sma = posterior[results.standard_param_idx['sma{}'.format(objects)], :]
+        # using the longest period of all objects  
     mtot = posterior[results.standard_param_idx['mtot'], :]
 
     epoch_array = np.zeros((orbits, epochs))
     raoff = np.zeros((epochs, objects + 1, orbits))
     decoff = np.zeros((epochs, objects + 1, orbits))
-        # transposed post.shape = (param, total_orbits)
 
     for orb in range(orbits):
         #start_mjd = results.data['epoch'][0]
@@ -1181,3 +1199,38 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
         sep_pa_figures.append(sep_pa_fig)
 
     return fig, sep_pa_figures
+
+def plot_period_ratios(results, num_objects, colors):
+
+    posterior = results.post
+
+    ratios = []
+    for i in range(num_objects -1):
+        smaller_sma = posterior[:, results.standard_param_idx['sma{}'.format(i+1)]]
+        bigger_sma = posterior[:, results.standard_param_idx['sma{}'.format(i+2)]]
+        
+        if 'mtot' in results.labels:
+            mtot = posterior[:, results.standard_param_idx['mtot']]
+        elif 'm0' in results.labels:
+            mtot = 0
+            for i in range(num_objects +1):
+                m = posterior[:, results.standard_param_idx['m{}'.format(i)]]
+                mtot += m
+        
+        shorter_period = np.sqrt(4*np.pi**2.0*(smaller_sma*u.AU)**3/(consts.G*(mtot*u.Msun))).value
+        longer_period = np.sqrt(4*np.pi**2.0*(bigger_sma*u.AU)**3/(consts.G*(mtot*u.Msun))).value
+        
+        period_ratio = longer_period / shorter_period
+        ratios.append(period_ratio)
+    
+    ratio_fig = plt.figure(figsize=(8,8))
+
+    for i in range(len(ratios)):
+        plt.hist(ratios[i], color = colors[i](0.5), label='{}-{} ratio'.format(i+1, i))
+
+    plt.axvline(2, color='r', ls='--', label='2:1 Resonance')
+    plt.xlabel('Period Ratio')
+    plt.title('Consecutive Planet Period Ratios')
+    plt.legend()
+
+    return ratio_fig
