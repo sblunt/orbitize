@@ -338,5 +338,63 @@ class Results(object):
             plot_errorbars=plot_errorbars, fig=fig
         )
 
+    def chop_chains(self, burn, num_walkers=1000, trim=0):
+        """
+        Permanently removes steps from beginning (and/or end) of chains from the 
+        Results object. Also updates `curr_pos` if steps are removed from the 
+        end of the chain.
+
+        Args:
+            burn (int): The number of steps to remove from the beginning of the chains
+            trim (int): The number of steps to remove from the end of the chians (optional)
+            num_walkers (int): The number of walkers used in the sampler, default = 1000
+
+        .. Warning:: Does not update bookkeeping arrays within `MCMC` sampler object.
+
+        (written): Henry Ngo, 2019
+        """
+
+        # Retrieve information from results object
+        flatchain = np.copy(self.post)
+        total_samples, n_params = flatchain.shape
+        n_steps = int(total_samples/num_walkers)
+        flatlnlikes = np.copy(self.lnlike)
+
+        # Reshape chain to (nwalkers, nsteps, nparams)
+        chn = flatchain.reshape((num_walkers, n_steps, n_params))
+        # Reshape lnlike to (nwalkers, nsteps)
+        lnlikes = flatlnlikes.reshape((num_walkers, n_steps))
+
+        # Find beginning and end indices for steps to keep
+        keep_start = burn
+        keep_end = n_steps - trim
+        n_chopped_steps = n_steps - trim - burn
+
+        # Update arrays in `sampler`: chain, lnlikes, lnlikes_alltemps (if PT), post
+        chopped_chain = chn[:, keep_start:keep_end, :]
+        chopped_lnlikes = lnlikes[:, keep_start:keep_end]
+
+        # Update current position if trimmed from edge
+        if trim > 0:
+            self.curr_pos = chopped_chain[:, -1, :]
+
+        # Flatten likelihoods and samples
+        flat_chopped_chain = chopped_chain.reshape(num_walkers*n_chopped_steps, n_params)
+        flat_chopped_lnlikes = chopped_lnlikes.reshape(num_walkers*n_chopped_steps)
+
+        # Update results object associated with this sampler
+        chopped_results = orbitize.results.Results(
+            self.system, 
+            sampler_name=self.__class__.__name__,
+            post=flat_chopped_chain,
+            lnlike=flat_chopped_lnlikes,
+            version_number = orbitize.__version__,
+            curr_pos = self.curr_pos
+        )
+
+        # Print a confirmation
+        print('Chains successfully chopped. Results object updated.')
+        return chopped_results
+
 
 
