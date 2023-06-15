@@ -5,9 +5,9 @@ name: Python package
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "github-actions" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "github-actions" ]
 
 jobs:
   build:
