@@ -31,7 +31,7 @@ lnprob_inputs = {
 }
 
 expected_probs = {
-	priors.GaussianPrior : np.array([0., 0., nm(1000.,1.).pdf(1000.), nm(1000.,1.).pdf(999.)]),
+	priors.GaussianPrior : np.array([0., 0., nm(1000.,1.).pdf(1000.)* np.sqrt(2*np.pi), nm(1000.,1.).pdf(999.)* np.sqrt(2*np.pi)]),
 	priors.LogUniformPrior : np.array([0., 0., 1., 2./3., 0.5, 0.])/np.log(2),
 	priors.UniformPrior : np.array([1., 1., 1., 0., 0.]),
 	priors.SinPrior : np.array([0., 0.5, 0., 0., 0.]),
@@ -66,7 +66,7 @@ def test_compute_lnprob():
 
 		lnprobs = TestPrior.compute_lnprob(values2test)
 
-		assert np.log(expected_probs[Prior]) == pytest.approx(lnprobs, abs=threshold)
+		assert np.log(expected_probs[Prior])  == pytest.approx(lnprobs, abs=threshold)
 
 
 if __name__=='__main__':
