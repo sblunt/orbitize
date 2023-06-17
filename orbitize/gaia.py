@@ -347,6 +347,7 @@ class HGCALogProb(object):
 
         # Begin forward modeling the data of the HGCA: linear motion during the Hip
         # and Gaia missions, and the linear motion of the star between the two missions 
+        plx = samples[param_idx['plx']]
 
         # fit linear motion in RA/Dec to the star during the Hipparcos epoch
         model_ra_hip = raoff_model[:gaia_index]
