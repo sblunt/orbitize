@@ -2,7 +2,7 @@ astropy>=4
 numpy
 scipy
 emcee>=3
-ptemcee @ git+https://github.com/sblunt/ptemcee@main
+ptemcee_for_orbitize
 matplotlib
 corner
 h5py
