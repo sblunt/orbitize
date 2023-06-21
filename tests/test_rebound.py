@@ -22,8 +22,8 @@ inc = np.array([0.47123, 0.47123, 0.47123, 0.47123])
 aop = np.array([1.91986, 0.29670, 1.16937, 1.5184])
 pan = np.array([1.18682, 1.18682, 1.18682, 1.18682])
 tau = np.array([0.71, 0.79, 0.50, 0.54])
-plx = np.array([7])
-mtot = np.array([1.49])
+plx = 7
+mtot = 1.49
 tau_ref_epoch = 0
 years = 365.25*5
 
