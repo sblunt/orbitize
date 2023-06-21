@@ -54,6 +54,11 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.2.0 (2023-06-21)**
+
+- set up new CI system using GH actions (@sblunt)
+- removed radvel as dependency, and moved radvel_utils subpackage to new dir (@sblunt). This is a breaking change for users of orbitize.radvel_utils.
+
 **2.1.4 (2023-06-20)**
 
 - unit tests hotfixes (@semaphoreP)
