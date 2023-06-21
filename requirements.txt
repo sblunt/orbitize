@@ -10,7 +10,6 @@ deprecation
 cython
 pytest
 pandas
-radvel
 pyerfa
 astroquery
 sphinx
