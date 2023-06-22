@@ -14,6 +14,7 @@ formats:
 
 python:
    install:
-   - requirements: requirements.txt
+   - requirements: requirements.txt # orbitize requirements
+   - requirements: docs/requirements.txt # docs-building requirements
    - method: pip
-     path: .
+     path: . # install orbitize
