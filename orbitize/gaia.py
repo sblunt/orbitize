@@ -161,7 +161,7 @@ class GaiaLogProb(object):
 
         delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
 
-        chi2 = alpha_chi2 + delta_chi2
+        chi2 =   + delta_chi2
         lnlike = -0.5 * chi2 
 
         return lnlike
@@ -351,9 +351,32 @@ class HGCALogProb(object):
 
         # fit linear motion in RA/Dec to the star during the Hipparcos epoch
         model_ra_hip = raoff_model[:gaia_index]
-        model_hip_pmra = np.polyfit(self.hipparcos_epoch, model_ra_hip, 1)[0,0] # mas/yr (get slope from polyfit)
+        # model_hip_pmra = np.polyfit(self.hipparcos_epoch, model_ra_hip, 1)[0,0] # mas/yr (get slope from polyfit)
         model_dec_hip = deoff_model[:gaia_index]
-        model_hip_pmdec = np.polyfit(self.hipparcos_epoch, model_dec_hip, 1)[0,0] # mas/yr
+        
+        def optimize_pm(fitparams):
+            guess_pm_ra, guess_pm_dec = fitparams
+            guess_hip_changein_alpha_st = (
+                plx * (
+                    self.hip_bary_pos.x.value * np.sin(np.radians(self.hipparcos_alpha0)) - 
+                    self.hip_bary_pos.y.value * np.cos(np.radians(self.hipparcos_alpha0))
+                ) + (self.hipparcos_epoch - 1991.25) * guess_pm_ra
+            )
+            guess_hip_changein_delta = (
+                plx * (
+                    self.hip_bary_pos.x.value * np.cos(np.radians(self.hipparcos_alpha0)) * np.sin(np.radians(self.hipparcos_delta0)) + 
+                    self.hip_bary_pos.y.value * np.sin(np.radians(self.hipparcos_alpha0)) * np.sin(np.radians(self.hipparcos_delta0)) - 
+                    self.hip_bary_pos.z.value * np.cos(np.radians(self.hipparcos_delta0))
+                ) + (self.hipparcos_epoch - 1991.25) * guess_pm_dec
+            )
+
+            guess_hip_changein_alpha_st += model_ra_hip
+            guess_hip_changein_delta += model_dec_hip
+
+
+
+        
+        
         model_hip_pm = np.array([model_hip_pmra, model_hip_pmdec])
 
         # fit linear motion in RA/Dec to the star in Gaia epoch
