@@ -54,6 +54,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.2.1 (2023-06-28)**
+
+- tau_to_tp function now accepts array of after_date (@tomasstolker/@semaphoreP)
+
 **2.2.0 (2023-06-21)**
 
 - set up new CI system using GH actions (@sblunt)
