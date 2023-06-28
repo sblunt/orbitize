@@ -234,7 +234,7 @@ def read_file(filename):
     for index, row in enumerate(input_table):
         # First check if epoch is a number
         try:
-            float_epoch = np.float(row['epoch'])
+            float_epoch = np.float64(row['epoch'])
         except:
             raise Exception(
                 'Problem reading epoch in the input file. Epoch should be given in MJD.')

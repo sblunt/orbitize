@@ -201,6 +201,14 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
     if object_to_plot == 0:
         raise ValueError("Plotting the primary's orbit is currently unsupported. Stay tuned.")
 
+    if rv_time_series and 'm0' not in results.labels:
+        rv_time_series = False
+
+        warnings.warn("It seems that the stellar and companion mass "
+                      "have not been fitted separately. Setting "
+                      "rv_time_series=True is therefore not possible "
+                      "so the argument is set to False instead.")
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', ErfaWarning)
 
