@@ -54,6 +54,16 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.2.0 (2023-06-21)**
+
+- set up new CI system using GH actions (@sblunt)
+- removed radvel as dependency, and moved radvel_utils subpackage to new dir (@sblunt). This is a breaking change for users of orbitize.radvel_utils.
+
+**2.1.4 (2023-06-20)**
+
+- unit tests hotfixes (@semaphoreP)
+- use forked ptemcee (@sblunt)
+
 **2.1.3 (2023-02-07)**
 
 - Compatibility with numpy v1.24 (issue #330 and #331; @tomasstolker)
