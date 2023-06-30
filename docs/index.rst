@@ -54,6 +54,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**2.2.2 (2023-06-30)**
+
+- tests now overwrite any generated text files (@sblunt)
+
 **2.2.1 (2023-06-28)**
 
 - tau_to_tp function now accepts array of after_date (@tomasstolker/@semaphoreP)
