@@ -146,9 +146,9 @@ class Results(object):
 
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
-        sampler_name = np.str(hf.attrs['sampler_name'])
+        sampler_name = str(hf.attrs['sampler_name'])
         try:
-            version_number = np.str(hf.attrs['version_number'])
+            version_number = str(hf.attrs['version_number'])
         except KeyError:
             version_number = "<= 1.13"
         post = np.array(hf.get('post'))
@@ -226,7 +226,7 @@ class Results(object):
             gaia = None
 
         try:
-            fitting_basis = np.str(hf.attrs['fitting_basis'])
+            fitting_basis = str(hf.attrs['fitting_basis'])
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
             fitting_basis = 'Standard'
