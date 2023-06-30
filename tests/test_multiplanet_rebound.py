@@ -60,7 +60,7 @@ def test_1planet():
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_1planet.csv")
-    t.write(filename)
+    t.write(filename, overwrite=True)
 
     # create the orbitize system and generate model predictions using the ground truth
     astrom_dat = read_input.read_file(filename)
@@ -112,7 +112,7 @@ def test_1planet():
     assert np.all(np.abs(diff_dec) < 1e-9)
 
     # clean up
-    os.system("rm {}".format(filename))
+    # os.system("rm {}".format(filename))
 
 
 def test_2planet_massive():
@@ -200,7 +200,7 @@ def test_2planet_massive():
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_outer.csv")
-    t.write(filename)
+    t.write(filename, overwrite=True)
 
     # TEST THE OUTER PLANET
 
@@ -292,7 +292,7 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_dec) / (params[0]) < 1e-3)
 
     # clean up
-    os.system("rm {}".format(filename))
+    # os.system("rm {}".format(filename))
 
     # NOW TEST THE INNER PLANET
 
@@ -310,7 +310,7 @@ def test_2planet_massive():
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_inner.csv")
-    t.write(filename)
+    t.write(filename, overwrite=True)
 
     # create the orbitize system and generate model predictions using the ground truth
     astrom_dat = read_input.read_file(filename)
@@ -385,7 +385,7 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_dec) / (params[0]) < 3e-3)
 
     # clean up
-    os.system("rm {}".format(filename))
+    # os.system("rm {}".format(filename))
 
 
 def test_2planet_massive_reverse_order():
@@ -454,7 +454,7 @@ def test_2planet_massive_reverse_order():
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_swapped_outer.csv")
-    t.write(filename)
+    t.write(filename, overwrite=True)
 
     # TEST THE OUTER PLANET ####
 
@@ -543,7 +543,7 @@ def test_2planet_massive_reverse_order():
     assert np.all(np.abs(diff_dec) / (params[6]) < 1e-3)
 
     # clean up
-    os.system("rm {}".format(filename))
+    # os.system("rm {}".format(filename))
 
 
 def test_2planet_nomass():
@@ -611,7 +611,7 @@ def test_2planet_nomass():
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet.csv")
-    t.write(filename)
+    t.write(filename, overwrite=True)
 
     # create the orbitize system and generate model predictions using the ground truth
     astrom_dat = read_input.read_file(filename)
@@ -693,7 +693,7 @@ def test_2planet_nomass():
     assert np.all(np.abs(diff_dec) / (params[0] * params[6 * 2]) < 1e-9)
 
     # clean up
-    os.system("rm {}".format(filename))
+    # os.system("rm {}".format(filename))
 
 
 if __name__ == "__main__":
