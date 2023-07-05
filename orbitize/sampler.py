@@ -1406,7 +1406,10 @@ class NestedSampler(Sampler):
                     bound=bound,
                 )
 
-        sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+        if static:
+            sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+        else:
+            sampler.run_nested()
 
         self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
         num_iter = sampler.results["niter"]
