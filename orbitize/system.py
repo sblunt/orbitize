@@ -777,19 +777,17 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
 def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=2):
     """Generate an orbitize-table of synethic data
 
-        note: we should think about moving this to a better location.
-
     Args:
         orbit_frac (float): percentage of orbit covered by synthetic data
-        num_obs (int): number of observations to generate
-        unc (float): uncertainty on all simulated RA & Dec measurements (mas)
         mtot (float): total mass of the system [M_sol]
         plx (float): parallax of system [mas]
+        num_obs (int): number of observations to generate
+        unc (float): uncertainty on all simulated RA & Dec measurements [mas]
 
     Returns:
         2-tuple:
             - `astropy.table.Table`: data table of generated synthetic data
-            - float: the orbit fraction of the generated data
+            - float: the semimajor axis of the generated data
     """
 
     # assumed ground truth for non-input orbital parameters
