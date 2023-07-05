@@ -1253,8 +1253,21 @@ def plot_period_ratios(results, num_objects, colors):
 
     return ratio_fig
 
-def plot_chains(file, num_planets, which_params=['sma', 'ecc', 'inc'], walkers=1000, 
-                colors = [mpl.cm.Purples, mpl.cm.Blues, mpl.cm.Greens, mpl.cm.Oranges]):
+def plot_chains(file, num_planets, save_dir, which_params=['sma', 'ecc', 'inc'], walkers=1000, 
+                colors=[mpl.cm.Purples, mpl.cm.Blues, mpl.cm.Greens, mpl.cm.Oranges],
+                ):
+    '''
+    inputs
+    file (str): path to orbitize results.hdf5 file
+    num_planets (int): number of planetary objects in system
+    save_dir (str): path to directory where plots will be saved
+    which_params (list of strings): which parameter chains to be examined, default:['sma', 'ecc', 'inc']
+    walkers (int): number of walkers to plot, default:1000
+    colors (list of matplotlib.colormaps): list of colors to distinguish planets
+
+    outputs
+    none: saves the chain plots to provided directory
+    '''
     
     if 'loader' in locals():
         del loader
@@ -1275,7 +1288,7 @@ def plot_chains(file, num_planets, which_params=['sma', 'ecc', 'inc'], walkers=1
     # create stacked plot for each planet
     for planet in range(num_planets):
         planet_number = str(planet + 1)
-        fig, ax = plt.subplots(len(which_params), figsize=(10,8))
+        fig, ax = plt.subplots(len(which_params), figsize=(10, 2*(len(which_params))))
         color = colors[planet]
 
         for par in range(len(which_params)):
@@ -1287,4 +1300,4 @@ def plot_chains(file, num_planets, which_params=['sma', 'ecc', 'inc'], walkers=1
         plt.xlabel('Step')
 
         fig.suptitle('Object {}'.format(planet_number))
-        plt.savefig('p'+planet_number+'_stacked_chain.png')
+        plt.savefig(save_dir + 'p'+planet_number+'_stacked_chain.png')
