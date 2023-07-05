@@ -807,7 +807,7 @@ def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=2):
     # calculate the orbital fraction
     orbit_coverage = (max(observation_epochs) - min(observation_epochs)) / 365.25
     period = 100 * orbit_coverage / orbit_frac
-    sma = (period**2 / mtot) ** (1 / 3)
+    sma = (period**2 * mtot) ** (1 / 3)
 
     # calculate RA/Dec at three observation epochs
     # `num_obs` epochs between ~2000 and ~2003 [MJD]
