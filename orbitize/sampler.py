@@ -1293,10 +1293,9 @@ class NestedSampler(Sampler):
     """
     Implements nested sampling using Dynesty package.
 
-    Thea McKenna, 2023
+    Thea McKenna & Sarah Blunt, 2023
 
     TODO:
-    - parallelization fix
     - retool unit & e2e test
     - kill switch?
     - parallel not set for threads=1
@@ -1369,7 +1368,7 @@ class NestedSampler(Sampler):
                 https://dynesty.readthedocs.io/en/latest/quickstart.html#bounding-options
                 for complete list of options.
             pfrac (float): posterior weight, between 0 and 1. Can only be
-                altered for the Dynamic nested sampler, otherwise deafault is
+                altered for the Dynamic nested sampler, otherwise default is
                 0.8.
             num_threads (int): number of threads to use for parallelization
                 (default=1)
