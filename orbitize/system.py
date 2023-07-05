@@ -774,7 +774,18 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
     return x1p_err, x2p_err, x12_corr
 
 
-def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=2):
+def generate_synthetic_data(
+    orbit_frac,
+    mtot,
+    plx,
+    ecc=0.5,
+    inc=np.pi / 4,
+    argp=np.pi / 4,
+    lan=np.pi / 4,
+    tau=0.8,
+    num_obs=4,
+    unc=2,
+):
     """Generate an orbitize-table of synethic data
 
     Args:
@@ -789,13 +800,6 @@ def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=2):
             - `astropy.table.Table`: data table of generated synthetic data
             - float: the semimajor axis of the generated data
     """
-
-    # assumed ground truth for non-input orbital parameters
-    ecc = 0.5  # eccentricity
-    inc = np.pi / 4  # inclination [rad]
-    argp = np.pi / 4
-    lan = np.pi / 4
-    tau = 0.8
 
     # calculate RA/Dec at three observation epochs
     # `num_obs` epochs between ~2000 and ~2003 [MJD]
