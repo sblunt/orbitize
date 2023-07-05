@@ -1296,11 +1296,10 @@ class NestedSampler(Sampler):
     Thea McKenna & Sarah Blunt, 2023
 
     TODO:
-    - kill switch?
     - update tutorial (Thea)
     """
 
-    def __init__(self, system, k_t=172800):
+    def __init__(self, system):
         super(NestedSampler, self).__init__(system)
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -1311,17 +1310,6 @@ class NestedSampler(Sampler):
             version_number=orbitize.__version__,
         )
         self.start = time.time()
-        self.kill_time = k_t
-
-    def set_kill_time(self, t):
-        """Allows the user to set a different kill time than the default of 2
-        days.
-
-        Args:
-            t (int): time in seconds to allow the NestedSampler to run before
-            killing it.
-        """
-        self.kill_time = t
 
     def ptform(self, u):
         """
@@ -1335,7 +1323,6 @@ class NestedSampler(Sampler):
                 Class distribution.
         """
         now = time.time()
-        assert (now - self.start) < self.kill_time, "Nested sampler has taken too long."
         utform = np.zeros(len(u))
         for i in range(len(u)):
             try:
