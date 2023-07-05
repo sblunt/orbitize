@@ -1322,7 +1322,6 @@ class NestedSampler(Sampler):
             numpy array of floats: 1D u samples transformed to a chosen Prior
                 Class distribution.
         """
-        now = time.time()
         utform = np.zeros(len(u))
         for i in range(len(u)):
             try:
