@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-savedir = "/data/user/{}/nested_sampling_test".format(os.getlogin())
+savedir = "."
 
 """
 Runs the GJ504 fit (from the quickstart tutorial) using dynesty as a backend
@@ -36,7 +36,7 @@ lab = sys.param_idx
 nested_sampler = sampler.NestedSampler(sys)
 
 samples, exec_time, num_iter = nested_sampler.run_sampler(
-    static=True, bound="multi", num_threads=8
+    static=True, bound="multi", num_threads=50
 )
 nested_sampler.results.save_results("{}/nested_sampler_test.hdf5".format(savedir))
 print("execution time (min) is: " + str(exec_time))

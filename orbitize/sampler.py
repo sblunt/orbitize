@@ -1385,10 +1385,10 @@ class NestedSampler(Sampler):
                 int: number of iterations it took to converge
         """
 
-        mp.set_start_method(start_method)
+        mp.set_start_method(start_method, force=True)
 
         wt_kwargsdict = {"pfrac": pfrac}
-        with Pool(num_threads) as pool:  # , self._logl, self.ptform)
+        with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
             if static:
                 if pfrac != None:
                     raise ValueError(
@@ -1397,12 +1397,11 @@ class NestedSampler(Sampler):
                             """
                     )
                 sampler = dynesty.NestedSampler(
-                    self._logl,
-                    self.ptform,
+                    pool.loglike,
+                    pool.prior_transform,
                     len(self.system.sys_priors),
                     pool=pool,
                     bound=bound,
-                    queue_size=num_threads,
                 )
                 sampler.run_nested()
             # else:
