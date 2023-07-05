@@ -686,7 +686,7 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
     return x1p_err, x2p_err, x12_corr
 
 
-def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=0.1):
+def generate_synthetic_data(orbit_frac, mtot, plx, num_obs=4, unc=2):
     """ Generate an orbitize-table of synethic data
 
         note: we should think about moving this to a better location.
