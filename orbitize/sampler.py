@@ -1296,12 +1296,7 @@ class NestedSampler(Sampler):
     Thea McKenna & Sarah Blunt, 2023
 
     TODO:
-    - retool unit & e2e test
     - kill switch?
-    - parallel not set for threads=1
-    - pfrac = 0.8?
-    - check documentation
-
     - update tutorial (Thea)
     """
 
@@ -1353,7 +1348,7 @@ class NestedSampler(Sampler):
         self,
         static=False,
         bound="multi",
-        pfrac=None,
+        pfrac=1.0,
         num_threads=1,
         start_method="fork",
     ):
@@ -1368,8 +1363,8 @@ class NestedSampler(Sampler):
                 https://dynesty.readthedocs.io/en/latest/quickstart.html#bounding-options
                 for complete list of options.
             pfrac (float): posterior weight, between 0 and 1. Can only be
-                altered for the Dynamic nested sampler, otherwise default is
-                0.8.
+                altered for the Dynamic nested sampler, otherwise this
+                keyword is unused.
             num_threads (int): number of threads to use for parallelization
                 (default=1)
             start_method (str): multiprocessing start method. Default "fork," which
@@ -1386,33 +1381,46 @@ class NestedSampler(Sampler):
         """
 
         mp.set_start_method(start_method, force=True)
+        if static and pfrac != 1.0:
+            raise ValueError(
+                """The static nested sampler does not take alternate values for pfrac."""
+            )
 
-        wt_kwargsdict = {"pfrac": pfrac}
-        with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
-            if static:
-                if pfrac != None:
-                    raise ValueError(
-                        """The static nested sampler does not take alternate values
-                            for pfrac. The default is 0.8.
-                            """
+        if num_threads > 1:
+            with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
+                if static:
+                    sampler = dynesty.NestedSampler(
+                        pool.loglike,
+                        pool.prior_transform,
+                        len(self.system.sys_priors),
+                        pool=pool,
+                        bound=bound,
                     )
+                else:
+                    sampler = dynesty.DynamicNestedSampler(
+                        pool.loglike,
+                        pool.prior_transform,
+                        len(self.system.sys_priors),
+                        pool=pool,
+                        bound=bound,
+                    )
+        else:
+            if static:
                 sampler = dynesty.NestedSampler(
-                    pool.loglike,
-                    pool.prior_transform,
+                    self._logl,
+                    self.ptform,
                     len(self.system.sys_priors),
-                    pool=pool,
                     bound=bound,
                 )
-                sampler.run_nested()
-            # else:
-            #     sampler = dynesty.DynamicNestedSampler(
-            #         pool.loglike,
-            #         pool.prior_transform,
-            #         len(self.system.sys_priors),
-            #         pool=pool,
-            #         bound=bound,
-            #     )
-            #     sampler.run_nested(wt_kwargs=wt_kwargsdict)
+            else:
+                sampler = dynesty.DynamicNestedSampler(
+                    self._logl,
+                    self.ptform,
+                    len(self.system.sys_priors),
+                    bound=bound,
+                )
+
+        sampler.run_nested(wt_kwargs={"pfrac": pfrac})
 
         self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
         num_iter = sampler.results["niter"]
