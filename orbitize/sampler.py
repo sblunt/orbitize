@@ -6,9 +6,11 @@ import time
 from astropy.time import Time
 
 import dynesty
+
 import emcee
 import ptemcee
 import multiprocessing as mp
+
 from multiprocessing import Pool
 
 import orbitize.lnlike
@@ -1298,7 +1300,10 @@ class NestedSampler(Sampler):
     - retool unit & e2e test
     - kill switch?
     - parallel not set for threads=1
-    - update tutorial
+    - pfrac = 0.8?
+    - check documentation
+
+    - update tutorial (Thea)
     """
 
     def __init__(self, system, k_t=172800):
@@ -1333,7 +1338,7 @@ class NestedSampler(Sampler):
 
         Returns:
             numpy array of floats: 1D u samples transformed to a chosen Prior
-            Class distribution.
+                Class distribution.
         """
         now = time.time()
         assert (now - self.start) < self.kill_time, "Nested sampler has taken too long."
@@ -1345,33 +1350,46 @@ class NestedSampler(Sampler):
                 utform[i] = self.system.sys_priors[i]
         return utform
 
-    def run_sampler(self, static=False, bound="multi", pfrac=None, num_threads=1):
+    def run_sampler(
+        self,
+        static=False,
+        bound="multi",
+        pfrac=None,
+        num_threads=1,
+        start_method="fork",
+    ):
         """Runs the nested sampler from the Dynesty package.
 
         Args:
-            lnlike: log likelihood function.
-            ptform: prior transform function.
-            ndim (int): number of dimensions in parameter space.
-            logl (list): args that go in lnlike function other than
-            problem parameters.
-            static (bool): true if using static nested sampling,
-            false if using dynamic.
+            static (bool): True if using static nested sampling,
+                False if using dynamic.
             bound (str): Method used to approximately bound the prior
-            using the current set of live points. Conditions the
-            sampling methods used to propose new live points.
+                using the current set of live points. Conditions the
+                sampling methods used to propose new live points. See
+                https://dynesty.readthedocs.io/en/latest/quickstart.html#bounding-options
+                for complete list of options.
             pfrac (float): posterior weight, between 0 and 1. Can only be
-            altered for the Dynamic nested sampler, otherwise deafault is
-            0.8.
+                altered for the Dynamic nested sampler, otherwise deafault is
+                0.8.
             num_threads (int): number of threads to use for parallelization
-            (default=1)
+                (default=1)
+            start_method (str): multiprocessing start method. Default "fork," which
+                won't work on all OS. Change to "spawn" if you get an error,
+                and make sure you run your orbitize! script inside an
+                if __name__=='__main__' condition to protect entry points.
 
         Returns:
-            2-Tuple:
-                - Dynesty posterior sampler results
-                - number of iterations it took to converge
+            tuple:
+
+                numpy.array of float: posterior samples
+
+                int: number of iterations it took to converge
         """
+
+        mp.set_start_method(start_method)
+
         wt_kwargsdict = {"pfrac": pfrac}
-        with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
+        with Pool(num_threads) as pool:  # , self._logl, self.ptform)
             if static:
                 if pfrac != None:
                     raise ValueError(
@@ -1380,22 +1398,23 @@ class NestedSampler(Sampler):
                             """
                     )
                 sampler = dynesty.NestedSampler(
-                    pool.loglike,
-                    pool.prior_transform,
+                    self._logl,
+                    self.ptform,
                     len(self.system.sys_priors),
                     pool=pool,
                     bound=bound,
+                    queue_size=num_threads,
                 )
                 sampler.run_nested()
-            else:
-                sampler = dynesty.DynamicNestedSampler(
-                    pool.loglike,
-                    pool.prior_transform,
-                    len(self.system.sys_priors),
-                    pool=pool,
-                    bound=bound,
-                )
-                sampler.run_nested(wt_kwargs=wt_kwargsdict)
+            # else:
+            #     sampler = dynesty.DynamicNestedSampler(
+            #         pool.loglike,
+            #         pool.prior_transform,
+            #         len(self.system.sys_priors),
+            #         pool=pool,
+            #         bound=bound,
+            #     )
+            #     sampler.run_nested(wt_kwargs=wt_kwargsdict)
 
         self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
         num_iter = sampler.results["niter"]
