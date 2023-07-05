@@ -2,14 +2,9 @@
 Tests the NestedSampler class by fixing all parameters except for eccentricity.
 """
 
-import orbitize
-from orbitize import read_input, system, priors, sampler
-from orbitize.kepler import calc_orbit
+from orbitize import system, sampler
 import numpy as np
-import astropy.table
 import pytest
-import time
-from orbitize.read_input import read_file
 from orbitize.system import generate_synthetic_data
 
 
@@ -17,7 +12,6 @@ def test_nested_sampler():
     # generate data
     mtot = 1.2  # total system mass [M_sol]
     plx = 60.0  # parallax [mas]
-    n_orbs = 500
     orbit_frac = 95
     data_table, sma = generate_synthetic_data(
         orbit_frac,
@@ -43,17 +37,23 @@ def test_nested_sampler():
     sys.sys_priors[lab["mtot"]] = mtot
 
     # run both static & dynamic nested samplers
-    static_sampler = sampler.NestedSampler(sys)
-    _ = static_sampler.run_sampler(n_orbs, bound="multi")
-
     dynamic_sampler = sampler.NestedSampler(sys)
-    _ = static_sampler.run_sampler(n_orbs, bound="multi", pfrac=0.5, static=False)
+    _ = dynamic_sampler.run_sampler(bound="multi", pfrac=0.95, static=False)
+
+    dynamic_eccentricities = dynamic_sampler.results.post[:, lab["ecc1"]]
+    assert dynamic_eccentricities == pytest.approx(ecc, abs=0.1)
+
+    static_sampler = sampler.NestedSampler(sys)
+    _ = static_sampler.run_sampler(bound="multi")
 
     static_eccentricities = static_sampler.results.post[:, lab["ecc1"]]
-    dynamic_eccentricities = dynamic_sampler.results.post[:, lab["ecc1"]]
-
     assert static_eccentricities == pytest.approx(ecc, abs=0.1)
-    assert dynamic_eccentricities == pytest.approx(ecc, abs=0.1)
+
+    # check that the static sampler raises an error when user tries to set pfrac
+    try:
+        static_sampler.run_sampler(pfrac=0.1)
+    except ValueError:
+        pass
 
 
 if __name__ == "__main__":
