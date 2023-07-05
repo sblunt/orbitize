@@ -1252,3 +1252,39 @@ def plot_period_ratios(results, num_objects, colors):
     plt.legend()
 
     return ratio_fig
+
+def plot_chains(file, num_planets, which_params=['sma', 'ecc', 'inc'], walkers=1000, 
+                colors = [mpl.cm.Purples, mpl.cm.Blues, mpl.cm.Greens, mpl.cm.Oranges]):
+    
+    if 'loader' in locals():
+        del loader
+        
+    loader = orbitize.results.Results()
+    loader.load_results(file)
+    posty = loader.post
+
+    total_samples, n_params = posty.shape
+    n_steps = int(total_samples/walkers)
+
+    steps = n_steps
+
+    params = n_params
+
+    posty = posty.reshape(int(walkers), int(steps), int(params))
+
+    # create stacked plot for each planet
+    for planet in range(num_planets):
+        planet_number = str(planet + 1)
+        fig, ax = plt.subplots(len(which_params), figsize=(10,8))
+        color = colors[planet]
+
+        for par in range(len(which_params)):
+            ax[par].set(ylabel=which_params[par])
+            for n in range(walkers):
+                ax[par].plot(range(steps), posty[n, :, loader.standard_param_idx[which_params[par]+'{}'.format(planet_number)]], alpha=0.2, color=color(0.5))
+
+
+        plt.xlabel('Step')
+
+        fig.suptitle('Object {}'.format(planet_number))
+        plt.savefig('p'+planet_number+'_stacked_chain.png')
