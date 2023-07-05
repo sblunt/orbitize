@@ -40,13 +40,15 @@ def test_nested_sampler():
 
     # run both static & dynamic nested samplers
     dynamic_sampler = sampler.NestedSampler(sys)
-    _ = dynamic_sampler.run_sampler(bound="multi", pfrac=0.95, static=False)
+    _ = dynamic_sampler.run_sampler(
+        bound="multi", pfrac=0.95, static=False, num_threads=8
+    )
 
     dynamic_eccentricities = dynamic_sampler.results.post[:, lab["ecc1"]]
     assert np.median(dynamic_eccentricities) == pytest.approx(ecc, abs=0.1)
 
     static_sampler = sampler.NestedSampler(sys)
-    _ = static_sampler.run_sampler(bound="multi")
+    _ = static_sampler.run_sampler(bound="multi", num_threads=8)
 
     static_eccentricities = static_sampler.results.post[:, lab["ecc1"]]
     assert np.median(static_eccentricities) == pytest.approx(ecc, abs=0.1)
