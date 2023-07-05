@@ -1300,4 +1300,4 @@ def plot_chains(file, num_planets, save_dir, which_params=['sma', 'ecc', 'inc'],
         plt.xlabel('Step')
 
         fig.suptitle('Object {}'.format(planet_number))
-        plt.savefig(save_dir + 'p'+planet_number+'_stacked_chain.png')
+        plt.savefig(save_dir + '/p'+planet_number+'_stacked_chain.png')
