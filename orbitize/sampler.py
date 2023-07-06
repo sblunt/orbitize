@@ -1382,6 +1382,7 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                     )
+                    sampler.run_nested()
                 else:
                     sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
@@ -1390,6 +1391,7 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                     )
+                    sampler.run_nested(wt_kwargs={"pfrac": pfrac})
         else:
             if static:
                 sampler = dynesty.NestedSampler(
@@ -1398,6 +1400,7 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
+                sampler.run_nested()
             else:
                 sampler = dynesty.DynamicNestedSampler(
                     self._logl,
@@ -1405,11 +1408,7 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-
-        if static:
-            sampler.run_nested()
-        else:
-            sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                sampler.run_nested(wt_kwargs={"pfrac": pfrac})
 
         self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
         num_iter = sampler.results["niter"]
