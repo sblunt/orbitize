@@ -2,6 +2,7 @@ import numpy as np
 import corner
 import warnings
 import itertools
+import string
 
 import astropy.units as u
 import astropy.constants as consts
@@ -1301,3 +1302,41 @@ def plot_chains(file, num_planets, save_dir, which_params=['sma', 'ecc', 'inc'],
 
         fig.suptitle('Object {}'.format(planet_number))
         plt.savefig(save_dir + '/p'+planet_number+'_stacked_chain.png')
+
+def plot_coplanarity(results, num_objects, fig=None):
+    '''
+    inputs
+    results (orbitize.results.Results): orbitize results object
+    num_objects (int): number of planetary companions in the system
+    fig (matplotlib.pyplot.figure): figure on which histograms are plotted default=None
+
+    returns
+    fig (matplotlib.pyplot.figure): the coplanarity figure
+    '''
+    for pl in range(num_objects -1):
+        planet = pl + 1
+        second = planet + 1
+
+        post = results.post
+        inc1 = post[:, results.standard_param_idx['inc{}'.format(planet)]]
+        pan1 = post[:, results.standard_param_idx['pan{}'.format(planet)]]
+
+        while second <= num_objects:
+            if fig == None:
+                fig = plt.figure()
+            else:
+                plt.figure(fig)
+
+            inc2 = post[:, results.standard_param_idx['inc{}'.format(second)]]
+            pan2 = post[:, results.standard_param_idx['pan{}'.format(second)]]
+
+            arg_non_cop = (np.cos(inc1) * np.cos(inc2)) + (np.sin(inc1) * np.sin(inc2) * np.cos(pan1 - pan2))
+
+            plt.hist(arg_non_cop, label="{} & {}".format(string.ascii_lowercase[2:num_objects+1][-planet], string.ascii_lowercase[1:num_objects+1][-second]))
+            second += 1
+
+    plt.title('Coplanarity')
+    plt.xlabel("Mutual Inclination")
+    plt.legend()
+
+    return fig
