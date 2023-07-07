@@ -1,6 +1,7 @@
 import numpy as np
 import abc
 import scipy.special
+import scipy.stats
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -281,9 +282,16 @@ class GaussianPrior(Prior):
             numpy array of floats: 1D u samples transformed to a Gaussian
             distribution.
         """
-        # generate samples following a gaussian distribution
-        z = scipy.special.ndtri(u)
-        samples = z * self.sigma + self.mu
+        # a is the # of standard deviations at which 0 occurs
+        a = -self.mu / self.sigma
+
+        if self.no_negatives:
+            samples = scipy.stats.truncnorm.isf(
+                u, a, np.inf, loc=self.mu, scale=self.sigma
+            )
+        else:
+            z = scipy.special.ndtri(u)
+            samples = z * self.sigma + self.mu
         return samples
 
     def draw_samples(self, num_samples):
@@ -676,7 +684,12 @@ if __name__ == "__main__":
     # myProbs = myPrior.compute_lnprob(mySamples)
     # print(myProbs)
 
-    myPrior = LogUniformPrior(0.01, 1e4)
+    myPrior = GaussianPrior(-10, 0.5, no_negatives=True)
     u = np.random.uniform(0, 1, int(1e4))
     samps = myPrior.transform_samples(u)
     print(samps.min(), samps.max())
+
+    import matplotlib.pyplot as plt
+
+    plt.hist(samps, bins=50)
+    plt.show()
