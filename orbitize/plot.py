@@ -939,7 +939,7 @@ def plot_n_orbits(results, num_objects = 1, start_mjd=51544.,
                 adjustable_param = 'datalim'
             else:
                 adjustable_param = 'box'
-            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9), ms=10, linestyle='', marker='o')
+            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9),  linestyle='', marker='o',ms=10,)
             ax.set_aspect('equal', adjustable=adjustable_param)
             ax.set_xlabel('$\\Delta$RA [mas]')
             ax.set_ylabel('$\\Delta$Dec [mas]')
@@ -1009,9 +1009,9 @@ def plot_n_orbits(results, num_objects = 1, start_mjd=51544.,
                 perr = None
 
             plt.sca(sep_ax)
-            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr,ms=5, linestyle='',marker='o',c=cmap(0.5),zorder=2, capsize=2)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr, linestyle='',marker='o',ms=5,c=cmap(0.5),zorder=2, capsize=2)
             plt.sca(pa_ax)
-            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr,ms=5, linestyle='',marker='o',c=cmap(0.5),zorder=2, capsize=2)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr, linestyle='',marker='o',ms=5,c=cmap(0.5),zorder=2, capsize=2)
 
 
 
@@ -1133,7 +1133,7 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
         dec_data = np.copy(data['quant2'])
         dec_err = np.copy(data['quant2_err'])
 
-        plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr = dec_err, color =c(0.9), marker='o')
+        plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr = dec_err, color =c(0.9), marker='o', ms=5, linestyle='')
         ax.set_xlabel('$\\Delta$RA [mas]')
         ax.set_ylabel('$\\Delta$Dec [mas]')
         figure = fig
