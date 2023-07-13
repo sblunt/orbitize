@@ -939,7 +939,7 @@ def plot_n_orbits(results, num_objects = 1, start_mjd=51544.,
                 adjustable_param = 'datalim'
             else:
                 adjustable_param = 'box'
-            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9), ms=10)
+            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9), ms=10, linestyle='', marker='o')
             ax.set_aspect('equal', adjustable=adjustable_param)
             ax.set_xlabel('$\\Delta$RA [mas]')
             ax.set_ylabel('$\\Delta$Dec [mas]')
