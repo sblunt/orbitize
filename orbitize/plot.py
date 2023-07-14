@@ -932,14 +932,14 @@ def plot_n_orbits(results, num_objects = 1, start_mjd=51544.,
 
             # Plot each orbit 
             for i in np.arange(num_orbits_to_plot):
-                plt.plot(raoff[i, :], deoff[i, :], c= cmap(0.5))
+                plt.plot(raoff[i, :], deoff[i, :], c= cmap(0.5), linewidth=0.5, alpha=0.2)
 
             # modify the axes
             if square_plot:
                 adjustable_param = 'datalim'
             else:
                 adjustable_param = 'box'
-            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9),  linestyle='', marker='o',ms=10,)
+            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9),  linestyle='', marker='o',ms=5)
             ax.set_aspect('equal', adjustable=adjustable_param)
             ax.set_xlabel('$\\Delta$RA [mas]')
             ax.set_ylabel('$\\Delta$Dec [mas]')
