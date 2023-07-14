@@ -1197,8 +1197,8 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
             raoff0, decoff0, _ = results.system.compute_all_orbits(
                 posterior[:, orb], epochs_seppa)
             
-            raoff[:,:, orb] = raoff0[:,:,0]
-            decoff[:,:, orb] = decoff0[:,:,0]
+            raoff[:,obj+1, orb] = raoff0[:,obj+1,0]
+            decoff[:,obj+1, orb] = decoff0[:,obj+1,0]
             
             yr_epochs = Time(epochs_seppa, format='mjd').decimalyear
             seps, pas = orbitize.system.radec2seppa(raoff[:, obj + 1, orb], decoff[:, obj + 1, orb], mod180=False)
