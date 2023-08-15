@@ -231,13 +231,13 @@ class HGCALogProb(object):
         self.gaia_pm_err = np.array([entry['pmra_gaia_error'][0], entry['pmdec_gaia_error'][0]])
 
         # save gaia best fit values
-        self.gaia_plx0 = entry['parallax_gaia']
-        self.gaia_alpha0 = entry['gaia_ra']
-        self.gaia_delta0 = entry['gaia_dec']
-        self.gaia_pm_ra0 = entry['pmra_gaia']
-        self.gaia_pm_dec0 = entry['pmdec_gaia']
-        self.gaia_epoch_ra = entry['epoch_ra_gaia']
-        self.gaia_epoch_dec = entry['epoch_dec_gaia']
+        self.gaia_plx0 = entry['parallax_gaia'][0]
+        self.gaia_alpha0 = entry['gaia_ra'][0]
+        self.gaia_delta0 = entry['gaia_dec'][0]
+        self.gaia_pm_ra0 = entry['pmra_gaia'][0]
+        self.gaia_pm_dec0 = entry['pmdec_gaia'][0]
+        self.gaia_epoch_ra = entry['epoch_ra_gaia'][0]
+        self.gaia_epoch_dec = entry['epoch_dec_gaia'][0]
 
         # save the hipparcos object for use later
         #  self.hiplogprob = hiplogprob
@@ -247,10 +247,10 @@ class HGCALogProb(object):
         self.hipparcos_plx0 = hiplogprob.plx0
         self.hipparcos_alpha0 = hiplogprob.alpha0
         self.hipparcos_delta0 = hiplogprob.delta0
-        self.hipparcos_pm_ra0 = entry['pmra_hip']
-        self.hipparcos_pm_dec0 = entry['pmdec_hip']
-        self.hipparcos_epoch_ra = entry['epoch_ra_hip']
-        self.hipparcos_epoch_dec = entry['epoch_dec_hip']
+        self.hipparcos_pm_ra0 = entry['pmra_hip'][0]
+        self.hipparcos_pm_dec0 = entry['pmdec_hip'][0]
+        self.hipparcos_epoch_ra = entry['epoch_ra_hip'][0]
+        self.hipparcos_epoch_dec = entry['epoch_dec_hip'][0]
         self.hippaarcos_errs = hiplogprob.eps
 
         # read in the GOST file to get the estimated Gaia epochs
@@ -264,7 +264,7 @@ class HGCALogProb(object):
 
         # reconstruct the model 5 parameter RA/Dec curves for both hipparcos and gaia
         # first for Hipparcos
-        self.hip_bary_pos, _ = get_body_barycentric_posvel('earth', self.hipparcos_epoch)
+        self.hip_bary_pos, _ = get_body_barycentric_posvel('earth', time.Time(self.hipparcos_epoch, format="decimalyear"))
 
         # reconstruct ephemeris of star given van Leeuwen best-fit (Nielsen+ 2020 Eqs 1-2) [mas]
         self.hip_changein_alpha_st = (
@@ -282,7 +282,7 @@ class HGCALogProb(object):
         ) + hiplogprob.R * hiplogprob.sin_phi
 
         # now for Gaia, we don't have the Gaia residuals, we assume the data is perfect
-        self.gaia_bary_pos, _ = get_body_barycentric_posvel('earth', self.gaia_epoch)
+        self.gaia_bary_pos, _ = get_body_barycentric_posvel('earth', time.Time(self.gaia_epoch, format="decimalyear"))
 
         self.gaia_changein_alpha_st = (
             self.gaia_plx0 * (
@@ -355,26 +355,27 @@ class HGCALogProb(object):
         # and Gaia missions, and the linear motion of the star between the two missions 
         plx = samples[param_idx['plx']]
 
-        model_ra_hip = raoff_model[:gaia_index]
-        model_dec_hip = deoff_model[:gaia_index]
-        model_ra_gaia = raoff_model[gaia_index:]
-        model_dec_gaia = deoff_model[gaia_index:]
+        # for now, think about only 1 model at a time to not break our brains
+        model_ra_hip = raoff_model[:gaia_index, 0]
+        model_dec_hip = deoff_model[:gaia_index, 0]
+        model_ra_gaia = raoff_model[gaia_index:, 0]
+        model_dec_gaia = deoff_model[gaia_index:, 0]
 
         
-        def lsqr_astrom(fitparams, epochs, epoch_ref_ra, epoch_ref_dec, data_changein_ra, data_changein_dec, 
+        def lsqr_astrom(fitparams, epochs, epoch_ref_ra, epoch_ref_dec, bary_pos, data_changein_ra, data_changein_dec, 
                         raoff_planet, decoff_planet, sin_phi, cos_phi, ra0, dec0, errs):
             guess_ra_off, guess_dec_off, guess_pm_ra, guess_pm_dec = fitparams
             guess_hip_changein_alpha_st = (
                 plx * (
-                    self.hip_bary_pos.x.value * np.sin(np.radians(ra0)) - 
-                    self.hip_bary_pos.y.value * np.cos(np.radians(ra0))
+                    bary_pos.x.value * np.sin(np.radians(ra0)) - 
+                    bary_pos.y.value * np.cos(np.radians(ra0))
                 ) + (epochs - epoch_ref_ra) * guess_pm_ra
             )
             guess_hip_changein_delta = (
                 plx * (
-                    self.hip_bary_pos.x.value * np.cos(np.radians(ra0)) * np.sin(np.radians(dec0)) + 
-                    self.hip_bary_pos.y.value * np.sin(np.radians(ra0)) * np.sin(np.radians(dec0)) - 
-                    self.hip_bary_pos.z.value * np.cos(np.radians(dec0))
+                    bary_pos.x.value * np.cos(np.radians(ra0)) * np.sin(np.radians(dec0)) + 
+                    bary_pos.y.value * np.sin(np.radians(ra0)) * np.sin(np.radians(dec0)) - 
+                    bary_pos.z.value * np.cos(np.radians(dec0))
                 ) + (epochs - epoch_ref_dec) * guess_pm_dec
             )
 
@@ -383,14 +384,15 @@ class HGCALogProb(object):
 
             # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
             dists = np.abs(
-                (self.alpha_abs_st - data_changein_ra) * cos_phi + 
-                (self.delta_abs - data_changein_dec) * sin_phi
+                (guess_hip_changein_alpha_st - data_changein_ra) * cos_phi + 
+                (guess_hip_changein_delta - data_changein_dec) * sin_phi
             ) / errs
 
             return dists
 
-        hip_init_guess = [0, 0, self.hipparcos_pm_ra0, self.hipparcos_pm_dec0]
-        hip_args = (self.hipparcos_epoch, self.hipparcos_epoch_ra, self.hipparcos_epoch_dec, 
+        hip_init_guess = [0., 0., self.hipparcos_pm_ra0, self.hipparcos_pm_dec0]
+        hip_args = (self.hipparcos_epoch, self.hipparcos_epoch_ra, self.hipparcos_epoch_dec,
+                    self.hip_bary_pos,
                     self.hip_changein_alpha_st, self.hip_changein_delta, 
                     model_ra_hip, model_dec_hip,
                     self.hipparcos_sin_phi, self.hipparcos_cos_phi, self.hipparcos_alpha0, 
@@ -401,6 +403,7 @@ class HGCALogProb(object):
         
         gaia_init_guess = [0, 0, self.gaia_pm_ra0, self.gaia_pm_dec0]
         gaia_args = (self.gaia_epoch, self.gaia_epoch_ra, self.gaia_epoch_dec, 
+                     self.gaia_bary_pos,
                      self.gaia_changein_alpha_st, self.gaia_changein_delta, 
                      model_ra_gaia, model_dec_gaia,
                      self.gaia_sin_phi, self.gaia_cos_phi, self.gaia_alpha0, 
@@ -409,18 +412,20 @@ class HGCALogProb(object):
         model_gaia_pos_offset = gaia_fit[0:2]
         model_gaia_pm = gaia_fit[2:4]
 
-        hg_dalpha_st = (self.hipparcos_alpha0 * np.cos(np.radians(self.hipparcos_delta0)) +  - self.gaia_alpha0 * np.cos(np.radians(self.gaia_delta0))) * self.deg2mas
+        hg_dalpha_st = -(self.hipparcos_alpha0 * np.cos(np.radians(self.hipparcos_delta0))  - self.gaia_alpha0 * np.cos(np.radians(self.gaia_delta0))) * self.deg2mas
         hg_dalpha_st += model_hip_pos_offset[0]- model_gaia_pos_offset[0]
         model_hg_pmra = hg_dalpha_st/(self.gaia_epoch_ra - self.hipparcos_epoch_ra)
 
-        hg_ddelta = (self.hipparcos_delta0- self.gaia_alpha0 * np.cos(np.radians(self.gaia_delta0))) * self.deg2mas
-        hg_ddelta += model_hip_pos_offset[0]  - model_gaia_pos_offset[0]
+        hg_ddelta = -(self.hipparcos_delta0 - self.gaia_delta0) * self.deg2mas
+        hg_ddelta += model_hip_pos_offset[1]  - model_gaia_pos_offset[1]
         model_hg_pmdec = hg_ddelta/(self.gaia_epoch_ra - self.hipparcos_epoch_dec)
         model_hg_pm = np.array([model_hg_pmra, model_hg_pmdec]) 
 
         chi2 = (model_hip_pm - self.hip_pm)**2/(self.hip_pm_err)**2 + (model_gaia_pm - self.gaia_pm)**2/(self.gaia_pm_err)**2
-        chi2 += (model_hg_pm - self.hg_pm)**2/(self.hg_pm)**2
+        chi2 += (model_hg_pm - self.hg_pm)**2/(self.hg_pm_err)**2
 
         lnlike = -0.5 * np.sum(chi2)
 
         return lnlike
+    
+
