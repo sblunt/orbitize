@@ -13,6 +13,7 @@ from astropy.coordinates import get_body_barycentric_posvel
 import scipy.optimize
 
 from orbitize import DATADIR
+import orbitize.lnlike
 
 class GaiaLogProb(object):
     """
@@ -223,20 +224,34 @@ class HGCALogProb(object):
         # grav the relevant values
         self.hip_pm = np.array([entry['pmra_hip'][0], entry['pmdec_hip'][0]])
         self.hip_pm_err = np.array([entry['pmra_hip_error'][0], entry['pmdec_hip_error'][0]])
+        hip_radec_cov = entry['pmra_pmdec_hip'][0] * entry['pmra_hip_error'][0] * entry['pmdec_hip_error'][0]
+        self.hip_pm_cov = np.array([[entry['pmra_hip_error'][0]**2, hip_radec_cov], [hip_radec_cov, entry['pmdec_hip_error'][0]**2]])
 
         self.hg_pm = np.array([entry['pmra_hg'][0], entry['pmdec_hg'][0]])
         self.hg_pm_err = np.array([entry['pmra_hg_error'][0], entry['pmdec_hg_error'][0]])
+        hg_radec_cov = entry['pmra_pmdec_hg'][0] * entry['pmra_hg_error'][0] * entry['pmdec_hg_error'][0]
+        self.hg_pm_cov = np.array([[entry['pmra_hg_error'][0]**2, hg_radec_cov], [hg_radec_cov, entry['pmdec_hg_error'][0]**2]])
 
         self.gaia_pm = np.array([entry['pmra_gaia'][0], entry['pmdec_gaia'][0]])
         self.gaia_pm_err = np.array([entry['pmra_gaia_error'][0], entry['pmdec_gaia_error'][0]])
+        gaia_radec_cov = entry['pmra_pmdec_gaia'][0] * entry['pmra_gaia_error'][0] * entry['pmdec_gaia_error'][0]
+        self.gaia_pm_cov = np.array([[entry['pmra_gaia_error'][0]**2, gaia_radec_cov], [gaia_radec_cov, entry['pmdec_gaia_error'][0]**2]])
 
 
-        # the PMa and their error bars. 
-        # TODO: there are covariances to be used, but they are not being used here. 
+        # the PMa and their error bars.  
         self.hip_hg_dpm = self.hip_pm - self.hg_pm
         self.hip_hg_dpm_err = np.sqrt(self.hip_pm_err**2 + self.hg_pm_err**2)
+        self.hip_hg_dpm_cov = self.hip_pm_cov + self.hg_pm_cov
+        self.hip_hg_dpm_radec_corr = self.hip_hg_dpm_cov[0][1]
         self.gaia_hg_dpm = self.gaia_pm - self.hg_pm
         self.gaia_hg_dpm_err = np.sqrt(self.gaia_pm_err**2 + self.hg_pm_err**2)
+        self.gaia_hg_dpm_cov = self.gaia_pm_cov + self.hg_pm_cov
+        self.gaia_hg_dpm_radec_corr = self.gaia_hg_dpm_cov[0][1]
+
+        # condense together into orbitize "observations"
+        self.dpm_data = np.array([self.hip_hg_dpm, self.gaia_hg_dpm])
+        self.dpm_err = np.array([self.hip_hg_dpm_err, self.gaia_hg_dpm_err])
+        self.dpm_corr = np.array([self.hip_hg_dpm_radec_corr, self.gaia_hg_dpm_radec_corr])
 
 
         # save gaia best fit values
@@ -385,9 +400,12 @@ class HGCALogProb(object):
         # to the data. Each variable contains both RA and Dec. 
         model_hip_hg_dpm = model_hip_pm - model_hg_pm
         model_gaia_hg_dpm = model_gaia_pm - model_hg_pm
-        
-        chi2 = (model_hip_hg_dpm - self.hip_hg_dpm)**2/(self.hip_hg_dpm_err)**2
-        chi2 += (model_gaia_hg_dpm - self.gaia_hg_dpm)**2/(self.gaia_hg_dpm_err)**2
+
+        # chi2 = (model_hip_hg_dpm - self.hip_hg_dpm)**2/(self.hip_hg_dpm_err)**2
+        # chi2 += (model_gaia_hg_dpm - self.gaia_hg_dpm)**2/(self.gaia_hg_dpm_err)**2
+
+        chi2 = orbitize.lnlike.chi2_lnlike(self.dpm_data, self.dpm_err, self.dpm_corr, np.array([model_hip_hg_dpm, model_gaia_hg_dpm]), np.zeros(self.dpm_data.shape), [])
+
         lnlike = -0.5 * np.sum(chi2)
 
         return lnlike
