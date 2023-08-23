@@ -209,20 +209,20 @@ def test_hgca():
     gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
     astrometry_filepath = os.path.join(DATADIR, 'betaPic.csv')
 
-    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, 107412, 1)
-    hcga_lnprob = gaia.HGCALogProb(107412, hipparcos_lnprob, gost_filepath)
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, 27321, 1)
+    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
 
     # test a few things were read in correctly
-    assert(np.all(np.isfinite(hcga_lnprob.hip_pm)))
-    assert(len(hcga_lnprob.hipparcos_epoch) > 0)
-    assert(len(hcga_lnprob.gaia_epoch) > 0)
+    assert(np.all(np.isfinite(hgca_lnprob.hip_pm)))
+    assert(len(hgca_lnprob.hipparcos_epoch) > 0)
+    assert(len(hgca_lnprob.gaia_epoch) > 0)
 
     # Initialize System object which stores data & sets priors
     data_table = read_input.read_file(astrometry_filepath)
     this_system = system.System(
         1, data_table, 1.75 ,
         51.44, mass_err=0.05, plx_err=0.12, tau_ref_epoch=55000,
-        fit_secondary_mass=True, gaia=hcga_lnprob
+        fit_secondary_mass=True, gaia=hgca_lnprob
     )
     
     # create sampler just for lnlike function
