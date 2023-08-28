@@ -242,11 +242,11 @@ class HGCALogProb(object):
         self.hip_hg_dpm = self.hip_pm - self.hg_pm
         self.hip_hg_dpm_err = np.sqrt(self.hip_pm_err**2 + self.hg_pm_err**2)
         self.hip_hg_dpm_cov = self.hip_pm_cov + self.hg_pm_cov
-        self.hip_hg_dpm_radec_corr = self.hip_hg_dpm_cov[0][1]
+        self.hip_hg_dpm_radec_corr = self.hip_hg_dpm_cov[0][1]/np.sqrt(self.hip_hg_dpm_cov[0][0] * self.hip_hg_dpm_cov[1][1])
         self.gaia_hg_dpm = self.gaia_pm - self.hg_pm
         self.gaia_hg_dpm_err = np.sqrt(self.gaia_pm_err**2 + self.hg_pm_err**2)
         self.gaia_hg_dpm_cov = self.gaia_pm_cov + self.hg_pm_cov
-        self.gaia_hg_dpm_radec_corr = self.gaia_hg_dpm_cov[0][1]
+        self.gaia_hg_dpm_radec_corr = self.gaia_hg_dpm_cov[0][1]/np.sqrt(self.gaia_hg_dpm_cov[0][0] * self.gaia_hg_dpm_cov[1][1])
 
         # condense together into orbitize "observations"
         self.dpm_data = np.array([self.hip_hg_dpm, self.gaia_hg_dpm])
