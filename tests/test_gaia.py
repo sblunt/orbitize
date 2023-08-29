@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from orbitize import DATADIR
-from orbitize import hipparcos, gaia, basis, system, read_input, sampler
+from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results
 
 def test_dr2_edr3():
     """
@@ -235,6 +235,17 @@ def test_hgca():
 
     assert(np.isfinite(chi2))
 
+
+    # briefly run sampler and save result
+    this_sampler.run_sampler(100, 0)
+    this_sampler.results.save_results("hgca_test.hdf5")
+
+    # check that the data stays the same
+    res = results.Results()
+    res.load_results("hgca_test.hdf5")
+    new_hgca_lnprob = res.system.gaia
+    assert(isinstance(new_hgca_lnprob, gaia.HGCALogProb))
+    assert(new_hgca_lnprob.hip_hg_dpm_radec_corr == hgca_lnprob.hip_hg_dpm_radec_corr)
 
 if __name__ == '__main__':
     # test_dr2_edr3()

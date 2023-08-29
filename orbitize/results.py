@@ -209,15 +209,31 @@ class Results(object):
             )
 
             os.system('rm {}'.format(tmpfile))
+
+            # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
                 gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
             except KeyError:
                 gaia = None
+
+            # alternatively load HGCA. Note requires hipparcos_IAD attribute
+            gaiagost_data = hf.get("Gaia_GOST")
+            if gaiagost_data is not None:
+                
+                tmpfile = 'thisisprettyhackysorrylmao'
+                tmptbl = table.Table(np.array(gaiagost_data))
+                tmptbl.write(tmpfile, format="ascii", overwrite=True)
+
+                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
+                hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
+
+                os.system('rm {}'.format(tmpfile))
         else:
             hipparcos_IAD = None
             gaia = None
+
 
         try:
             fitting_basis = np.str(hf.attrs['fitting_basis'])
