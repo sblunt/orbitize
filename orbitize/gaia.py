@@ -10,7 +10,7 @@ import astropy.io.fits as fits
 import astropy.time as time
 from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
-import scipy.optimize
+import numpy.linalg
 
 from orbitize import DATADIR
 import orbitize.lnlike
@@ -255,7 +255,7 @@ class HGCALogProb(object):
         # read in the GOST file to get the estimated Gaia epochs and scan angles
         gost_dat = read(gost_filepath, converters={'*':[int, float, bytes]})
         self.gaia_epoch = time.Time(gost_dat["ObservationTimeAtGaia[UTC]"]).decimalyear # in decimal year
-        gaia_scan_theta = gost_dat["scanAngle[rad]"]
+        gaia_scan_theta = np.array(gost_dat["scanAngle[rad]"])
         gaia_scan_phi = gaia_scan_theta + np.pi/2
         self.gaia_cos_phi = np.cos(gaia_scan_phi)
         self.gaia_sin_phi = np.sin(gaia_scan_phi)
@@ -327,47 +327,22 @@ class HGCALogProb(object):
 
         # Begin forward modeling the data of the HGCA: linear motion during the Hip
         # and Gaia missions, and the linear motion of the star between the two missions 
-        plx = samples[param_idx['plx']]
-
         # for now, think about only 1 model at a time to not break our brains
         model_ra_hip = raoff_model[:gaia_index, 0]
         model_dec_hip = deoff_model[:gaia_index, 0]
         model_ra_gaia = raoff_model[gaia_index:, 0]
         model_dec_gaia = deoff_model[gaia_index:, 0]
 
-        
-        def lsqr_linear_fit(fitparams, epochs, epoch_ref_ra, epoch_ref_dec, 
-                        raoff_planet, decoff_planet, sin_phi, cos_phi, errs):
-            guess_ra_off, guess_dec_off, guess_pm_ra, guess_pm_dec = fitparams
-            
-            # orbital motion, fit for inferred lienar motion
-            data_changein_alpha_st = raoff_planet 
-            data_changein_delta = decoff_planet
-
-            guess_changein_alpha_st = (epochs - epoch_ref_ra) * (guess_pm_ra) + guess_ra_off
-            guess_changein_delta = (epochs - epoch_ref_dec) * (guess_pm_dec) + guess_dec_off
-
-            # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
-            dists = np.abs(
-                (guess_changein_alpha_st - data_changein_alpha_st) * cos_phi + 
-                (guess_changein_delta - data_changein_delta) * sin_phi
-            ) / errs
-
-            return dists
-
-        hip_init_guess = [0., 0., 0, 0]
-        hip_args = (self.hipparcos_epoch, self.hipparcos_epoch_ra, self.hipparcos_epoch_dec,
-                    model_ra_hip, model_dec_hip,
-                    self.hipparcos_sin_phi, self.hipparcos_cos_phi, self.hippaarcos_errs)
-        hip_fit, _ = scipy.optimize.leastsq(lsqr_linear_fit, hip_init_guess, args=hip_args)
+        hip_fit = self._linear_pm_fit(self.hipparcos_epoch, model_ra_hip, model_dec_hip, 
+                                      self.hipparcos_epoch_ra, self.hipparcos_epoch_dec, 
+                                      self.hipparcos_sin_phi, self.hipparcos_cos_phi, self.hippaarcos_errs)
         model_hip_pos_offset = hip_fit[0:2]
         model_hip_pm = hip_fit[2:4]
-        
-        gaia_init_guess = [0, 0, 0, 0]
-        gaia_args = (self.gaia_epoch, self.gaia_epoch_ra, self.gaia_epoch_dec, 
-                     model_ra_gaia, model_dec_gaia,
-                     self.gaia_sin_phi, self.gaia_cos_phi, 1)
-        gaia_fit, _ = scipy.optimize.leastsq(lsqr_linear_fit, gaia_init_guess, args=gaia_args)
+
+
+        gaia_fit = self._linear_pm_fit(self.gaia_epoch, model_ra_gaia, model_dec_gaia,
+                                       self.gaia_epoch_ra, self.gaia_epoch_dec, 
+                                       self.gaia_sin_phi, self.gaia_cos_phi, 1)
         model_gaia_pos_offset = gaia_fit[0:2]
         model_gaia_pm = gaia_fit[2:4]
 
@@ -393,4 +368,23 @@ class HGCALogProb(object):
         lnlike = -0.5 * np.sum(chi2)
 
         return lnlike
+    
+    def _linear_pm_fit(self, epochs, raoff_planet, decoff_planet, epoch_ref_ra, epoch_ref_dec, sin_phi, cos_phi, errs):
+        """
+        Performs a linear leastsq fit to determine the inferred proper motion given the stellar orbit around the barycenter
+        """
+        # Sovle y = A * x
+        # construct A matrix
+        A_pmra = cos_phi * (epochs - epoch_ref_ra) / errs
+        A_raoff = cos_phi / errs
+        A_pmdec = sin_phi * (epochs - epoch_ref_dec) / errs
+        A_decoff = sin_phi / errs
+        A_matrix = np.vstack((A_raoff, A_decoff, A_pmra, A_pmdec)).T
+
+        # construct y matrix
+        y_vec = (raoff_planet * cos_phi + decoff_planet * sin_phi)/errs
+
+        x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
+        
+        return x
     
