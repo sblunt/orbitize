@@ -253,7 +253,7 @@ class HGCALogProb(object):
         self.gaia_epoch_ra = entry['epoch_ra_gaia'][0]
         self.gaia_epoch_dec = entry['epoch_dec_gaia'][0]
         # read in the GOST file to get the estimated Gaia epochs and scan angles
-        gost_dat = read(gost_filepath, converters={'*':[int, float, bytes]})
+        gost_dat = read(gost_filepath, converters={'*':[int, float, bytes]}, delimiter=",")
         self.gaia_epoch = time.Time(gost_dat["ObservationTimeAtGaia[UTC]"]).decimalyear # in decimal year
         gaia_scan_theta = np.array(gost_dat["scanAngle[rad]"])
         gaia_scan_phi = gaia_scan_theta + np.pi/2
@@ -363,11 +363,9 @@ class HGCALogProb(object):
         # chi2 = (model_hip_hg_dpm - self.hip_hg_dpm)**2/(self.hip_hg_dpm_err)**2
         # chi2 += (model_gaia_hg_dpm - self.gaia_hg_dpm)**2/(self.gaia_hg_dpm_err)**2
 
-        chi2 = orbitize.lnlike.chi2_lnlike(self.dpm_data, self.dpm_err, self.dpm_corr, np.array([model_hip_hg_dpm, model_gaia_hg_dpm]), np.zeros(self.dpm_data.shape), [])
+        lnlike = orbitize.lnlike.chi2_lnlike(self.dpm_data, self.dpm_err, self.dpm_corr, np.array([model_hip_hg_dpm, model_gaia_hg_dpm]), np.zeros(self.dpm_data.shape), [])
 
-        lnlike = -0.5 * np.sum(chi2)
-
-        return lnlike
+        return np.sum(lnlike)
     
     def _linear_pm_fit(self, epochs, raoff_planet, decoff_planet, epoch_ref_ra, epoch_ref_dec, sin_phi, cos_phi, errs):
         """
@@ -387,4 +385,5 @@ class HGCALogProb(object):
         x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
         
         return x
+
     
