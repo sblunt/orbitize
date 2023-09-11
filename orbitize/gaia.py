@@ -226,7 +226,7 @@ class HGCALogProb(object):
                 print("Using HGCA catalog stored in {0}".format(hgca_filepath))
 
         # grab the entry from the HGCA
-        with fits.open(hgca_filepath) as hdulist:
+        with fits.open(hgca_filepath, ignore_missing_simple=True) as hdulist:
             hgtable = hdulist[1].data
         entry = hgtable[np.where(hgtable['hip_id'] == hip_id)]
         # check we matched on a single target. mainly check if we typed hip id number incorrectly
@@ -266,7 +266,7 @@ class HGCALogProb(object):
         self.gaia_epoch_ra = entry['epoch_ra_gaia'][0]
         self.gaia_epoch_dec = entry['epoch_dec_gaia'][0]
         # read in the GOST file to get the estimated Gaia epochs and scan angles
-        gost_dat = read(gost_filepath, converters={'*':[int, float, bytes]}, delimiter=",")
+        gost_dat = read(gost_filepath, converters={'*':[int, float, bytes]})
         self.gaia_epoch = time.Time(gost_dat["ObservationTimeAtGaia[UTC]"]).decimalyear # in decimal year
         gaia_scan_theta = np.array(gost_dat["scanAngle[rad]"])
         gaia_scan_phi = gaia_scan_theta + np.pi/2
