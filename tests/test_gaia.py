@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from orbitize import DATADIR
-from orbitize import hipparcos, gaia, basis, system, read_input
+from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results
 
 def test_dr2_edr3():
     """
@@ -198,8 +198,58 @@ def test_orbit_calculation():
 
     assert np.isclose(np.exp(lnlike), 1)
 
+def test_hgca():
+    """
+    Tests that the HGCA module works for beta Pic b.
+
+    Checks can download HGCA catalog if not available, and checks GRAVITY Collaboration et al. 2020 
+    orbital parameters against the data
+    """
+    iad_filepath = os.path.join(DATADIR, "HIP027321.d")
+    gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
+    astrometry_filepath = os.path.join(DATADIR, 'betaPic.csv')
+
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, 27321, 1)
+    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
+
+    # test a few things were read in correctly
+    assert(np.all(np.isfinite(hgca_lnprob.hip_pm)))
+    assert(len(hgca_lnprob.hipparcos_epoch) > 0)
+    assert(len(hgca_lnprob.gaia_epoch) > 0)
+
+    # Initialize System object which stores data & sets priors
+    data_table = read_input.read_file(astrometry_filepath)
+    this_system = system.System(
+        1, data_table, 1.75 ,
+        51.44, mass_err=0.05, plx_err=0.12, tau_ref_epoch=55000,
+        fit_secondary_mass=True, gaia=hgca_lnprob
+    )
+    
+    # create sampler just for lnlike function
+    this_sampler = sampler.MCMC(this_system, 1, 100 , 1)
+
+    # params from GRAVITY Collaboration et al. 2020 fit to HGCA DR2 
+    params = np.array([[ 1.04e+01,  1.44e-01,  1.5534e+00,  3.5325e+00, 5.5670e-01,  1.80968e-01,  5.1456e+01, 1.367e-02,  1.783]])
+
+    chi2 = this_sampler._logl(params)
+
+    assert(np.isfinite(chi2))
+
+
+    # briefly run sampler and save result
+    this_sampler.run_sampler(100, 0)
+    this_sampler.results.save_results("hgca_test.hdf5")
+
+    # check that the data stays the same
+    res = results.Results()
+    res.load_results("hgca_test.hdf5")
+    new_hgca_lnprob = res.system.gaia
+    assert(isinstance(new_hgca_lnprob, gaia.HGCALogProb))
+    assert(new_hgca_lnprob.hip_hg_dpm_radec_corr == hgca_lnprob.hip_hg_dpm_radec_corr)
+
 if __name__ == '__main__':
-    test_dr2_edr3()
+    # test_dr2_edr3()
     # test_system_setup()
     # test_valueerror()
     # test_orbit_calculation()
+    test_hgca()
