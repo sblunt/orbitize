@@ -217,7 +217,7 @@ class HGCALogProb(object):
             # check orbitize.DATAIDR and download if needed
             hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
             if not os.path.exists(hgca_filepath):
-                hgca_url = 'http://physics.ucsb.edu/~tbrandt/HGCA_vEDR3.fits'
+                hgca_url = 'https://web.physics.ucsb.edu/~tbrandt/HGCA_vEDR3.fits'
                 print("No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(hgca_url, hgca_filepath))
                 hgca_file = requests.get(hgca_url)
                 with open(hgca_filepath, 'wb') as f:
