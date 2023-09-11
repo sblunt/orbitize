@@ -219,7 +219,7 @@ class HGCALogProb(object):
             if not os.path.exists(hgca_filepath):
                 hgca_url = 'https://web.physics.ucsb.edu/~tbrandt/HGCA_vEDR3.fits'
                 print("No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(hgca_url, hgca_filepath))
-                hgca_file = requests.get(hgca_url)
+                hgca_file = requests.get(hgca_url, verify=False)
                 with open(hgca_filepath, 'wb') as f:
                     f.write(hgca_file.content)
             else:
