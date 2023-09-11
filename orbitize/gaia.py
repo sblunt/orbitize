@@ -38,10 +38,22 @@ class GaiaLogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         dr (str): either 'dr2' or 'edr3'
+        query (bool): if True, queries the Gaia database for astrometry of the
+            target (requires an internet connection). If False, uses user-input 
+            astrometric values (runs without internet).
+        gaia_data (dict): see `query` keyword above. If `query` set to False, 
+            then user must supply a dictionary of Gaia astometry in the following
+            form:
+                gaia_data = {
+                    'ra': 139.4 # RA in degrees
+                    'dec': 139.4 # Dec in degrees
+                    'ra_error': 0.004 # RA error in mas
+                    'dec_error': 0.004 # Dec error in mas
+                }
 
     Written: Sarah Blunt, 2021
     """
-    def __init__(self, gaia_num, hiplogprob, dr='dr2'):
+    def __init__(self, gaia_num, hiplogprob, dr='dr2', query=True, gaia_data=None):
 
         self.gaia_num = gaia_num
         self.hiplogprob = hiplogprob
@@ -56,15 +68,16 @@ class GaiaLogProb(object):
         self.hipparcos_epoch = 1991.25
 
 
-        query = """SELECT
-        TOP 1
-        ra, dec, ra_error, dec_error
-        FROM gaia{}.gaia_source
-        WHERE source_id = {}
-        """.format(self.dr, self.gaia_num)
+        if query:
+            query = """SELECT
+            TOP 1
+            ra, dec, ra_error, dec_error
+            FROM gaia{}.gaia_source
+            WHERE source_id = {}
+            """.format(self.dr, self.gaia_num)
 
-        job = Gaia.launch_job_async(query)
-        gaia_data = job.get_results()
+            job = Gaia.launch_job_async(query)
+            gaia_data = job.get_results()
 
         self.ra = gaia_data['ra']
         self.ra_err = gaia_data['ra_error']
@@ -164,7 +177,7 @@ class GaiaLogProb(object):
 
         delta_chi2 = ((delta_model - dec_data) / delta_unc)**2
 
-        chi2 =   + delta_chi2
+        chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2 
 
         return lnlike

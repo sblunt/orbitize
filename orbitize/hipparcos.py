@@ -4,18 +4,19 @@ import pandas as pd
 import emcee
 from scipy.stats import norm
 import matplotlib.pyplot as plt
+import h5py
 
-from astroquery.vizier import Vizier
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
+from astroquery.vizier import Vizier
 
 class HipparcosLogProb(object):
     """
     Class to compute the log probability of an orbit with respect to the 
-    Hipparcos Intermediate Astrometric Data (IAD). Queries Vizier for 
-    all metadata relevant to the IAD, and reads in the IAD themselves from
-    a specified location. Follows Nielsen+ 2020 (studying the orbit of beta 
-    Pic b).
+    Hipparcos Intermediate Astrometric Data (IAD). If using a DVD file, 
+    queries Vizier for all metadata relevant to the IAD, and reads in the IAD 
+    themselves from a specified location. Follows Nielsen+ 2020 (studying the 
+    orbit of beta Pic b).
 
     Fitting the Hipparcos IAD requires fitting for the following five parameters.
     They are added to the vector of fitting parameters in system.py, but 
@@ -211,8 +212,8 @@ class HipparcosLogProb(object):
                 to save the object.
         """
         with open(self.path_to_iad_file, 'r') as f:
-            iad_data = np.array(f.readlines(), dtype='S')
-            hf.create_dataset("IAD_datafile", data=iad_data)
+            iad_data = np.array(f.readlines(), h5py.string_dtype(encoding='UTF-8'))
+            hf.create_dataset("IAD_datafile", data=iad_data, dtype=h5py.string_dtype(encoding='UTF-8'))
 
         hf.attrs['hip_num'] = self.hip_num
         hf.attrs['alphadec0_epoch'] = self.alphadec0_epoch
