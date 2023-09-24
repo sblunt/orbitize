@@ -462,6 +462,11 @@ class OFTI(Sampler,):
 
         """
 
+        # a flag to print out a warning if no OFTI orbits are accepted in x seconds
+        start_warning = True
+        time_warning = 60. # seconds
+        start_time = time.time()
+            
         if num_cores!=1:
             if num_cores==None:
                 num_cores=mp.cpu_count()
@@ -491,6 +496,11 @@ class OFTI(Sampler,):
 
             # print out the number of orbits generated every second
             while orbits_saved.value < total_orbits:
+                if start_warning and orbits_saved.value == 0:
+                    check_time = time.time() - start_time
+                    if check_time > time_warning:
+                        print('Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.', end='\n')
+                        start_warning = False
                 print(str(orbits_saved.value)+'/'+str(total_orbits)+' orbits found', end='\r')
                 time.sleep(0.1)
 
@@ -525,13 +535,17 @@ class OFTI(Sampler,):
             n_orbits_saved = 0
             output_orbits = np.empty((total_orbits, len(self.priors)))
             output_lnlikes = np.empty(total_orbits)
-
+            
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
                 samples = self.prepare_samples(num_samples)
                 accepted_orbits, lnlikes = self.reject(samples)
 
                 if len(accepted_orbits) == 0:
+                    check_time = time.time() - start_time
+                    if start_warning and check_time > time_warning:
+                        print('Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.', end='\n')
+                        start_warning = False
                     pass
                 else:
                     n_accepted = len(accepted_orbits)
@@ -543,8 +557,8 @@ class OFTI(Sampler,):
                                    n_accepted] = lnlikes[0:maxindex2save]
                     n_orbits_saved += maxindex2save
 
-                    # print progress statement
-                    print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
+                # print progress statement
+                print(str(n_orbits_saved)+'/'+str(total_orbits)+' orbits found', end='\r')
 
             self.results.add_samples(
                 np.array(output_orbits),
