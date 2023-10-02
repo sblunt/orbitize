@@ -354,5 +354,27 @@ class Results(object):
             plot_errorbars=plot_errorbars, fig=fig
         )
 
+    def plot_propermotion(self,
+                          # system,
+                          object_to_plot=1, start_mjd=44239.,
+                          periods_to_plot=1, end_year=2030.0, alpha = 0.05,
+                          num_orbits_to_plot=100, num_epochs_to_plot=100,
+                          show_colorbar=True,
+                          cmap=orbitize.plot.cmap,
+                          cbar_param=None,
+                    # fig=None
+        ):
+        """
+        Wrapper for orbitize.plot.plot_propermotion
+        """
 
-
+        return orbitize.plot.plot_propermotion(self, self.system,
+                        object_to_plot=object_to_plot, start_mjd=start_mjd,
+                        periods_to_plot=periods_to_plot, end_year=end_year,
+                        alpha = alpha, num_orbits_to_plot=num_orbits_to_plot,
+                        num_epochs_to_plot=num_epochs_to_plot,
+                        show_colorbar=show_colorbar,
+                        cmap=cmap,
+                        cbar_param=cbar_param,
+                        # fig=fig
+                        )
