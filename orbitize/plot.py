@@ -676,7 +676,7 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
                       periods_to_plot=1, end_year=2030.0, alpha = 0.05,
                       num_orbits_to_plot=100, num_epochs_to_plot=100,
                       show_colorbar=True, cmap=cmap,
-                      cbar_param=None,
+                      cbar_param=None, tight_layout=False,
                       # fig=None
                      ):
     """
@@ -684,6 +684,11 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
     one orbital period for a select number of fitted orbits
     for a given object, with line segments colored according to a given
     parameter (most informative is usually mass of companion)
+
+    Important Note: These plotted trajectories aren't what are fitting in the
+    likelihood evaluation for the HGCA runs. The implementation forward models
+    the Hip/Gaia measurements per epoch and infers the differential proper motions.
+    This plot is given only for the purposes of an approximate visualization.
 
     Args:
         system (object): orbitize.system object with a HGCALogProb passed to system.gaia
@@ -701,6 +706,7 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
             (default: modified Purples_r)
         cbar_param (string): options are the following: 'sma1', 'ecc1', 'inc1', 'aop1',
             'pan1', 'tau1', 'plx', 'm0', 'm1', etc. Number can be switched out. Default is None.
+        tight_layout (bool): apply plt.tight_layout function?
         fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
             Most users will not need this keyword.
 
@@ -932,6 +938,13 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
 
     axs[1].legend()
 
-    plt.tight_layout()
+    notestring = "Important Note: These plotted trajectories aren't what are fitting in the \n"+
+    "likelihood evaluation for the HGCA runs. The implementation forward models \n"+
+    "the Hip/Gaia measurements per epoch and infers the differential proper motions. \n"+
+    "This plot is given only for the purposes of an approximate visualization."
+    print(notestring)
+
+    if tight_layout:
+        plt.tight_layout()
 
     return fig
