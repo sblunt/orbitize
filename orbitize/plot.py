@@ -938,11 +938,10 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
 
     axs[1].legend()
 
-    notestring = "Important Note: These plotted trajectories aren't what are fitting in the \n"+
-    "likelihood evaluation for the HGCA runs. The implementation forward models \n"+
-    "the Hip/Gaia measurements per epoch and infers the differential proper motions. \n"+
-    "This plot is given only for the purposes of an approximate visualization."
-    print(notestring)
+    print("Important Note: These plotted trajectories aren't what are fitting in the \n",
+    "likelihood evaluation for the HGCA runs. The implementation forward models \n",
+    "the Hip/Gaia measurements per epoch and infers the differential proper motions. \n",
+    "This plot is given only for the purposes of an approximate visualization.")
 
     if tight_layout:
         plt.tight_layout()
