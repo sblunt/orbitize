@@ -115,7 +115,7 @@ class HipparcosLogProb(object):
             self.alpha0_err = hip_cat["e_RArad"][0]  # [mas]
             self.delta0_err = hip_cat["e_DErad"][0]  # [mas]
 
-            solution_type = hip_cat["Sn"][0]
+            self.solution_type = hip_cat["Sn"][0]
             f2 = hip_cat["F2"][0]
 
         else:
@@ -133,21 +133,24 @@ class HipparcosLogProb(object):
             self.pm_dec0_err = astrometric_solution["e_pmDE"].values[0]  # [mas/yr]
             self.alpha0_err = astrometric_solution["e_RA"].values[0]  # [mas]
             self.delta0_err = astrometric_solution["e_DE"].values[0]  # [mas]
+            self.var = astrometric_solution["var"].values[0]
 
             solution_details = pd.read_csv(
                 path_to_iad_file, skiprows=5, sep="\s+", nrows=1
             )
 
-            solution_type = solution_details["isol_n"].values[0]
+            self.solution_type = solution_details["isol_n"].values[0]
             f2 = solution_details["F2"].values[0]
 
-        if solution_type != 5:
+        # sol types: 1 = "stochastic solution", which has a 5-param fit but
+        # there were significant residuals. 5 = standard 5-param fit.
+        if self.solution_type not in [1, 5]:
             raise ValueError(
                 """
-                Currently, we only handle stars with 5-parameter astrometric 
-                solutions from Hipparcos. Let us know if you'd like us to add 
-                functionality for stars with >5 parameter solutions.
-                """
+                Currently, we only handle stars with solution types 1 and 5. Your star has type {}. Let us know if you want us to add another solution type!
+                """.format(
+                    self.solution_type
+                )
             )
 
         # read in IAD
@@ -178,6 +181,9 @@ class HipparcosLogProb(object):
         epochs = Time(times, format="decimalyear")
         self.epochs = epochs.decimalyear
         self.epochs_mjd = epochs.mjd
+
+        # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
+        self.eps = np.sqrt(self.eps**2 - self.var)
 
         if self.renormalize_errors:
             D = len(epochs) - 6
@@ -321,9 +327,11 @@ class HipparcosLogProb(object):
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum(
-            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)], axis=1
+            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)],
+            axis=1,
         )
-        lnlike = -0.5 * chi2
+
+        lnlike = -0.5 * chi2 - np.sum(np.log(self.eps * np.sqrt(2 * np.pi)))
 
         return lnlike
 
@@ -374,10 +382,10 @@ def nielsen_iad_refitting_test(
         lnlike = myHipLogProb.compute_lnlike(ra_model, dec_model, model_pars, param_idx)
         return lnlike
 
-    ndim, nwalkers = 5, 100
+    ndim, nwalkers = len(param_idx.keys()), 100
 
     # initialize walkers
-    # (fitting only plx, mu_a, mu_d, alpha_H0, delta_H0)
+    # (fitting plx, mu_a, mu_d, alpha_H0, delta_H0)
     p0 = np.random.randn(nwalkers, ndim)
 
     # plx
@@ -399,7 +407,7 @@ def nielsen_iad_refitting_test(
     sampler.run_mcmc(state, mcmc_steps)
 
     if saveplot is not None:
-        _, axes = plt.subplots(5, figsize=(5, 12))
+        _, axes = plt.subplots(len(param_idx.keys()), figsize=(5, 12))
 
         # plx
         xs = np.linspace(
@@ -439,11 +447,16 @@ def nielsen_iad_refitting_test(
 
         # RA offset
         axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="r")
-        xs = np.linspace(-1, 1, 1000)
+        xs = np.linspace(
+            -3 * myHipLogProb.alpha0_err, 3 * myHipLogProb.alpha0_err, 1000
+        )
         axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color="k")
         axes[3].set_xlabel("RA Offset [mas]")
 
         # Dec offset
+        xs = np.linspace(
+            -3 * myHipLogProb.delta0_err, 3 * myHipLogProb.delta0_err, 1000
+        )
         axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="r")
         axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color="k")
         axes[4].set_xlabel("Dec Offset [mas]")
