@@ -133,13 +133,15 @@ class HipparcosLogProb(object):
             self.pm_dec0_err = astrometric_solution["e_pmDE"].values[0]  # [mas/yr]
             self.alpha0_err = astrometric_solution["e_RA"].values[0]  # [mas]
             self.delta0_err = astrometric_solution["e_DE"].values[0]  # [mas]
-            self.var = astrometric_solution["var"].values[0]
+            self.solution_type = solution_details["isol_n"].values[0]
+
+            if self.solution_type == 1:
+                self.var = astrometric_solution["var"].values[0]
 
             solution_details = pd.read_csv(
                 path_to_iad_file, skiprows=5, sep="\s+", nrows=1
             )
 
-            self.solution_type = solution_details["isol_n"].values[0]
             f2 = solution_details["F2"].values[0]
 
         # sol types: 1 = "stochastic solution", which has a 5-param fit but
@@ -183,7 +185,8 @@ class HipparcosLogProb(object):
         self.epochs_mjd = epochs.mjd
 
         # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
-        self.eps = np.sqrt(self.eps**2 - self.var)
+        if self.solution_type == 1:
+            self.eps = np.sqrt(self.eps**2 - self.var)
 
         if self.renormalize_errors:
             D = len(epochs) - 6
@@ -254,7 +257,7 @@ class HipparcosLogProb(object):
         pm_dec,
         alpha_H0,
         delta_H0,
-        epochs=None,
+        epochs_to_predict=None,
     ):
         """
         Computes the predicted RA/Dec
@@ -371,7 +374,7 @@ class HipparcosLogProb(object):
         dist = np.abs(
             (self.alpha_abs_st - alpha_C_st) * self.cos_phi
             + (self.delta_abs - delta_C) * self.sin_phi
-        )
+        ).reshape((n_samples, n_epochs))
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum(
