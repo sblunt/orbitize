@@ -315,6 +315,9 @@ class HipparcosLogProb(object):
                 )
                 + (epochs_to_predict[i] - self.alphadec0_epoch) * pm_dec
             )
+            import pdb
+
+            pdb.set_trace()
 
             # add in pre-computed secondary perturbations
             alpha_C_st[i] += raoff_model[i]
