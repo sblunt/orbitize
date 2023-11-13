@@ -253,6 +253,7 @@ class HipparcosLogProb(object):
         self,
         raoff_model,
         deoff_model,
+        n_samples,
         plx,
         pm_ra,
         pm_dec,
@@ -272,10 +273,7 @@ class HipparcosLogProb(object):
                 offsets from the barycenter incurred from orbital motion of
                 companions (i.e. not from parallactic motion), where M is the
                 number of epochs of IAD scan data.
-            samples (np.array of float): R-dimensional array of fitting
-                parameters, where R is the number of parameters being fit. Must
-                be in the same order documented in ``System``.
-            TODO (fill in fitting params)
+            TODO (fill in other params)
             epochs_to_predict (np.array of float): if None, then uses Hipparcos epochs. If
                 given, then computes prediction at given epochs instead.
 
@@ -288,8 +286,8 @@ class HipparcosLogProb(object):
             epochs_to_predict = self.epochs
 
         n_epochs = len(epochs_to_predict)
-        alpha_C_st = np.zeros_like(raoff_model)
-        delta_C = np.zeros_like(raoff_model)
+        alpha_C_st = np.zeros((n_epochs, n_samples))
+        delta_C = np.zeros((n_epochs, n_samples))
 
         # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
         for i in np.arange(n_epochs):
@@ -364,18 +362,22 @@ class HipparcosLogProb(object):
         except TypeError:
             n_samples = 1
 
-        n_epochs = len(self.epochs)
-        dist = np.empty((n_epochs, n_samples))
-
         alpha_C_st, delta_C = self.compute_model(
-            raoff_model, deoff_model, plx, pm_ra, pm_dec, alpha_H0, delta_H0
+            raoff_model,
+            deoff_model,
+            n_samples,
+            plx,
+            pm_ra,
+            pm_dec,
+            alpha_H0,
+            delta_H0,
         )
 
         # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
         dist = np.abs(
             (self.alpha_abs_st - alpha_C_st) * self.cos_phi
             + (self.delta_abs - delta_C) * self.sin_phi
-        ).reshape((n_samples, n_epochs))
+        )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum(
