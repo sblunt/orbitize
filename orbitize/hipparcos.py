@@ -133,14 +133,15 @@ class HipparcosLogProb(object):
             self.pm_dec0_err = astrometric_solution["e_pmDE"].values[0]  # [mas/yr]
             self.alpha0_err = astrometric_solution["e_RA"].values[0]  # [mas]
             self.delta0_err = astrometric_solution["e_DE"].values[0]  # [mas]
-            self.solution_type = solution_details["isol_n"].values[0]
-
-            if self.solution_type == 1:
-                self.var = astrometric_solution["var"].values[0]
 
             solution_details = pd.read_csv(
                 path_to_iad_file, skiprows=5, sep="\s+", nrows=1
             )
+
+            self.solution_type = solution_details["isol_n"].values[0]
+
+            if self.solution_type == 1:
+                self.var = astrometric_solution["var"].values[0]
 
             f2 = solution_details["F2"].values[0]
 
