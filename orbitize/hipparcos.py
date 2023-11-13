@@ -245,6 +245,81 @@ class HipparcosLogProb(object):
         hf.attrs["alphadec0_epoch"] = self.alphadec0_epoch
         hf.attrs["renormalize_errors"] = self.renormalize_errors
 
+    def compute_model(
+        self,
+        raoff_model,
+        deoff_model,
+        plx,
+        pm_ra,
+        pm_dec,
+        alpha_H0,
+        delta_H0,
+        epochs=None,
+    ):
+        """
+        Computes the predicted RA/Dec
+
+        Args:
+            raoff_model (np.array of float): M-dimensional array of primary RA
+                offsets from the barycenter incurred from orbital motion of
+                companions (i.e. not from parallactic motion), where M is the
+                number of epochs of IAD scan data.
+            deoff_model (np.array of float): M-dimensional array of primary RA
+                offsets from the barycenter incurred from orbital motion of
+                companions (i.e. not from parallactic motion), where M is the
+                number of epochs of IAD scan data.
+            samples (np.array of float): R-dimensional array of fitting
+                parameters, where R is the number of parameters being fit. Must
+                be in the same order documented in ``System``.
+            TODO (fill in fitting params)
+            epochs_to_predict (np.array of float): if None, then uses Hipparcos epochs. If
+                given, then computes prediction at given epochs instead.
+
+        Returns:
+            2-tuple of:
+                np.array of float: RA predictions
+                np.array of float: Dec predictions
+        """
+        if epochs_to_predict is None:
+            epochs_to_predict = self.epochs
+
+        n_epochs = len(epochs_to_predict)
+        alpha_C_st = np.zeros_like(raoff_model)
+        delta_C = np.zeros_like(raoff_model)
+
+        # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
+        for i in np.arange(n_epochs):
+            # this is the expected offset from the photocenter in alphadec0_epoch (typically 1991.25 for Hipparcos)
+            alpha_C_st[i] = (
+                alpha_H0
+                + plx
+                * (
+                    self.X[i] * np.sin(np.radians(self.alpha0))
+                    - self.Y[i] * np.cos(np.radians(self.alpha0))
+                )
+                + (epochs_to_predict[i] - self.alphadec0_epoch) * pm_ra
+            )
+            delta_C[i] = (
+                delta_H0
+                + plx
+                * (
+                    self.X[i]
+                    * np.cos(np.radians(self.alpha0))
+                    * np.sin(np.radians(self.delta0))
+                    + self.Y[i]
+                    * np.sin(np.radians(self.alpha0))
+                    * np.sin(np.radians(self.delta0))
+                    - self.Z[i] * np.cos(np.radians(self.delta0))
+                )
+                + (epochs_to_predict[i] - self.alphadec0_epoch) * pm_dec
+            )
+
+            # add in pre-computed secondary perturbations
+            alpha_C_st[i] += raoff_model[i]
+            delta_C[i] += deoff_model[i]
+
+        return alpha_C_st, delta_C
+
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
         Computes the log likelihood of an orbit model with respect to the
@@ -288,42 +363,15 @@ class HipparcosLogProb(object):
         n_epochs = len(self.epochs)
         dist = np.empty((n_epochs, n_samples))
 
-        # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
-        for i in np.arange(n_epochs):
-            # this is the expected offset from the photocenter in alphadec0_epoch (typically 1991.25 for Hipparcos)
-            alpha_C_st = (
-                alpha_H0
-                + plx
-                * (
-                    self.X[i] * np.sin(np.radians(self.alpha0))
-                    - self.Y[i] * np.cos(np.radians(self.alpha0))
-                )
-                + (self.epochs[i] - self.alphadec0_epoch) * pm_ra
-            )
-            delta_C = (
-                delta_H0
-                + plx
-                * (
-                    self.X[i]
-                    * np.cos(np.radians(self.alpha0))
-                    * np.sin(np.radians(self.delta0))
-                    + self.Y[i]
-                    * np.sin(np.radians(self.alpha0))
-                    * np.sin(np.radians(self.delta0))
-                    - self.Z[i] * np.cos(np.radians(self.delta0))
-                )
-                + (self.epochs[i] - self.alphadec0_epoch) * pm_dec
-            )
+        alpha_C_st, delta_C = self.compute_model(
+            raoff_model, deoff_model, plx, pm_ra, pm_dec, alpha_H0, delta_H0
+        )
 
-            # add in pre-computed secondary perturbations
-            alpha_C_st += raoff_model[i]
-            delta_C += deoff_model[i]
-
-            # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
-            dist[i, :] = np.abs(
-                (self.alpha_abs_st[i] - alpha_C_st) * self.cos_phi[i]
-                + (self.delta_abs[i] - delta_C) * self.sin_phi[i]
-            )
+        # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
+        dist = np.abs(
+            (self.alpha_abs_st - alpha_C_st) * self.cos_phi
+            + (self.delta_abs - delta_C) * self.sin_phi
+        )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum(
