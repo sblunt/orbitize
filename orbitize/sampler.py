@@ -1381,6 +1381,7 @@ class NestedSampler(Sampler):
                         len(self.system.sys_priors),
                         pool=pool,
                         bound=bound,
+                        bootstrap=False,
                     )
                     sampler.run_nested()
                 else:
@@ -1390,6 +1391,7 @@ class NestedSampler(Sampler):
                         len(self.system.sys_priors),
                         pool=pool,
                         bound=bound,
+                        bootstrap=False,
                     )
                     sampler.run_nested(wt_kwargs={"pfrac": pfrac})
         else:
