@@ -11,6 +11,103 @@ from astropy.coordinates import get_body_barycentric_posvel
 from astroquery.vizier import Vizier
 
 
+class PMPlx_Motion(object):
+    """
+    Class to compute the predicted position at an array of epochs given a
+    parallax and proper motion model (NO orbital motion is added in this class).
+
+    Args:
+        times_mjd (np.array of float): times (in mjd) at which we have absolute astrometric
+            measurements
+        alpha0 (float): measured RA position (in degrees) of the object at alphadec0_epoch (see below).
+        delta0 (float): measured Dec position (in degrees) of the object at alphadec0_epoch (see below).
+        alphadec0_epoch (float): a (fixed) reference time. For stars with Hipparcos data, this
+            should generally be 1991.25, but you can define it however you want. Absolute
+            astrometric data (passed in via an orbitize! data table) should be defined
+            as offsets from the reported position of the object at this epoch (with propagated
+            uncertainties). For example, if you have two absolute astrometric measurements
+            taken with GRAVITY, as well as a Hipparcos-derived position (at epoch 1991.25),
+            alphadec0_epoch should be 1991.25, and you should pass in absolute astrometry
+            in terms of mas *offset* from the Hipparcos catalog position, with propagated
+            errors of your measurement and the Hipparcos measurement.
+    """
+
+    def __init__(self, epochs_mjd, alpha0, delta0, alphadec0_epoch=1991.25):
+        self.epochs_mjd = epochs_mjd
+        self.alphadec0_epoch = alphadec0_epoch
+        self.alpha0 = alpha0
+        self.delta0 = delta0
+
+        epochs = Time(epochs_mjd, format="mjd")
+        self.epochs = epochs.decimalyear
+
+        # compute Earth XYZ position in barycentric coordinates
+        bary_pos, _ = get_body_barycentric_posvel("earth", epochs)
+        self.X = bary_pos.x.value  # [au]
+        self.Y = bary_pos.y.value  # [au]
+        self.Z = bary_pos.z.value  # [au]
+
+    def compute_astrometric_model(self, samples, param_idx):
+        """
+        Compute the astrometric prediction at self.epochs_mjd from parallax and
+        proper motion alone, given an array of model parameters (no orbital
+        motion is added here).
+
+        Args:
+            samples (np.array of float): Length R array of fitting
+                parameters, where R is the number of parameters being fit. Must
+                be in the same order documented in ``System``.
+            param_idx: a dictionary matching fitting parameter labels to their
+                indices in an array of fitting parameters (generally
+                set to System.basis.param_idx).
+
+        Returns:
+            tuple of:
+                - float: predicted RA position offsets from the measured position
+                    at alphadec0_epoch, calculated for each input epoch [mas]
+                - float: predicted Dec position offsets from the measured position
+                    at alphadec0_epoch, calculated for each input epoch [mas]
+        """
+        # variables for each of the astrometric fitting parameters
+        plx = samples[param_idx["plx"]]
+        pm_ra = samples[param_idx["pm_ra"]]
+        pm_dec = samples[param_idx["pm_dec"]]
+        alpha_H0 = samples[param_idx["alpha0"]]
+        delta_H0 = samples[param_idx["delta0"]]
+
+        n_epochs = len(self.epochs)
+        alpha_C_st_array = np.empty(n_epochs)
+        delta_C_array = np.empty(n_epochs)
+
+        # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
+        for i in np.arange(n_epochs):
+            # this is the expected offset from the photocenter in alphadec0_epoch
+            alpha_C_st_array[i] = (
+                alpha_H0
+                + plx
+                * (
+                    self.X[i] * np.sin(np.radians(self.alpha0))
+                    - self.Y[i] * np.cos(np.radians(self.alpha0))
+                )
+                + (self.epochs[i] - self.alphadec0_epoch) * pm_ra
+            )
+            delta_C_array[i] = (
+                delta_H0
+                + plx
+                * (
+                    self.X[i]
+                    * np.cos(np.radians(self.alpha0))
+                    * np.sin(np.radians(self.delta0))
+                    + self.Y[i]
+                    * np.sin(np.radians(self.alpha0))
+                    * np.sin(np.radians(self.delta0))
+                    - self.Z[i] * np.cos(np.radians(self.delta0))
+                )
+                + (self.epochs[i] - self.alphadec0_epoch) * pm_dec
+            )
+        return alpha_C_st_array, delta_C_array
+
+
 class HipparcosLogProb(object):
     """
     Class to compute the log probability of an orbit with respect to the
@@ -189,6 +286,13 @@ class HipparcosLogProb(object):
         if self.solution_type == 1:
             self.eps = np.sqrt(self.eps**2 - self.var)
 
+        self.hipparcos_plxpm_predictor = PMPlx_Motion(
+            self.epochs_mjd,
+            self.alpha0,
+            self.delta0,
+            alphadec0_epoch=self.alphadec0_epoch,
+        )
+
         if self.renormalize_errors:
             D = len(epochs) - 6
             G = f2
@@ -197,18 +301,12 @@ class HipparcosLogProb(object):
 
             self.eps *= f
 
-        # compute Earth XYZ position in barycentric coordinates
-        bary_pos, _ = get_body_barycentric_posvel("earth", epochs)
-        self.X = bary_pos.x.value  # [au]
-        self.Y = bary_pos.y.value  # [au]
-        self.Z = bary_pos.z.value  # [au]
-
         # reconstruct ephemeris of star given van Leeuwen best-fit (Nielsen+ 2020 Eqs 1-2) [mas]
         changein_alpha_st = (
             self.plx0
             * (
-                self.X * np.sin(np.radians(self.alpha0))
-                - self.Y * np.cos(np.radians(self.alpha0))
+                self.hipparcos_plxpm_predictor.X * np.sin(np.radians(self.alpha0))
+                - self.hipparcos_plxpm_predictor.Y * np.cos(np.radians(self.alpha0))
             )
             + (self.epochs - 1991.25) * self.pm_ra0
         )
@@ -216,13 +314,13 @@ class HipparcosLogProb(object):
         changein_delta = (
             self.plx0
             * (
-                self.X
+                self.hipparcos_plxpm_predictor.X
                 * np.cos(np.radians(self.alpha0))
                 * np.sin(np.radians(self.delta0))
-                + self.Y
+                + self.hipparcos_plxpm_predictor.Y
                 * np.sin(np.radians(self.alpha0))
                 * np.sin(np.radians(self.delta0))
-                - self.Z * np.cos(np.radians(self.delta0))
+                - self.hipparcos_plxpm_predictor.Z * np.cos(np.radians(self.delta0))
             )
             + (self.epochs - 1991.25) * self.pm_dec0
         )
@@ -249,83 +347,13 @@ class HipparcosLogProb(object):
         hf.attrs["alphadec0_epoch"] = self.alphadec0_epoch
         hf.attrs["renormalize_errors"] = self.renormalize_errors
 
-    def compute_model(
+    def compute_lnlike(
         self,
         raoff_model,
         deoff_model,
-        n_samples,
-        plx,
-        pm_ra,
-        pm_dec,
-        alpha_H0,
-        delta_H0,
-        epochs_to_predict=None,
+        samples,
+        param_idx,
     ):
-        """
-        Computes the predicted RA/Dec
-
-        Args:
-            raoff_model (np.array of float): M-dimensional array of primary RA
-                offsets from the barycenter incurred from orbital motion of
-                companions (i.e. not from parallactic motion), where M is the
-                number of epochs of IAD scan data.
-            deoff_model (np.array of float): M-dimensional array of primary RA
-                offsets from the barycenter incurred from orbital motion of
-                companions (i.e. not from parallactic motion), where M is the
-                number of epochs of IAD scan data.
-            TODO (fill in other params)
-            epochs_to_predict (np.array of float): if None, then uses Hipparcos epochs. If
-                given, then computes prediction at given epochs instead.
-
-        Returns:
-            2-tuple of:
-                np.array of float: RA predictions
-                np.array of float: Dec predictions
-        """
-        if epochs_to_predict is None:
-            epochs_to_predict = self.epochs
-
-        n_epochs = len(epochs_to_predict)
-        alpha_C_st = np.zeros((n_epochs, n_samples))
-        delta_C = np.zeros((n_epochs, n_samples))
-
-        # add parallactic ellipse & proper motion to position (Nielsen+ 2020 Eq 8)
-        for i in np.arange(n_epochs):
-            # this is the expected offset from the photocenter in alphadec0_epoch (typically 1991.25 for Hipparcos)
-            alpha_C_st[i] = (
-                alpha_H0
-                + plx
-                * (
-                    self.X[i] * np.sin(np.radians(self.alpha0))
-                    - self.Y[i] * np.cos(np.radians(self.alpha0))
-                )
-                + (epochs_to_predict[i] - self.alphadec0_epoch) * pm_ra
-            )
-            delta_C[i] = (
-                delta_H0
-                + plx
-                * (
-                    self.X[i]
-                    * np.cos(np.radians(self.alpha0))
-                    * np.sin(np.radians(self.delta0))
-                    + self.Y[i]
-                    * np.sin(np.radians(self.alpha0))
-                    * np.sin(np.radians(self.delta0))
-                    - self.Z[i] * np.cos(np.radians(self.delta0))
-                )
-                + (epochs_to_predict[i] - self.alphadec0_epoch) * pm_dec
-            )
-            import pdb
-
-            pdb.set_trace()
-
-            # add in pre-computed secondary perturbations
-            alpha_C_st[i] += raoff_model[i]
-            delta_C[i] += deoff_model[i]
-
-        return alpha_C_st, delta_C
-
-    def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
         Computes the log likelihood of an orbit model with respect to the
         Hipparcos IAD. This is added to the likelihoods calculated with
@@ -353,42 +381,35 @@ class HipparcosLogProb(object):
                 respect to the Hipparcos IAD.
         """
 
-        # variables for each of the astrometric fitting parameters
-        plx = samples[param_idx["plx"]]
-        pm_ra = samples[param_idx["pm_ra"]]
-        pm_dec = samples[param_idx["pm_dec"]]
-        alpha_H0 = samples[param_idx["alpha0"]]
-        delta_H0 = samples[param_idx["delta0"]]
-
         try:
-            n_samples = len(pm_ra)
+            n_samples = len(samples[0])
         except TypeError:
             n_samples = 1
 
-        alpha_C_st, delta_C = self.compute_model(
-            raoff_model,
-            deoff_model,
-            n_samples,
-            plx,
-            pm_ra,
-            pm_dec,
-            alpha_H0,
-            delta_H0,
-        )
+        n_epochs = len(self.epochs)
+        dist = np.empty((n_epochs, n_samples))
 
-        # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
-        dist = np.abs(
-            (self.alpha_abs_st - alpha_C_st) * self.cos_phi
-            + (self.delta_abs - delta_C) * self.sin_phi
-        )
+        (
+            alpha_C_st_array,
+            delta_C_array,
+        ) = self.hipparcos_plxpm_predictor.compute_astrometric_model(samples, param_idx)
+
+        for i in np.arange(n_epochs):
+            # add in pre-computed secondary perturbations
+            alpha_C_st = alpha_C_st_array[i] + raoff_model[i]
+            delta_C = delta_C_array[i] + deoff_model[i]
+
+            # calculate distance between line and expected measurement (Nielsen+ 2020 Eq 6) [mas]
+            dist[i, :] = np.abs(
+                (self.alpha_abs_st[i] - alpha_C_st) * self.cos_phi[i]
+                + (self.delta_abs[i] - delta_C) * self.sin_phi[i]
+            )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum(
-            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)],
-            axis=1,
+            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)], axis=1
         )
-
-        lnlike = -0.5 * chi2 - np.sum(np.log(self.eps * np.sqrt(2 * np.pi)))
+        lnlike = -0.5 * chi2
 
         return lnlike
 
