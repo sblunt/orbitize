@@ -239,10 +239,11 @@ class System(object):
         # if we're fitting absolute astrometry of the star, create an object that
         # knows how to compute predicted astrometric motion due to parallax and
         # proper motion
+
         if (len(self.radec[0]) + len(self.seppa[0])) > 0:
-            self.stellar_astrom_epochs = self.data_table["epochs"][
-                (self.data_table["quant_type"] == "astrom")
-                & (self.data_table["object_index"] == 0)
+            self.stellar_astrom_epochs = self.data_table["epoch"][
+                (self.data_table["quant_type"] == "radec")
+                & (self.data_table["object"] == 0)
             ]
             alpha0 = self.hipparcos_IAD.alpha0
             delta0 = self.hipparcos_IAD.delta0
@@ -653,7 +654,6 @@ class System(object):
             )
             model[self.radec[0], 0] += ra_pred
             model[self.radec[0], 1] += dec_pred
-
 
             # TODO(@sblunt): check that this is working ok
             import pdb
