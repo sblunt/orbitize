@@ -650,15 +650,11 @@ class System(object):
         # calling AbsAstrom compute_model
         if len(self.radec[0]) > 0:
             ra_pred, dec_pred = self.pm_plx_predictor.compute_astrometric_model(
-                params_arr
+                params_arr, self.param_idx
             )
-            model[self.radec[0], 0] += ra_pred
-            model[self.radec[0], 1] += dec_pred
 
-            # TODO(@sblunt): check that this is working ok
-            import pdb
-
-            pdb.set_trace()
+            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape)
+            model[self.radec[0], 1] += dec_pred.reshape(model[self.radec[0], 0].shape)
 
         if n_orbits == 1:
             model = model.reshape((n_epochs, 2))

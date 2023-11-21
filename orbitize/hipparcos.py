@@ -198,6 +198,7 @@ class HipparcosLogProb(object):
                     "e_pmDE",
                     "F2",
                     "Sn",
+                    "var",
                 ],
             ).query_constraints(HIP=self.hip_num)[0]
 
@@ -214,6 +215,8 @@ class HipparcosLogProb(object):
 
             self.solution_type = hip_cat["Sn"][0]
             f2 = hip_cat["F2"][0]
+            if self.solution_type == 1:
+                self.var = hip_cat["var"][0]  # [mas]
 
         else:
             # read the Hipparcos best-fit solution from the IAD file
@@ -282,10 +285,6 @@ class HipparcosLogProb(object):
         self.epochs = epochs.decimalyear
         self.epochs_mjd = epochs.mjd
 
-        # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
-        if self.solution_type == 1:
-            self.eps = np.sqrt(self.eps**2 - self.var)
-
         self.hipparcos_plxpm_predictor = PMPlx_Motion(
             self.epochs_mjd,
             self.alpha0,
@@ -347,13 +346,7 @@ class HipparcosLogProb(object):
         hf.attrs["alphadec0_epoch"] = self.alphadec0_epoch
         hf.attrs["renormalize_errors"] = self.renormalize_errors
 
-    def compute_lnlike(
-        self,
-        raoff_model,
-        deoff_model,
-        samples,
-        param_idx,
-    ):
+    def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
         Computes the log likelihood of an orbit model with respect to the
         Hipparcos IAD. This is added to the likelihoods calculated with
@@ -407,7 +400,8 @@ class HipparcosLogProb(object):
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
         chi2 = np.sum(
-            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)], axis=1
+            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)],
+            axis=1,
         )
         lnlike = -0.5 * chi2
 
