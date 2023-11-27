@@ -245,9 +245,6 @@ class HipparcosLogProb(object):
 
             f2 = solution_details["F2"].values[0]
 
-        # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
-        self.eps = np.sqrt(self.eps**2 - self.var**)
-
         # sol types: 1 = "stochastic solution", which has a 5-param fit but
         # there were significant residuals. 5 = standard 5-param fit.
         if self.solution_type not in [1, 5]:
@@ -284,6 +281,9 @@ class HipparcosLogProb(object):
         self.R = self.R[good_scans]
         self.eps = self.eps[good_scans]
 
+        # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
+        self.eps = np.sqrt(self.eps**2 - self.var**2)
+
         epochs = Time(times, format="decimalyear")
         self.epochs = epochs.decimalyear
         self.epochs_mjd = epochs.mjd
@@ -302,6 +302,9 @@ class HipparcosLogProb(object):
             f = (G * np.sqrt(2 / (9 * D)) + 1 - (2 / (9 * D))) ** (3 / 2)
 
             self.eps *= f
+
+            # also add back in the var term for type 1 solutions
+            self.eps = np.sqrt(self.eps**2 + self.var**2)
 
         # reconstruct ephemeris of star given van Leeuwen best-fit (Nielsen+ 2020 Eqs 1-2) [mas]
         changein_alpha_st = (
