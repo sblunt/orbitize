@@ -245,6 +245,9 @@ class HipparcosLogProb(object):
 
             f2 = solution_details["F2"].values[0]
 
+        # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
+        self.eps = np.sqrt(self.eps**2 - self.var**)
+
         # sol types: 1 = "stochastic solution", which has a 5-param fit but
         # there were significant residuals. 5 = standard 5-param fit.
         if self.solution_type not in [1, 5]:
