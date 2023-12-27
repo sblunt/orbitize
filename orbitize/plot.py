@@ -82,7 +82,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         'mtot': '$M_T$ [M$_{{\\odot}}$]',
         'm0': '$M_0$ [M$_{{\\odot}}$]',
         'm': '$M_{0}$ [M$_{{\\rm Jup}}$]',
-        'pm_ra': '$\\mu_{{\\alpha}}$ [mas/yr]',
+        'pm_ra': '$\\mu_{{\\alpha^{{*}}}}$ [mas/yr]',
         'pm_dec': '$\\mu_{{\\delta}}$ [mas/yr]',
         'alpha0': '$\\alpha^{{*}}_{{0}}$ [mas]',
         'delta0': '$\\delta_0$ [mas]',
