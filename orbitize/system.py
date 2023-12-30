@@ -1,6 +1,5 @@
 import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
-from astropy import table
 
 
 class System(object):

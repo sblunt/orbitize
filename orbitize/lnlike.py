@@ -1,5 +1,4 @@
 import numpy as np
-import pdb
 
 """
 This module contains functions for computing log(likelihood).
