@@ -6,7 +6,9 @@ This module contains functions for computing log(likelihood).
 """
 
 
-def chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_type='standard'):
+def chi2_lnlike(
+    data, errors, corrs, model, jitter, seppa_indices, chi2_type="standard"
+):
     """Compute Log of the chi2 Likelihood
 
     Args:
@@ -56,55 +58,63 @@ i
         jitter.shape = (1,) + jitter.shape
         third_dim = False
 
-    if chi2_type == 'standard':
-        residual = (data - model)
+    if chi2_type == "standard":
+        residual = data - model
         # if there are PA values, we should take the difference modulo angle wrapping
         if np.size(seppa_indices) > 0:
-            residual[:, seppa_indices, 1] = (residual[:, seppa_indices, 1] + 180.) % 360. - 180.
+            residual[:, seppa_indices, 1] = (
+                residual[:, seppa_indices, 1] + 180.0
+            ) % 360.0 - 180.0
 
-        sigma2 = errors**2 + jitter**2 # diagonal error term
+        sigma2 = errors**2 + jitter**2  # diagonal error term
 
         if corrs is None:
             # including the second term of chi2
             # the sqrt() in the log() means we don't need to multiply by 0.5
-            chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2*np.pi*sigma2))
+            chi2 = -0.5 * residual**2 / sigma2 - np.log(np.sqrt(2 * np.pi * sigma2))
         else:
             has_no_corr = np.isnan(corrs)
             yes_corr = np.where(~has_no_corr)[0]
             no_corr = np.where(has_no_corr)[0]
 
             chi2 = np.zeros(residual.shape)
-            chi2[:,no_corr] = -0.5 * residual[:,no_corr]**2 / sigma2[:,no_corr] - np.log(np.sqrt(2*np.pi*sigma2[:,no_corr]))
+            chi2[:, no_corr] = -0.5 * residual[:, no_corr] ** 2 / sigma2[
+                :, no_corr
+            ] - np.log(np.sqrt(2 * np.pi * sigma2[:, no_corr]))
 
             # analytical solution for 2x2 covariance matrix
             # chi2 = -0.5 * (R^T C^-1 R + ln(det_C))
-            chi2[:,yes_corr] = _chi2_2x2cov(residual[:,yes_corr], sigma2[:,yes_corr], corrs[yes_corr])
+            chi2[:, yes_corr] = _chi2_2x2cov(
+                residual[:, yes_corr], sigma2[:, yes_corr], corrs[yes_corr]
+            )
 
-    elif chi2_type == 'log':
-        #using the log version of chi squared
-        #split the data up into sep, pa, and rv data using seppa_indices and quant
+    elif chi2_type == "log":
+        # using the log version of chi squared
+        # split the data up into sep, pa, and rv data using seppa_indices and quant
         sep_data = data[seppa_indices, 0]
         sep_model = model[:, seppa_indices, 0]
         sep_error = errors[seppa_indices, 0]
         pa_data = data[seppa_indices, 1]
         pa_model = model[:, seppa_indices, 1]
-        pa_error = errors[seppa_indices, 1]*np.pi/180
+        pa_error = errors[seppa_indices, 1] * np.pi / 180
 
-        #calculating sep chi squared
-        sep_chi2_log = (np.log(sep_data)-np.log(sep_model))**2/(sep_error/sep_data)**2
+        # calculating sep chi squared
+        sep_chi2_log = (np.log(sep_data) - np.log(sep_model)) ** 2 / (
+            sep_error / sep_data
+        ) ** 2
 
-        #calculting pa chi squared Log
-        pa_resid = (pa_model-pa_data +180.) % 360. - 180.
-        pa_chi2_log = 2*(1-np.cos(pa_resid*np.pi/180))/pa_error**2
+        # calculting pa chi squared Log
+        pa_resid = (pa_model - pa_data + 180.0) % 360.0 - 180.0
+        pa_chi2_log = 2 * (1 - np.cos(pa_resid * np.pi / 180)) / pa_error**2
 
-        residual = (data - model)
-        sigma2 = errors**2 + jitter**2 # diagonal error term
+        residual = data - model
+        sigma2 = errors**2 + jitter**2  # diagonal error term
 
-        chi2 = residual**2/sigma2
-        chi2[:,seppa_indices,0] = sep_chi2_log
-        chi2[:,seppa_indices,1] = pa_chi2_log
+        chi2 = residual**2 / sigma2
+        chi2[:, seppa_indices, 0] = sep_chi2_log
+        chi2[:, seppa_indices, 1] = pa_chi2_log
 
-        chi2 = -0.5 * chi2 - np.log(np.sqrt(2*np.pi*sigma2))
+        chi2 = -0.5 * chi2 - np.log(np.sqrt(2 * np.pi * sigma2))
 
     if third_dim:
         # move M dimension back to the last axis
@@ -117,6 +127,7 @@ i
         jitter.shape = jitter.shape[1:]
 
     return chi2
+
 
 def _chi2_2x2cov(residual, var, corrs):
     """
@@ -135,12 +146,18 @@ def _chi2_2x2cov(residual, var, corrs):
                          and the second dimension is 0
     """
 
-    det_C = var[:,:,0] * var[:,:,1] * (1 - corrs**2)
+    det_C = var[:, :, 0] * var[:, :, 1] * (1 - corrs**2)
 
-    covs = corrs * np.sqrt(var[:,:,0]) * np.sqrt(var[:,:,1])
-    chi2 = (residual[:,:,0]**2 * var[:,:,1] + residual[:,:,1]**2 * var[:,:,0] - 2 * residual[:,:,0] * residual[:,:,1] * covs)/det_C
+    covs = corrs * np.sqrt(var[:, :, 0]) * np.sqrt(var[:, :, 1])
+    chi2 = (
+        residual[:, :, 0] ** 2 * var[:, :, 1]
+        + residual[:, :, 1] ** 2 * var[:, :, 0]
+        - 2 * residual[:, :, 0] * residual[:, :, 1] * covs
+    ) / det_C
 
-    chi2 += np.log(det_C) + 2 * np.log(2*np.pi) # extra factor of 2 since quant1 and quant2 in each element of chi2.
+    chi2 += np.log(det_C) + 2 * np.log(
+        2 * np.pi
+    )  # extra factor of 2 since quant1 and quant2 in each element of chi2.
 
     chi2 *= -0.5
 
@@ -148,18 +165,19 @@ def _chi2_2x2cov(residual, var, corrs):
 
     return chi2
 
+
 def chi2_norm_term(errors, corrs):
     """
-    Return only the normalization term of the Gaussian likelihood: 
+    Return only the normalization term of the Gaussian likelihood:
 
     .. math::
 
-        -log(\\sqrt(2\\pi*error^2)) 
+        -log(\\sqrt(2\\pi*error^2))
 
-    or 
+    or
 
     .. math::
-    
+
         -0.5 * (log(det(C)) + N * log(2\\pi))
 
     Args:
@@ -174,16 +192,20 @@ def chi2_norm_term(errors, corrs):
     sigma2 = errors**2
 
     if corrs is None:
-        norm = -np.log(np.sqrt(2*np.pi*sigma2))
+        norm = -np.log(np.sqrt(2 * np.pi * sigma2))
     else:
         has_no_corr = np.isnan(corrs)
         yes_corr = np.where(~has_no_corr)[0]
         no_corr = np.where(has_no_corr)[0]
 
         norm = np.zeros(errors.shape)
-        norm[no_corr] = -np.log(np.sqrt(2*np.pi*sigma2[no_corr]))
+        norm[no_corr] = -np.log(np.sqrt(2 * np.pi * sigma2[no_corr]))
 
-        det_C = sigma2[yes_corr[0], 0] * sigma2[yes_corr[0],1] * (1 - corrs[yes_corr]**2)
-        norm[yes_corr,0] = -0.5 * (det_C + 2 * np.log(2 * np.pi)) # extra factor of 2 since quant1 and quant2 in each element of chi2.
+        det_C = (
+            sigma2[yes_corr[0], 0] * sigma2[yes_corr[0], 1] * (1 - corrs[yes_corr] ** 2)
+        )
+        norm[yes_corr, 0] = -0.5 * (
+            det_C + 2 * np.log(2 * np.pi)
+        )  # extra factor of 2 since quant1 and quant2 in each element of chi2.
 
     return np.sum(norm)
