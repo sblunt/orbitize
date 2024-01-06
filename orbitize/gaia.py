@@ -204,7 +204,7 @@ class HGCALogProb(object):
             # check orbitize.DATAIDR and download if needed
             hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
             if not os.path.exists(hgca_filepath):
-                hgca_url = 'http://physics.ucsb.edu/~tbrandt/HGCA_vEDR3.fits'
+                hgca_url = 'https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits'
                 print("No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(hgca_url, hgca_filepath))
                 hgca_file = requests.get(hgca_url)
                 with open(hgca_filepath, 'wb') as f:
@@ -213,7 +213,7 @@ class HGCALogProb(object):
                 print("Using HGCA catalog stored in {0}".format(hgca_filepath))
 
         # grab the entry from the HGCA
-        with fits.open(hgca_filepath) as hdulist:
+        with fits.open(hgca_filepath, ignore_missing_end=True) as hdulist:
             hgtable = hdulist[1].data
         entry = hgtable[np.where(hgtable['hip_id'] == hip_id)]
         # check we matched on a single target. mainly check if we typed hip id number incorrectly
