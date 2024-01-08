@@ -226,7 +226,7 @@ class HGCALogProb(object):
                 print("Using HGCA catalog stored in {0}".format(hgca_filepath))
 
         # grab the entry from the HGCA
-        with fits.open(hgca_filepath, ignore_missing_simple=True, , ignore_missing_end=True) as hdulist:
+        with fits.open(hgca_filepath, ignore_missing_simple=True, ignore_missing_end=True) as hdulist:
             hgtable = hdulist[1].data
         entry = hgtable[np.where(hgtable['hip_id'] == hip_id)]
         # check we matched on a single target. mainly check if we typed hip id number incorrectly
