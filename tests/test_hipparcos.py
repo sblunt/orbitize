@@ -1,8 +1,6 @@
 import numpy as np
 import os
 
-import matplotlib.pyplot as plt
-
 from orbitize import DATADIR, read_input, system, sampler, results
 from orbitize.gaia import GaiaLogProb
 from orbitize.hipparcos import HipparcosLogProb, nielsen_iad_refitting_test
