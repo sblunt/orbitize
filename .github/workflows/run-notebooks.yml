@@ -29,6 +29,10 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install jupyter setuptools
         python -m pip install -r requirements.txt
+    - name: Install orbitize
+      run: |
+        echo ${{ github.workspace }}
+        python -m pip install ${{ github.workspace }}
     - name: Run tutorial notebooks
       run: |
         echo $PATH
