@@ -32,5 +32,6 @@ jobs:
     - name: Run tutorial notebooks
       run: |
         echo $PATH
+        pip list
         jupyter execute docs/tutorials/*.ipynb
       
