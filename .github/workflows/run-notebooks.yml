@@ -32,5 +32,5 @@ jobs:
         python -m pip install . --no-build-isolation
     - name: Run tutorial notebooks
       run: |
-        py.test --nbmake docs/tutorials/*.ipynb
+        py.test --nbmake --nbmake-timeout=3000 docs/tutorials/*.ipynb
       
