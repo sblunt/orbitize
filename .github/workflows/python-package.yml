@@ -40,5 +40,9 @@ jobs:
       run: |
         pytest --cov
     - name: Coveralls GitHub Action
+      if: ${{ matrix.python-version }} == '3.12'
       uses: coverallsapp/github-action@v2
-      
+      with:
+        parallel: true
+        flag-name: run-$
+
