@@ -95,8 +95,10 @@ Issues?
 If you run into any issues installing ``orbitize``, please create an issue on GitHub.
 
 If you are specifically having difficulties using ``cython`` to install ``orbitize``, we
-suggest first trying to install all of the ``orbitize`` dependencies (listed in 
-``requirements.txt``), then disabling compilation of the C-based Kepler module with 
+suggest first trying to install ``wheel``, then installing all of the ``orbitize`` dependencies (listed in 
+``requirements.txt``).
+
+If that doesn't work, we suggest disabling compilation of the C-based Kepler module with 
 the following alternative installation command:
 
 .. code-block:: bash
