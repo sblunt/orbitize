@@ -526,7 +526,7 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=True
+        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -537,8 +537,9 @@ class OFTI(
                 rejection sampling on. Defaults to 10000.
             num_cores (int): the number of cores to run OFTI on. Defaults to
                 number of cores availabe.
-            OFTI_warning (bool): if True, print a warning if OFTI doesn't accept
-                any orbits after 60 s.
+            OFTI_warning (float): if OFTI doesn't accept a single orbit before
+                this amount of time (in seconds), print a warning suggesting to
+                try MCMC. If None, don't print a warning.
         Return:
             np.array: array of accepted orbits. Size: total_orbits.
 
@@ -546,8 +547,6 @@ class OFTI(
 
         """
 
-        # a flag to print out a warning if no OFTI orbits are accepted in x seconds
-        time_warning = 60.0  # seconds
         start_time = time.time()
 
         if num_cores != 1:
@@ -579,14 +578,14 @@ class OFTI(
 
             # print out the number of orbits generated every second
             while orbits_saved.value < total_orbits:
-                if OFTI_warning and orbits_saved.value == 0:
+                if OFTI_warning is not None and orbits_saved.value == 0:
                     check_time = time.time() - start_time
-                    if check_time > time_warning:
+                    if check_time > OFTI_warning:
                         print(
                             "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
                             end="\n",
                         )
-                        OFTI_warning = False
+                        OFTI_warning = None
                 print(
                     str(orbits_saved.value) + "/" + str(total_orbits) + " orbits found",
                     end="\r",
@@ -631,12 +630,13 @@ class OFTI(
 
                 if len(accepted_orbits) == 0:
                     check_time = time.time() - start_time
-                    if OFTI_warning and check_time > time_warning:
-                        print(
-                            "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
-                            end="\n",
-                        )
-                        OFTI_warning = False
+                    if OFTI_warning is not None:
+                        if check_time > OFTI_warning:
+                            print(
+                                "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
+                                end="\n",
+                            )
+                            OFTI_warning = None
                     pass
                 else:
                     n_accepted = len(accepted_orbits)
