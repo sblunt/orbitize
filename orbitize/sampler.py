@@ -551,7 +551,7 @@ class OFTI(
         start_time = time.time()
 
         if num_cores != 1:
-            if num_cores is not None:
+            if num_cores is None:
                 num_cores = mp.cpu_count()
 
             results = []
