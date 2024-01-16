@@ -50,6 +50,7 @@ User Guide:
    faq
    contributing
    api
+   manual
 
 Changelog:
 ++++++++++
