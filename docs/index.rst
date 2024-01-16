@@ -54,6 +54,11 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.0.0 (TBD)**
+
+- discuss MCMC autocorrelation in MCMC tutorial (@michaelkmpoon)
+- add time warning if OFTI doesn't accept an orbit in first 60 s (@michaelkmpoon)
+
 **2.2.2 (2023-06-30)**
 
 - tests now overwrite any generated text files (@sblunt)
