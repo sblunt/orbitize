@@ -282,6 +282,8 @@ def test_hgca():
     assert isinstance(new_hgca_lnprob, gaia.HGCALogProb)
     assert new_hgca_lnprob.hip_hg_dpm_radec_corr == hgca_lnprob.hip_hg_dpm_radec_corr
 
+    os.remove("hgca_test.hdf5")
+
 
 def test_nointernet():
     """
