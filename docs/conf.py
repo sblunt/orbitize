@@ -51,8 +51,8 @@ extensions = [
 # Disable notebook timeout
 nbsphinx_timeout = -1
 
-# Always re-run notebooks when building docss
-nbsphinx_execute = "always"
+# Only re-run notebooks that have no outputs
+nbsphinx_execute = "auto"
 
 # Allow notebook errors
 nbsphinx_allow_errors = False
