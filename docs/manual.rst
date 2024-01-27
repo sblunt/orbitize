@@ -24,7 +24,7 @@ which can then be solved using Kepler’s equation.
 It is important, then, to be explicit about coordinate systems. 
 
 For an interactive visualization to define and help users understand our coordinate system, 
-you can check out `this GitHub tutorial <https://github.com/sblunt/orbitize/blob/main/docs/tutorials/show-me-the-orbit.ipynb>`_. 
+you can check out `this GitHub tutorial <https://github.com/sblunt/orbitize/blob/main/docs/tutorials/show-me-the-orbit.ipynb>`_.
 
 There is also a `YouTube video <https://www.youtube.com/watch?v=0e24VUhQmbM>`_. 
 with use and explaination of the coordinate system.
@@ -35,8 +35,9 @@ and measures the position of the planet relative to the star in angular coordina
 In the ``orbitize!`` coordinate system, relative R.A. and decl. can be expressed as the following functions 
 of orbital parameters 
 
-$$ \delta R.A. = \pi a(1-ecosE)[cos^2{i\over 2}sin(f+\omega_p+\Omega)-sin^2{i\over 2}sin(f+\omega_p-\Omega)] $$
-$$ \delta decl. = \pi a(1-ecosE)[cos^2{i\over 2}cos(f+\omega_p+\Omega)-sin^2{i\over 2}cos(f+\omega_p-\Omega)] $$
+.. math::
+    \delta R.A. = \pi a(1-ecosE)[cos^2{i\over 2}sin(f+\omega_p+\Omega)-sin^2{i\over 2}sin(f+\omega_p-\Omega)] $$
+    \delta decl. = \pi a(1-ecosE)[cos^2{i\over 2}cos(f+\omega_p+\Omega)-sin^2{i\over 2}cos(f+\omega_p-\Omega)] $$
 
 where 𝑎, 𝑒, 𝜔p, Ω, and 𝑖 are orbital parameters, and 𝜋 is the system parallax. f is
 the true anomaly, and E is the eccentric anomaly, which are related to elapsed time
