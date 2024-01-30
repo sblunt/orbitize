@@ -3,7 +3,6 @@ import os
 import astropy.table as table
 from astropy.time import Time
 import astropy.units as u
-from astropy.coordinates import get_body_barycentric_posvel
 
 import orbitize
 from orbitize import kepler, read_input, system, hipparcos, DATADIR
