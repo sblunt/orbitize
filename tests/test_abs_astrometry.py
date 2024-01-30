@@ -3,6 +3,7 @@ import os
 import astropy.table as table
 from astropy.time import Time
 import astropy.units as u
+from astropy.coordinates import get_body_barycentric_posvel
 
 import orbitize
 from orbitize import kepler, read_input, system, hipparcos, DATADIR
@@ -80,9 +81,20 @@ def test_arbitrary_abs_astrom():
     instrument. This test assumes test particle (i.e. zero-mass) companions.
     """
 
-    epochs = Time(np.array([0, 0.5, 1.0]) + 1991.25, format="decimalyear").mjd
-    ra_model = np.array([0, 25, 0])
-    dec_model = np.array([0, 25, 0])
+    # just read in any file since we're not computing Hipparcos-related likelihoods.
+    hip_num = "027321"
+    num_secondary_bodies = 1
+    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+    testHiPIAD = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies
+    )
+
+    epochs_astropy = Time(
+        np.array([0, 0.5, 1.0]) + testHiPIAD.alphadec0_epoch, format="decimalyear"
+    )
+    epochs = epochs_astropy.mjd
+    ra_model = np.zeros(epochs.shape)
+    dec_model = np.zeros(epochs.shape)
 
     # generate some fake measurements to feed into system.py to test bookkeeping
     t = table.Table(
@@ -99,22 +111,14 @@ def test_arbitrary_abs_astrom():
     filename = os.path.join(orbitize.DATADIR, "rebound_1planet.csv")
     t.write(filename, overwrite=True)
 
-    # just read in any file since we're not computing Hipparcos-related likelihoods.
-    hip_num = "027321"
-    num_secondary_bodies = 1
-    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
-    testHiPIAD = hipparcos.HipparcosLogProb(
-        path_to_iad_file, hip_num, num_secondary_bodies
-    )
-
     astrom_data = read_input.read_file(filename)
     mySystem = system.System(
         1, astrom_data, 1, 1, fit_secondary_mass=True, hipparcos_IAD=testHiPIAD
     )
 
-    # Zero proper motion, but large parallax = yearly motion should only
-    # reflect parallax. Check that this parallax-only model matches the data.
-    plx = np.sqrt(25**2 + 25**2)
+    # Test case 1: zero proper motion, but large parallax = yearly motion should only
+    # reflect parallax
+    plx = 100
     pm_ra = 0
     pm_dec = 0
     alpha0 = 0
@@ -139,14 +143,23 @@ def test_arbitrary_abs_astrom():
             m0,
         ]
     )
-    plxonly_model = mySystem.compute_model(plx_only_params)
-    assert False  # TODO
 
-    # very high proper motion, but very small parallax = yearly motion should only
-    # reflect proper motion
-    plx = 0.0000001
-    pm_ra = 25
-    pm_dec = 25
+    plxonly_fullorbit_ra, plxonly_fullorbit_dec, _ = mySystem.compute_all_orbits(
+        plx_only_params, epochs=np.linspace(epochs[0], epochs[0] + 365.25 / 2, int(1e6))
+    )
+
+    # check that min and max of RA and Dec outputs are close to 0 and plx magnitude,
+    # respectively
+    assert np.isclose(0, np.min(np.abs(plxonly_fullorbit_ra)), atol=1e-4)
+    assert np.isclose(0, np.min(np.abs(plxonly_fullorbit_dec)), atol=1e-4)
+    assert np.isclose(-100, np.min(plxonly_fullorbit_ra), atol=1e-4)
+    assert np.isclose(100, np.max(plxonly_fullorbit_dec), atol=1e-4)
+
+    # Test case 2: very high proper motion, but very small parallax = motion
+    # should only reflect proper motion
+    plx = 1e-10
+    pm_ra = 100
+    pm_dec = 100
     pm_only_params = np.array(
         [
             1,  # start test particle params
@@ -167,12 +180,10 @@ def test_arbitrary_abs_astrom():
 
     pmonly_model = mySystem.compute_model(pm_only_params)
 
-    pmonly_expectation = np.array([[0, 0], [12.5, 12.5], [25.0, 25.0]])
+    pmonly_expectation = np.array([[0, 0], [50, 50], [100.0, 100.0]])
 
-    assert np.all(np.isclose(pmonly_model[0], pmonly_expectation, atol=1e-6))
-    assert np.all(
-        np.isclose(pmonly_model[1], np.zeros(pmonly_model[1].shape), atol=1e-6)
-    )
+    assert np.all(np.isclose(pmonly_model[0], pmonly_expectation))
+    assert np.all(np.isclose(pmonly_model[1], np.zeros(pmonly_model[1].shape)))
 
 
 if __name__ == "__main__":
