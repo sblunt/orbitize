@@ -217,6 +217,8 @@ class HipparcosLogProb(object):
             f2 = hip_cat["F2"][0]
             if self.solution_type == 1:
                 self.var = hip_cat["var"][0]  # [mas]
+            else:
+                self.var = 0
 
         else:
             # read the Hipparcos best-fit solution from the IAD file
@@ -242,6 +244,8 @@ class HipparcosLogProb(object):
 
             if self.solution_type == 1:
                 self.var = astrometric_solution["var"].values[0]
+            else:
+                self.var = 0
 
             f2 = solution_details["F2"].values[0]
 
