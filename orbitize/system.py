@@ -654,7 +654,9 @@ class System(object):
                 params_arr, self.param_idx
             )
 
-            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape)
+            # divide by cos(delta0) because orbitize! input is delta(ra), not
+            # delta(ra)*cos(delta0)
+            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape) / np.cos(np.radians(self.pm_plx_predictor.delta0))
             model[self.radec[0], 1] += dec_pred.reshape(model[self.radec[0], 0].shape)
 
         if n_orbits == 1:

@@ -63,8 +63,8 @@ class PMPlx_Motion(object):
 
         Returns:
             tuple of:
-                - float: predicted RA position offsets from the measured position
-                    at alphadec0_epoch, calculated for each input epoch [mas]
+                - float: predicted RA*cos(delta0) position offsets from the measured 
+                    position at alphadec0_epoch, calculated for each input epoch [mas]
                 - float: predicted Dec position offsets from the measured position
                     at alphadec0_epoch, calculated for each input epoch [mas]
         """
