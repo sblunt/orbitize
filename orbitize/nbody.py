@@ -30,19 +30,14 @@ def calc_orbit(
     Returns:
         3-tuple:
 
-            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between 
+            raoff (np.array): array-like (n_dates x n_bodies x n_orbs) of RA offsets between 
                 the bodies (origin is at the other body) [mas]
 
-            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between 
+            deoff (np.array): array-like (n_dates x n_bodies x n_orbs) of Dec offsets between 
                 the bodies [mas]
                 
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of 
+            vz (np.array): array-like (n_dates x n_bodies x n_orbs) of radial velocity of 
                 one of the bodies (see `mass_for_Kamp` description)  [km/s]
-
-    .. Note:: 
-    
-        return is in format [raoff[planet1, planet2,...,planetn], 
-        deoff[planet1, planet2,...,planetn], vz[planet1, planet2,...,planetn]
     """
     
     sim = rebound.Simulation()      #creating the simulation in Rebound
@@ -109,11 +104,9 @@ def calc_orbit(
     raoff = plx*ra_reb
     deoff = plx*dec_reb
 
-    #for formatting purposes
-    if len(sma)==1:
-        raoff = raoff.reshape(tx,)
-        deoff = deoff.reshape(tx,)
-        vz = vz.reshape(tx,)
-        return raoff, deoff, vz
-    else: 
-        return raoff, deoff, vz
+    # always assume we're using MCMC (i.e. n_orbits = 1)
+    raoff = raoff.reshape((tx, indv + 1, 1))
+    deoff = deoff.reshape((tx, indv + 1, 1))
+    vz = vz.reshape((tx,indv + 1, 1))
+
+    return raoff, deoff, vz
