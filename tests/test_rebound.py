@@ -217,7 +217,7 @@ def test_rebound_mcmc():
     )
 
 
-    my_mcmc_samp = sampler.MCMC(my_sys, num_temps=1, num_walkers=20, num_threads=1)
+    my_mcmc_samp = sampler.MCMC(my_sys, num_temps=10, num_walkers=50, num_threads=1)
     my_mcmc_samp.run_sampler(5, burn_steps=1)
 
 
