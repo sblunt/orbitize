@@ -15,8 +15,9 @@ which can then be solved using Kepler’s equation, but first it is important to
 .. Note:: 
     For an interactive visualization to define and help users understand our coordinate system, 
     you can check out `this GitHub tutorial <https://github.com/sblunt/orbitize/blob/main/docs/tutorials/show-me-the-orbit.ipynb>`_.
+    
     There is also a `YouTube video <https://www.youtube.com/watch?v=0e24VUhQmbM>`_  
-    with use and explaination of the coordinate system.
+    with use and explanation of the coordinate system.
 
 In its “standard” mode, ``orbitize!`` assumes that the user only has relative astrometric data to fit. 
 In the ``orbitize!`` coordinate system, relative R.A. and declination can be expressed as the following functions 
@@ -29,7 +30,8 @@ of orbital parameters
 
 where 𝑎, 𝑒, :math:`\omega_p`, Ω, and 𝑖 are orbital parameters, and 𝜋 is the system parallax. f is
 the true anomaly, and E is the eccentric anomaly, which are related to elapsed time
-through Kepler’s equation and Kepler’s third law:
+through Kepler’s equation and Kepler’s third law
+
 .. math::
     M = 2\pi ({t\over P}-(\tau -\tau_ref))
 
@@ -57,7 +59,7 @@ In practice, the reverse logic is often employed: an independent constraint
 on the mass of the primary (from e.g., spectroscopic analysis) is used as a prior on
 the total mass when the planet mass is small and can be ignored.
 
-A second important degeneracy is between semimajor axis 𝑎, total mass :math:`𝑀_tot`, and
+A second important degeneracy is between semimajor axis 𝑎, total mass :math:`𝑀_{tot}`, and
 parallax 𝜋. If we just had relative astrometric measurements and no external knowledge of the system parallax, 
 we would not be able to distinguish between a system
 that has larger distance and larger semimajor axis (and therefore larger total mass,
@@ -73,7 +75,8 @@ and the position angle of nodes Ω. The above defined R.A. and decl. functions a
 
 .. math::
     \omega_p' = \omega_p + \pi
-    \omega' = \omega - \pi
+
+    \Omega' = \Omega - \pi
 
 which creates a 180◦ degeneracy between particular values of :math:`\omega_p` and Ω, and
 a characteristic “double-peaked” structure in marginalized 1D posteriors of these
