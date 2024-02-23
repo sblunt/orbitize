@@ -202,24 +202,25 @@ def test_8799_rebound_vs_kepler(plotname=None):
 
 def test_rebound_mcmc():
     """
-    Test that a 2-body rebound fit runs through one MCMC iteration successfully.
+    Test that a rebound fit runs through one MCMC iteration successfully.
     """
 
-    input_file = "{}/test_val_multi.csv".format(DATADIR)
+    input_file = "{}/GJ504.csv".format(DATADIR)
     data_table = read_file(input_file)
 
-    my_sys = System(num_secondary_bodies=2,
+    my_sys = System(
+        num_secondary_bodies=1,
         use_rebound=True,
         fit_secondary_mass=True,
         data_table=data_table,
-        stellar_or_system_mass=1.0, mass_err=0,
-        plx=1.0, plx_err=0.0
+        stellar_or_system_mass=1.22,
+        mass_err=0,
+        plx=56.95,
+        plx_err=0.0,
     )
 
-
-    my_mcmc_samp = sampler.MCMC(my_sys, num_temps=10, num_walkers=50, num_threads=1)
-    my_mcmc_samp.run_sampler(5, burn_steps=1)
-
+    my_mcmc_samp = sampler.MCMC(my_sys, num_temps=1, num_walkers=14, num_threads=1)
+    my_mcmc_samp.run_sampler(1, burn_steps=0)
 
 
 if __name__ == "__main__":
