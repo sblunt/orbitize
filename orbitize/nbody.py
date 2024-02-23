@@ -16,6 +16,7 @@ def calc_orbit(
     tau_ref_epoch=58849,
     m_pl=None,
     output_star=False,
+    integrator="ias15",
 ):
     """
     Solves for position for a set of input orbital elements using rebound.
@@ -37,6 +38,7 @@ def calc_orbit(
         m_pl (np.array, optional): mass of the planets[units]
         output_star (bool): if True, also return the position of the star
             relative to the barycenter.
+        integrator (str): value to set for rebound.sim.integrator. Default "ias15"
 
     Returns:
         3-tuple:
@@ -91,7 +93,7 @@ def calc_orbit(
         )
 
     sim.move_to_com()
-    sim.integrator = "ias15"
+    sim.integrator = integrator
     sim.dt = (
         ps[1].P / 100.0
     )  # good rule of thumb: timestep should be at most 10% of the shortest orbital period
