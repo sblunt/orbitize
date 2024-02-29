@@ -35,6 +35,8 @@ through Kepler’s equation and Kepler’s third law
 .. math::
     M = 2\pi ({t\over P}-(\tau -\tau_{ref}))
 
+
+.. math::
     ({P\over yr})^2 =({a\over au})^3({M_\odot \over M_{tot}})
     
     M =E-esinE 
@@ -75,8 +77,9 @@ Solutions to breaking degeneracies 1 and 3 can be found in the next section.
 
 Using Radial Velocities 
 +++++++++++++++++
-In the ``orbitize!``coordinate system, and relative to the system barycenter, the
+In the ``orbitize!`` coordinate system, and relative to the system barycenter, the
 radial velocity of the planet due to the gravitational influence of the star is:
+
 .. math::
     rv_p(f) = [\sqrt{{G\over (1-e**2)}}]M_* sini(M_{tot})^{-1/2}a^{-1/2}(cos(\omega_p+f)+ecos\omega_p)
 
@@ -92,15 +95,15 @@ dynamical mass measurements of the planet itself, but of the star.
 Radial velocity measurements also break the Ω/𝜔 degeneracy discussed in the
 previous section, uniquely orienting the orbit in 3D space.
 
-``orbitize!``can perform joint fits of RV and astrometric data in two different
+``orbitize!`` can perform joint fits of RV and astrometric data in two different
 ways, which have complementary applications. 
 
-The first method is automatically triggered when an
-``orbitize!``user inputs radial velocity data. ``orbitize!``automatically parses
-the data, sets up an appropriate model, then runs the user’s Bayesian computation
-algorithm of choice to jointly constrain all free parameters in the fit. ``orbitize!``
-can handle both primary and secondary RVs, and fits for the appropriate dynamical
-masses when RVs are present; when primary RVs are included, ``orbitize!``fits for
+The first method is automatically triggered when an ``orbitize!`` user inputs radial velocity data. 
+``orbitize!`` automatically parses the data, sets up an appropriate model, 
+then runs the user’s Bayesian computation
+algorithm of choice to jointly constrain all free parameters in the fit. 
+``orbitize!`` can handle both primary and secondary RVs, and fits for the appropriate dynamical
+masses when RVs are present; when primary RVs are included, ``orbitize!`` fits for
 the dynamical masses of secondary objects, and vice versa. 
 Instrumental nuisance parameters (RV zeropoint offset, 𝛾, and white noise jitter, 𝜎) for each RV instrument
 are also included as additional free parameters in the fit if the user specifies different
@@ -116,10 +119,10 @@ creates a representation of the prior using kernel density estimation
 (`kernel density estimation <https://mathisonian.github.io/kde/>`_),
 which can then be used to generate random prior samples or compute the prior
 probability of a sample orbit. Importantly, this prior preserves covariances between
-input parameters, allowing ``orbitize!``to use an accurate representation of the RV
+input parameters, allowing ``orbitize!`` to use an accurate representation of the RV
 posterior to constrain the fit. This method can be referred to as the “posteriors as priors”
 method, since posteriors output from a RV fitting code are, through KDE sampling,
-being applied as priors in``orbitize!``.
+being applied as priors in ``orbitize!`` .
 
 
 More coming soon!
