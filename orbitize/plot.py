@@ -957,6 +957,7 @@ def plot_residuals(my_results, object_to_plot=1, start_mjd=51544,
     axes[0].axhline(y = 0, color = 'black', linestyle = '-')
     axes[0].set_ylabel('Residual $\\rho$ [mas]')
     axes[0].set_xlabel('Epoch')
+    axes[0].set_xlim(yr_epochs2[0], yr_epochs2[-1])
 
     axes[1].errorbar(yr_epochs, residual_pas, yerr = pa_err, xerr = None, fmt = 'o', ms = 5,
                      linestyle='',c='purple',zorder=10, capsize=2)
@@ -966,6 +967,9 @@ def plot_residuals(my_results, object_to_plot=1, start_mjd=51544,
     axes[1].axhline(y = 0, color = 'black', linestyle = '-')
     axes[1].set_ylabel('Residual PA [$^{{\\circ}}$]')
     axes[1].set_xlabel('Epoch')
+    axes[1].set_xlim(yr_epochs2[0], yr_epochs2[-1])
+
+    plt.tight_layout()
 
 
 def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
