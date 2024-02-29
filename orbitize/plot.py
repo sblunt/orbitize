@@ -946,7 +946,7 @@ def plot_residuals(my_results, object_to_plot=1, start_mjd=51544,
     residual_seps = median_seps - sep_data
     residual_pas = median_pas - pa_data
     
-    fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+    fig, axes = plt.subplots(1, 2, figsize=(8, 4))
     
 
     axes[0].errorbar(yr_epochs, residual_seps, yerr = sep_err, xerr = None, fmt = 'o', ms = 5,
@@ -955,21 +955,17 @@ def plot_residuals(my_results, object_to_plot=1, start_mjd=51544,
         residual_seps_100 = median_seps_100 - seps_100[int(orbits_to_plot[i])]
         axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
     axes[0].axhline(y = 0, color = 'black', linestyle = '-')
-    axes[0].set_ylabel('Residual $\\rho$ [mas]', fontsize=18)
-    axes[0].set_xlabel('Epoch', fontsize=18)
-    axes[0].xaxis.set_tick_params(labelsize = 15)
-    axes[0].yaxis.set_tick_params(labelsize = 15)
-    
+    axes[0].set_ylabel('Residual $\\rho$ [mas]')
+    axes[0].set_xlabel('Epoch')
+
     axes[1].errorbar(yr_epochs, residual_pas, yerr = pa_err, xerr = None, fmt = 'o', ms = 5,
                      linestyle='',c='purple',zorder=10, capsize=2)
     for i in range(len(orbits_to_plot)):
         residual_pas_100 = median_pas_100 - pas_100[int(orbits_to_plot[i])]
         axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
     axes[1].axhline(y = 0, color = 'black', linestyle = '-')
-    axes[1].set_ylabel('Residual PA [$^{{\\circ}}$]', fontsize=18)
-    axes[1].set_xlabel('Epoch', fontsize=18)
-    axes[1].xaxis.set_tick_params(labelsize = 15)
-    axes[1].yaxis.set_tick_params(labelsize = 15)
+    axes[1].set_ylabel('Residual PA [$^{{\\circ}}$]')
+    axes[1].set_xlabel('Epoch')
 
 
 def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
