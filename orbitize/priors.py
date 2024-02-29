@@ -556,16 +556,33 @@ class LinearPrior(Prior):
 
 class ObsPrior(Prior):
     """
+    Implements the observation-based priors described in O'Neil+ 2018
+    (https://ui.adsabs.harvard.edu/abs/2019AJ....158....4O/abstract)
 
-    TODO: finish documentation
-    TODO: ask Clarissa to run longer test and compare outputs
+    Args:
+        epochs (np.array of float): array of epochs at which observations are taken [mjd]
+        ra_err (np.array of float): RA errors of observations [mas]
+        dec_err (np.array of float): decl errors of observations [mas]
+        mtot (float): total mass of system [Msol]
+        period_lims (2-tuple of float): optional lower and upper prior limits
+            for the orbital period [yr]
+        tau_ref_epoch (float): epoch [mjd] tau is defined relative to.
 
-    Limitations:
-    - in current form, only works with MCMC
-    - in current form, only works with planetary astrometry only (no RVs or other data types)
-    - in current form, only works when input astrometry is Ra/Dec (ie need to convert ahead of time)
-    - must let ecc, sma, and tau float, but must fix plx and mtot
-    - only works with one secondary object
+    Note:
+        This implementation is designed to be mathematically identical to
+        the implementation in O'Neil+ 2018. There are several limitations of our
+        implementation, in particular:
+
+            1. `ObsPrior` only works with MCMC (not OFTI)
+            2. `ObsPrior` only works with relative astrometry (i.e. you can't use RVs or other data types)
+            3. `ObsPrior` only works when the input astrometry is given in RA/decl. format (i.e. not sep/PA)
+            4. `ObsPrior` assumes total mass (`mtot`) and parallax (`plx`) are fixed.
+            5. `ObsPrior` only works for systems with one secondary object (no multi-planet systems)
+            6. You must use `ObsPrior` with the `orbitize.basis.ObsPriors` orbital basis.
+
+        None of these are inherent limitations of the observation-based technique,
+        so let us know if you have a science case that would benefit from
+        implementing one or more of these things!
     """
 
     def __init__(
@@ -584,12 +601,8 @@ class ObsPrior(Prior):
         self.dec_err = dec_err
         self.period_lims = period_lims
 
-        # self.max_sma = 10 * sep0 / plx # sep0 and plx in arcsec
-
         self.total_params = 3
         self.param_num = 0
-
-        self.num_at_a_time = 10000
 
         self.correlated_input_samples = None
 
@@ -603,28 +616,31 @@ class ObsPrior(Prior):
 
     def draw_uniform_samples(self, num_samples):
         if self.param_num == 0:
-            sample_smas = np.exp(np.random.uniform(0, np.log(1000), num_samples))
-            return sample_smas
+            sample_pers = np.exp(np.random.uniform(0, np.log(1000), num_samples))
+            return sample_pers
         elif self.param_num == 1:
             sample_eccs = np.random.uniform(0, 1, num_samples)
             return sample_eccs
         else:
-            sample_taus = np.random.uniform(0, 1, num_samples)
-            return sample_taus
+            sample_tps = np.random.uniform(0, 10 * 365.0, num_samples)
+            return sample_tps
 
     def draw_samples(self, num_samples):
+        """
+        Draws `num_samples` samples from uniform distributions in log(per), ecc, and
+        tp. This is used for initializing the MCMC walkers.
 
-        # TODO: warn user that this isn't drawing from the prior itself
+        Warning:
+            The behavior of orbitize.priors.ObsPrior.draw_samples() is different
+            from the draw_samples() methods of other Prior objects, which draws
+            random samples from the prior itself.
+        """
 
-        # for now, draw samples from a distribution uniform in log(a), ecc, and tau
-        # this is needed for initializing the MCMC walkers
         samples = self.draw_uniform_samples(num_samples)
         self.increment_param_num()
         return samples
 
     def compute_lnprob(self, element_array):
-
-        # TODO: check that basis is in expected format.
 
         if self.param_num == 0:
             self.correlated_input_samples = element_array
