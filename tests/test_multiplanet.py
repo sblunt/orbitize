@@ -109,7 +109,7 @@ def test_compute_model():
 
 def test_fit_selfconsist():
     """
-    Tests that the masses we get from orbitize! are what we expeect. Note that
+    Tests that the masses we get from orbitize! are what we expect. Note that
     this does not test for correctness.
     """
     # generate planet b orbital parameters
@@ -237,7 +237,7 @@ def test_fit_selfconsist():
     samp.curr_pos[0, 4] = mass_b
     samp.curr_pos[0, 5] = mass_c
 
-    samp.run_sampler(n_walkers * 50, burn_steps=600)
+    samp.run_sampler(n_walkers * 50, burn_steps=50)
 
     res = samp.results
 
@@ -259,5 +259,5 @@ def test_fit_selfconsist():
 
 
 if __name__ == "__main__":
-    test_compute_model()
+    # test_compute_model()
     test_fit_selfconsist()

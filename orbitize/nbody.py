@@ -83,7 +83,7 @@ def calc_orbit(
         for j,t in enumerate(te):
             sim.integrate(t/365.25)
             #for the star and each planet in each epoch denoted by j,t find the RA, Dec, and RV
-            com = sim.calculate_com()
+            com = sim.com()
             ra_reb[j,0] = -(ps[0].x-com.x)# ra is negative x
             dec_reb[j,0] = ps[0].y-com.y
             vz[j,0] = ps[0].vz
