@@ -557,8 +557,9 @@ class LinearPrior(Prior):
 class ObsPrior(Prior):
     """
 
-    TODO: document better, create notebook tutorial where I plot these priors
-        vs standard priors, finish tests
+    TODO: finish documentation
+    TODO: write unit test that runs through a few mcmc steps
+    TODO: ask Clarissa to run longer test and compare outputs
 
     Limitations:
     - in current form, only works with MCMC
@@ -605,6 +606,8 @@ class ObsPrior(Prior):
 
     def draw_samples(self, num_samples):
 
+        # TODO: warn user that this isn't drawing from the prior itself
+
         # for now, draw samples from a distribution uniform in log(a), ecc, and tau
         # this is needed for initializing the MCMC walkers
         samples = self.draw_uniform_samples(num_samples)
@@ -612,6 +615,8 @@ class ObsPrior(Prior):
         return samples
 
     def compute_lnprob(self, element_array):
+
+        # TODO: check that basis is in expected format.
 
         if self.param_num == 0:
             self.correlated_input_samples = element_array
@@ -623,21 +628,21 @@ class ObsPrior(Prior):
 
         if self.param_num == (self.total_params - 1):
 
-            sma = self.correlated_input_samples[0]
+            period = self.correlated_input_samples[0]
             ecc = self.correlated_input_samples[1]
-            tau = self.correlated_input_samples[2]
+            tp = self.correlated_input_samples[2]
 
-            if (sma < 0) or (ecc < 0) or (ecc > 1) or (tau < 0) or (tau > 1):
+            if (period < 0) or (ecc < 0) or (ecc > 1):
                 self.increment_param_num()
                 return -np.inf
-
-            period = np.sqrt(
-                4 * np.pi**2 * (sma * u.au) ** 3 / (cst.G * (self.mtot * u.Msun))
-            )
 
             jac_prefactor = -(
                 ((cst.G * self.mtot * u.Msun) ** 2 * period / (2 * np.pi**4)) ** (1 / 3)
             ).value
+
+            sma = ((period) ** 2 * self.mtot) ** (1 / 3)
+
+            tau = basis.tp_to_tau(tp, self.tau_ref_epoch, period)
 
             meananom = basis.tau_to_manom(
                 self.epochs, sma, self.mtot, tau, self.tau_ref_epoch
