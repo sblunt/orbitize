@@ -569,7 +569,7 @@ class ObsPrior(Prior):
     - only works with one secondary object
     """
 
-    def __init__(self, epochs, ra_err, dec_err, mtot, plx, tau_ref_epoch=58849):
+    def __init__(self, epochs, ra_err, dec_err, mtot, tau_ref_epoch=58849):
         self.epochs = epochs
         self.tau_ref_epoch = tau_ref_epoch
         self.mtot = mtot
