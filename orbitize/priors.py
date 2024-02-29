@@ -558,7 +558,6 @@ class ObsPrior(Prior):
     """
 
     TODO: finish documentation
-    TODO: write unit test that runs through a few mcmc steps
     TODO: ask Clarissa to run longer test and compare outputs
 
     Limitations:
