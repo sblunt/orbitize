@@ -513,9 +513,9 @@ class OFTI(
             else:
                 n_accepted = len(accepted_orbits)
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
-                output_orbits[
-                    n_orbits_saved : n_orbits_saved + n_accepted
-                ] = accepted_orbits[0:maxindex2save]
+                output_orbits[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                    accepted_orbits[0:maxindex2save]
+                )
                 output_lnlikes[n_orbits_saved : n_orbits_saved + n_accepted] = lnlikes[
                     0:maxindex2save
                 ]
@@ -622,12 +622,12 @@ class OFTI(
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                    output_orbits[
-                        n_orbits_saved : n_orbits_saved + n_accepted
-                    ] = accepted_orbits[0:maxindex2save]
-                    output_lnlikes[
-                        n_orbits_saved : n_orbits_saved + n_accepted
-                    ] = lnlikes[0:maxindex2save]
+                    output_orbits[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                        accepted_orbits[0:maxindex2save]
+                    )
+                    output_lnlikes[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                        lnlikes[0:maxindex2save]
+                    )
                     n_orbits_saved += maxindex2save
 
                     # print progress statement
@@ -1337,6 +1337,7 @@ class NestedSampler(Sampler):
         pfrac=1.0,
         num_threads=1,
         start_method="fork",
+        dlogz=500,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1383,7 +1384,7 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    sampler.run_nested()
+                    sampler.run_nested(dlogz=dlogz)
                 else:
                     sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
@@ -1393,7 +1394,7 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                    sampler.run_nested(wt_kwargs={"pfrac": pfrac}, dlogz=dlogz)
         else:
             if static:
                 sampler = dynesty.NestedSampler(
@@ -1402,7 +1403,7 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                sampler.run_nested()
+                sampler.run_nested(dlogz=dlogz)
             else:
                 sampler = dynesty.DynamicNestedSampler(
                     self._logl,
@@ -1410,7 +1411,7 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                sampler.run_nested(wt_kwargs={"pfrac": pfrac}, dlogz=dlogz)
 
         self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
         num_iter = sampler.results["niter"]
