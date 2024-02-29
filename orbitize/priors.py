@@ -290,7 +290,7 @@ class GaussianPrior(Prior):
             corresponding to the probability of drawing each of the numbers
             in the input `element_array`.
         """
-        lnprob = -0.5*np.log(2.*np.pi*self.sigma) - 0.5*((element_array - self.mu) / self.sigma)**2
+        lnprob = - 0.5*((element_array - self.mu) / self.sigma)**2
 
         if self.no_negatives:
 

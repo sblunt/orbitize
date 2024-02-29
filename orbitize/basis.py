@@ -1140,7 +1140,7 @@ def tau_to_tp(tau, ref_epoch, period, after_date=None):
         tau (float or np.array): value of tau to convert
         ref_epoch (float or np.array): date (in days, typically MJD) that tau is defined relative to
         period (float or np.array): period (in years) that tau is noralized with
-        after_date (float): tp will be the first periastron after this date. If None, use ref_epoch.
+        after_date (float or np.array): tp will be the first periastron after this date. If None, use ref_epoch.
 
     Returns:
         float or np.array: corresponding t_p of the taus
@@ -1151,7 +1151,7 @@ def tau_to_tp(tau, ref_epoch, period, after_date=None):
 
     if after_date is not None:
         num_periods = (after_date - tp)/period_days
-        num_periods = int(np.ceil(num_periods))
+        num_periods = np.ceil(num_periods).astype(int)
         
         tp += num_periods * period_days
 

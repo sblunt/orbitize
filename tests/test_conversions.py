@@ -22,6 +22,10 @@ def test_tau_tp_conversion():
     tp = basis.tau_to_tp(tau, ref_epoch, period, after_date=47000)
     assert tp == pytest.approx(51000 - 9 * 365.25, rel=1e-7)
 
+    tps = basis.tau_to_tp(tau, ref_epoch, period, after_date=np.array([47000, 51000]))
+    assert tps[0] == pytest.approx(51000 - 9 * 365.25, rel=1e-7)
+    assert tps[1] == pytest.approx(51000 + 365.25, rel=1e-7)
+
     tau3 = basis.tp_to_tau(tp, ref_epoch, period)
     assert tau == pytest.approx(tau3, rel=1e-7)
 
