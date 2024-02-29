@@ -124,7 +124,9 @@ def test_obspriors_basis():
     initial_tp = test[-3]
 
     conversion = my_system.basis.to_standard_basis(test)
-    original = my_system.basis.to_obspriors_basis(conversion, after_date=initial_tp - 1)
+    original = my_system.basis.to_obspriors_basis(
+        conversion, after_date=initial_tp - 0.0001
+    )
 
     assert np.allclose(original, sample_copy[:, 0])
 
