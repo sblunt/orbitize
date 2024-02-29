@@ -81,9 +81,9 @@ In the ``orbitize!`` coordinate system, and relative to the system barycenter, t
 radial velocity of the planet due to the gravitational influence of the star is:
 
 .. math::
-    rv_p(f) = [\sqrt{{G\over (1-e**2)}}]M_* sini(M_{tot})^{-1/2}a^{-1/2}(cos(\omega_p+f)+ecos\omega_p)
+    rv_p(f) = \sqrt{{G\over (1-e^2)}}M_* sini(M_{tot})^{-1/2}a^{-1/2}(cos(\omega_p+f)+ecos\omega_p)
 
-    rv_*(f) = [\sqrt{{G\over (1-e**2)}}]M_p sini(M_{tot})^{-1/2}a^{-1/2}(cos(\omega_*+f)+ecos\omega_*)
+    rv_*(f) = \sqrt{{G\over (1-e^2)}}M_p sini(M_{tot})^{-1/2}a^{-1/2}(cos(\omega_*+f)+ecos\omega_*)
 
 where 𝜔∗ is the argument of periastron of the star’s orbit, which is equal to 𝜔𝑝 +
 180◦.
