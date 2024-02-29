@@ -568,12 +568,21 @@ class ObsPrior(Prior):
     - only works with one secondary object
     """
 
-    def __init__(self, epochs, ra_err, dec_err, mtot, tau_ref_epoch=58849):
+    def __init__(
+        self,
+        epochs,
+        ra_err,
+        dec_err,
+        mtot,
+        period_lims=(0, np.inf),
+        tau_ref_epoch=58849,
+    ):
         self.epochs = epochs
         self.tau_ref_epoch = tau_ref_epoch
         self.mtot = mtot
         self.ra_err = ra_err
         self.dec_err = dec_err
+        self.period_lims = period_lims
 
         # self.max_sma = 10 * sep0 / plx # sep0 and plx in arcsec
 
@@ -631,7 +640,12 @@ class ObsPrior(Prior):
             ecc = self.correlated_input_samples[1]
             tp = self.correlated_input_samples[2]
 
-            if (period < 0) or (ecc < 0) or (ecc > 1):
+            if (
+                (period < self.period_lims[0])
+                or (period > self.period_lims[1])
+                or (ecc < 0)
+                or (ecc > 1)
+            ):
                 self.increment_param_num()
                 return -np.inf
 
