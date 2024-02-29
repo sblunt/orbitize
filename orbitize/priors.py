@@ -1,5 +1,4 @@
 import numpy as np
-import sys
 import abc
 from astropy import units as u, constants as cst
 
