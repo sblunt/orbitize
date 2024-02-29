@@ -77,6 +77,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         "aop": "$\\omega_{0}$ [$^\\circ$]",
         "pan": "$\\Omega_{0}$ [$^\\circ$]",
         "tau": "$\\tau_{0}$",
+        "tp": "$T_{{\\mathrm{{P}}}}",
         "plx": "$\\pi$ [mas]",
         "gam": "$\\gamma$ [km/s]",
         "sig": "$\\sigma$ [km/s]",
