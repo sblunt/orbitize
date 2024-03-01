@@ -566,6 +566,8 @@ class ObsPrior(Prior):
         mtot (float): total mass of system [Msol]
         period_lims (2-tuple of float): optional lower and upper prior limits
             for the orbital period [yr]
+        tp_lims (2-tuple of float): optional lower and upper prior limits
+            for the time of periastron passage [mjd]
         tau_ref_epoch (float): epoch [mjd] tau is defined relative to.
 
     Note:
@@ -585,6 +587,8 @@ class ObsPrior(Prior):
         implementing one or more of these things!
     """
 
+    is_correlated = True
+
     def __init__(
         self,
         epochs,
@@ -592,6 +596,7 @@ class ObsPrior(Prior):
         dec_err,
         mtot,
         period_lims=(0, np.inf),
+        tp_lims=(-np.inf, np.inf),
         tau_ref_epoch=58849,
     ):
         self.epochs = epochs
@@ -600,6 +605,7 @@ class ObsPrior(Prior):
         self.ra_err = ra_err
         self.dec_err = dec_err
         self.period_lims = period_lims
+        self.tp_lims = tp_lims
 
         self.total_params = 3
         self.param_num = 0
@@ -616,13 +622,17 @@ class ObsPrior(Prior):
 
     def draw_uniform_samples(self, num_samples):
         if self.param_num == 0:
-            sample_pers = np.exp(np.random.uniform(0, np.log(1000), num_samples))
+            sample_pers = np.random.uniform(
+                self.period_lims[0], self.period_lims[1], num_samples
+            )
             return sample_pers
         elif self.param_num == 1:
             sample_eccs = np.random.uniform(0, 1, num_samples)
             return sample_eccs
         else:
-            sample_tps = np.random.uniform(0, 10 * 365.0, num_samples)
+            sample_tps = np.random.uniform(
+                self.tp_lims[0], self.tp_lims[1], num_samples
+            )
             return sample_tps
 
     def draw_samples(self, num_samples):
@@ -661,7 +671,10 @@ class ObsPrior(Prior):
                 or (period > self.period_lims[1])
                 or (ecc < 0)
                 or (ecc > 1)
+                or (tp < self.tp_lims[0])
+                or (tp > self.tp_lims[1])
             ):
+
                 self.increment_param_num()
                 return -np.inf
 
