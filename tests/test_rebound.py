@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 from astropy.time import Time
+from orbitize import sampler
 from orbitize.system import System
 from orbitize import DATADIR
 from orbitize.read_input import read_file
@@ -125,8 +126,8 @@ def test_8799_rebound_vs_kepler(plotname=None):
         params_arr, epochs=epochs, comp_rebound=False
     )
 
-    delta_ra = abs(rra - kra[:, :, 0])
-    delta_de = abs(rde - kde[:, :, 0])
+    delta_ra = abs(rra - kra)
+    delta_de = abs(rde - kde)
     yepochs = Time(epochs, format="mjd").decimalyear
 
     # check that the difference between these two solvers is smaller than
@@ -179,8 +180,8 @@ def test_8799_rebound_vs_kepler(plotname=None):
         plt.plot(kra[:, 1:5, 0], kde[:, 1:5, 0], "indigo", label="Orbitize approx.")
         plt.plot(kra[-1, 1:5, 0], kde[-1, 1:5, 0], "o")
 
-        plt.plot(rra, rde, "r", label="Rebound", alpha=0.25)
-        plt.plot(rra[-1], rde[-1], "o", alpha=0.25)
+        plt.plot(rra[:, 1:5, 0], rde[:, 1:5, 0], "r", label="Rebound", alpha=0.25)
+        plt.plot(rra[-1, 1:5, 0], rde[-1, 1:5, 0], "o", alpha=0.25)
 
         plt.plot(0, 0, "*")
         plt.legend()
@@ -199,5 +200,29 @@ def test_8799_rebound_vs_kepler(plotname=None):
         plt.savefig("{}_primaryorbittrack.png".format(plotname), dpi=250)
 
 
+def test_rebound_mcmc():
+    """
+    Test that a rebound fit runs through one MCMC iteration successfully.
+    """
+
+    input_file = "{}/GJ504.csv".format(DATADIR)
+    data_table = read_file(input_file)
+
+    my_sys = System(
+        num_secondary_bodies=1,
+        use_rebound=True,
+        fit_secondary_mass=True,
+        data_table=data_table,
+        stellar_or_system_mass=1.22,
+        mass_err=0,
+        plx=56.95,
+        plx_err=0.0,
+    )
+
+    my_mcmc_samp = sampler.MCMC(my_sys, num_temps=1, num_walkers=14, num_threads=1)
+    my_mcmc_samp.run_sampler(1, burn_steps=0)
+
+
 if __name__ == "__main__":
-    test_8799_rebound_vs_kepler(plotname="hr8799_diffs")
+    # test_8799_rebound_vs_kepler(plotname="hr8799_diffs")
+    test_rebound_mcmc()
