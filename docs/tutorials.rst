@@ -56,6 +56,7 @@ us if you are still confused).
    tutorials/Changing_bases_tutorial.ipynb
    tutorials/Hipparcos_IAD.ipynb
    tutorials/HGCA_tutorial.ipynb
+   tutorials/abs_astrometry.ipynb
 
 
 
