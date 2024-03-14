@@ -21,21 +21,24 @@ authors:
   - name: Vighnesh Nagpal
     affiliation: 
   - name: Tirth Dharmesh Surti
-    affiliation: 
+    affiliation: "5"
   - name: Sofia Covarrubias
     affiliation: 
   - name: Thea McKenna
-    affiliation: 
+    orcid: 0009-0008-0290-2143
+    affiliation: "1,6,7,8"
   - name: Rodrigo Ferrer Chávez
     affiliation: 
-  - name: Jorge Llop Sayson
-    affiliation: 
+  - name: Jorge Llop-Sayson
+    orcid: 0000-0002-3414-784X
+    affiliation: "4"
   - name: Mireya Arora
     affiliation: 
   - name: Amanda Chavez
     affiliation: 
   - name: Devin Cody
-    affiliation: 
+    orcid: 0000-0002-7713-5937
+    affiliation: "9"
   - name: Saanika Choudhary
     affiliation: 
   - name: Adam Smith
@@ -59,8 +62,21 @@ affiliations:
    index: 1
  - name: California Institute of Technology
    index: 2
- - name: Leiden Observatory, Leiden University, Niels Bohrweg 2, 2333 CA Leiden, The Netherlands
+ - name: Leiden Observatory, Leiden University
    index: 3
+ - name: Jet Propulsion Laboratory, California Institute of Technology
+   index: 4
+ - name: Department of Physics/Kavli Institute for Particle Astrophysics and Cosmology, Stanford University
+   index: 5
+ - name: Southeastern Universities Research Association
+   index: 6
+ - name: Astronomy Department, Cornell University
+   index: 7
+ - name: NASA Goddard Space Flight Center, Code 698
+   index: 8
+ - name: Google, Inc.
+   index: 9
+
 
 date: 1 March 2024
 bibliography: paper.bib
