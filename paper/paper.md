@@ -23,6 +23,7 @@ authors:
   - name: Tirth Dharmesh Surti
     affiliation: "5"
   - name: Sofia Covarrubias
+    orcid: 0000-0003-1858-561X
     affiliation: "2"
   - name: Thea McKenna
     orcid: 0009-0008-0290-2143
