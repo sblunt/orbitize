@@ -83,8 +83,8 @@ release of version 1.0 [@Blunt:2020].
 
 The orbital parameters of directly-imaged planets and binary stars can tell us about
 their present-day dynamics and formation histories [@Bowler:2016], as well as about 
-their inherent physical characteristics (particularly mass, generally called ``dynamical 
-mass'' when derived from orbital constraints, e.g. [@Brandt:2021], [@Lacour:2021]). 
+their inherent physical characteristics (particularly mass, generally called "dynamical 
+mass" when derived from orbital constraints, e.g. [@Brandt:2021], [@Lacour:2021]). 
 
 `orbitize!` is used widely in the exoplanet imaging and binary star communities for 
 translating astrometric data to information about eccentricities [@Bowler:2020], obliquities [@Bryan:2020], 
