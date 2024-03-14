@@ -50,8 +50,9 @@ authors:
     affiliation: "3"
   - name: Hannah Gallamore
     affiliation: 
-  - name: Clarissa Do Ó
-    affiliation: 
+  - name: Clarissa R. Do Ó
+    orcid: 0000-0001-5173-2947
+    affiliation: "10"
   - name: Eric Nielsen
     affiliation: 
   - name: Robert de Rosa
@@ -76,6 +77,8 @@ affiliations:
    index: 8
  - name: Google, Inc.
    index: 9
+ - name: Department of Astronomy & Astrophysics, University of California San Diego
+   index: 10
 
 
 date: 1 March 2024
@@ -139,7 +142,8 @@ Major new features since v1 include:
     while the N-body prescription models this effect as well as planet-planet interactions.
 
 5. The ability to fit in different orbital bases [@Surti:2023], [@Ferrer-Chavez:2021] (see the 
-    [changing basis](https://orbitize.readthedocs.io/en/latest/tutorials/Changing_bases_tutorial.html) tutorial).
+    [changing basis](https://orbitize.readthedocs.io/en/latest/tutorials/Changing_bases_tutorial.html) tutorial), as well
+    as the ability to apply the observation-based priors derived in [@ONeil:2019] (see the [observation-based priors tutorial](https://github.com/sblunt/orbitize/blob/main/docs/tutorials/ONeil-ObsPriors.ipynb)).
 
 # Verification and Documentation
 
