@@ -15,48 +15,48 @@ authors:
     orcid: 0000-0003-0774-6502
     affiliation: "1"
   - name: Lea Hirsch
-    affiliation: 
+    affiliation: "11"
   - name: Roberto Tejada
-    affiliation: 
+    affiliation: "12"
   - name: Vighnesh Nagpal
-    affiliation: 
+    affiliation: "13"
   - name: Tirth Dharmesh Surti
     affiliation: "5"
   - name: Sofia Covarrubias
-    affiliation: 
+    affiliation: "2"
   - name: Thea McKenna
     orcid: 0009-0008-0290-2143
     affiliation: "1,6,7,8"
   - name: Rodrigo Ferrer Chávez
-    affiliation: 
+    affiliation: "1"
   - name: Jorge Llop-Sayson
     orcid: 0000-0002-3414-784X
     affiliation: "4"
   - name: Mireya Arora
-    affiliation: 
+    affiliation: "14"
   - name: Amanda Chavez
-    affiliation: 
+    affiliation: "1"
   - name: Devin Cody
     orcid: 0000-0002-7713-5937
     affiliation: "9"
   - name: Saanika Choudhary
-    affiliation: 
+    affiliation: "1"
   - name: Adam Smith
-    affiliation: 
+    affiliation: "15"
   - name: William Balmer
-    affiliation: 
+    affiliation: "16"
   - name: Tomas Stolker
     orcid: 0000-0002-5823-3072
     affiliation: "3"
   - name: Hannah Gallamore
-    affiliation: 
+    affiliation: "15"
   - name: Clarissa R. Do Ó
     orcid: 0000-0001-5173-2947
     affiliation: "10"
   - name: Eric Nielsen
-    affiliation: 
+    affiliation: "15"
   - name: Robert de Rosa
-    affiliation: 
+    affiliation: "17"
 
 affiliations:
  - name: Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA), Northwestern University
@@ -79,9 +79,23 @@ affiliations:
    index: 9
  - name: Department of Astronomy & Astrophysics, University of California San Diego
    index: 10
+ - name: Department of Chemical & Physical Sciences, University of Toronto Mississauga
+   index: 11
+ - name: Department of Astrophysical Sciences, Princeton University
+   index: 12
+ - name: University of California, Berkeley
+   index: 13
+ - name: University of Michigan
+   index: 14
+ - name: New Mexico State University
+   index: 15
+ - name: Johns Hopkins University
+   index: 16
+ - name: European Southern Observatory
+   index: 17
 
 
-date: 1 March 2024
+date: 14 March 2024
 bibliography: paper.bib
 
 ---
