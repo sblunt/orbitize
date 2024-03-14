@@ -11,7 +11,7 @@ authors:
     orcid: 0000-0002-3199-2888
     corresponding: true
     affiliation: "1,2"
-  - name: Jason Wang
+  - name: Jason Jinfei Wang
     orcid: 0000-0003-0774-6502
     affiliation: "1"
   - name: Lea Hirsch
