@@ -42,8 +42,9 @@ authors:
     affiliation: 
   - name: William Balmer
     affiliation: 
-  - name: Thomas Stolker
-    affiliation: 
+  - name: Tomas Stolker
+    orcid: 0000-0002-5823-3072
+    affiliation: "3"
   - name: Hannah Gallamore
     affiliation: 
   - name: Clarissa Do Ó
@@ -58,6 +59,8 @@ affiliations:
    index: 1
  - name: California Institute of Technology
    index: 2
+ - name: Leiden Observatory, Leiden University, Niels Bohrweg 2, 2333 CA Leiden, The Netherlands
+   index: 3
 
 date: 1 March 2024
 bibliography: paper.bib
@@ -83,7 +86,7 @@ their present-day dynamics and formation histories [@Bowler:2016], as well as ab
 their inherent physical characteristics (particularly mass, generally called ``dynamical 
 mass'' when derived from orbital constraints, e.g. [@Brandt:2021], [@Lacour:2021]). 
 
-`orbitize!` is used widely in the imaged exoplanet and binary star communities for 
+`orbitize!` is used widely in the exoplanet imaging and binary star communities for 
 translating astrometric data to information about eccentricities [@Bowler:2020], obliquities [@Bryan:2020], 
 dynamical masses [@Lacour:2021], and more. 
 
@@ -127,14 +130,14 @@ Major new features since v1 include:
 `orbitize!` implements a full stack of automated testing and documentation building 
 practices. We use GitHub Actions to automatically run a suite of unit tests, maintained in orbitize/tests,
 each time code is committed to the public repository or a pull request is opened. The jupyter notebook
-tutorials, maintained in orbitize/docs/tutorials, are also automatically run when a 
+tutorials, maintained in [orbitize/docs/tutorials](https://github.com/sblunt/orbitize/tree/main/docs/tutorials), are also automatically run when a 
 pull request to the `main` branch is opened. Documentation is built using `sphinx`, and hosted
 on readthedocs.org at [orbitize.info](https://orbitize.readthedocs.io/en/latest/). We also
-maintain a set of longer-running tests in orbitize/tests/end-to-end-tests that show real
+maintain a set of longer-running tests in [orbitize/tests/end-to-end-tests](https://github.com/sblunt/orbitize/tree/main/tests/end-to-end-tests) that show real
 scientific use cases of the code. These tests are not automatically run.
 
 `orbitize!` is documented through API docstrings describing individual functions, which are accessible on [our readthedocs page](https://orbitize.readthedocs.io/en/latest/api.html), a set of [jupyter notebook tutorials](https://orbitize.readthedocs.io/en/latest/tutorials.html) walking the user through a particular application, a set of [frequently asked questions](https://orbitize.readthedocs.io/en/latest/faq.html),
-and an in-progress [``manual,''](https://orbitize.readthedocs.io/en/orbitize-manual/manual.html) describing orbit-fitting with `orbitize!` from first principles.
+and an in-progress ["manual"](https://orbitize.readthedocs.io/en/orbitize-manual/manual.html) describing orbit-fitting with `orbitize!` from first principles.
 
 # Comparison to Similar Packages
 
@@ -153,7 +156,7 @@ activity is an active area of research, and absolute astrometry with Gaia and Hi
 correlated error treatment is an active area of research, evolve quickly. The philosophy of `orbitize!`
 is to, as much as possible, implement multiple approaches to a problem, evidenced by our multiple
 implementations of radial velocity joint fitting and absolute astrometry joint fitting (described above). 
-For detailed information about our particular implementations, we direct the reader to our documentation. 
+For detailed information about our particular implementations, we direct the reader to our [documentation](https://orbitize.readthedocs.io/en/latest/). 
 
 # Acknowledgements
 
