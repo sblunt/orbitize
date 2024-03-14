@@ -12,7 +12,8 @@ authors:
     corresponding: true
     affiliation: "1,2"
   - name: Jason Wang
-    affiliation: 
+    orcid: 0000-0003-0774-6502
+    affiliation: "1"
   - name: Lea Hirsch
     affiliation: 
   - name: Roberto Tejada
@@ -68,8 +69,8 @@ bibliography: paper.bib
 `orbitize!` is a package for Bayesian modeling of the orbital parameters of resolved binary 
 objects from timeseries measurements. It was developed with the needs of the high-contrast
 imaging community in mind, and has since also become widely used in the binary star community.
-A generic `orbitize!` use case involves translating relative astrometric timeseries, combined
-with auxiliary data and timeseries, into a set of derived orbital posteriors.
+A generic `orbitize!` use case involves translating relative astrometric timeseries, optionally 
+combined with radial velocity or astrometric timeseries, into a set of derived orbital posteriors.
 
 This paper is published alongside the release of `orbitize!` version 3.0, which 
 has seen significant expansions in functionality and accessibility since the 
@@ -114,7 +115,9 @@ Major new features since v1 include:
 
 4. `orbitize!` version 3 implements two prescriptions for handling multi-planet effects. 
     Keplerian epicyclic motion of the primary star due to multiple orbiting bodies, 
-    following [@Lacour:2021], is discussed in the [multi-planet tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Multiplanet_Tutorial.html), and N-body interactions are discussed in [@Covarrubias:2022].
+    following [@Lacour:2021], is discussed in the [multi-planet tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Multiplanet_Tutorial.html), and N-body interactions are discussed in [@Covarrubias:2022]. The Keplerian epicyclic motion
+    prescription only accounts for star-planet interactions, treating the motion of the star as a sum of Keplerians, 
+    while the N-body prescription models this effect as well as planet-planet interactions.
 
 5. The ability to fit in different orbital bases [@Surti:2023], [@Ferrer-Chavez:2021] (see the 
     [changing basis](https://orbitize.readthedocs.io/en/latest/tutorials/Changing_bases_tutorial.html) tutorial).
@@ -136,7 +139,14 @@ and an in-progress [``manual,''](https://orbitize.readthedocs.io/en/orbitize-man
 # Comparison to Similar Packages
 
 Since the release of `orbitize!` version 1, other open-source packages have been released that have 
-similar goals to `orbitize!`, notably `orvara` and `octofitter`. This is a wonderful and welcome development!
+similar goals to `orbitize!`, notably `orvara` and `octofitter`. This is a wonderful development, as 
+each package has benefitted from open sharing of knowledge. `orbitize!`, `orvara`, and `octofitter` can 
+do many similar things, but each has unique features and strengths; as an example, `octofitter` is 
+extraordinarily fast, and enables joint astrometry extraction and orbit modeling, while `orbitize!` has unique 
+abilities to fit arbitrary absolute astrometry (i.e. not from Hipparcos or Gaia) and model data using an N-body backend. 
+`orvara` analytically marginalizes over parallax assuming a prior informed by Gaia, a significant speed advantage, while 
+`orbitize!` allows different parallax priors to be used. We recommend users of each package compare the implementations 
+of the particular features they wish to use. 
 
 Best practices for orbit-fitting, particularly using radial velocities, for which treatment of stellar 
 activity is an active area of research, and absolute astrometry with Gaia and Hipparcos, for which
@@ -147,6 +157,7 @@ For detailed information about our particular implementations, we direct the rea
 
 # Acknowledgements
 
-Our team gratefully acknowledges support from NASA and the Heising-Simons Foundation. 
+Our team gratefully acknowledges support the Heising-Simons Foundation.  S.B. and J.J.W. are supported 
+by NASA Grant 80NSSC23K0280. 
 
 # References
