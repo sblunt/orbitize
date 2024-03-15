@@ -1293,14 +1293,12 @@ class NestedSampler(Sampler):
     """
     Implements nested sampling using Dynesty package.
 
-    Thea McKenna & Sarah Blunt, 2023
-
-    TODO:
-    - update tutorial (Thea)
+    Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
     def __init__(self, system):
         super(NestedSampler, self).__init__(system)
+
         # create an empty results object
         self.results = orbitize.results.Results(
             self.system,
@@ -1310,6 +1308,7 @@ class NestedSampler(Sampler):
             version_number=orbitize.__version__,
         )
         self.start = time.time()
+        self.dynesty_sampler = None
 
     def ptform(self, u):
         """
@@ -1337,7 +1336,6 @@ class NestedSampler(Sampler):
         pfrac=1.0,
         num_threads=1,
         start_method="fork",
-        dlogz=500,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1376,7 +1374,7 @@ class NestedSampler(Sampler):
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
                 if static:
-                    sampler = dynesty.NestedSampler(
+                    self.dynesty_sampler = dynesty.NestedSampler(
                         pool.loglike,
                         pool.prior_transform,
                         len(self.system.sys_priors),
@@ -1384,9 +1382,9 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    sampler.run_nested(dlogz=dlogz)
+                    self.dynesty_sampler.run_nested()
                 else:
-                    sampler = dynesty.DynamicNestedSampler(
+                    self.dynesty_sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
                         pool.prior_transform,
                         len(self.system.sys_priors),
@@ -1394,26 +1392,26 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    sampler.run_nested(wt_kwargs={"pfrac": pfrac}, dlogz=dlogz)
+                    self.dynesty_sampler.run_nested(wt_kwargs={"pfrac": pfrac})
         else:
             if static:
-                sampler = dynesty.NestedSampler(
+                self.dynesty_sampler = dynesty.NestedSampler(
                     self._logl,
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                sampler.run_nested(dlogz=dlogz)
+                self.dynesty_sampler.run_nested()
             else:
-                sampler = dynesty.DynamicNestedSampler(
+                self.dynesty_sampler = dynesty.DynamicNestedSampler(
                     self._logl,
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                sampler.run_nested(wt_kwargs={"pfrac": pfrac}, dlogz=dlogz)
+                self.dynesty_sampler.run_nested(wt_kwargs={"pfrac": pfrac})
 
-        self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
-        num_iter = sampler.results["niter"]
+        self.results.add_samples(self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["logl"])
+        num_iter = self.dynesty_sampler.results["niter"]
 
-        return sampler.results["samples"], num_iter
+        return self.dynesty_sampler.results["samples"], num_iter
