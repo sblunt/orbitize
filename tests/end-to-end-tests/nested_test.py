@@ -1,7 +1,7 @@
 import orbitize
 from orbitize import read_input, system, sampler, priors
 import matplotlib.pyplot as plt
-import os
+from dynesty import plotting as dyplot
 
 
 savedir = "."
@@ -32,17 +32,18 @@ sys = system.System(
     plx,
     mass_err=mass_err,
     plx_err=plx_err,
+    restrict_angle_ranges=True,
 )
 # alias for convenience
 lab = sys.param_idx
 
 # set prior on semimajor axis
-sys.sys_priors[lab["sma1"]] = priors.LogUniformPrior(10, 400)
+sys.sys_priors[lab["sma1"]] = priors.LogUniformPrior(10, 300)
 
 nested_sampler = sampler.NestedSampler(sys)
 
 
-samples, num_iter = nested_sampler.run_sampler(num_threads=4, static=True, dlogz=200)
+samples, num_iter = nested_sampler.run_sampler(num_threads=50, static=False)
 nested_sampler.results.save_results("{}/nested_sampler_test.hdf5".format(savedir))
 # print("execution time (min) is: " + str(exec_time))
 print("iteration number is: " + str(num_iter))
@@ -56,3 +57,7 @@ ax[0].set_xlabel("ecc")
 ax[1].set_xlabel("inc")
 plt.tight_layout()
 plt.savefig("{}/nested_sampler_test.png".format(savedir))
+
+
+fig, axes = dyplot.traceplot(nested_sampler.dynesty_sampler.results)
+plt.savefig("{}/nested_sampler_traceplot.png".format(savedir))
