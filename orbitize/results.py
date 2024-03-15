@@ -215,15 +215,31 @@ class Results(object):
             )
 
             os.system('rm {}'.format(tmpfile))
+
+            # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
                 gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
             except KeyError:
                 gaia = None
+
+            # alternatively load HGCA. Note requires hipparcos_IAD attribute
+            gaiagost_data = hf.get("Gaia_GOST")
+            if gaiagost_data is not None:
+                
+                tmpfile = 'thisisprettyhackysorrylmao'
+                tmptbl = table.Table(np.array(gaiagost_data))
+                tmptbl.write(tmpfile, format="ascii", overwrite=True)
+
+                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
+                hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
+
+                os.system('rm {}'.format(tmpfile))
         else:
             hipparcos_IAD = None
             gaia = None
+
 
         try:
             fitting_basis = str(hf.attrs['fitting_basis'])
@@ -338,5 +354,27 @@ class Results(object):
             plot_errorbars=plot_errorbars, fig=fig
         )
 
+    def plot_propermotion(self,
+                          # system,
+                          object_to_plot=1, start_mjd=44239.,
+                          periods_to_plot=1, end_year=2030.0, alpha = 0.05,
+                          num_orbits_to_plot=100, num_epochs_to_plot=100,
+                          show_colorbar=True,
+                          cmap=orbitize.plot.cmap,
+                          cbar_param=None,
+                    # fig=None
+        ):
+        """
+        Wrapper for orbitize.plot.plot_propermotion
+        """
 
-
+        return orbitize.plot.plot_propermotion(self, self.system,
+                        object_to_plot=object_to_plot, start_mjd=start_mjd,
+                        periods_to_plot=periods_to_plot, end_year=end_year,
+                        alpha = alpha, num_orbits_to_plot=num_orbits_to_plot,
+                        num_epochs_to_plot=num_epochs_to_plot,
+                        show_colorbar=show_colorbar,
+                        cmap=cmap,
+                        cbar_param=cbar_param,
+                        # fig=fig
+                        )
