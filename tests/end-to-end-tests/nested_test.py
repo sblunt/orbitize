@@ -2,6 +2,7 @@ import orbitize
 from orbitize import read_input, system, sampler, priors
 import matplotlib.pyplot as plt
 from dynesty import plotting as dyplot
+import time
 
 
 savedir = "."
@@ -42,11 +43,13 @@ sys.sys_priors[lab["sma1"]] = priors.LogUniformPrior(10, 300)
 
 nested_sampler = sampler.NestedSampler(sys)
 
+start = time.time()
 
-samples, num_iter = nested_sampler.run_sampler(num_threads=50, static=False)
+samples, num_iter = nested_sampler.run_sampler(num_threads=50)
 nested_sampler.results.save_results("{}/nested_sampler_test.hdf5".format(savedir))
-# print("execution time (min) is: " + str(exec_time))
 print("iteration number is: " + str(num_iter))
+
+print("iteration time: {:.f} mins".format((time.time() - start) / 60.0))
 
 fig, ax = plt.subplots(2, 1)
 accepted_eccentricities = nested_sampler.results.post[:, lab["ecc1"]]
