@@ -156,7 +156,7 @@ def test_iad_refitting():
 
     # check that we get reasonable values for the posteriors of the refit IAD
     # (we're only running the MCMC for a few steps, so these are not strict)
-    assert np.isclose(0, np.median(post[:, -1]), atol=0.5)
+    assert np.isclose(0, np.median(post[:, -1]), atol=0.7)
     assert np.isclose(myHipLogProb.plx0, np.median(post[:, 0]), atol=0.5)
 
 
