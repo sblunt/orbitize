@@ -390,7 +390,7 @@ class LogUniformPrior(Prior):
             np.array:  samples ranging from [``minval``, ``maxval``) as floats.
         """
         # sample from a uniform distribution in log space
-        samples = np.random.uniform(self.logmin, self.logmax, num_samples)
+        samples = np.random.uniform(0, 1, num_samples)
 
         # convert from log space to linear space
         samples = self.transform_samples(samples)

@@ -80,3 +80,4 @@ def test_compute_lnprob():
 if __name__ == "__main__":
     test_compute_lnprob()
     test_draw_samples()
+    print("All tests passed!")
