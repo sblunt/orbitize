@@ -1359,6 +1359,7 @@ class NestedSampler(Sampler):
         pfrac=1.0,
         num_threads=1,
         start_method="fork",
+        run_nested_kwargs={},
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1379,6 +1380,7 @@ class NestedSampler(Sampler):
                 won't work on all OS. Change to "spawn" if you get an error,
                 and make sure you run your orbitize! script inside an
                 if __name__=='__main__' condition to protect entry points.
+            run_nested_kwargs (dict): dictionary of keywords to be passed into dynesty.Sampler.run_nested()
 
         Returns:
             tuple:
@@ -1405,7 +1407,7 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    self.dynesty_sampler.run_nested()
+                    self.dynesty_sampler.run_nested(**run_nested_kwargs)
                 else:
                     self.dynesty_sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
@@ -1415,7 +1417,9 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    self.dynesty_sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                    self.dynesty_sampler.run_nested(
+                        wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
+                    )
         else:
             if static:
                 self.dynesty_sampler = dynesty.NestedSampler(
@@ -1424,7 +1428,7 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                self.dynesty_sampler.run_nested()
+                self.dynesty_sampler.run_nested(**run_nested_kwargs)
             else:
                 self.dynesty_sampler = dynesty.DynamicNestedSampler(
                     self._logl,
@@ -1432,7 +1436,9 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                self.dynesty_sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                self.dynesty_sampler.run_nested(
+                    wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
+                )
 
         self.results.add_samples(
             self.dynesty_sampler.results["samples"],
