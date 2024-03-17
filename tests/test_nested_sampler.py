@@ -39,23 +39,23 @@ def test_nested_sampler():
     sys.sys_priors[lab["mtot"]] = mtot
 
     # run both static & dynamic nested samplers
-    dynamic_sampler = sampler.NestedSampler(sys)
-    _ = dynamic_sampler.run_sampler(
-        bound="multi", pfrac=0.95, static=False, num_threads=8
-    )
+    mysampler = sampler.NestedSampler(sys)
+    _ = mysampler.run_sampler(bound="multi", pfrac=0.95, static=False, num_threads=8)
+    print("Finished first run!")
 
-    dynamic_eccentricities = dynamic_sampler.results.post[:, lab["ecc1"]]
+    dynamic_eccentricities = mysampler.results.post[:, lab["ecc1"]]
     assert np.median(dynamic_eccentricities) == pytest.approx(ecc, abs=0.1)
 
-    static_sampler = sampler.NestedSampler(sys)
-    _ = static_sampler.run_sampler(bound="multi", num_threads=8)
+    _ = mysampler.run_sampler(bound="multi", static=True, num_threads=8)
+    print("Finished second run!")
 
-    static_eccentricities = static_sampler.results.post[:, lab["ecc1"]]
+    static_eccentricities = mysampler.results.post[:, lab["ecc1"]]
     assert np.median(static_eccentricities) == pytest.approx(ecc, abs=0.1)
 
     # check that the static sampler raises an error when user tries to set pfrac
+    # for static sampler
     try:
-        static_sampler.run_sampler(pfrac=0.1)
+        mysampler.run_sampler(pfrac=0.1, static=True)
     except ValueError:
         pass
 

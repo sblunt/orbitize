@@ -514,9 +514,9 @@ class OFTI(
             else:
                 n_accepted = len(accepted_orbits)
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
-                output_orbits[
-                    n_orbits_saved : n_orbits_saved + n_accepted
-                ] = accepted_orbits[0:maxindex2save]
+                output_orbits[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                    accepted_orbits[0:maxindex2save]
+                )
                 output_lnlikes[n_orbits_saved : n_orbits_saved + n_accepted] = lnlikes[
                     0:maxindex2save
                 ]
@@ -646,12 +646,12 @@ class OFTI(
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                    output_orbits[
-                        n_orbits_saved : n_orbits_saved + n_accepted
-                    ] = accepted_orbits[0:maxindex2save]
-                    output_lnlikes[
-                        n_orbits_saved : n_orbits_saved + n_accepted
-                    ] = lnlikes[0:maxindex2save]
+                    output_orbits[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                        accepted_orbits[0:maxindex2save]
+                    )
+                    output_lnlikes[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                        lnlikes[0:maxindex2save]
+                    )
                     n_orbits_saved += maxindex2save
 
                 # print progress statement
@@ -1434,7 +1434,10 @@ class NestedSampler(Sampler):
                 )
                 self.dynesty_sampler.run_nested(wt_kwargs={"pfrac": pfrac})
 
-        self.results.add_samples(self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["logl"])
+        self.results.add_samples(
+            self.dynesty_sampler.results["samples"],
+            self.dynesty_sampler.results["logl"],
+        )
         num_iter = self.dynesty_sampler.results["niter"]
 
         return self.dynesty_sampler.results["samples"], num_iter
