@@ -416,9 +416,9 @@ class LogUniformPrior(Prior):
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
         else:
-            lnprob[
-                (element_array > self.maxval) | (element_array < self.minval)
-            ] = -np.inf
+            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
+                -np.inf
+            )
 
         return lnprob
 
@@ -490,9 +490,9 @@ class UniformPrior(Prior):
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
         else:
-            lnprob[
-                (element_array > self.maxval) | (element_array < self.minval)
-            ] = -np.inf
+            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
+                -np.inf
+            )
 
         return lnprob
 
