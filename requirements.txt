@@ -15,3 +15,4 @@ astroquery
 sphinx
 docutils<0.17
 rebound
+dynesty
