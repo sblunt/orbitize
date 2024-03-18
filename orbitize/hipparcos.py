@@ -47,7 +47,7 @@ class PMPlx_Motion(object):
         self.Y = bary_pos.y.value  # [au]
         self.Z = bary_pos.z.value  # [au]
 
-    def compute_astrometric_model(self, samples, param_idx):
+    def compute_astrometric_model(self, samples, param_idx, epochs=None):
         """
         Compute the astrometric prediction at self.epochs_mjd from parallax and
         proper motion alone, given an array of model parameters (no orbital
@@ -60,10 +60,12 @@ class PMPlx_Motion(object):
             param_idx: a dictionary matching fitting parameter labels to their
                 indices in an array of fitting parameters (generally
                 set to System.basis.param_idx).
+            epochs: if None, use self.epochs for astrometric predictions. Otherwise,
+                use this array passed in [in decimalyear].
 
         Returns:
             tuple of:
-                - float: predicted RA*cos(delta0) position offsets from the measured 
+                - float: predicted RA*cos(delta0) position offsets from the measured
                     position at alphadec0_epoch, calculated for each input epoch [mas]
                 - float: predicted Dec position offsets from the measured position
                     at alphadec0_epoch, calculated for each input epoch [mas]
@@ -75,7 +77,21 @@ class PMPlx_Motion(object):
         alpha_H0 = samples[param_idx["alpha0"]]
         delta_H0 = samples[param_idx["delta0"]]
 
-        n_epochs = len(self.epochs)
+        if epochs is None:
+            epochs = self.epochs
+            X = self.X
+            Y = self.Y
+            Z = self.Z
+        else:
+            # compute Earth XYZ position in barycentric coordinates
+            bary_pos, _ = get_body_barycentric_posvel(
+                "earth", Time(epochs, format="decimalyear")
+            )
+            X = bary_pos.x.value  # [au]
+            Y = bary_pos.y.value  # [au]
+            Z = bary_pos.z.value  # [au]
+
+        n_epochs = len(epochs)
         alpha_C_st_array = np.empty(n_epochs)
         delta_C_array = np.empty(n_epochs)
 
@@ -86,24 +102,25 @@ class PMPlx_Motion(object):
                 alpha_H0
                 + plx
                 * (
-                    self.X[i] * np.sin(np.radians(self.alpha0))
-                    - self.Y[i] * np.cos(np.radians(self.alpha0))
+                    X[i] * np.sin(np.radians(self.alpha0))
+                    - Y[i] * np.cos(np.radians(self.alpha0))
                 )
-                + (self.epochs[i] - self.alphadec0_epoch) * pm_ra
+                + (epochs[i] - self.alphadec0_epoch) * pm_ra
             )
+            print(epochs[i] - self.alphadec0_epoch)
             delta_C_array[i] = (
                 delta_H0
                 + plx
                 * (
-                    self.X[i]
+                    X[i]
                     * np.cos(np.radians(self.alpha0))
                     * np.sin(np.radians(self.delta0))
-                    + self.Y[i]
+                    + Y[i]
                     * np.sin(np.radians(self.alpha0))
                     * np.sin(np.radians(self.delta0))
-                    - self.Z[i] * np.cos(np.radians(self.delta0))
+                    - Z[i] * np.cos(np.radians(self.delta0))
                 )
-                + (self.epochs[i] - self.alphadec0_epoch) * pm_dec
+                + (epochs[i] - self.alphadec0_epoch) * pm_dec
             )
         return alpha_C_st_array, delta_C_array
 
