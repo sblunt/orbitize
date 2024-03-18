@@ -107,7 +107,6 @@ class PMPlx_Motion(object):
                 )
                 + (epochs[i] - self.alphadec0_epoch) * pm_ra
             )
-            print(epochs[i] - self.alphadec0_epoch)
             delta_C_array[i] = (
                 delta_H0
                 + plx
