@@ -9,7 +9,7 @@ from astropy.io.ascii import read, write
 
 
 def read_file(filename):
-    """ Reads data from any file for use in orbitize
+    """Reads data from any file for use in orbitize
     readable by ``astropy.io.ascii.read()``, including csv format.
     See the `astropy docs <http://docs.astropy.org/en/stable/io/ascii/index.html#id1>`_.
 
@@ -46,13 +46,13 @@ def read_file(filename):
 
     For RA/Dec and Sep/PA, you can also specify a correlation term. This is useful when your error ellipse
     is tilted with respect to the RA/Dec or Sep/PA. The correlation term is the Pearson correlation coefficient (ρ),
-    which corresponds to the normalized off diagonal term of the covariance matrix. Let's define the 
+    which corresponds to the normalized off diagonal term of the covariance matrix. Let's define the
     covariance matrix as ``C = [[C_11, C_12], [C_12, C_22]]``. Here C_11 = quant1_err^2 and C_22 = quant2_err^2
-    and C_12 is the off diagonal term. Then ``ρ = C_12/(sqrt(C_11)sqrt(C_22))``. Essentially it is the covariance 
+    and C_12 is the off diagonal term. Then ``ρ = C_12/(sqrt(C_11)sqrt(C_22))``. Essentially it is the covariance
     normalized by the variance. As such, -1 ≤ ρ ≤ 1. You can specify either as radec_corr or seppa_corr. By definition,
     both are dimensionless, but one will correspond to RA/Dec and the other to Sep/PA. An example of real world data
     that reports correlations is `this GRAVITY paper <https://arxiv.org/abs/2101.04187>`_ where table 2 reports the
-    correlation values and figure 4 shows how the error ellipses are tilted. 
+    correlation values and figure 4 shows how the error ellipses are tilted.
 
     Alternatively, you can also supply a data file with the columns already corresponding to
     the orbitize format (see the example in description of what this method returns). This may
@@ -60,7 +60,7 @@ def read_file(filename):
 
     .. Note:: RV measurements of objects that are not the primary should be relative to
         the barycenter RV. For example, if the barycenter has a RV
-        of 20 +/- 1 km/s, and you've measured an absolute RV for the secondary of 15 +/- 2 km/s, 
+        of 20 +/- 1 km/s, and you've measured an absolute RV for the secondary of 15 +/- 2 km/s,
         you should input an RV of -5.0 +/- 2.2 for object 1.
 
     .. Note:: When providing data with columns in the orbitize format, there should be no
@@ -88,12 +88,24 @@ def read_file(filename):
         if ``quant_type`` is "rv", the units of quant are km/s
 
     Written: Henry Ngo, 2018
-    
+
     Updated: Vighnesh Nagpal, Jason Wang (2020-2021)
     """
     # initialize output table
-    output_table = Table(names=('epoch', 'object', 'quant1', 'quant1_err', 'quant2', 'quant2_err', 'quant12_corr', 'quant_type', 'instrument'),
-                         dtype=(float, int, float, float, float, float, float, 'S5', 'S5'))
+    output_table = Table(
+        names=(
+            "epoch",
+            "object",
+            "quant1",
+            "quant1_err",
+            "quant2",
+            "quant2_err",
+            "quant12_corr",
+            "quant_type",
+            "instrument",
+        ),
+        dtype=(float, int, float, float, float, float, float, "S5", "S5"),
+    )
 
     # read file
     try:
@@ -109,104 +121,118 @@ def read_file(filename):
 
     except:
         raise Exception(
-            'Unable to read file: {}. \n Please check file path and format.'.format(filename))
+            "Unable to read file: {}. \n Please check file path and format.".format(
+                filename
+            )
+        )
     num_measurements = len(input_table)
 
     # Decide if input was given in the orbitize style
-    orbitize_style = 'quant_type' in input_table.columns
+    orbitize_style = "quant_type" in input_table.columns
 
     # validate input
     # if input_table is Masked, then figure out which entries are masked
     # otherwise, just check that we have the required columns based on orbitize_style flag
     if input_table.masked:
-        if 'epoch' in input_table.columns:
-            have_epoch = ~input_table['epoch'].mask
+        if "epoch" in input_table.columns:
+            have_epoch = ~input_table["epoch"].mask
             if not have_epoch.all():
                 raise Exception("Invalid input format: missing some epoch entries")
         else:
             raise Exception("Input table MUST have epoch!")
-        if 'object' in input_table.columns:
-            have_object = ~input_table['object'].mask
+        if "object" in input_table.columns:
+            have_object = ~input_table["object"].mask
             if not have_object.all():
                 raise Exception("Invalid input format: missing some object entries")
         else:
             raise Exception("Input table MUST have object id!")
-        if orbitize_style:  # proper orbitize style should NEVER have masked entries (nan required)
+        if (
+            orbitize_style
+        ):  # proper orbitize style should NEVER have masked entries (nan required)
             raise Exception("Input table in orbitize style may NOT have empty cells")
         else:  # Check for these things when not orbitize style
-            if 'raoff' in input_table.columns:
-                have_ra = ~input_table['raoff'].mask
+            if "raoff" in input_table.columns:
+                have_ra = ~input_table["raoff"].mask
             else:
                 have_ra = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'decoff' in input_table.columns:
-                have_dec = ~input_table['decoff'].mask
+            if "decoff" in input_table.columns:
+                have_dec = ~input_table["decoff"].mask
             else:
                 have_dec = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'radec_corr' in input_table.columns:
-                have_radeccorr = ~input_table['radec_corr'].mask
+            if "radec_corr" in input_table.columns:
+                have_radeccorr = ~input_table["radec_corr"].mask
             else:
-                have_radeccorr = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'sep' in input_table.columns:
-                have_sep = ~input_table['sep'].mask
+                have_radeccorr = np.zeros(
+                    num_measurements, dtype=bool
+                )  # zeros are False
+            if "sep" in input_table.columns:
+                have_sep = ~input_table["sep"].mask
             else:
                 have_sep = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'pa' in input_table.columns:
-                have_pa = ~input_table['pa'].mask
+            if "pa" in input_table.columns:
+                have_pa = ~input_table["pa"].mask
             else:
                 have_pa = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'seppa_corr' in input_table.columns:
-                have_seppacorr = ~input_table['seppa_corr'].mask
+            if "seppa_corr" in input_table.columns:
+                have_seppacorr = ~input_table["seppa_corr"].mask
             else:
-                have_seppacorr = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'rv' in input_table.columns:
-                have_rv = ~input_table['rv'].mask
+                have_seppacorr = np.zeros(
+                    num_measurements, dtype=bool
+                )  # zeros are False
+            if "rv" in input_table.columns:
+                have_rv = ~input_table["rv"].mask
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
-            if 'instrument' in input_table.columns:
-
+            if "instrument" in input_table.columns:
                 # Vighnesh: establishes which rows have instrument names provided
-                have_inst = ~input_table['instrument'].mask
+                have_inst = ~input_table["instrument"].mask
             else:
                 have_inst = np.zeros(num_measurements, dtype=bool)  # zeros are false
 
     else:  # no masked entries, just check for required columns
-        if 'epoch' not in input_table.columns:
+        if "epoch" not in input_table.columns:
             raise Exception("Input table MUST have epoch!")
-        if 'object' not in input_table.columns:
+        if "object" not in input_table.columns:
             raise Exception("Input table MUST have object id!")
-        if not orbitize_style:  # Set these flags only when not already in orbitize style
-            if 'raoff' in input_table.columns:
+        if (
+            not orbitize_style
+        ):  # Set these flags only when not already in orbitize style
+            if "raoff" in input_table.columns:
                 have_ra = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_ra = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'decoff' in input_table.columns:
+            if "decoff" in input_table.columns:
                 have_dec = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_dec = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'radec_corr' in input_table.columns:
+            if "radec_corr" in input_table.columns:
                 have_radeccorr = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_radeccorr = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'sep' in input_table.columns:
+                have_radeccorr = np.zeros(
+                    num_measurements, dtype=bool
+                )  # zeros are False
+            if "sep" in input_table.columns:
                 have_sep = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_sep = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'pa' in input_table.columns:
+            if "pa" in input_table.columns:
                 have_pa = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_pa = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'seppa_corr' in input_table.columns:
+            if "seppa_corr" in input_table.columns:
                 have_seppacorr = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
-                have_seppacorr = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if 'rv' in input_table.columns:
+                have_seppacorr = np.zeros(
+                    num_measurements, dtype=bool
+                )  # zeros are False
+            if "rv" in input_table.columns:
                 have_rv = np.ones(num_measurements, dtype=bool)  # ones are False
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
             # Rob: not sure if we need this but adding just in case
-            if 'instrument' in input_table.columns:
+            if "instrument" in input_table.columns:
                 have_inst = np.ones(num_measurements, dtype=bool)
             else:
                 have_inst = np.zeros(num_measurements, dtype=bool)
@@ -214,12 +240,12 @@ def read_file(filename):
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
     if orbitize_style:
-        if 'quant12_corr' not in input_table.keys():
+        if "quant12_corr" not in input_table.keys():
             default_corrs = np.nan * np.ones(len(input_table))
             input_table.add_column(default_corrs, name="quant12_corr")
-        if 'instrument' not in input_table.keys():
+        if "instrument" not in input_table.keys():
             default_insts = []
-            for this_quant_type in input_table['quant_type']:
+            for this_quant_type in input_table["quant_type"]:
                 if this_quant_type == "radec":
                     default_insts.append("defrd")
                 elif this_quant_type == "seppa":
@@ -227,102 +253,187 @@ def read_file(filename):
                 elif this_quant_type == "rv":
                     default_insts.append("defrv")
                 else:
-                    raise Exception("Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(this_quant_type))
+                    raise Exception(
+                        "Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(
+                            this_quant_type
+                        )
+                    )
             input_table.add_column(default_insts, name="instrument")
 
     # loop through each row and format table
     for index, row in enumerate(input_table):
         # First check if epoch is a number
         try:
-            float_epoch = np.float64(row['epoch'])
+            float_epoch = np.float64(row["epoch"])
         except:
             raise Exception(
-                'Problem reading epoch in the input file. Epoch should be given in MJD.')
+                "Problem reading epoch in the input file. Epoch should be given in MJD."
+            )
         # check epoch format and put in MJD
-        if row['epoch'] > 2400000.5:  # assume this is in JD
-            print('Converting input epochs from JD to MJD.\n')
-            MJD = row['epoch'] - 2400000.5
+        if row["epoch"] > 2400000.5:  # assume this is in JD
+            print("Converting input epochs from JD to MJD.\n")
+            MJD = row["epoch"] - 2400000.5
         else:
-            MJD = row['epoch']
+            MJD = row["epoch"]
 
         # check that "object" is an integer (instead of ABC/bcd)
-        if not isinstance(row['object'], (int, np.int32, np.int64)):
+        if not isinstance(row["object"], (int, np.int32, np.int64)):
             raise Exception("Invalid object ID. Object IDs must be integers.")
 
         # determine input quantity type (RA/DEC, SEP/PA, or RV)
         if orbitize_style:
-            if row['quant_type'] == 'rv':  # special format for rv rows
-                output_table.add_row([MJD, row['object'], row['quant1'],
-                                      row['quant1_err'], None, None, None, row['quant_type'], row['instrument']])
-            
-            elif row['quant_type'] == 'radec' or row['quant_type'] == 'seppa':  # other allowed 
+            if row["quant_type"] == "rv":  # special format for rv rows
+                output_table.add_row(
+                    [
+                        MJD,
+                        row["object"],
+                        row["quant1"],
+                        row["quant1_err"],
+                        None,
+                        None,
+                        None,
+                        row["quant_type"],
+                        row["instrument"],
+                    ]
+                )
+
+            elif (
+                row["quant_type"] == "radec" or row["quant_type"] == "seppa"
+            ):  # other allowed
                 # backwards compatability whether it has the covariance term or not
-                if 'quant12_corr' in row.columns:
-                    quant12_corr = row['quant12_corr']
+                if "quant12_corr" in row.columns:
+                    quant12_corr = row["quant12_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
-                        raise ValueError("Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(index, quant12_corr))
+                        raise ValueError(
+                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
+                                index, quant12_corr
+                            )
+                        )
                 else:
                     quant12_corr = None
-                output_table.add_row([MJD, row['object'], row['quant1'], row['quant1_err'],
-                                      row['quant2'], row['quant2_err'], quant12_corr, row['quant_type'], row['instrument']])
+                output_table.add_row(
+                    [
+                        MJD,
+                        row["object"],
+                        row["quant1"],
+                        row["quant1_err"],
+                        row["quant2"],
+                        row["quant2_err"],
+                        quant12_corr,
+                        row["quant_type"],
+                        row["instrument"],
+                    ]
+                )
             else:  # catch wrong formats
-                raise Exception("Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(row['quant_type']))
+                raise Exception(
+                    "Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(
+                        row["quant_type"]
+                    )
+                )
 
         else:  # When not in orbitize style
-
             if have_ra[index] and have_dec[index]:
                 # check if there's a covariance term
                 if have_radeccorr[index]:
-                    quant12_corr = row['radec_corr']
+                    quant12_corr = row["radec_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
-                        raise ValueError("Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(index, quant12_corr))
+                        raise ValueError(
+                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
+                                index, quant12_corr
+                            )
+                        )
                 else:
                     quant12_corr = None
-                
+
                 if have_inst[index]:
-                    this_inst = row['instrument']
+                    this_inst = row["instrument"]
                 else:
                     # sets the row with a default instrument name if none is provided
-                    this_inst = 'defrd'
+                    this_inst = "defrd"
 
-                output_table.add_row([MJD, row['object'], row['raoff'],
-                                      row['raoff_err'], row['decoff'], row['decoff_err'], 
-                                      quant12_corr, "radec", this_inst])
+                output_table.add_row(
+                    [
+                        MJD,
+                        row["object"],
+                        row["raoff"],
+                        row["raoff_err"],
+                        row["decoff"],
+                        row["decoff_err"],
+                        quant12_corr,
+                        "radec",
+                        this_inst,
+                    ]
+                )
 
             elif have_sep[index] and have_pa[index]:
                 # check if there's a covariance term
                 if have_seppacorr[index]:
-                    quant12_corr = row['seppa_corr']
+                    quant12_corr = row["seppa_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
-                        raise ValueError("Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(index, quant12_corr))
+                        raise ValueError(
+                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
+                                index, quant12_corr
+                            )
+                        )
                 else:
                     quant12_corr = None
 
                 if have_inst[index]:
-                    this_inst = row['instrument']
+                    this_inst = row["instrument"]
                 else:
                     # sets the row with a default instrument name if none is provided
-                    this_inst = 'defsp'
+                    this_inst = "defsp"
 
-                output_table.add_row([MJD, row['object'], row['sep'],
-                                      row['sep_err'], row['pa'], row['pa_err'],
-                                      quant12_corr, "seppa", this_inst])
+                output_table.add_row(
+                    [
+                        MJD,
+                        row["object"],
+                        row["sep"],
+                        row["sep_err"],
+                        row["pa"],
+                        row["pa_err"],
+                        quant12_corr,
+                        "seppa",
+                        this_inst,
+                    ]
+                )
 
             if have_rv[index]:
                 if have_inst[index]:
-                    output_table.add_row([MJD, row['object'], row['rv'],
-                                          row['rv_err'], None, None, None, "rv", row['instrument']])
+                    output_table.add_row(
+                        [
+                            MJD,
+                            row["object"],
+                            row["rv"],
+                            row["rv_err"],
+                            None,
+                            None,
+                            None,
+                            "rv",
+                            row["instrument"],
+                        ]
+                    )
                 else:
                     # Vighnesh: sets the row with a default instrument name if none is provided
-                    output_table.add_row([MJD, row['object'], row['rv'],
-                                          row['rv_err'], None, None, None, "rv", "defrv"])
+                    output_table.add_row(
+                        [
+                            MJD,
+                            row["object"],
+                            row["rv"],
+                            row["rv_err"],
+                            None,
+                            None,
+                            None,
+                            "rv",
+                            "defrv",
+                        ]
+                    )
 
     return output_table
 
 
-
-def write_orbitize_input(table, output_filename, file_type='csv'):
-    """ Writes orbitize-readable input as an ASCII file
+def write_orbitize_input(table, output_filename, file_type="csv"):
+    """Writes orbitize-readable input as an ASCII file
 
     Args:
         table (astropy.Table): Table containing orbitize-readable input for given
@@ -336,13 +447,25 @@ def write_orbitize_input(table, output_filename, file_type='csv'):
     """
 
     # check format
-    valid_formats = ['aastex', 'basic', 'commented_header', 'csv', 'ecsv',
-                     'fixed_width', 'fixed_width_no_header', 'fixed_width_two_line',
-                     'html', 'ipac', 'latex', 'no_header', 'rdb', 'rst', 'tab']
+    valid_formats = [
+        "aastex",
+        "basic",
+        "commented_header",
+        "csv",
+        "ecsv",
+        "fixed_width",
+        "fixed_width_no_header",
+        "fixed_width_two_line",
+        "html",
+        "ipac",
+        "latex",
+        "no_header",
+        "rdb",
+        "rst",
+        "tab",
+    ]
     if file_type not in valid_formats:
-        raise Exception('Invalid output format specified.')
+        raise Exception("Invalid output format specified.")
 
     # write file
     write(table, output=output_filename, format=file_type)
-
-
