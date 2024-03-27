@@ -56,7 +56,8 @@ authors:
     affiliation: "10"
   - name: Eric Nielsen
     affiliation: "15"
-  - name: Robert de Rosa
+  - name: Robert J. De Rosa
+    orcid: 0000-0002-4918-0247
     affiliation: "17"
 
 affiliations:
