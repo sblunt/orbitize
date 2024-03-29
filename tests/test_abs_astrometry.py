@@ -179,12 +179,16 @@ def test_arbitrary_abs_astrom():
 
     pmonly_model = mySystem.compute_model(pm_only_params)
 
-    pmonly_expectation = np.array([[0, 0], [50, 50], [100.0, 100.0]])
+    cosdelta0 = np.cos(np.radians(mySystem.pm_plx_predictor.delta0))
+
+    pmonly_expectation = np.array(
+        [[0, 0], [50 / cosdelta0, 50], [100.0 / cosdelta0, 100.0]]
+    )
 
     assert np.all(np.isclose(pmonly_model[0], pmonly_expectation))
     assert np.all(np.isclose(pmonly_model[1], np.zeros(pmonly_model[1].shape)))
 
 
 if __name__ == "__main__":
-    # test_1planet()
+    test_1planet()
     test_arbitrary_abs_astrom()
