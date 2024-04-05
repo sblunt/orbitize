@@ -23,19 +23,20 @@ def calc_orbit(
 
     Args:
         epochs (np.array): MJD times for which we want the positions of the planet
-        sma (np.array): semi-major axis of orbit [au]
-        ecc (np.array): eccentricity of the orbit [0,1]
-        inc (np.array): inclination [radians]
-        aop (np.array): argument of periastron [radians]
-        pan (np.array): longitude of the ascending node [radians]
-        tau (np.array): epoch of periastron passage in fraction of orbital period
-            past MJD=0 [0,1]
-        plx (np.array): parallax [mas]
-        mtot (np.array): total mass of the two-body orbit (M_* + M_planet)
+        sma (np.array): semi-major axis array of secondary bodies. For three planets,
+            this should look like: np.array([sma1, sma2, sma3]) [au]
+        ecc (np.array): eccentricity of the orbits (same format as sma) [0,1]
+        inc (np.array): inclinations (same format as sma) [radians]
+        aop (np.array): arguments of periastron (same format as sma) [radians]
+        pan (np.array): longitudes of the ascending node (same format as sma) [radians]
+        tau (np.array): epochs of periastron passage in fraction of orbital period
+            past MJD=0 (same format as sma) [0,1]
+        plx (float): parallax [mas]
+        mtot (float): total mass of the two-body orbit (M_* + M_planet)
             [Solar masses]
         tau_ref_epoch (float, optional): reference date that tau is defined with
             respect to
-        m_pl (np.array, optional): mass of the planets[units]
+        m_pl (np.array, optional): masss of the planets (same format as sma) [solar masses]
         output_star (bool): if True, also return the position of the star
             relative to the barycenter.
         integrator (str): value to set for rebound.sim.integrator. Default "ias15"
