@@ -748,7 +748,7 @@ def plot_orbits(
                     capsize=2,
                 )
             plt.sca(ax1)
-            plt.legend(title="Instruments", bbox_to_anchor=(1.3, 1), loc="upper right")
+            plt.legend(fontsize=15, loc=1)
         else:
             plt.sca(ax1)
             plt.scatter(
@@ -869,7 +869,7 @@ def plot_orbits(
             if len(inds.keys()) == 1 and "defrv" in inds.keys():
                 pass
             else:
-                plt.legend(fontsize=20)
+                plt.legend(fontsize=20, loc=1)
 
             ## calculate the predicted rv trend using the best orbit
             # _, _, vz = kepler.calc_orbit(
@@ -985,7 +985,7 @@ def plot_orbits(
             if len(inds.keys()) == 1 and "defrv" in inds.keys():
                 pass
             else:
-                plt.legend(fontsize=20, loc=2)
+                plt.legend(fontsize=20, loc=1)
 
         # add colorbar
         if show_colorbar:
