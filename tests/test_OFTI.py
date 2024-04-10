@@ -15,6 +15,8 @@ import orbitize.system as system
 import orbitize.system
 from orbitize.hipparcos import HipparcosLogProb
 
+np.random.seed(0)
+
 input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
 input_file_1epoch = os.path.join(orbitize.DATADIR, "GJ504_1epoch.csv")
 input_file_rvs = os.path.join(orbitize.DATADIR, "HD4747.csv")
