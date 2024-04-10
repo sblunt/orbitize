@@ -135,8 +135,10 @@ class System(object):
         self.track_planet_perturbs = (
             self.fit_secondary_mass and 
             (
-                (len(self.radec[0]) + len(self.seppa[0] > 0) or
-                (self.num_secondary_bodies > 1)
+                ((len(self.radec[0]) + len(self.seppa[0]) > 0) or
+                (self.num_secondary_bodies > 1) or
+                (hipparcos_IAD is not None) or 
+                (gaia is not None)
                 )
             )
         )
