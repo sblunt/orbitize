@@ -63,6 +63,7 @@ Changelog:
 - bugfix for rebound MCMC fits (issue #357; @sblunt)
 - implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
 - implementation of residual plotting method for orbit plots (@Saanikachoudhary and @semaphoreP)
+- plot companion RVs (@chihchunhsu)
 
 **2.2.2 (2023-06-30)**
 
