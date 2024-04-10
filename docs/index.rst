@@ -60,6 +60,7 @@ Changelog:
 - add time warning if OFTI doesn't accept an orbit in first 60 s (@michaelkmpoon)
 - implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
 - implementation of residual plotting method for orbit plots (@Saanikachoudhary and @semaphoreP)
+- plot companion RVs (@chihchunhsu)
 
 **2.2.2 (2023-06-30)**
 
