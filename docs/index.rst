@@ -64,6 +64,7 @@ Changelog:
 - implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
 - implementation of residual plotting method for orbit plots (@Saanikachoudhary and @semaphoreP)
 - plot companion RVs (@chihchunhsu)
+- add documentation about referencing issues when modifying priors to tutorial (@wcroberson)
 
 **2.2.2 (2023-06-30)**
 
