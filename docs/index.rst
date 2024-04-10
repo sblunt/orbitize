@@ -50,6 +50,7 @@ User Guide:
    faq
    contributing
    api
+   manual
 
 Changelog:
 ++++++++++
@@ -58,6 +59,7 @@ Changelog:
 
 - discuss MCMC autocorrelation in MCMC tutorial (@michaelkmpoon)
 - add time warning if OFTI doesn't accept an orbit in first 60 s (@michaelkmpoon)
+- add first parts of orbitize! manual (@sofiacovarrubias/@sblunt)
 - bugfix for rebound MCMC fits (issue #357; @sblunt)
 - implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
 - implementation of residual plotting method for orbit plots (@Saanikachoudhary and @semaphoreP)
