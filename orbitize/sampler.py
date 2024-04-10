@@ -122,24 +122,26 @@ class Sampler(abc.ABC):
                 self.system.param_idx,
             )
 
-            if self.system.gaia is not None:
-                gaiahip_epochs = Time(
-                    [self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch],
-                    format="decimalyear",
-                ).mjd
+        if self.system.gaia is not None:
+            gaiahip_epochs = Time(
+                np.append(
+                    self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch
+                ),
+                format="decimalyear",
+            ).mjd
 
-                # compute Ra/Dec predictions at the Gaia epoch
-                raoff_model, deoff_model, _ = self.system.compute_all_orbits(
-                    params, epochs=gaiahip_epochs
-                )
+            # compute Ra/Dec predictions at the Gaia epoch
+            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+                params, epochs=gaiahip_epochs
+            )
 
-                # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
-                lnlikes_sum += self.system.gaia.compute_lnlike(
-                    raoff_model[:, 0, :],
-                    deoff_model[:, 0, :],
-                    params,
-                    self.system.param_idx,
-                )
+            # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
+            lnlikes_sum += self.system.gaia.compute_lnlike(
+                raoff_model[:, 0, :],
+                deoff_model[:, 0, :],
+                params,
+                self.system.param_idx,
+            )
 
         return lnlikes_sum
 
