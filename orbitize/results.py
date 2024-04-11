@@ -211,7 +211,11 @@ class Results(object):
             renormalize_errors = bool(hf.attrs['renormalize_errors'])
 
             hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
-                tmpfile, hip_num, alphadec0_epoch, renormalize_errors
+                tmpfile,
+                hip_num,
+                num_secondary_bodies,
+                alphadec0_epoch,
+                renormalize_errors,
             )
 
             os.system('rm {}'.format(tmpfile))

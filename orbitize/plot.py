@@ -72,6 +72,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
 
     # Define array of default axis labels (overwritten if user specifies list)
     default_labels = {
+
         "sma": "$a_{0}$ [au]",
         "ecc": "$ecc_{0}$",
         "inc": "$inc_{0}$ [$^\\circ$]",

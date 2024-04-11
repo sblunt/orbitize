@@ -29,7 +29,6 @@ class Basis(abc.ABC):
         rv=False,
         rv_instruments=None,
     ):
-
         self.stellar_or_system_mass = stellar_or_system_mass
         self.mass_err = mass_err
         self.plx = plx
@@ -666,7 +665,6 @@ class SemiAmp(Basis):
         rv=False,
         rv_instruments=None,
     ):
-
         super(SemiAmp, self).__init__(
             stellar_or_system_mass,
             mass_err,
@@ -850,7 +848,8 @@ class SemiAmp(Basis):
             np.array of float: the semi-major axis values for each orbit
         """
         sma = np.cbrt(
-            (consts.G * ((m0 + m_n) * u.Msun) * ((period * u.yr) ** 2)) / (4 * np.pi**2)
+            (consts.G * ((m0 + m_n) * u.Msun) * ((period * u.yr) ** 2))
+            / (4 * np.pi**2)
         )
         sma = sma.to(u.AU).value
 
@@ -874,7 +873,6 @@ class SemiAmp(Basis):
         """
 
         for body_num in np.arange(self.num_secondary_bodies) + 1:
-
             # Grab necessary parameters for conversion
             sma = param_arr[self.standard_basis_idx["sma{}".format(body_num)]]
             ecc = param_arr[self.standard_basis_idx["ecc{}".format(body_num)]]
@@ -1222,24 +1220,24 @@ class XYZ(Basis):
             standard_params = self.xyz_to_standard(constrained_epoch, to_convert)
 
             # Update param_arr to hold standard parameters
-            param_arr[self.standard_basis_idx["sma{}".format(body_num)]] = (
-                standard_params[0]
-            )
-            param_arr[self.standard_basis_idx["ecc{}".format(body_num)]] = (
-                standard_params[1]
-            )
-            param_arr[self.standard_basis_idx["inc{}".format(body_num)]] = (
-                standard_params[2]
-            )
-            param_arr[self.standard_basis_idx["aop{}".format(body_num)]] = (
-                standard_params[3]
-            )
-            param_arr[self.standard_basis_idx["pan{}".format(body_num)]] = (
-                standard_params[4]
-            )
-            param_arr[self.standard_basis_idx["tau{}".format(body_num)]] = (
-                standard_params[5]
-            )
+            param_arr[
+                self.standard_basis_idx["sma{}".format(body_num)]
+            ] = standard_params[0]
+            param_arr[
+                self.standard_basis_idx["ecc{}".format(body_num)]
+            ] = standard_params[1]
+            param_arr[
+                self.standard_basis_idx["inc{}".format(body_num)]
+            ] = standard_params[2]
+            param_arr[
+                self.standard_basis_idx["aop{}".format(body_num)]
+            ] = standard_params[3]
+            param_arr[
+                self.standard_basis_idx["pan{}".format(body_num)]
+            ] = standard_params[4]
+            param_arr[
+                self.standard_basis_idx["tau{}".format(body_num)]
+            ] = standard_params[5]
             param_arr[self.standard_basis_idx["plx"]] = standard_params[6]
             param_arr[self.standard_basis_idx["mtot"]] = standard_params[7]
 

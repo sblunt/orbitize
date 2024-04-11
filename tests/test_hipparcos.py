@@ -8,7 +8,7 @@ from orbitize.hipparcos import HipparcosLogProb, nielsen_iad_refitting_test
 
 def test_hipparcos_api():
     """
-    Check that error is caught for a star with solution type != 5 param,
+    Check that error is caught for a star with solution type != 1 or 5,
     and that doing an RV + Hipparcos IAD fit produces the expected list of
     Prior objects.
     """
@@ -23,6 +23,15 @@ def test_hipparcos_api():
         assert False, "Test failed."
     except ValueError:
         pass
+
+    # check sol type == 1 doesn't throw an error message
+    hip_num = "027989"
+    num_secondary_bodies = 1
+    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+
+    # just make sure it doesn't throw an error
+    myFirstHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    assert myFirstHip.var == 0.15
 
     # check that RV + Hip gives correct prior array labels
     hip_num = "027321"  # beta Pic
@@ -253,9 +262,8 @@ def test_save_load_2021():
 
 
 if __name__ == "__main__":
-    test_save_load_dvd()
+    # test_save_load_dvd()
     # test_save_load_2021()
     # test_hipparcos_api()
+    test_iad_refitting()
     # test_dvd_vs_2021catalog()
-
-    # test_iad_refitting()

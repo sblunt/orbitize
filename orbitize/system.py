@@ -1,5 +1,5 @@
 import numpy as np
-from orbitize import nbody, kepler, basis
+from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
 from orbitize.read_input import read_file
 
@@ -146,11 +146,10 @@ class System(object):
         # we have more than 1 companion OR we have stellar astrometry
         self.track_planet_perturbs = self.fit_secondary_mass and (
             (
-                ((len(self.radec[0]) + len(self.seppa[0]) > 0) or
-                (self.num_secondary_bodies > 1) or
-                (hipparcos_IAD is not None) or 
-                (gaia is not None)
-                )
+                ((len(self.radec[0]) + len(self.seppa[0])) > 0)
+                or (self.num_secondary_bodies > 1)
+                or (hipparcos_IAD is not None)
+                or (gaia is not None)
             )
         )
 
@@ -241,6 +240,23 @@ class System(object):
 
         self.basis.verify_params()
         self.sys_priors, self.labels = self.basis.construct_priors()
+
+        # if we're fitting absolute astrometry of the star, create an object that
+        # knows how to compute predicted astrometric motion due to parallax and
+        # proper motion
+
+        if (len(self.radec[0]) + len(self.seppa[0])) > 0:
+            self.stellar_astrom_epochs = self.data_table["epoch"][
+                (self.data_table["quant_type"] == "radec")
+                & (self.data_table["object"] == 0)
+            ]
+            alpha0 = self.hipparcos_IAD.alpha0
+            delta0 = self.hipparcos_IAD.delta0
+            alphadec0_epoch = self.hipparcos_IAD.alphadec0_epoch
+            self.pm_plx_predictor = hipparcos.PMPlx_Motion(
+                self.stellar_astrom_epochs, alpha0, delta0, alphadec0_epoch
+            )
+
 
         self.secondary_mass_indx = [
             self.basis.standard_basis_idx[i]
@@ -634,6 +650,19 @@ class System(object):
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz[self.rv[body_num], body_num, :]
                 model[self.rv[body_num], 1] = np.nan
+
+        # if we have abs astrometry measurements in the input file (i.e. not
+        # from Hipparcos or Gaia), add the parallactic & proper motion here by
+        # calling AbsAstrom compute_model
+        if len(self.radec[0]) > 0:
+            ra_pred, dec_pred = self.pm_plx_predictor.compute_astrometric_model(
+                params_arr, self.param_idx
+            )
+
+            # divide by cos(delta0) because orbitize! input is delta(ra), not
+            # delta(ra)*cos(delta0)
+            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape) / np.cos(np.radians(self.pm_plx_predictor.delta0))
+            model[self.radec[0], 1] += dec_pred.reshape(model[self.radec[0], 0].shape)
 
         if n_orbits == 1:
             model = model.reshape((n_epochs, 2))
