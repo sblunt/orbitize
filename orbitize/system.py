@@ -16,8 +16,10 @@ class System(object):
         data_table (astropy.table.Table): output from
             ``orbitize.read_input.read_file()``
         stellar_or_system_mass (float): mass of the primary star (if fitting for
-            dynamical masses of both components) or total system mass (if
-            fitting using relative astrometry only) [M_sol]
+            dynamical masses of both components, for example when you have both 
+            astrometry and RVs) or total system mass (if fitting for total system 
+            mass only, as in the case of a vanilla 2-body fit using relative 
+            astrometry only ) [M_sol]
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
