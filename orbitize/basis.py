@@ -51,6 +51,7 @@ class Basis(abc.ABC):
             "pan": priors.UniformPrior(0.0, angle_upperlim),
             "tau": priors.UniformPrior(0.0, 1.0),
             "K": priors.LogUniformPrior(1e-4, 10),
+            "tp": priors.UniformPrior(0.0, 10000.0),
         }
 
     @abc.abstractmethod
@@ -165,6 +166,186 @@ class Basis(abc.ABC):
             )
         else:
             priors_arr.append(self.stellar_or_system_mass)
+
+
+class ObsPriors(Basis):
+    """
+    Basis used in Kosmo O'Neil+ 2019, and implemented here for use with the
+    orbitize.priors.ObsPriors prior, following that paper. The basis is the same
+    as the orbitize.basis.Period basis, except tp (time of periastron passage) is
+    used in place of tau.
+
+    Args:
+        stellar_or_system_mass (float): mass of the primary star (if fitting for
+            dynamical masses of both components) or total system mass (if
+            fitting using relative astrometry only) [M_sol]
+        mass_err (float): uncertainty on 'stellar_or_system_mass', in M_sol
+        plx (float): mean parallax of the system, in mas
+        plx_err (float): uncertainty on 'plx', in mas
+        num_secondary_bodies (int): number of secondary bodies in the system, should be at least 1
+        fit_secondary_mass (bool): if True, include the dynamical mass of orbitting body as fitted parameter, if False,
+            'stellar_or_system_mass' is taken to be total mass
+        angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2pi)
+        tau_ref_epoch (float): reference epoch for defining tau. Default 58849,
+            the same as it is elsewhere in the code.
+
+    Limiations:
+        This basis cannot be used with RVs or absolute astrometry. It assumes
+        inputs are vanilla Ra/Dec for relative astrometry.
+    """
+
+    def __init__(
+        self,
+        stellar_or_system_mass,
+        mass_err,
+        plx,
+        plx_err,
+        num_secondary_bodies,
+        fit_secondary_mass,
+        angle_upperlim=2 * np.pi,
+        hipparcos_IAD=None,
+        rv=False,
+        rv_instruments=None,
+        tau_ref_epoch=58849,
+    ):
+
+        self.tau_ref_epoch = tau_ref_epoch
+
+        if hipparcos_IAD is not None or rv or len(rv_instruments) > 0:
+            raise ValueError(
+                "This basis cannot be used with RVs or absolute astrometry."
+            )
+
+        super(ObsPriors, self).__init__(
+            stellar_or_system_mass,
+            mass_err,
+            plx,
+            plx_err,
+            num_secondary_bodies,
+            fit_secondary_mass,
+            angle_upperlim,
+            None,
+            False,
+            None,
+        )
+
+    def construct_priors(self):
+        """
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter to be sampled. For this basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, Tp. Parallax and mass priors both
+        assumed to be fixed, and are added at the end.
+
+        Returns:
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        """
+        base_labels = ["per", "ecc", "inc", "aop", "pan", "tp"]
+        basis_priors = []
+        basis_labels = []
+
+        # Add the priors common to each companion
+        for body in np.arange(self.num_secondary_bodies):
+            for elem in base_labels:
+                basis_priors.append(self.default_priors[elem])
+                basis_labels.append(elem + str(body + 1))
+
+        # Add parallax prior
+        basis_labels.append("plx")
+        if self.plx_err > 0:
+            raise ValueError("Parallax must be fixed for this prior type.")
+        else:
+            basis_priors.append(self.plx)
+
+        # Add mass priors
+        basis_labels.append("mtot")
+        if self.mass_err > 0:
+            raise ValueError("Mtot must be fixed for this prior type.")
+        else:
+            basis_priors.append(self.stellar_or_system_mass)
+
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            self.standard_basis_idx["sma{}".format(body_num)] = self.param_idx[
+                "per{}".format(body_num)
+            ]
+            self.standard_basis_idx["tau{}".format(body_num)] = self.param_idx[
+                "tp{}".format(body_num)
+            ]
+
+        return basis_priors, basis_labels
+
+    def to_standard_basis(self, param_arr):
+        """
+        Convert parameter array from ObsPriors basis to Standard basis.
+
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the ObsPriors basis,
+                where R is the number of parameters being fit, and M is the number of orbits. If
+                M=1 (for MCMC), this can be a 1D array.
+
+        Returns:
+            np.array of float: modifies 'param_arr' to contain Standard basis elements.
+                Shape of 'param_arr' remains the same.
+        """
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            per = param_arr[self.param_idx["per{}".format(body_num)]]
+
+            mtot = param_arr[self.param_idx["mtot"]]
+
+            # Compute semi-major axis using Kepler's Third Law and replace period
+            sma = np.cbrt(
+                (consts.G * (mtot * u.Msun) * ((per * u.year) ** 2)) / (4 * np.pi**2)
+            )
+            sma = sma.to(u.AU).value
+            param_arr[self.standard_basis_idx["sma{}".format(body_num)]] = sma
+
+            tp = param_arr[self.param_idx["tp{}".format(body_num)]]
+
+            tau = tp_to_tau(tp, self.tau_ref_epoch, per)
+
+            param_arr[self.standard_basis_idx["tau{}".format(body_num)]] = tau
+
+        return param_arr
+
+    def to_obspriors_basis(self, param_arr, after_date):
+        """
+        Convert parameter array from Standard basis to ObsPriors basis. This function
+        is used primarily for testing purposes.
+
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters in the Standard basis,
+                where R is the number of parameters being fit, and M is the number of orbits. If
+                M=1 (for MCMC), this can be a 1D array.
+            after_date (float or np.array): tp will be the first periastron after this date. If None, use ref_epoch.
+
+        Returns:
+            np.array of float: modifies 'param_arr' to contain ObsPriors elements.
+                Shape of 'param_arr' remains the same.
+        """
+        for body_num in np.arange(self.num_secondary_bodies) + 1:
+            sma = param_arr[self.standard_basis_idx["sma{}".format(body_num)]]
+            mtot = param_arr[self.standard_basis_idx["mtot"]]
+
+            per = np.sqrt(
+                (4 * (np.pi**2) * (sma * u.AU) ** 3) / (consts.G * (mtot * u.Msun))
+            )
+            per = per.to(u.year).value
+            param_arr[self.param_idx["per{}".format(body_num)]] = per
+
+            tau = param_arr[self.standard_basis_idx["tau{}".format(body_num)]]
+
+            tp = tau_to_tp(tau, self.tau_ref_epoch, per, after_date=after_date)
+
+            param_arr[self.standard_basis_idx["tp{}".format(body_num)]] = tp
+
+        return param_arr
 
 
 class Standard(Basis):

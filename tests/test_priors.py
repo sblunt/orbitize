@@ -1,8 +1,13 @@
 import numpy as np
 import pytest
+import os
 from scipy.stats import norm as nm
 
 import orbitize.priors as priors
+from orbitize.system import System
+from orbitize.read_input import read_file
+from orbitize.sampler import MCMC
+from orbitize import DATADIR
 
 threshold = 1e-1
 
@@ -77,7 +82,46 @@ def test_compute_lnprob():
         assert np.log(expected_probs[Prior]) == pytest.approx(lnprobs, abs=threshold)
 
 
+def test_obsprior():
+    """
+    Test API setup with obs prior and run it a few MCMC steps to make sure nothing
+    breaks.
+    """
+
+    input_file = os.path.join(DATADIR, "xyz_test_data.csv")
+    data_table = read_file(input_file)
+    mtot = 1.0
+
+    mySystem = System(
+        1, data_table, mtot, 10.0, mass_err=0, plx_err=0, fitting_basis="ObsPriors"
+    )
+
+    # construct sampler
+    n_walkers = 20
+    num_temps = 1
+    my_sampler = MCMC(mySystem, num_temps, n_walkers, num_threads=1)
+
+    ra_err = mySystem.data_table["quant1_err"]
+    dec_err = mySystem.data_table["quant2_err"]
+    epochs = mySystem.data_table["epoch"]
+
+    # define the `ObsPrior` object
+    my_obsprior = priors.ObsPrior(ra_err, dec_err, epochs, mtot)
+
+    # set the priors on `per`, `ecc`, `tp` to point to this object
+    for i in [
+        mySystem.param_idx["per1"],
+        mySystem.param_idx["ecc1"],
+        mySystem.param_idx["tp1"],
+    ]:
+        mySystem.sys_priors[i] = my_obsprior
+
+    # run the mcmc a few steps to make sure nothing breaks
+    my_sampler.run_sampler(5, burn_steps=0)
+
+
 if __name__ == "__main__":
+    test_obsprior()
     test_compute_lnprob()
     test_draw_samples()
     print("All tests passed!")

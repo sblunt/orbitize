@@ -1,5 +1,9 @@
 import numpy as np
 import abc
+from astropy import units as u, constants as cst
+
+from orbitize import basis
+from orbitize.kepler import _calc_ecc_anom
 import scipy.special
 import scipy.stats
 
@@ -647,6 +651,166 @@ class LinearPrior(Prior):
             lnprob[(element_array >= x_intercept) | (element_array < 0)] = -np.inf
 
         return lnprob
+
+
+class ObsPrior(Prior):
+    """
+    Implements the observation-based priors described in O'Neil+ 2018
+    (https://ui.adsabs.harvard.edu/abs/2019AJ....158....4O/abstract)
+
+    Args:
+        epochs (np.array of float): array of epochs at which observations are taken [mjd]
+        ra_err (np.array of float): RA errors of observations [mas]
+        dec_err (np.array of float): decl errors of observations [mas]
+        mtot (float): total mass of system [Msol]
+        period_lims (2-tuple of float): optional lower and upper prior limits
+            for the orbital period [yr]
+        tp_lims (2-tuple of float): optional lower and upper prior limits
+            for the time of periastron passage [mjd]
+        tau_ref_epoch (float): epoch [mjd] tau is defined relative to.
+
+    Note:
+        This implementation is designed to be mathematically identical to
+        the implementation in O'Neil+ 2018. There are several limitations of our
+        implementation, in particular:
+
+            1. `ObsPrior` only works with MCMC (not OFTI)
+            2. `ObsPrior` only works with relative astrometry (i.e. you can't use RVs or other data types)
+            3. `ObsPrior` only works when the input astrometry is given in RA/decl. format (i.e. not sep/PA)
+            4. `ObsPrior` assumes total mass (`mtot`) and parallax (`plx`) are fixed.
+            5. `ObsPrior` only works for systems with one secondary object (no multi-planet systems)
+            6. You must use `ObsPrior` with the `orbitize.basis.ObsPriors` orbital basis.
+
+        None of these are inherent limitations of the observation-based technique,
+        so let us know if you have a science case that would benefit from
+        implementing one or more of these things!
+    """
+
+    is_correlated = True
+
+    def __init__(
+        self,
+        epochs,
+        ra_err,
+        dec_err,
+        mtot,
+        period_lims=(0, np.inf),
+        tp_lims=(-np.inf, np.inf),
+        tau_ref_epoch=58849,
+    ):
+        self.epochs = epochs
+        self.tau_ref_epoch = tau_ref_epoch
+        self.mtot = mtot
+        self.ra_err = ra_err
+        self.dec_err = dec_err
+        self.period_lims = period_lims
+        self.tp_lims = tp_lims
+
+        self.total_params = 3
+        self.param_num = 0
+
+        self.correlated_input_samples = None
+
+    def __repr__(self):
+        return "ObsPrior"
+
+    def increment_param_num(self):
+        self.param_num += 1
+        self.param_num = self.param_num % (self.total_params + 1)
+        self.param_num = self.param_num % self.total_params
+
+    def draw_uniform_samples(self, num_samples):
+        if self.param_num == 0:
+            sample_pers = np.random.uniform(
+                self.period_lims[0], self.period_lims[1], num_samples
+            )
+            return sample_pers
+        elif self.param_num == 1:
+            sample_eccs = np.random.uniform(0, 1, num_samples)
+            return sample_eccs
+        else:
+            sample_tps = np.random.uniform(
+                self.tp_lims[0], self.tp_lims[1], num_samples
+            )
+            return sample_tps
+
+    def draw_samples(self, num_samples):
+        """
+        Draws `num_samples` samples from uniform distributions in log(per), ecc, and
+        tp. This is used for initializing the MCMC walkers.
+
+        Warning:
+            The behavior of orbitize.priors.ObsPrior.draw_samples() is different
+            from the draw_samples() methods of other Prior objects, which draws
+            random samples from the prior itself.
+        """
+
+        samples = self.draw_uniform_samples(num_samples)
+        self.increment_param_num()
+        return samples
+
+    def compute_lnprob(self, element_array):
+
+        if self.param_num == 0:
+            self.correlated_input_samples = element_array
+
+        else:
+            self.correlated_input_samples = np.append(
+                self.correlated_input_samples, element_array
+            )
+
+        if self.param_num == (self.total_params - 1):
+
+            period = self.correlated_input_samples[0]
+            ecc = self.correlated_input_samples[1]
+            tp = self.correlated_input_samples[2]
+
+            if (
+                (period < self.period_lims[0])
+                or (period > self.period_lims[1])
+                or (ecc < 0)
+                or (ecc > 1)
+                or (tp < self.tp_lims[0])
+                or (tp > self.tp_lims[1])
+            ):
+
+                self.increment_param_num()
+                return -np.inf
+
+            jac_prefactor = -(
+                ((cst.G * self.mtot * u.Msun) ** 2 * period / (2 * np.pi**4)) ** (1 / 3)
+            ).value
+
+            sma = ((period) ** 2 * self.mtot) ** (1 / 3)
+
+            tau = basis.tp_to_tau(tp, self.tau_ref_epoch, period)
+
+            meananom = basis.tau_to_manom(
+                self.epochs, sma, self.mtot, tau, self.tau_ref_epoch
+            )
+            eccanom = _calc_ecc_anom(meananom, ecc)
+
+            # sum Jacobian over all epochs (O'Neil 2019 eq 33)
+            jacobian = np.sum(
+                (1 / (self.ra_err * self.dec_err))
+                * np.abs(
+                    2 * (ecc**2 - 2) * np.sin(eccanom)
+                    + ecc * (3 * meananom + np.sin(2 * eccanom))
+                    + 3 * meananom * np.cos(eccanom)
+                )
+                / (6 * np.sqrt(1 - ecc**2))
+            )
+
+            jacobian *= np.abs(jac_prefactor)
+            lnprob = -2 * np.log(jacobian)
+
+            self.increment_param_num()
+            return lnprob
+
+        else:
+
+            self.increment_param_num()
+            return 0
 
 
 def all_lnpriors(params, priors):
