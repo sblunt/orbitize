@@ -5,9 +5,12 @@ import abc
 import time
 from astropy.time import Time
 
+import dynesty
+
 import emcee
 import ptemcee
 import multiprocessing as mp
+
 from multiprocessing import Pool
 
 import orbitize.lnlike
@@ -142,7 +145,6 @@ class Sampler(abc.ABC):
                 params,
                 self.system.param_idx,
             )
-
         return lnlikes_sum
 
 
@@ -512,9 +514,9 @@ class OFTI(
             else:
                 n_accepted = len(accepted_orbits)
                 maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
-                output_orbits[
-                    n_orbits_saved : n_orbits_saved + n_accepted
-                ] = accepted_orbits[0:maxindex2save]
+                output_orbits[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                    accepted_orbits[0:maxindex2save]
+                )
                 output_lnlikes[n_orbits_saved : n_orbits_saved + n_accepted] = lnlikes[
                     0:maxindex2save
                 ]
@@ -644,12 +646,12 @@ class OFTI(
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
 
-                    output_orbits[
-                        n_orbits_saved : n_orbits_saved + n_accepted
-                    ] = accepted_orbits[0:maxindex2save]
-                    output_lnlikes[
-                        n_orbits_saved : n_orbits_saved + n_accepted
-                    ] = lnlikes[0:maxindex2save]
+                    output_orbits[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                        accepted_orbits[0:maxindex2save]
+                    )
+                    output_lnlikes[n_orbits_saved : n_orbits_saved + n_accepted] = (
+                        lnlikes[0:maxindex2save]
+                    )
                     n_orbits_saved += maxindex2save
 
                 # print progress statement
@@ -657,7 +659,6 @@ class OFTI(
                     str(n_orbits_saved) + "/" + str(total_orbits) + " orbits found",
                     end="\r",
                 )
-
             self.results.add_samples(np.array(output_orbits), output_lnlikes)
 
             return output_orbits
@@ -1309,3 +1310,140 @@ class MCMC(Sampler):
 
         # otherwise exit the function and continue.
         return
+
+
+class NestedSampler(Sampler):
+    """
+    Implements nested sampling using Dynesty package.
+
+    Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
+    """
+
+    def __init__(self, system):
+        super(NestedSampler, self).__init__(system)
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+        self.start = time.time()
+        self.dynesty_sampler = None
+
+    def ptform(self, u):
+        """
+        Prior transform function.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a chosen Prior
+                Class distribution.
+        """
+        utform = np.zeros(len(u))
+        for i in range(len(u)):
+            try:
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            except AttributeError:  # prior is a fixed number
+                utform[i] = self.system.sys_priors[i]
+        return utform
+
+    def run_sampler(
+        self,
+        static=False,
+        bound="multi",
+        pfrac=1.0,
+        num_threads=1,
+        start_method="fork",
+        run_nested_kwargs={},
+    ):
+        """Runs the nested sampler from the Dynesty package.
+
+        Args:
+            static (bool): True if using static nested sampling,
+                False if using dynamic.
+            bound (str): Method used to approximately bound the prior
+                using the current set of live points. Conditions the
+                sampling methods used to propose new live points. See
+                https://dynesty.readthedocs.io/en/latest/quickstart.html#bounding-options
+                for complete list of options.
+            pfrac (float): posterior weight, between 0 and 1. Can only be
+                altered for the Dynamic nested sampler, otherwise this
+                keyword is unused.
+            num_threads (int): number of threads to use for parallelization
+                (default=1)
+            start_method (str): multiprocessing start method. Default "fork," which
+                won't work on all OS. Change to "spawn" if you get an error,
+                and make sure you run your orbitize! script inside an
+                if __name__=='__main__' condition to protect entry points.
+            run_nested_kwargs (dict): dictionary of keywords to be passed into dynesty.Sampler.run_nested()
+
+        Returns:
+            tuple:
+
+                numpy.array of float: posterior samples
+
+                int: number of iterations it took to converge
+        """
+
+        mp.set_start_method(start_method, force=True)
+        if static and pfrac != 1.0:
+            raise ValueError(
+                """The static nested sampler does not take alternate values for pfrac."""
+            )
+
+        if num_threads > 1:
+            with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
+                if static:
+                    self.dynesty_sampler = dynesty.NestedSampler(
+                        pool.loglike,
+                        pool.prior_transform,
+                        len(self.system.sys_priors),
+                        pool=pool,
+                        bound=bound,
+                        bootstrap=False,
+                    )
+                    self.dynesty_sampler.run_nested(**run_nested_kwargs)
+                else:
+                    self.dynesty_sampler = dynesty.DynamicNestedSampler(
+                        pool.loglike,
+                        pool.prior_transform,
+                        len(self.system.sys_priors),
+                        pool=pool,
+                        bound=bound,
+                        bootstrap=False,
+                    )
+                    self.dynesty_sampler.run_nested(
+                        wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
+                    )
+        else:
+            if static:
+                self.dynesty_sampler = dynesty.NestedSampler(
+                    self._logl,
+                    self.ptform,
+                    len(self.system.sys_priors),
+                    bound=bound,
+                )
+                self.dynesty_sampler.run_nested(**run_nested_kwargs)
+            else:
+                self.dynesty_sampler = dynesty.DynamicNestedSampler(
+                    self._logl,
+                    self.ptform,
+                    len(self.system.sys_priors),
+                    bound=bound,
+                )
+                self.dynesty_sampler.run_nested(
+                    wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
+                )
+
+        self.results.add_samples(
+            self.dynesty_sampler.results["samples"],
+            self.dynesty_sampler.results["logl"],
+        )
+        num_iter = self.dynesty_sampler.results["niter"]
+
+        return self.dynesty_sampler.results["samples"], num_iter

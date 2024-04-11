@@ -4,6 +4,8 @@ from astropy import units as u, constants as cst
 
 from orbitize import basis
 from orbitize.kepler import _calc_ecc_anom
+import scipy.special
+import scipy.stats
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -60,6 +62,13 @@ class NearestNDInterpPrior(Prior):
         self.param_num += 1
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
+
+    def transform_samples(self):
+        raise NotImplementedError(
+            """The transform_samples() method is not implemented for this Prior
+            class yet. We're working on it!
+            """
+        )
 
     def draw_samples(self, num_samples):
         """
@@ -160,6 +169,13 @@ class KDEPrior(Prior):
         self.param_num = self.param_num % (self.total_params + 1)
         self.param_num = self.param_num % self.total_params
 
+    def transform_samples(self):
+        raise NotImplementedError(
+            """The transform_samples() method is not implemented for this Prior
+            class yet. We're working on it!
+            """
+        )
+
     def draw_samples(self, num_samples):
         """
         Draw positive samples from the KDE.
@@ -244,7 +260,8 @@ class GaussianPrior(Prior):
         mu (float): mean of the distribution
         sigma (float): standard deviation of the distribution
         no_negatives (bool): if True, only positive values will be drawn from
-            this prior, and the probability of negative values will be 0 (default:True).
+        this prior, and the probability of negative values will be 0
+        (default:True).
 
     (written) Sarah Blunt, 2018
     """
@@ -256,6 +273,30 @@ class GaussianPrior(Prior):
 
     def __repr__(self):
         return "Gaussian"
+
+    def transform_samples(self, u):
+        """
+        Transform uniform 1D samples, u, to samples drawn
+        from a Gaussian distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Gaussian
+            distribution.
+        """
+        # a is the # of standard deviations at which 0 occurs
+        a = -self.mu / self.sigma
+
+        if self.no_negatives:
+            samples = scipy.stats.truncnorm.isf(
+                u, a, np.inf, loc=self.mu, scale=self.sigma
+            )
+        else:
+            z = scipy.special.ndtri(u)
+            samples = z * self.sigma + self.mu
+        return samples
 
     def draw_samples(self, num_samples):
         """
@@ -269,20 +310,8 @@ class GaussianPrior(Prior):
             numpy array of float: samples drawn from the appropriate
             Gaussian distribution. Array has length `num_samples`.
         """
-
-        samples = np.random.normal(loc=self.mu, scale=self.sigma, size=num_samples)
-        bad = np.inf
-
-        if self.no_negatives:
-
-            while bad != 0:
-
-                bad_samples = np.where(samples < 0)[0]
-                bad = len(bad_samples)
-
-                samples[bad_samples] = np.random.normal(
-                    loc=self.mu, scale=self.sigma, size=bad
-                )
+        samples = np.random.uniform(0, 1, num_samples)
+        samples = self.transform_samples(samples)
 
         return samples
 
@@ -304,7 +333,6 @@ class GaussianPrior(Prior):
         lnprob = -0.5 * ((element_array - self.mu) / self.sigma) ** 2
 
         if self.no_negatives:
-
             bad_samples = np.where(element_array < 0)[0]
             lnprob[bad_samples] = -np.inf
 
@@ -336,6 +364,25 @@ class LogUniformPrior(Prior):
     def __repr__(self):
         return "Log Uniform"
 
+    def transform_samples(self, u):
+        """
+        Transform uniform 1D samples, u, to samples drawn
+        from a Log Uniform distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Log Uniform
+            distribution.
+        """
+        samples = (self.logmax - self.logmin) * u + self.logmin
+
+        # generate samples following a log uniform distribution
+        samples = np.exp(samples)
+
+        return samples
+
     def draw_samples(self, num_samples):
         """
         Draw samples from this 1/x distribution.
@@ -347,10 +394,10 @@ class LogUniformPrior(Prior):
             np.array:  samples ranging from [``minval``, ``maxval``) as floats.
         """
         # sample from a uniform distribution in log space
-        samples = np.random.uniform(self.logmin, self.logmax, num_samples)
+        samples = np.random.uniform(0, 1, num_samples)
 
         # convert from log space to linear space
-        samples = np.exp(samples)
+        samples = self.transform_samples(samples)
 
         return samples
 
@@ -397,6 +444,23 @@ class UniformPrior(Prior):
     def __repr__(self):
         return "Uniform"
 
+    def transform_samples(self, u):
+        """
+        Transform uniform 1D samples, u, to samples drawn
+        from a uniform distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a uniform
+            distribution.
+        """
+        # generate samples following a uniform distribution
+        samples = (self.maxval - self.minval) * u + self.minval
+
+        return samples
+
     def draw_samples(self, num_samples):
         """
         Draw samples from this uniform distribution.
@@ -408,7 +472,8 @@ class UniformPrior(Prior):
             np.array:  samples ranging from [0, pi) as floats.
         """
         # sample from a uniform distribution in log space
-        samples = np.random.uniform(self.minval, self.maxval, num_samples)
+        samples = np.random.uniform(0, 1, num_samples)
+        samples = self.transform_samples(samples)
 
         return samples
 
@@ -449,6 +514,23 @@ class SinPrior(Prior):
     def __repr__(self):
         return "Sine"
 
+    def transform_samples(self, u):
+        """
+        Transform uniform 1D samples, u, to samples drawn
+        from a Sine distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Sine
+            distribution.
+        """
+        # generate samples following a sin distribution
+        samples = np.arccos(1 - 2 * u)
+
+        return samples
+
     def draw_samples(self, num_samples):
         """
         Draw samples from a Sine distribution.
@@ -461,9 +543,9 @@ class SinPrior(Prior):
         """
 
         # draw uniform from -1 to 1
-        samples = np.random.uniform(-1, 1, num_samples)
+        samples = np.random.uniform(0, 1, num_samples)
 
-        samples = np.arccos(samples) % np.pi
+        samples = self.transform_samples(samples)
 
         return samples
 
@@ -515,6 +597,27 @@ class LinearPrior(Prior):
     def __repr__(self):
         return "Linear"
 
+    def transform_samples(self, u):
+        """
+        Transform uniform 1D samples, u, to samples drawn
+        from a Linear distribution.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a Linear
+            distribution.
+        """
+        norm = -0.5 * self.b**2 / self.m
+
+        # generate samples following a linear distribution
+        linear_samples = -np.sqrt(2.0 * norm * u / self.m + (self.b / self.m) ** 2) - (
+            self.b / self.m
+        )
+
+        return linear_samples
+
     def draw_samples(self, num_samples):
         """
         Draw samples from a descending linear distribution.
@@ -525,20 +628,16 @@ class LinearPrior(Prior):
         Returns:
             np.array:  samples ranging from [0, -b/m) as floats.
         """
-        norm = -0.5 * self.b**2 / self.m
 
         # draw uniform from 0 to 1
         samples = np.random.uniform(0, 1, num_samples)
 
         # generate samples following a linear distribution
-        linear_samples = -np.sqrt(
-            2.0 * norm * samples / self.m + (self.b / self.m) ** 2
-        ) - (self.b / self.m)
+        linear_samples = self.transform_samples(samples)
 
         return linear_samples
 
     def compute_lnprob(self, element_array):
-
         x_intercept = -self.b / self.m
         normalizer = -0.5 * self.b**2 / self.m
 
@@ -730,22 +829,31 @@ def all_lnpriors(params, priors):
     for param, prior in zip(params, priors):
         param = np.array([param])
 
-        logp += prior.compute_lnprob(param)  # retrun a float
+        logp += prior.compute_lnprob(param)  # return a float
 
     return logp
 
 
 if __name__ == "__main__":
+    # myPrior = LinearPrior(-1.0, 1.0)
+    # mySamples = myPrior.draw_samples(1000)
+    # print(mySamples)
+    # myProbs = myPrior.compute_lnprob(mySamples)
+    # print(myProbs)
 
-    myPrior = LinearPrior(-1.0, 1.0)
-    mySamples = myPrior.draw_samples(1000)
-    print(mySamples)
-    myProbs = myPrior.compute_lnprob(mySamples)
-    print(myProbs)
+    # myPrior = GaussianPrior(1.3, 0.2)
+    # mySamples = myPrior.draw_samples(1)
+    # print(mySamples)
 
-    myPrior = GaussianPrior(1.3, 0.2)
-    mySamples = myPrior.draw_samples(1)
-    print(mySamples)
+    # myProbs = myPrior.compute_lnprob(mySamples)
+    # print(myProbs)
 
-    myProbs = myPrior.compute_lnprob(mySamples)
-    print(myProbs)
+    myPrior = GaussianPrior(-10, 0.5, no_negatives=True)
+    u = np.random.uniform(0, 1, int(1e4))
+    samps = myPrior.transform_samples(u)
+    print(samps.min(), samps.max())
+
+    import matplotlib.pyplot as plt
+
+    plt.hist(samps, bins=50)
+    plt.show()

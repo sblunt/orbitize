@@ -121,6 +121,7 @@ def test_obsprior():
 
 
 if __name__ == "__main__":
-    # test_compute_lnprob()
-    # test_draw_samples()
     test_obsprior()
+    test_compute_lnprob()
+    test_draw_samples()
+    print("All tests passed!")

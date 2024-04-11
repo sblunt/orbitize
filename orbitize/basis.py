@@ -1408,14 +1408,14 @@ class XYZ(Basis):
         self, epoch, elems, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100
     ):
         """
-        Converts array of orbital elements from the regular base of Keplerian orbits to positions and velocities in xyz
-        Uses code from orbitize.kepler
+        Converts array of orbital elements from the regular base of Keplerian orbits
+        to positions and velocities in xyz. Uses code from orbitize.kepler
 
         Args:
             epoch (float): Date in MJD of observation to calculate time of periastron passage (tau).
             elems (np.array of floats): Orbital elements (sma, ecc, inc, aop, pan, tau, plx, mtot).
                     If more than 1 set of parameters is passed, the first dimension must be
-                    the number of orbital parameter sets, and the second the orbital elements.
+                    the number of the orbital elements, and the second the number of orbital parameter sets.
 
         Return:
             np.array: Orbital elements in xyz (x-coordinate [au], y-coordinate [au], z-coordinate [au],
