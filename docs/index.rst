@@ -50,9 +50,23 @@ User Guide:
    faq
    contributing
    api
+   manual
 
 Changelog:
 ++++++++++
+
+**3.0.0 (2024-4-11)**
+
+- implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
+- fit arbitrary absolute astrometry (@sblunt)
+- implement O'Neil observation-based priors (@sblunt/@clarissardoo)
+- discuss MCMC autocorrelation in MCMC tutorial (@michaelkmpoon)
+- add time warning if OFTI doesn't accept an orbit in first 60 s (@michaelkmpoon)
+- add first parts of orbitize! manual (@sofiacovarrubias/@sblunt)
+- bugfix for rebound MCMC fits (issue #357; @sblunt)
+- implementation of residual plotting method for orbit plots (@Saanikachoudhary and @semaphoreP)
+- plot companion RVs (@chihchunhsu)
+- add documentation about referencing issues when modifying priors to tutorial (@wcroberson)
 
 **2.2.2 (2023-06-30)**
 

@@ -15,6 +15,8 @@ import orbitize.system as system
 import orbitize.system
 from orbitize.hipparcos import HipparcosLogProb
 
+np.random.seed(0)
+
 input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
 input_file_1epoch = os.path.join(orbitize.DATADIR, "GJ504_1epoch.csv")
 input_file_rvs = os.path.join(orbitize.DATADIR, "HD4747.csv")
@@ -126,7 +128,7 @@ def test_run_sampler():
 
     # test to make sure outputs are reasonable
     start = time.time()
-    orbits = s.run_sampler(1000, num_cores=4)
+    orbits = s.run_sampler(100, num_cores=4)
     end = time.time()
 
     print()
@@ -155,15 +157,15 @@ def test_run_sampler():
     ecc_exp = 0.19
     inc_exp = np.radians(140)
 
-    # test to make sure OFTI values are within 20% of expectations
-    assert sma == pytest.approx(sma_exp, abs=0.2 * sma_exp)
-    assert ecc == pytest.approx(ecc_exp, abs=0.2 * ecc_exp)
-    assert inc == pytest.approx(inc_exp, abs=0.2 * inc_exp)
+    # test to make sure OFTI values are consistent with expectations
+    assert sma == pytest.approx(sma_exp, abs=5)
+    assert ecc == pytest.approx(ecc_exp, abs=0.1)
+    assert inc == pytest.approx(inc_exp, abs=np.radians(10))
 
     sma_seppa = sma  # use for covarinaces test
 
     # test with only one core
-    orbits = s.run_sampler(100, num_cores=1)
+    orbits = s.run_sampler(10, num_cores=1)
 
     # test with only one epoch
     myDriver = orbitize.driver.Driver(
@@ -410,12 +412,13 @@ def test_OFTI_pan_priors():
 
 
 if __name__ == "__main__":
-    test_scale_and_rotate()
-    test_run_sampler()
-    test_OFTI_covariances()
-    test_OFTI_multiplanet()
-    test_not_implemented()
-    test_fixed_sys_params_sampling()
+    # test_scale_and_rotate()
+    # test_run_sampler()
+
+    # test_OFTI_covariances()
+    # test_OFTI_multiplanet()
+    # test_not_implemented()
+    # test_fixed_sys_params_sampling()
     test_OFTI_pan_priors()
-    # profile_system()
-    print("Done!")
+    # # profile_system()
+    # print("Done!")
