@@ -1,5 +1,7 @@
 import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
+from astropy import table
+from orbitize.read_input import read_file
 
 
 class System(object):
@@ -14,8 +16,10 @@ class System(object):
         data_table (astropy.table.Table): output from
             ``orbitize.read_input.read_file()``
         stellar_or_system_mass (float): mass of the primary star (if fitting for
-            dynamical masses of both components) or total system mass (if
-            fitting using relative astrometry only) [M_sol]
+            dynamical masses of both components, for example when you have both 
+            astrometry and RVs) or total system mass (if fitting for total system 
+            mass only, as in the case of a vanilla 2-body fit using relative 
+            astrometry only ) [M_sol]
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
@@ -252,6 +256,7 @@ class System(object):
             self.pm_plx_predictor = hipparcos.PMPlx_Motion(
                 self.stellar_astrom_epochs, alpha0, delta0, alphadec0_epoch
             )
+
 
         self.secondary_mass_indx = [
             self.basis.standard_basis_idx[i]
@@ -801,3 +806,63 @@ def transform_errors(x1, x2, x1_err, x2_err, x12_corr, transform_func, nsamps=10
     x12_corr = np.corrcoef([x1p, x2p])[0, 1]
 
     return x1p_err, x2p_err, x12_corr
+
+
+def generate_synthetic_data(
+    orbit_frac,
+    mtot,
+    plx,
+    ecc=0.5,
+    inc=np.pi / 4,
+    argp=np.pi / 4,
+    lan=np.pi / 4,
+    tau=0.8,
+    num_obs=4,
+    unc=2,
+):
+    """Generate an orbitize-table of synethic data
+
+    Args:
+        orbit_frac (float): percentage of orbit covered by synthetic data
+        mtot (float): total mass of the system [M_sol]
+        plx (float): parallax of system [mas]
+        num_obs (int): number of observations to generate
+        unc (float): uncertainty on all simulated RA & Dec measurements [mas]
+
+    Returns:
+        2-tuple:
+            - `astropy.table.Table`: data table of generated synthetic data
+            - float: the semimajor axis of the generated data
+    """
+
+    # calculate RA/Dec at three observation epochs
+    # `num_obs` epochs between ~2000 and ~2003 [MJD]
+    observation_epochs = np.linspace(51550.0, 52650.0, num_obs)
+    num_obs = len(observation_epochs)
+
+    # calculate the orbital fraction
+    orbit_coverage = (max(observation_epochs) - min(observation_epochs)) / 365.25
+    period = 100 * orbit_coverage / orbit_frac
+    sma = (period**2 * mtot) ** (1 / 3)
+
+    # calculate RA/Dec at three observation epochs
+    # `num_obs` epochs between ~2000 and ~2003 [MJD]
+    ra, dec, _ = kepler.calc_orbit(
+        observation_epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
+    )
+
+    # add Gaussian noise to simulate measurement
+    ra += np.random.normal(scale=unc, size=num_obs)
+    dec += np.random.normal(scale=unc, size=num_obs)
+
+    # define observational uncertainties
+    ra_err = dec_err = np.ones(num_obs) * unc
+
+    data_table = table.Table(
+        [observation_epochs, [1] * num_obs, ra, ra_err, dec, dec_err],
+        names=("epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"),
+    )
+    # read into orbitize format
+    data_table = read_file(data_table)
+
+    return data_table, sma
