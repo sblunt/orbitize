@@ -55,7 +55,7 @@ User Guide:
 Changelog:
 ++++++++++
 
-**3.0.0 (2024-4-11)**
+**3.0.0 (2024-4-15)**
 
 - implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
 - fit arbitrary absolute astrometry (@sblunt)
