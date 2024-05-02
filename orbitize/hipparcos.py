@@ -164,6 +164,8 @@ class HipparcosLogProb(object):
             should be False, but it's helpful for testing. Check out
             `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
+        include_hip_iad_in_likelihood (bool): if False, then don't add the Hipparcos
+            log(likelihood) to the overall log(likelihood computed in sampler.py)
 
     Written: Sarah Blunt & Rob de Rosa, 2021
     """
@@ -175,9 +177,11 @@ class HipparcosLogProb(object):
         num_secondary_bodies,
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
+        include_hip_iad_in_likelihood=True
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
+        self.include_hip_iad_in_likelihood = include_hip_iad_in_likelihood
 
         # infer if the IAD file is an older DVD file or a new file
         with open(path_to_iad_file, "r") as f:
