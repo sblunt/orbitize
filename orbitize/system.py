@@ -454,8 +454,11 @@ class System(object):
                     within_orbit = np.where(all_smas <= sma)
                     outside_orbit = np.where(all_smas > sma)
                     all_pl_masses = params_arr[self.secondary_mass_indx]
-                    inside_masses = all_pl_masses[within_orbit]
-                    mtot = np.sum(inside_masses) + m0
+                    inside_masses = all_pl_masses[within_orbit].reshape((-1, n_orbits))
+                    if n_orbits == 1:
+                        mtot = np.sum(inside_masses) + m0
+                    else:
+                        mtot = np.sum(inside_masses, axis=0) + m0
 
                 else:
                     m_pl = np.zeros(self.num_secondary_bodies)
