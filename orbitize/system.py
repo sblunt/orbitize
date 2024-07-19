@@ -2,6 +2,7 @@ import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
 from orbitize.read_input import read_file
+import matplotlib.pyplot as plt
 
 
 class System(object):
@@ -717,6 +718,33 @@ class System(object):
             )
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
 
+    def plot_astrometry(self):
+        """
+        Plot astrometry to ensure data is correct.
+
+        Written: David Trevascus, 2024
+        """
+
+        # create figure
+        fig, axs = plt.subplots()
+
+        # get radec astrometry
+        ra = self.data_table[self.all_radec]['quant1']
+        ra_err = self.data_table[self.all_radec]['quant1_err']
+        dec = self.data_table[self.all_radec]['quant2']
+        dec_err = self.data_table[self.all_radec]['quant2_err']
+
+        # plot radec astrometry
+        axs.errorbar(
+            ra, 
+            dec, 
+            xerr=ra_err, 
+            yerr=dec_err,
+            linestyle='None',
+            marker='o',
+            color='k',
+            capsize=3
+        )
 
 def radec2seppa(ra, dec, mod180=False):
     """
