@@ -725,17 +725,16 @@ class System(object):
         Written: David Trevascus, 2024
         """
 
-        # create figure
-        fig, axs = plt.subplots()
-
         n_obs = len(self.data_table) # number of entries in the data table
 
+        # set empty arrays for radec astrometry
         ra = np.zeros(n_obs)
         ra_err = np.zeros(n_obs)
         dec = np.zeros(n_obs)
         dec_err = np.zeros(n_obs)
         radec_corr = np.zeros(n_obs)
         
+        # get radec astrometry
         for i in range(n_obs):
             if np.isin(i, self.all_radec): # get radec astrometry
                 ra[i] = self.data_table[i]['quant1']
@@ -761,6 +760,9 @@ class System(object):
                         sep, pa, sep_err, pa_err, seppa_corr, seppa2radec
                     )
 
+        # create figure
+        fig, axs = plt.subplots()
+
         # plot radec astrometry
         axs.errorbar(
             ra, 
@@ -772,6 +774,17 @@ class System(object):
             color='k',
             capsize=3
         )
+
+        # set axis labels
+        axs.set_xlabel('RA offset (mas)')
+        axs.set_ylabel('Dec offset (mas)')
+
+        # set plot limits so star is centred
+        max_ra = np.amax(abs(ra))
+        max_dec = np.amax(abs(dec))
+        max_err = np.amax(np.append(ra_err, dec_err))
+        axs.set_xlim(-(max_ra + 2 * max_err), max_ra + 2 * max_err)
+        axs.set_ylim(-(max_dec + 2 * max_err), max_dec + 2 * max_err)
 
 def radec2seppa(ra, dec, mod180=False):
     """
