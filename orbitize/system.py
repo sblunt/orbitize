@@ -728,11 +728,38 @@ class System(object):
         # create figure
         fig, axs = plt.subplots()
 
-        # get radec astrometry
-        ra = self.data_table[self.all_radec]['quant1']
-        ra_err = self.data_table[self.all_radec]['quant1_err']
-        dec = self.data_table[self.all_radec]['quant2']
-        dec_err = self.data_table[self.all_radec]['quant2_err']
+        n_obs = len(self.data_table) # number of entries in the data table
+
+        ra = np.zeros(n_obs)
+        ra_err = np.zeros(n_obs)
+        dec = np.zeros(n_obs)
+        dec_err = np.zeros(n_obs)
+        radec_corr = np.zeros(n_obs)
+        
+        for i in range(n_obs):
+            if np.isin(i, self.all_radec): # get radec astrometry
+                ra[i] = self.data_table[i]['quant1']
+                ra_err[i] = self.data_table[i]['quant1_err']
+                dec[i] = self.data_table[i]['quant2']
+                dec_err[i] = self.data_table[i]['quant2_err']
+                radec_corr[i] = self.data_table[i]['quant12_corr']
+
+            elif np.isin(i, self.all_seppa): # get seppa astrometry, convert to radec
+                sep = self.data_table[i]['quant1']
+                sep_err = self.data_table[i]['quant1_err']
+                pa = self.data_table[i]['quant2']
+                pa_err = self.data_table[i]['quant2_err']
+                seppa_corr = self.data_table[i]['quant12_corr']
+
+                ra[i], dec[i] = seppa2radec(sep, pa)
+
+                if np.isnan(seppa_corr):
+                    ra_err[i] = np.sqrt((ra[i]/sep * sep_err)**2 + (dec[i] * np.radians(pa_err))**2)
+                    dec_err[i] = np.sqrt((dec[i]/sep * sep_err)**2 + (ra[i] * np.radians(pa_err))**2)
+                else:
+                    ra_err[i], dec_err[i], radec_corr[i] = transform_errors(
+                        sep, pa, sep_err, pa_err, seppa_corr, seppa2radec
+                    )
 
         # plot radec astrometry
         axs.errorbar(
