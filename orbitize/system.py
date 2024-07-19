@@ -303,6 +303,9 @@ class System(object):
 
         self.param_idx = self.basis.param_idx
 
+        # plot astrometry
+        self.plot_astrometry()
+
     def save(self, hf):
         """
         Saves the current object to an hdf5 file
