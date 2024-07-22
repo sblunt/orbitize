@@ -38,3 +38,7 @@ def test_brightness_calculation():
     )
 
     ra, dec, vz, brightness = test_system.compute_all_orbits(params)
+
+
+if __name__ == "__main__":
+    test_brightness_calculation()
