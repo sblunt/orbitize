@@ -483,6 +483,10 @@ class System(object):
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
 
+                tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch)
+                
+
+
                 # raoff, decoff, vz are scalers if the length of epochs is 1
                 if len(epochs) == 1:
                     raoff = np.array([raoff])

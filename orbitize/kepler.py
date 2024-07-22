@@ -44,6 +44,29 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
 
     return mean_anom
 
+def times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, use_c=True, use_gpu=False ):
+
+    n_orbs = np.size(sma)  # num sets of input orbital parameters
+    n_dates = np.size(epochs)  # number of dates to compute offsets and vz
+
+
+    # Necessary for _calc_ecc_anom, for now
+    if np.isscalar(epochs):  # just in case epochs is given as a scalar
+        epochs = np.array([epochs])
+    ecc_arr = np.tile(ecc, (n_dates, 1))
+
+    # # compute mean anomaly (size: n_orbs x n_dates)
+    manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
+    # compute eccentric anomalies (size: n_orbs x n_dates)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
+
+    # compute the true anomalies (size: n_orbs x n_dates)
+    # Note: matrix multiplication makes the shapes work out here and below
+    tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
+
+    return tanom, eanom
+
+
 
 def calc_orbit(
   epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
@@ -89,26 +112,14 @@ def calc_orbit(
 
     Written: Jason Wang, Henry Ngo, 2018
     """
-    n_orbs = np.size(sma)  # num sets of input orbital parameters
-    n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
-    # return planetary RV if `mass_for_Kamp` is not defined
+ # return planetary RV if `mass_for_Kamp` is not defined
     if mass_for_Kamp is None:
         mass_for_Kamp = mtot
+    ecc
 
-    # Necessary for _calc_ecc_anom, for now
-    if np.isscalar(epochs):  # just in case epochs is given as a scalar
-        epochs = np.array([epochs])
-    ecc_arr = np.tile(ecc, (n_dates, 1))
+    tanom, eanom = times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=tau_ref_epoch, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
 
-    # # compute mean anomaly (size: n_orbs x n_dates)
-    manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
-    # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
-
-    # compute the true anomalies (size: n_orbs x n_dates)
-    # Note: matrix multiplication makes the shapes work out here and below
-    tanom = 2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom))
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
