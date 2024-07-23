@@ -483,7 +483,7 @@ class System(object):
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
 
-                tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch)
+                tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, use_c=True, use_gpu=False,)
                 
 
 
