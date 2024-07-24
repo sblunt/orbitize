@@ -11,8 +11,14 @@ import numpy as np
 def test_brightness_calculation():
 
     num_secondary_bodies = 1
+
+    # TODO (sarah): change dataset to one where we can see brightness variations
     input_file = os.path.join(DATADIR, "GJ504.csv")
+    # input_file = os.path.join(DATADIR, "new_dataset.csv")
     data_table = read_input.read_file(input_file)
+
+    times = data_table["epoch"].value
+
     system_mass = 1.47
     plx = 24.30
 
@@ -37,8 +43,18 @@ def test_brightness_calculation():
         ]
     )
 
+    print(test_system.param_idx)
+
     ra, dec, vz, brightness = test_system.compute_all_orbits(params)
+
+    # TODO (farrah): make plot of brightness vs time
+
+
+def test_read_input_with_brightness():
+
+    # TODO (farrah): use code above as inspiration to read in a csv file with a brightness column
 
 
 if __name__ == "__main__":
     test_brightness_calculation()
+    test_read_input_with_brightness()
