@@ -103,8 +103,9 @@ def read_file(filename):
             "quant12_corr",
             "quant_type",
             "instrument",
+            "brightness",
         ),
-        dtype=(float, int, float, float, float, float, float, "S5", "S5"),
+        dtype=(float, int, float, float, float, float, float, "S5", "S5", float),
     )
 
     # read file
@@ -179,6 +180,10 @@ def read_file(filename):
                 have_seppacorr = np.zeros(
                     num_measurements, dtype=bool
                 )  # zeros are False
+            if "brightness" in input_table.columns:
+                have_brightness = ~input_table["brightness"].mask
+            else:
+                have_brightness = np.zeros(num_measurements, dtype=bool)
             if "rv" in input_table.columns:
                 have_rv = ~input_table["rv"].mask
             else:
@@ -231,11 +236,14 @@ def read_file(filename):
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
-            # Rob: not sure if we need this but adding just in case
             if "instrument" in input_table.columns:
                 have_inst = np.ones(num_measurements, dtype=bool)
             else:
                 have_inst = np.zeros(num_measurements, dtype=bool)
+            if "brightness" in input_table.columns:
+                have_brightness = np.ones(num_measurements, dtype=bool)
+            else:
+                have_brightness = np.zeros(num_measurements, dtype=bool)
 
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
@@ -243,6 +251,12 @@ def read_file(filename):
         if "quant12_corr" not in input_table.keys():
             default_corrs = np.nan * np.ones(len(input_table))
             input_table.add_column(default_corrs, name="quant12_corr")
+        if "brightness" not in input_table.keys():
+            default_brightness = np.nan * np.ones(len(input_table))
+            input_table.add_column(default_brightness, name="brightness")
+            have_brightness = np.zeros(num_measurements, dtype=bool)
+        else:
+            have_brightness = np.ones(num_measurements, dtype=bool)
         if "instrument" not in input_table.keys():
             default_insts = []
             for this_quant_type in input_table["quant_type"]:
@@ -275,6 +289,10 @@ def read_file(filename):
             MJD = row["epoch"] - 2400000.5
         else:
             MJD = row["epoch"]
+        if have_brightness[index]:
+            brightness = row["brightness"]
+        else:
+            brightness = None
 
         # check that "object" is an integer (instead of ABC/bcd)
         if not isinstance(row["object"], (int, np.int32, np.int64)):
@@ -294,6 +312,7 @@ def read_file(filename):
                         None,
                         row["quant_type"],
                         row["instrument"],
+                        None,
                     ]
                 )
 
@@ -322,6 +341,7 @@ def read_file(filename):
                         quant12_corr,
                         row["quant_type"],
                         row["instrument"],
+                        brightness,
                     ]
                 )
             else:  # catch wrong formats
@@ -332,6 +352,7 @@ def read_file(filename):
                 )
 
         else:  # When not in orbitize style
+
             if have_ra[index] and have_dec[index]:
                 # check if there's a covariance term
                 if have_radeccorr[index]:
@@ -362,6 +383,7 @@ def read_file(filename):
                         quant12_corr,
                         "radec",
                         this_inst,
+                        brightness,
                     ]
                 )
 
@@ -395,6 +417,7 @@ def read_file(filename):
                         quant12_corr,
                         "seppa",
                         this_inst,
+                        brightness,
                     ]
                 )
 
@@ -411,6 +434,7 @@ def read_file(filename):
                             None,
                             "rv",
                             row["instrument"],
+                            brightness,
                         ]
                     )
                 else:
@@ -426,6 +450,7 @@ def read_file(filename):
                             None,
                             "rv",
                             "defrv",
+                            brightness,
                         ]
                     )
 
