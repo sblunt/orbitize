@@ -551,8 +551,9 @@ class Period(Basis):
         self.set_default_mass_priors(basis_priors, basis_labels)
 
         # Add astrometric jitter priors
-        basis_labels.append("sigma_ast")
-        basis_priors.append(priors.UniformPrior(0, 10))
+        if self.astrometric_jitter:
+            basis_labels.append("sigma_ast")
+            basis_priors.append(priors.UniformPrior(0, 10))
 
         # Define param label dictionary in current basis & standard basis
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))

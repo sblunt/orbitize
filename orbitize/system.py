@@ -240,6 +240,7 @@ class System(object):
             hipparcos_IAD=self.hipparcos_IAD,
             rv=contains_rv,
             rv_instruments=self.rv_instruments,
+            astrometric_jitter=self.astrometric_jitter,
             **self.extra_basis_kwargs
         )
 
