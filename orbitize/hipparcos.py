@@ -437,7 +437,7 @@ class HipparcosLogProb(object):
             [(dist[:, i] / eps) ** 2 for i in np.arange(n_samples)],
             axis=1,
         )
-        lnlike = -0.5 * chi2 - np.log(np.sqrt(2 * np.pi * eps))
+        lnlike = -0.5 * chi2 - np.sum(np.log(np.sqrt(2 * np.pi * eps)))
 
         return lnlike
 
