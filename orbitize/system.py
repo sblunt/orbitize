@@ -485,6 +485,22 @@ class System(object):
 
                 tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100, use_c=True, use_gpu=False,)
                 
+                def brightness_calculation(sma, tanom, ecc = 0.75, inc = np.radians(30), aop = np.radians(120), plx = np.radians(65)):
+
+                    R = (sma*(1-ecc**2))/(1+ecc*np.cos(tanom))
+        
+                    z = (R)*(-np.cos(aop)*np.sin(inc)*np.sin(tanom)-np.cos(tanom)*np.sin(inc)*np.sin(aop))
+        
+                    #ro = (z**2+((raoff**2+decoff**2)/plx**2))**0.5
+        
+                    B = math.arctan2(-R, z)+ math.pi
+        
+                    Alpha = (1/math.pi)*(np.sin(B)+(math.pi-B)*np.cos(B))
+
+                    Albedo = 0.5
+                    brightness = Albedo*Alpha/R**2
+        
+                    return brightness  
 
 
                 # raoff, decoff, vz are scalers if the length of epochs is 1
