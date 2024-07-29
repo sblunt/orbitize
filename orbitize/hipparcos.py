@@ -429,8 +429,12 @@ class HipparcosLogProb(object):
             )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
+        if 'sigma_ast' in param_idx:
+            eps = np.sqrt(self.eps**2 + samples[param_idx["sigma_ast"]]**2)
+        else:
+            eps = self.eps
         chi2 = np.sum(
-            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)],
+            [(dist[:, i] / eps) ** 2 for i in np.arange(n_samples)],
             axis=1,
         )
         lnlike = -0.5 * chi2

@@ -491,6 +491,7 @@ class Period(Basis):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
+        astrometric_jitter=False
     ):
 
         super(Period, self).__init__(
@@ -505,6 +506,7 @@ class Period(Basis):
             rv,
             rv_instruments,
         )
+        self.astrometric_jitter = astrometric_jitter
 
     def construct_priors(self):
         """
@@ -547,6 +549,10 @@ class Period(Basis):
 
         # Add mass priors
         self.set_default_mass_priors(basis_priors, basis_labels)
+
+        # Add astrometric jitter priors
+        basis_labels.append("sigma_ast")
+        basis_priors.append(priors.UniformPrior(0, 10))
 
         # Define param label dictionary in current basis & standard basis
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))

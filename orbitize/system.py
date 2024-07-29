@@ -42,6 +42,9 @@ class System(object):
             basis to be used. See basis.py for a list of implemented fitting bases.
         use_rebound (bool): if True, use an n-body backend solver instead
             of a Keplerian solver.
+        astrometric_jitter (bool): if True, include a fitted jitter term in the 
+            model (will be applied to Hipparcos data and arbitrary absolute astrometry
+            data)
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class,
@@ -67,6 +70,7 @@ class System(object):
         gaia=None,
         fitting_basis="Standard",
         use_rebound=False,
+        astrometric_jitter=False,
     ):
         self.num_secondary_bodies = num_secondary_bodies
         self.data_table = data_table
@@ -81,6 +85,7 @@ class System(object):
         self.gaia = gaia
         self.fitting_basis = fitting_basis
         self.use_rebound = use_rebound
+        self.astrometric_jitter=astrometric_jitter
 
         self.best_epochs = []
         self.input_table = self.data_table.copy()

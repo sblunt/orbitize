@@ -89,6 +89,10 @@ class Sampler(abc.ABC):
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
+        if "sigma_ast" in self.system.param_idx:
+            errs = np.sqrt(errs**2 + params[self.system.param_idx["sigma_ast"]])
+
+
         lnlikes = self.lnlike(
             data, errs, corrs, model, jitter, seppa_indices, chi2_type=self.chi2_type
         )
