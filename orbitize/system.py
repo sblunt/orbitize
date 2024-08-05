@@ -614,7 +614,7 @@ class System(object):
                 standard_params_arr, comp_rebound=True
             )
         else:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
+            raoff, decoff, vz, brightness = self.compute_all_orbits(standard_params_arr)
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
@@ -665,6 +665,10 @@ class System(object):
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz[self.rv[body_num], body_num, :]
                 model[self.rv[body_num], 1] = np.nan
+
+            # TODO (farrah): add brightness to model here (use RV block above as template)
+            # (assume self.brightness is array of indices of epochs with brightness measurements)
+
 
         # if we have abs astrometry measurements in the input file (i.e. not
         # from Hipparcos or Gaia), add the parallactic & proper motion here by
