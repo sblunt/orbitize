@@ -69,3 +69,5 @@ def test_read_input_with_brightness():
 if __name__ == "__main__":
     test_brightness_calculation()
     test_read_input_with_brightness()
+
+    #Test commit
