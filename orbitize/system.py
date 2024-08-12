@@ -755,14 +755,15 @@ class System(object):
         
             # get radec astrometry
             for i in range(n_obs):
-                if np.isin(i, self.all_radec): # get radec astrometry
+                j = np.where(mask_obj)[0][i] # index obj entries in input table
+                if np.isin(j, self.all_radec): # get radec astrometry
                     ra[i] = data_table_obj[i]['quant1']
                     ra_err[i] = data_table_obj[i]['quant1_err']
                     dec[i] = data_table_obj[i]['quant2']
                     dec_err[i] = data_table_obj[i]['quant2_err']
                     radec_corr[i] = data_table_obj[i]['quant12_corr']
 
-                elif np.isin(i, self.all_seppa): # get seppa astrometry, convert to radec
+                elif np.isin(j, self.all_seppa): # get seppa astrometry, convert to radec
                     sep = data_table_obj[i]['quant1']
                     sep_err = data_table_obj[i]['quant1_err']
                     pa = data_table_obj[i]['quant2']
