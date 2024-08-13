@@ -259,9 +259,9 @@ def test_save_load_2021():
     myResults.load_results(filename)
 
     filename = "tmp3.hdf5"
-    myResults.saveresults(filename)
+    myResults.save_results(filename)
 
-    os.system("rm tmp*.hdf5")
+    os.system("rm tmp*")
 
 
 if __name__ == "__main__":
