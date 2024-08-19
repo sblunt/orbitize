@@ -555,7 +555,9 @@ class System(object):
 
         if self.fitting_basis == "XYZ":
             # Find and filter out unbound orbits
-            bad_orbits = np.where(np.logical_or(ecc >= 1.0, ecc < 0.0))[0]
+            if ecc.size == 1:
+                ecc_as_array = np.array([ecc])
+            bad_orbits = np.where(np.logical_or(ecc_as_array >= 1.0, ecc_as_array < 0.0))[0]
             if bad_orbits.size != 0:
                 raoff[:, :, bad_orbits] = np.inf
                 deoff[:, :, bad_orbits] = np.inf
