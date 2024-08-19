@@ -81,21 +81,29 @@ def test_compute_posteriors():
 
     params_arr = np.array(
         [
-            10.0,
-            0.1,
-            np.radians(89),
-            np.radians(21),
-            np.radians(31),
-            0.0,  # note: I didn't convert tau here, just picked random number
-            51.5,
-            1.75,
+            10.0, # sma
+            0.3, # ecc
+            np.radians(0), # inc
+            np.radians(45), # aop
+            np.radians(90), # pan
+            0.0,  # tau
+            51.5, # plx
+            1.75, # stellar maxx
         ]
     )
+    epochs = np.linspace(0, 365*30, int(1e3))
+    ra, dec, vz, brightness = test_system.compute_all_orbits(params_arr, epochs=epochs)
 
-    all_orbits = test_system.compute_all_orbits(params_arr)
-    print(all_orbits)
+    fig, ax = plt.subplots(2, 1, figsize=(5,10))
 
-    model = test_system.compute_model(params_arr)
+
+    ax[0].scatter(epochs, brightness, color=plt.cm.RdYlBu((epochs-epochs[0])/(epochs[-1] - epochs[0])))
+    ax[1].scatter(ra[:,1,:], dec[:,1,:], color=plt.cm.RdYlBu((epochs-epochs[0])/(epochs[-1] - epochs[0])))
+
+    ax[1].axis('equal')
+    plt.savefig('visual4farrah.png')
+
+    # model = test_system.compute_model(params_arr)
     # print(model)
 
     # test_mcmc = sampler.MCMC(test_system, 1, 50, num_threads=1)
