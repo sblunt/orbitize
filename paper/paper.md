@@ -19,6 +19,7 @@ authors:
   - name: Roberto Tejada
     affiliation: "12"
   - name: Vighnesh Nagpal
+    orcid: 0000-0001-5909-4433
     affiliation: "13"
   - name: Tirth Dharmesh Surti
     affiliation: "5"
