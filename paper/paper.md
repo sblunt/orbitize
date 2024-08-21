@@ -148,8 +148,7 @@ Major new features since v1 include:
     astrometry, following @Nielsen:2020 (see the [Hipparcos IAD tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Hipparcos_IAD.html)). It can also handle arbitrary absolute astrometry (see the [Fitting Arbitrary Astrometry tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/abs_astrometry.html)).
 
 3. In addition to the MCMC and OFTI posterior computation algorithms documented in @Blunt:2020, 
-    `orbitize!` version 3 also implements a nested sampling backend, via `dynesty`  
-    (@Speagle:2020; see the [`dynesty` tutorial](https://github.com/sblunt/orbitize/blob/dynesty/docs/tutorials/dynesty_tutorial.ipynb).)
+    `orbitize!` version 3 also implements a nested sampling backend, via `dynesty` (@Speagle:2020; see the [`dynesty` tutorial](https://github.com/sblunt/orbitize/blob/dynesty/docs/tutorials/dynesty_tutorial.ipynb).)
 
 4. `orbitize!` version 3 implements two prescriptions for handling multi-planet effects. 
     Keplerian epicyclic motion of the primary star due to multiple orbiting bodies, 
@@ -164,7 +163,7 @@ Major new features since v1 include:
 # Verification and Documentation
 
 `orbitize!` implements a full stack of automated testing and documentation building 
-practices. We use GitHub Actions to automatically run a suite of unit tests, maintained in [orbitize/tests]((https://github.com/sblunt/orbitize/tree/main/tests)),
+practices. We use GitHub Actions to automatically run a suite of unit tests, maintained in [orbitize/tests](https://github.com/sblunt/orbitize/tree/main/tests),
 each time code is committed to the public repository or a pull request is opened. The jupyter notebook
 tutorials, maintained in [orbitize/docs/tutorials](https://github.com/sblunt/orbitize/tree/main/docs/tutorials), are also automatically run when a 
 pull request to the `main` branch is opened. Documentation is built using `sphinx`, and hosted
