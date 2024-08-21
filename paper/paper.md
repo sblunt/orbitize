@@ -119,7 +119,7 @@ release of version 1.0 [@Blunt:2020].
 The orbital parameters of directly-imaged planets and binary stars can tell us about
 their present-day dynamics and formation histories [@Bowler:2016], as well as about 
 their inherent physical characteristics (particularly mass, generally called "dynamical 
-mass" when derived from orbital constraints, e.g. [@Brandt:2021], [@Lacour:2021]). 
+mass" when derived from orbital constraints, e.g. @Brandt:2021, @Lacour:2021). 
 
 `orbitize!` is used widely in the exoplanet imaging and binary star communities for 
 translating astrometric data to information about eccentricities [@Bowler:2020], obliquities [@Bryan:2020], 
@@ -130,7 +130,7 @@ Each new released version of the `orbitize!` source code is automatically archiv
 # Major features added since v1
 
 For a detailed overview of the `orbitize!` API, core functionality (including information 
-about our Kepler solver), and initial verification, we refer readers to [@Blunt:2020]. 
+about our Kepler solver), and initial verification, we refer readers to @Blunt:2020. 
 This section lists major new features that have been added to the 
 code since the release of version 1.0 and directs readers to more information about each.
 A complete descriptive list of modifications to the code is maintained in our 
@@ -139,32 +139,32 @@ A complete descriptive list of modifications to the code is maintained in our
 Major new features since v1 include:
 
 1. The ability to jointly fit radial velocity (RV) timeseries, both RVs of the secondary 
-    companion (see Section 3 of [Blunt:2023a]) and RVs of the primary
+    companion (see Section 3 of @Blunt:2023a) and RVs of the primary
     star. RVs of the primary star can either be passed into `orbitize!` directly (see the [radial velocity tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/RV_MCMC_Tutorial.html)), or fit separately and passed in as prior
     information (see the [non-orbitize! posteriors as priors tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Using_nonOrbitize_Posteriors_as_Priors.html).)
 
 2. The ability to jointly fit absolute astrometry of the primary star. `orbitize!` can fit
-    the Hipparcos-Gaia catalog of accelerations [@Brandt:2021] (see the [HGCA tutorial](https://github.com/sblunt/orbitize/blob/v3/docs/tutorials/HGCA_tutorial.ipynb)), as well as Hipparcos intermediate astrometric data and Gaia 
-    astrometry, following [@Nielsen:2020] (see the [Hipparcos IAD tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Hipparcos_IAD.html)). It can also handle arbitrary absolute astrometry (Sarah to add tutorial link).
+    the Hipparcos-Gaia catalog of accelerations (@Brandt:2021; see the [HGCA tutorial](https://github.com/sblunt/orbitize/blob/v3/docs/tutorials/HGCA_tutorial.ipynb)), as well as Hipparcos intermediate astrometric data and Gaia 
+    astrometry, following @Nielsen:2020 (see the [Hipparcos IAD tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Hipparcos_IAD.html)). It can also handle arbitrary absolute astrometry (see the [Fitting Arbitrary Astrometry tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/abs_astrometry.html)).
 
-3. In addition to the MCMC and OFTI posterior computation algorithms documented in [@Blunt:2020], 
-    `orbitize!` version 3 also implements a nested sampling backend, via `dynesty` [@Speagle:2020] 
-    (see the [`dynesty` tutorial](https://github.com/sblunt/orbitize/blob/dynesty/docs/tutorials/dynesty_tutorial.ipynb).)
+3. In addition to the MCMC and OFTI posterior computation algorithms documented in @Blunt:2020, 
+    `orbitize!` version 3 also implements a nested sampling backend, via `dynesty`  
+    (@Speagle:2020; see the [`dynesty` tutorial](https://github.com/sblunt/orbitize/blob/dynesty/docs/tutorials/dynesty_tutorial.ipynb).)
 
 4. `orbitize!` version 3 implements two prescriptions for handling multi-planet effects. 
     Keplerian epicyclic motion of the primary star due to multiple orbiting bodies, 
-    following [@Lacour:2021], is discussed in the [multi-planet tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Multiplanet_Tutorial.html), and N-body interactions are discussed in [@Covarrubias:2022]. The Keplerian epicyclic motion
+    following @Lacour:2021, is discussed in the [multi-planet tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Multiplanet_Tutorial.html), and N-body interactions are discussed in @Covarrubias:2022. The Keplerian epicyclic motion
     prescription only accounts for star-planet interactions, treating the motion of the star as a sum of Keplerians, 
     while the N-body prescription models this effect as well as planet-planet interactions.
 
-5. The ability to fit in different orbital bases [@Surti:2023], [@Ferrer-Chavez:2021] (see the 
+5. The ability to fit in different orbital bases (@Ferrer-Chavez:2021, @Surti:2023; see the 
     [changing basis](https://orbitize.readthedocs.io/en/latest/tutorials/Changing_bases_tutorial.html) tutorial), as well
-    as the ability to apply the observation-based priors derived in [@ONeil:2019] (see the [observation-based priors tutorial](https://github.com/sblunt/orbitize/blob/main/docs/tutorials/ONeil-ObsPriors.ipynb)).
+    as the ability to apply the observation-based priors derived in @ONeil:2019 (see the [observation-based priors tutorial](https://github.com/sblunt/orbitize/blob/main/docs/tutorials/ONeil-ObsPriors.ipynb)).
 
 # Verification and Documentation
 
 `orbitize!` implements a full stack of automated testing and documentation building 
-practices. We use GitHub Actions to automatically run a suite of unit tests, maintained in orbitize/tests,
+practices. We use GitHub Actions to automatically run a suite of unit tests, maintained in [orbitize/tests]((https://github.com/sblunt/orbitize/tree/main/tests)),
 each time code is committed to the public repository or a pull request is opened. The jupyter notebook
 tutorials, maintained in [orbitize/docs/tutorials](https://github.com/sblunt/orbitize/tree/main/docs/tutorials), are also automatically run when a 
 pull request to the `main` branch is opened. Documentation is built using `sphinx`, and hosted
