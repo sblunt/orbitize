@@ -78,7 +78,7 @@ affiliations:
    index: 7
  - name: NASA Goddard Space Flight Center, Code 698
    index: 8
- - name: Google, Inc.
+ - name: Google LLC
    index: 9
  - name: Department of Astronomy & Astrophysics, University of California San Diego
    index: 10
@@ -141,11 +141,11 @@ Major new features since v1 include:
 1. The functionality to jointly fit the radial velocity (RV) time series for the primary star together and the secondary companion (see Section 3 of @Blunt:2023a). For the primary star, the RV data can either be directly input into orbitize! (as explained in the [Radial Velocity Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/RV_MCMC_Tutorial.html)) or be fitted separately and then used as priors (as detailed in the [Non-orbitize! Posteriors as Priors Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Using_nonOrbitize_Posteriors_as_Priors.html)).
 
 2. The ability to jointly fit absolute astrometry of the primary star. `orbitize!` can fit
-    the Hipparcos-Gaia catalog of accelerations (@Brandt:2021; see the [HGCA Tutorial](https://github.com/sblunt/orbitize/blob/v3/docs/tutorials/HGCA_tutorial.ipynb)), as well as Hipparcos intermediate astrometric data and Gaia 
+    the Hipparcos-Gaia catalog of accelerations (@Brandt:2021; see the [HGCA Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/HGCA_tutorial.html)), as well as Hipparcos intermediate astrometric data and Gaia 
     astrometry, following @Nielsen:2020 (see the [Hipparcos IAD Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Hipparcos_IAD.html)). It can also handle arbitrary absolute astrometry (see the [Fitting Arbitrary Astrometry Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/abs_astrometry.html)).
 
 3. In addition to the MCMC and OFTI posterior computation algorithms documented in @Blunt:2020, 
-    `orbitize!` version 3 also implements a nested sampling backend, via `dynesty` (@Speagle:2020; see the [`dynesty` Tutorial](https://github.com/sblunt/orbitize/blob/dynesty/docs/tutorials/dynesty_tutorial.ipynb).)
+    `orbitize!` version 3 also implements a nested sampling backend, via `dynesty` (@Speagle:2020; see the [`dynesty` Tutorial](https://github.com/sblunt/orbitize/blob/main/docs/tutorials/dynesty_tutorial.ipynb).)
 
 4. `orbitize!` version 3 implements two prescriptions for handling multi-planet effects. 
     Keplerian epicyclic motion of the primary star due to multiple orbiting bodies, 
@@ -191,7 +191,7 @@ For detailed information about our particular implementations, we refer the read
 
 # Acknowledgements
 
-Our team gratefully acknowledges support the Heising-Simons Foundation.  S.B. and J.J.W. are supported by NASA Grant 80NSSC23K0280. 
+Our team gratefully acknowledges support from the Heising-Simons Foundation.  S.B. and J.J.W. are supported by NASA Grant 80NSSC23K0280. 
 
 This paper describes additions made to `orbitize!` between versions 1.0.0 and 3.0.0. We are extremely grateful to Isabel Angelo, Henry Ngo, James Graham, Logan Pearce, and Malena Rice, who contribtued code to version 1.0.0, and are included as authors in @Blunt:2020.
 
