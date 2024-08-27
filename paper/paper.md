@@ -55,7 +55,7 @@ authors:
   - name: Clarissa R. Do Ó
     orcid: 0000-0001-5173-2947
     affiliation: "10"
-  - name: Eric Nielsen
+  - name: Eric L. Nielsen
     affiliation: "15"
   - name: Robert J. De Rosa
     orcid: 0000-0002-4918-0247
@@ -191,7 +191,8 @@ For detailed information about our particular implementations, we refer the read
 
 # Acknowledgements
 
-Our team gratefully acknowledges support from the Heising-Simons Foundation.  S.B. and J.J.W. are supported by NASA Grant 80NSSC23K0280. 
+Our team gratefully acknowledges support from the Heising-Simons Foundation.  S.B. and J.J.W. are supported by NASA Grant 80NSSC23K0280. E.L.N. is supported by NASA Grants 21-ADAP21-0130 and 80NSSC21K0958.
+
 
 This paper describes additions made to `orbitize!` between versions 1.0.0 and 3.0.0. We are extremely grateful to Isabel Angelo, Henry Ngo, James Graham, Logan Pearce, and Malena Rice, who contribtued code to version 1.0.0, and are included as authors in @Blunt:2020.
 
