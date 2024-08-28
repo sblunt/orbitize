@@ -521,11 +521,11 @@ def nielsen_iad_refitting_test(
             myHipLogProb.plx0 + 3 * myHipLogProb.plx0_err,
             1000,
         )
-        axes[0].hist(sampler.flatchain[:, 0], bins=50, density=True, color="r")
+        axes[0].hist(sampler.flatchain[:, 0], bins=50, density=True, color="grey")
         axes[0].plot(
             xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), color="k"
         )
-        axes[0].set_xlabel("plx [mas]")
+        axes[0].set_xlabel("$\pi$ [mas]")
 
         # PM RA
         xs = np.linspace(
@@ -533,11 +533,11 @@ def nielsen_iad_refitting_test(
             myHipLogProb.pm_ra0 + 3 * myHipLogProb.pm_ra0_err,
             1000,
         )
-        axes[1].hist(sampler.flatchain[:, 1], bins=50, density=True, color="r")
+        axes[1].hist(sampler.flatchain[:, 1], bins=50, density=True, color="grey")
         axes[1].plot(
             xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), color="k"
         )
-        axes[1].set_xlabel("PM RA [mas/yr]")
+        axes[1].set_xlabel("$\mu_{{\\alpha_0^*}}$ [mas/yr]")
 
         # PM Dec
         xs = np.linspace(
@@ -545,27 +545,30 @@ def nielsen_iad_refitting_test(
             myHipLogProb.pm_dec0 + 3 * myHipLogProb.pm_dec0_err,
             1000,
         )
-        axes[2].hist(sampler.flatchain[:, 2], bins=50, density=True, color="r")
+        axes[2].hist(sampler.flatchain[:, 2], bins=50, density=True, color="grey")
         axes[2].plot(
             xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), color="k"
         )
-        axes[2].set_xlabel("PM Dec [mas/yr]")
+        axes[2].set_xlabel("$\mu_{{\\delta_0}}$ [mas/yr]")
 
         # RA offset
-        axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="r")
+        axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="grey")
         xs = np.linspace(
             -3 * myHipLogProb.alpha0_err, 3 * myHipLogProb.alpha0_err, 1000
         )
         axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color="k")
-        axes[3].set_xlabel("RA Offset [mas]")
+        axes[3].set_xlabel("$\\alpha_0^*$ [mas]")
 
         # Dec offset
         xs = np.linspace(
             -3 * myHipLogProb.delta0_err, 3 * myHipLogProb.delta0_err, 1000
         )
-        axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="r")
+        axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="grey")
         axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color="k")
-        axes[4].set_xlabel("Dec Offset [mas]")
+        axes[4].set_xlabel("$\delta_0$ [mas]")
+
+        for a in axes:
+            a.set_ylabel('relative prob.')
 
         plt.tight_layout()
         plt.savefig(saveplot, dpi=250)
