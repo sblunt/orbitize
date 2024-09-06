@@ -262,8 +262,8 @@ class HipparcosLogProb(object):
 
             self.solution_type = solution_details["isol_n"].values[0]
 
-            if self.solution_type == 1:
-                self.var = astrometric_solution["var"].values[0]
+            if self.solution_type == 1: 
+                self.var = (10 * astrometric_solution["var"].values[0])**2 # N.B. input is different units than var from Vizier catalog!!
             else:
                 self.var = 0
 
