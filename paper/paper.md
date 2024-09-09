@@ -138,7 +138,7 @@ A full descriptive list of modifications to the code is maintained in our
 
 Major new features since v1 include:
 
-1. The functionality to jointly fit the radial velocity (RV) time series for the primary star together and the secondary companion (see Section 3 of @Blunt:2023a). For the primary star, the RV data can either be directly input into orbitize! (as explained in the [Radial Velocity Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/RV_MCMC_Tutorial.html)) or be fitted separately and then used as priors (as detailed in the [Non-orbitize! Posteriors as Priors Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Using_nonOrbitize_Posteriors_as_Priors.html)).
+1. The functionality to jointly fit the radial velocity (RV) time series for the primary star together with the secondary companion (see Section 3 of @Blunt:2023a). For the primary star, the RV data can either be directly input into orbitize! (as explained in the [Radial Velocity Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/RV_MCMC_Tutorial.html)) or be fitted separately and then used as priors (as detailed in the [Non-orbitize! Posteriors as Priors Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Using_nonOrbitize_Posteriors_as_Priors.html)).
 
 2. The ability to jointly fit absolute astrometry of the primary star. `orbitize!` can fit
     the Hipparcos-Gaia catalog of accelerations (@Brandt:2021; see the [HGCA Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/HGCA_tutorial.html)), as well as Hipparcos intermediate astrometric data and Gaia 
