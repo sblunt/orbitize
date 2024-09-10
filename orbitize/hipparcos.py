@@ -166,6 +166,8 @@ class HipparcosLogProb(object):
             using this renormalization.
         include_hip_iad_in_likelihood (bool): if False, then don't add the Hipparcos
             log(likelihood) to the overall log(likelihood computed in sampler.py)
+        brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
+            to the residuals, following Brandt+ 2023.
 
     Written: Sarah Blunt & Rob de Rosa, 2021
     """
@@ -177,7 +179,8 @@ class HipparcosLogProb(object):
         num_secondary_bodies,
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
-        include_hip_iad_in_likelihood=True
+        include_hip_iad_in_likelihood=True,
+        brandt_correction=False,
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
@@ -262,8 +265,10 @@ class HipparcosLogProb(object):
 
             self.solution_type = solution_details["isol_n"].values[0]
 
-            if self.solution_type == 1: 
-                self.var = (10 * astrometric_solution["var"].values[0])**2 # N.B. input is different units than var from Vizier catalog!!
+            if self.solution_type == 1:
+                self.var = (
+                    10 * astrometric_solution["var"].values[0]
+                ) ** 2  # N.B. input is different units than var from Vizier catalog!!
             else:
                 self.var = 0
 
@@ -292,6 +297,8 @@ class HipparcosLogProb(object):
         self.cos_phi = iad[3]  # scan direction
         self.sin_phi = iad[4]
         self.R = iad[5]  # abscissa residual [mas]
+        if brandt_correction:
+            self.R += 0.140  # [mas]
         self.eps = iad[6]  # error on abscissa residual [mas]
 
         # reject negative errors (scans that were rejected by Hipparcos team)
@@ -307,6 +314,12 @@ class HipparcosLogProb(object):
 
         # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
         self.eps = np.sqrt(self.eps**2 - self.var**2)
+
+        if brandt_correction:
+            self.eps = np.sqrt(self.eps**2 + self.var**2)
+        import pdb
+
+        pdb.set_trace()
 
         epochs = Time(times, format="decimalyear")
         self.epochs = epochs.decimalyear
@@ -429,8 +442,8 @@ class HipparcosLogProb(object):
             )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
-        if 'sigma_ast' in param_idx:
-            eps = np.sqrt(self.eps**2 + samples[param_idx["sigma_ast"]]**2)
+        if "sigma_ast" in param_idx:
+            eps = np.sqrt(self.eps**2 + samples[param_idx["sigma_ast"]] ** 2)
         else:
             eps = self.eps
         chi2 = np.sum(
@@ -568,7 +581,7 @@ def nielsen_iad_refitting_test(
         axes[4].set_xlabel("$\delta_0$ [mas]")
 
         for a in axes:
-            a.set_ylabel('relative prob.')
+            a.set_ylabel("relative prob.")
 
         plt.tight_layout()
         plt.savefig(saveplot, dpi=250)
