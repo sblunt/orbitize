@@ -316,10 +316,7 @@ class HipparcosLogProb(object):
         self.eps = np.sqrt(self.eps**2 - self.var**2)
 
         if brandt_correction:
-            self.eps = np.sqrt(self.eps**2 + self.var**2)
-        import pdb
-
-        pdb.set_trace()
+            self.eps = np.sqrt(self.eps**2 + 2.25**2)
 
         epochs = Time(times, format="decimalyear")
         self.epochs = epochs.decimalyear
