@@ -87,7 +87,8 @@ of the repo:
 
 .. code-block:: bash
 	
-	$ pip install -r requirements.txt -e .
+	$ pip install -r requirements.txt
+	$ pip install -e . --upgrade
 
 Issues?
 +++++++

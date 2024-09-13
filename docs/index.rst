@@ -55,6 +55,14 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.1.0 (2024-9-09)**
+
+- JOSS paper published! (@sblunt et al)
+
+**3.0.1 (2024-8-19)**
+
+- bugfix for issue #370 involving saving and loading hipparcos.py objects (@sblunt)
+
 **3.0.0 (2024-4-15)**
 
 - implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
