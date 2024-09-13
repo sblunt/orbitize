@@ -174,7 +174,7 @@ and an in-progress ["manual"](https://orbitize.readthedocs.io/en/orbitize-manual
 # Comparison to Similar Packages
 
 Since the release of `orbitize!` version 1, other open source packages have been released that have 
-similar goals to `orbitize!`, notably `orvara` [@Brandt:2021] and `octofitter` [@Thompson:2023]. This is a wonderful development, as all packages benefit from open sharing of knowledge! `orbitize!`, `orvara`, and `octofitter` can 
+similar goals to `orbitize!`, notably `orvara` [@orvara] and `octofitter` [@Thompson:2023]. This is a wonderful development, as all packages benefit from open sharing of knowledge! `orbitize!`, `orvara`, and `octofitter` can 
 do many similar things, but each has unique features and strengths; as an example, `octofitter` is 
 extraordinarily fast, and enables joint astrometry extraction and orbit modeling, while `orbitize!` has unique 
 abilities to fit arbitrary absolute astrometry (i.e. not from Hipparcos or Gaia) and model data using an N-body backend. 
