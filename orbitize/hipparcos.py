@@ -291,8 +291,6 @@ class HipparcosLogProb(object):
         else:
             iad = np.transpose(np.loadtxt(path_to_iad_file))
 
-        n_lines = len(iad)
-
         times = iad[1] + 1991.25
         self.cos_phi = iad[3]  # scan direction
         self.sin_phi = iad[4]
@@ -300,6 +298,8 @@ class HipparcosLogProb(object):
         if brandt_correction:
             self.R += 0.140  # [mas]
         self.eps = iad[6]  # error on abscissa residual [mas]
+
+        n_lines = len(self.eps)
 
         # reject negative errors (scans that were rejected by Hipparcos team)
         good_scans = np.where(self.eps > 0)[0]
