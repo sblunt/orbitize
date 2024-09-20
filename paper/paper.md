@@ -43,7 +43,7 @@ authors:
     affiliation: "9"
   - name: Saanika Choudhary
     affiliation: "1"
-  - name: Adam Smith
+  - name: Adam J. R. W. Smith
     affiliation: "15"
   - name: William Balmer
     affiliation: "16"
