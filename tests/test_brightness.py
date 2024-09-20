@@ -29,23 +29,25 @@ def test_brightness_calculation():
     params = np.array(
         [
             10.0,
-            0.1,
+            0.3,
             np.radians(89),
             np.radians(21),
             np.radians(31),
-            0.0,  # note: I didn't convert tau here, just picked random number
+            0.0,  
             51.5,
             1.75,
         ]
     )
 
     ra, dec, vz, brightness = test_system.compute_all_orbits(params)
+    
+    
     # TODO (farrah): make plot of brightness vs time
 
     plt.figure()
     plt.scatter(times, brightness)
-    plt.xlabel("Time [dy]")
-    plt.ylabel("Brightness")
+    plt.xlabel("Time [dy]", fontsize=18)
+    plt.ylabel("Brightness", fontsize=18)
     plt.savefig("Test_brightness.png")
 
 
@@ -62,7 +64,6 @@ def test_read_input_with_brightness():
     times = data_table["epoch"].value
     brightness_values = data_table["brightness"].value
 
-    # Do we need the rest of this? since the values for time and brightness are given
 
     print("hello! :D ")
 
