@@ -292,7 +292,7 @@ def read_file(filename):
         if have_brightness[index]:
             brightness = row["brightness"]
         else:
-            brightness = None
+            brightness = np.nan
 
         # check that "object" is an integer (instead of ABC/bcd)
         if not isinstance(row["object"], (int, np.int32, np.int64)):
