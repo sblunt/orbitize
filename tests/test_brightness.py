@@ -40,9 +40,6 @@ def test_brightness_calculation():
     )
 
     ra, dec, vz, brightness = test_system.compute_all_orbits(params)
-    
-    
-    # TODO (farrah): make plot of brightness vs time
 
     plt.figure()
     plt.scatter(times, brightness)
@@ -53,19 +50,20 @@ def test_brightness_calculation():
 
 def test_read_input_with_brightness():
 
-    # TODO (farrah): use code above as inspiration to read in a csv file with a brightness column
     num_secondary_bodies = 1
 
-    # input_file = os.path.join(DATADIR, "GJ504.csv")
-    input_file = os.path.join(DATADIR, "betaPic.csv")
+    input_file = os.path.join(DATADIR, "reflected_light_example.csv")
 
     data_table = read_input.read_file(input_file)
 
     times = data_table["epoch"].value
     brightness_values = data_table["brightness"].value
 
+    print(data_table)
 
-    print("hello! :D ")
+    # TODO (Farrah): add a test that asserts the brightness column of the data table is 
+    # what you expect (hint: check in the reflected_light_example.csv to see what
+    # the brightness values should be
 
 
 def test_compute_posteriors():
@@ -82,21 +80,29 @@ def test_compute_posteriors():
 
     params_arr = np.array(
         [
-            10.0,
-            0.1,
-            np.radians(89),
-            np.radians(21),
-            np.radians(31),
-            0.0,  # note: I didn't convert tau here, just picked random number
-            51.5,
-            1.75,
+            10.0, # sma
+            0.3, # ecc
+            np.radians(0), # inc
+            np.radians(45), # aop
+            np.radians(90), # pan
+            0.0,  # tau
+            51.5, # plx
+            1.75, # stellar maxx
         ]
     )
+    epochs = np.linspace(0, 365*30, int(1e3))
+    ra, dec, vz, brightness = test_system.compute_all_orbits(params_arr, epochs=epochs)
 
-    all_orbits = test_system.compute_all_orbits(params_arr)
-    print(all_orbits)
+    fig, ax = plt.subplots(2, 1, figsize=(5,10))
 
-    model = test_system.compute_model(params_arr)
+
+    ax[0].scatter(epochs, brightness, color=plt.cm.RdYlBu((epochs-epochs[0])/(epochs[-1] - epochs[0])))
+    ax[1].scatter(ra[:,1,:], dec[:,1,:], color=plt.cm.RdYlBu((epochs-epochs[0])/(epochs[-1] - epochs[0])))
+
+    ax[1].axis('equal')
+    plt.savefig('visual4farrah.png')
+
+    # model = test_system.compute_model(params_arr)
     # print(model)
 
     # test_mcmc = sampler.MCMC(test_system, 1, 50, num_threads=1)
@@ -106,7 +112,5 @@ def test_compute_posteriors():
 
 if __name__ == "__main__":
     # test_brightness_calculation()
-    # test_read_input_with_brightness()
-    test_compute_posteriors()
-
-    # Test commit
+    test_read_input_with_brightness()
+    # test_compute_posteriors()
