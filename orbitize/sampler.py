@@ -1637,6 +1637,7 @@ class MultiNest(Sampler):
             mpi_rank = 0
 
         if hdf5_file is not None and mpi_rank == 0:
-            self.results.save_results(output_file=hdf5_file)
+            # Only a single process should write to the HDF5 file
+            self.results.save_results(filename=hdf5_file)
 
         return post_samples[:, :-1]
