@@ -112,7 +112,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         index_num = results.param_idx[label_key]
 
         # only plot non-fixed parameters
-        if np.std(results.post[:, index_num]) > 0:
+        if not np.isclose(0.0, np.std(results.post[:, index_num])):
             param_indices.append(index_num)
             if (
                 label_key.startswith("aop")
