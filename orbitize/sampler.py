@@ -1314,7 +1314,19 @@ class MCMC(Sampler):
 
 class NestedSampler(Sampler):
     """
-    Implements nested sampling using Dynesty package.
+    Implements nested sampling using the Dynesty package.
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
 
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
@@ -1468,9 +1480,25 @@ class NestedSampler(Sampler):
 
 class MultiNest(Sampler):
     """
-    Implements nested sampling using MultiNest package.
+    Implements nested sampling using the (Py)MultiNest package. In order
+    to use this sampler, MultiNest should be `manually compiled
+    <https://johannesbuchner.github.io/PyMultiNest/install.html#building-the-libraries>`_.
+    The sampler supports multiprocessing with MPI, which requires the
+    installation of mpi4py (e.g. as "pip install mpi4py").
 
-    Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
+
+    Tomas Stolker 2024
     """
 
     def __init__(self,
@@ -1498,7 +1526,8 @@ class MultiNest(Sampler):
     def run_sampler(
         self,
         n_live_points=500,
-        outputfiles_basename='./multinest',
+        output_basename='./multinest',
+        hdf5_file=None,
     ):
         """Runs the nested sampler from the (Py)MultiNest package.
 
@@ -1507,9 +1536,16 @@ class MultiNest(Sampler):
                 in a more finely sampled posterior and a more accurate
                 evidence, but also a larger number of iterations is
                 required to converge (default: 500).
-            outputfiles_basename (str): Basename for theMultiNest output. Can be
-                a folder and/or prefix for the filenames. Any (sub)folder should
-                first be manually created.
+            output_basename (str): Basename for the MultiNest output.
+                Can be a folder and/or prefix for the filenames. Any
+                (sub)folder should first be manually created.
+            hdf5_file (str): HDF5 filename in which the results are stored.
+                Setting the argument will store the results by calling the
+                save_results method of the Results objects. This parameter
+                was implemented because calling save_results separately
+                after the sampling has finished, may cause an error when
+                using MPI because only one process should write the results.
+                The results are not stored if the argument is set to None.
 
         Returns:
             numpy.array of float: posterior samples
@@ -1519,17 +1555,6 @@ class MultiNest(Sampler):
         # if the compiled MultiNest library is not found
         # when importing orbitize
         import pymultinest
-
-        # Get the MPI rank of the process
-        # try:
-        #     from mpi4py import MPI
-        #     mpi_rank = MPI.COMM_WORLD.Get_rank()
-        # except ModuleNotFoundError:
-        #     mpi_rank = 0
-
-        # Create the output folder if not existing
-        # if mpi_rank == 0 and not os.path.exists(output_folder):
-        #     os.mkdir(output_folder)
 
         # Number of parameters to fit
         n_parameters = len(self.system.labels)
@@ -1588,13 +1613,13 @@ class MultiNest(Sampler):
             _loglike_multinest,
             _logprior_multinest,
             n_parameters,
-            outputfiles_basename=outputfiles_basename,
+            outputfiles_basename=output_basename,
             resume=False,
             n_live_points=n_live_points,
         )
 
         analyzer = pymultinest.analyse.Analyzer(
-            n_parameters, outputfiles_basename=outputfiles_basename)
+            n_parameters, outputfiles_basename=output_basename)
 
         sampling_stats = analyzer.get_stats()
         post_samples = analyzer.get_equal_weighted_posterior()
@@ -1603,5 +1628,15 @@ class MultiNest(Sampler):
         self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
         self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
         self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+
+        # Get the MPI rank of the process
+        try:
+            from mpi4py import MPI
+            mpi_rank = MPI.COMM_WORLD.Get_rank()
+        except ModuleNotFoundError:
+            mpi_rank = 0
+
+        if save_results is not None and mpi_rank == 0:
+            self.results.save_results(output_file=hdf5_file)
 
         return post_samples[:, :-1]
