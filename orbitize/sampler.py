@@ -1636,7 +1636,7 @@ class MultiNest(Sampler):
         except ModuleNotFoundError:
             mpi_rank = 0
 
-        if save_results is not None and mpi_rank == 0:
+        if hdf5_file is not None and mpi_rank == 0:
             self.results.save_results(output_file=hdf5_file)
 
         return post_samples[:, :-1]
