@@ -1319,8 +1319,18 @@ class NestedSampler(Sampler):
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
-    def __init__(self, system):
-        super(NestedSampler, self).__init__(system)
+    def __init__(self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super(NestedSampler, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
 
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -1346,14 +1356,16 @@ class NestedSampler(Sampler):
         """
         utform = np.zeros(len(u))
         for i in range(len(u)):
-            try:
+            if hasattr(self.system.sys_priors[i], 'transform_samples'):
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            except AttributeError:  # prior is a fixed number
+            else:
+                # prior is a fixed number
                 utform[i] = self.system.sys_priors[i]
         return utform
 
     def run_sampler(
         self,
+        nlive=500,
         static=False,
         bound="multi",
         pfrac=1.0,
@@ -1364,6 +1376,11 @@ class NestedSampler(Sampler):
         """Runs the nested sampler from the Dynesty package.
 
         Args:
+            nlive (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 500). The value is only
+                used by the static sampler (i.e. with static=True).
             static (bool): True if using static nested sampling,
                 False if using dynamic.
             bound (str): Method used to approximately bound the prior
@@ -1391,10 +1408,9 @@ class NestedSampler(Sampler):
         """
 
         mp.set_start_method(start_method, force=True)
-        if static and pfrac != 1.0:
-            raise ValueError(
-                """The static nested sampler does not take alternate values for pfrac."""
-            )
+
+        if not static:
+            run_nested_kwargs['wt_kwargs'] = {"pfrac": pfrac}
 
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
@@ -1406,8 +1422,8 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
+                        nlive=nlive,
                     )
-                    self.dynesty_sampler.run_nested(**run_nested_kwargs)
                 else:
                     self.dynesty_sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
@@ -1416,10 +1432,10 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
+                        nlive=None,
                     )
-                    self.dynesty_sampler.run_nested(
-                        wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
-                    )
+                self.dynesty_sampler.run_nested(**run_nested_kwargs)
+
         else:
             if static:
                 self.dynesty_sampler = dynesty.NestedSampler(
@@ -1427,23 +1443,165 @@ class NestedSampler(Sampler):
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
+                    nlive=nlive,
                 )
-                self.dynesty_sampler.run_nested(**run_nested_kwargs)
             else:
                 self.dynesty_sampler = dynesty.DynamicNestedSampler(
                     self._logl,
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
+                    nlive=None,
                 )
-                self.dynesty_sampler.run_nested(
-                    wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
-                )
+            self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
         self.results.add_samples(
             self.dynesty_sampler.results["samples"],
             self.dynesty_sampler.results["logl"],
         )
-        num_iter = self.dynesty_sampler.results["niter"]
 
-        return self.dynesty_sampler.results["samples"], num_iter
+        self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
+        self.results.ln_evidence_err = self.dynesty_sampler.results["logzerr"][-1]
+
+        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["niter"]
+
+
+class MultiNest(Sampler):
+    """
+    Implements nested sampling using MultiNest package.
+
+    Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
+    """
+
+    def __init__(self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super(MultiNest, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+
+    def run_sampler(
+        self,
+        n_live_points=500,
+        outputfiles_basename='./multinest',
+    ):
+        """Runs the nested sampler from the (Py)MultiNest package.
+
+        Args:
+            n_live_points (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 500).
+            outputfiles_basename (str): Basename for theMultiNest output. Can be
+                a folder and/or prefix for the filenames. Any (sub)folder should
+                first be manually created.
+
+        Returns:
+            numpy.array of float: posterior samples
+        """
+
+        # Import here because it will otherwise give a warning
+        # if the compiled MultiNest library is not found
+        # when importing orbitize
+        import pymultinest
+
+        # Get the MPI rank of the process
+        # try:
+        #     from mpi4py import MPI
+        #     mpi_rank = MPI.COMM_WORLD.Get_rank()
+        # except ModuleNotFoundError:
+        #     mpi_rank = 0
+
+        # Create the output folder if not existing
+        # if mpi_rank == 0 and not os.path.exists(output_folder):
+        #     os.mkdir(output_folder)
+
+        # Number of parameters to fit
+        n_parameters = len(self.system.labels)
+
+        def _logprior_multinest(param_cube, n_dim, n_param):
+            """
+            Parameters
+            ----------
+            param_cube : LP_c_double
+                Unit cube.
+            n_dim : int
+                Number of dimensions. This parameter is mandatory.
+            n_param : int
+                Number of parameters. This parameter is mandatory.
+
+            Returns
+            -------
+            LP_c_double
+                Parameter cube.
+            """
+
+            for i in range(n_param):
+                if hasattr(self.system.sys_priors[i], 'transform_samples'):
+                    param_cube[i] = self.system.sys_priors[i].transform_samples(param_cube[i])
+                else:
+                    # The prior is a fixed number
+                    param_cube[i] = self.system.sys_priors[i]
+
+            return param_cube
+
+        def _loglike_multinest(param_cube, n_dim, n_param):
+            """
+            Parameters
+            ----------
+            param_cube : LP_c_double
+                Parameter cube.
+            n_dim : int
+                Number of dimensions. This parameter is mandatory.
+            n_param : int
+                Number of parameters. This parameter is mandatory.
+
+            Returns
+            -------
+            float
+                Log-likelihood.
+            """
+
+            # Convert LP_c_double to np.float64
+            param_array = np.zeros(n_param)
+            for i in range(n_param):
+                param_array[i] = param_cube[i]
+
+            return self._logl(param_array)
+
+        pymultinest.run(
+            _loglike_multinest,
+            _logprior_multinest,
+            n_parameters,
+            outputfiles_basename=outputfiles_basename,
+            resume=False,
+            n_live_points=n_live_points,
+        )
+
+        analyzer = pymultinest.analyse.Analyzer(
+            n_parameters, outputfiles_basename=outputfiles_basename)
+
+        sampling_stats = analyzer.get_stats()
+        post_samples = analyzer.get_equal_weighted_posterior()
+
+        # The log-likelihood is stored in the last column
+        self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
+        self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
+        self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+
+        return post_samples[:, :-1]
