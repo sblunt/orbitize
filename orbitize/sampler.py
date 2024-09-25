@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as consts
 import abc
 import time
+import warnings
 from astropy.time import Time
 
 import dynesty
@@ -1528,6 +1529,7 @@ class MultiNest(Sampler):
         n_live_points=500,
         output_basename='./multinest',
         hdf5_file=None,
+        multinest_kwargs=None,
     ):
         """Runs the nested sampler from the (Py)MultiNest package.
 
@@ -1546,6 +1548,8 @@ class MultiNest(Sampler):
                 after the sampling has finished, may cause an error when
                 using MPI because only one process should write the results.
                 The results are not stored if the argument is set to None.
+            multinest_kwargs (dict): dictionary of keywords that will be
+                passed to pymultinest.run().
 
         Returns:
             numpy.array of float: posterior samples
@@ -1558,6 +1562,37 @@ class MultiNest(Sampler):
 
         # Number of parameters to fit
         n_parameters = len(self.system.labels)
+
+        # Create empty dictionary if needed
+
+        if multinest_kwargs is None:
+            multinest_kwargs = {}
+
+        # Add the resume parameter
+
+        if "resume" not in multinest_kwargs:
+            multinest_kwargs["resume"] = False
+
+        # Check multinest_kwargs keywords
+
+        if "n_live_points" in multinest_kwargs:
+            warnings.warn(
+                "Please specify the number of live points "
+                "as argument of 'n_live_points' instead "
+                "of using 'multinest_kwargs'."
+            )
+
+            del multinest_kwargs["n_live_points"]
+
+        if "outputfiles_basename" in multinest_kwargs:
+            warnings.warn(
+                "Please use the 'output_basename' "
+                "parameter instead of setting the "
+                "value of 'outputfiles_basename' "
+                "in 'multinest_kwargs'."
+            )
+
+            del multinest_kwargs["outputfiles_basename"]
 
         def _logprior_multinest(param_cube, n_dim, n_param):
             """
@@ -1614,8 +1649,8 @@ class MultiNest(Sampler):
             _logprior_multinest,
             n_parameters,
             outputfiles_basename=output_basename,
-            resume=False,
             n_live_points=n_live_points,
+            **multinest_kwargs,
         )
 
         analyzer = pymultinest.analyse.Analyzer(
