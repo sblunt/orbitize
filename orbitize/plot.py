@@ -107,23 +107,21 @@ def plot_corner(results, param_list=None, **corner_kwargs):
     param_indices = []
     angle_indices = []
     secondary_mass_indices = []
-    fixed_indices = []
-    for i, label_key in enumerate(param_list):
-        index_num = results.param_idx[label_key]
+    for i, param in enumerate(param_list):
+        index_num = results.param_idx[param]
 
         # only plot non-fixed parameters
-        if not np.isclose(0.0, np.std(results.post[:, index_num])):
+        if np.std(results.post[:, index_num]) > 0:
             param_indices.append(index_num)
+            label_key = param
             if (
                 label_key.startswith("aop")
                 or label_key.startswith("pan")
                 or label_key.startswith("inc")
             ):
-                angle_indices.append(i-len(fixed_indices))
+                angle_indices.append(i)
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
-                secondary_mass_indices.append(i-len(fixed_indices))
-        else:
-            fixed_indices.append(i)
+                secondary_mass_indices.append(i)
 
     samples = np.copy(
         results.post[:, param_indices]
@@ -139,7 +137,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in param_indices:
+        for i in np.arange(len(param_indices)):
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
