@@ -64,6 +64,22 @@ def test_read_input_with_brightness():
     # TODO (Farrah): add a test that asserts the brightness column of the data table is 
     # what you expect (hint: check in the reflected_light_example.csv to see what
     # the brightness values should be
+def test_assert_brightness():
+
+    num_secondary_bodies = 1
+
+    input_file = os.path.join(DATADIR, "reflected_light_example.csv")
+
+    data_table = read_input.read_file(input_file)
+
+    brightness_values = data_table["brightness"].value
+    assert 'brightness' in data_table.columns, "Brightness column does not exist"
+    print("The assert works!")
+    print (brightness_values)
+    x = "welcome"
+
+    #if condition returns False, AssertionError is raised:
+    assert x != "hello", "This is meant to say welcome"
 
 
 def test_compute_posteriors():
@@ -112,5 +128,6 @@ def test_compute_posteriors():
 
 if __name__ == "__main__":
     # test_brightness_calculation()
-    test_read_input_with_brightness()
+    #test_read_input_with_brightness()
+    test_assert_brightness()
     # test_compute_posteriors()
