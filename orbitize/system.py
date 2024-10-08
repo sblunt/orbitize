@@ -98,9 +98,14 @@ class System(object):
         # List of index arrays corresponding to each rv for each body
         self.rv = []
 
+        # index arrays corresponding to brightness for each body
+        self.brightness = []
+
         self.fit_astrometry = True
         radec_indices = np.where(self.data_table["quant_type"] == "radec")
         seppa_indices = np.where(self.data_table["quant_type"] == "seppa")
+
+        brightness_indices = np.where(~np.isnan(self.data_table["brightness"]))
 
         if len(radec_indices[0]) == 0 and len(seppa_indices[0]) == 0:
             self.fit_astrometry = False
@@ -140,6 +145,7 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
             self.rv.append(np.intersect1d(self.body_indices[body_num], rv_indices))
+            self.brightness.append(np.intersect1d(self.body_indices[body_num], brightness_indices))
 
         # we should track the influence of the planet(s) on each other/the star if:
         # we are not fitting massless planets and
@@ -301,6 +307,7 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
+
 
     def save(self, hf):
         """

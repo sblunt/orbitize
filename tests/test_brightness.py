@@ -120,16 +120,15 @@ def test_compute_posteriors():
     ax[1].axis('equal')
     plt.savefig('visual4farrah.png')
 
-    # model = test_system.compute_model(params_arr)
+    model = test_system.compute_model(params_arr)
     # print(model)
 
-    # test_mcmc = sampler.MCMC(test_system, 1, 50, num_threads=1)
+    test_mcmc = sampler.MCMC(test_system, 1, 50, num_threads=1)
 
-    # test_mcmc.run_sampler(10)
-
+    test_mcmc.run_sampler(10)
 
 if __name__ == "__main__":
     # test_brightness_calculation()
     #test_read_input_with_brightness()
-    test_assert_brightness()
-    # test_compute_posteriors()
+    # test_assert_brightness()
+    test_compute_posteriors()
