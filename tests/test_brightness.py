@@ -6,6 +6,7 @@ from orbitize import system, sampler
 from orbitize import DATADIR, read_input
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -32,7 +33,7 @@ def test_brightness_calculation():
             0.3,
             np.radians(89),
             np.radians(21),
-            np.radians(31),
+            np.radians(70),
             0.0,  
             51.5,
             1.75,
@@ -45,7 +46,7 @@ def test_brightness_calculation():
     plt.scatter(times, brightness)
     plt.xlabel("Time [dy]", fontsize=18)
     plt.ylabel("Brightness", fontsize=18)
-    plt.savefig("Test_brightness.png")
+    plt.savefig("Test_brightness2.png")
 
 
 def test_read_input_with_brightness():
@@ -74,13 +75,20 @@ def test_assert_brightness():
 
     brightness_values = data_table["brightness"].value
     assert 'brightness' in data_table.columns, "Brightness column does not exist"
-    print("The assert works!")
-    print (brightness_values)
-    x = "welcome"
+    #print("The assert works!")
+    #print (brightness_values)
+    
 
-    #if condition returns False, AssertionError is raised:
-    assert x != "hello", "This is meant to say welcome"
+def test_assert_nan():
+    num_secondary_bodies = 1
 
+    input_file = os.path.join(DATADIR, "reflected_light_example.csv")
+
+    data_table = read_input.read_file(input_file)
+
+    brightness_values = data_table["brightness"].value
+    assert pd.isna(data_table["brightness"][4]), "This is supposed to say NAN"
+    print(brightness_values)
 
 def test_compute_posteriors():
 
@@ -127,7 +135,8 @@ def test_compute_posteriors():
 
 
 if __name__ == "__main__":
-    # test_brightness_calculation()
+    #test_brightness_calculation()
     #test_read_input_with_brightness()
-    test_assert_brightness()
+    #test_assert_brightness()
+    test_assert_nan()
     # test_compute_posteriors()
