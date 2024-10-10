@@ -18,9 +18,9 @@ params_arr = np.array(
     [
         10.0,  # sma
         0.9,  # ecc
-        np.radians(30),  # inc
+        np.radians(90),  # inc
         np.radians(60),  # aop
-        np.radians(120),  # pan
+        np.radians(90),  # pan
         0.0,  # tau
         plx,
         system_mass,
