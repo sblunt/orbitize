@@ -55,7 +55,7 @@ def test_read_input_with_brightness():
 
     num_secondary_bodies = 1
 
-    input_file = os.path.join(DATADIR, "reflected_light_example.csv")
+    input_file = os.path.join(DATADIR, "test_orbital_data.csv")
 
     data_table = read_input.read_file(input_file)
 
@@ -96,7 +96,7 @@ def test_compute_posteriors():
 
     num_secondary_bodies = 1
 
-    input_file = os.path.join(DATADIR, "GJ504.csv")
+    input_file = os.path.join(DATADIR, "orbital_data_with_id.csv")
     data_table = read_input.read_file(input_file)
 
     system_mass = 1.47
