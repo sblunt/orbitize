@@ -4,7 +4,7 @@ import orbitize
 from orbitize import driver
 import multiprocessing as mp
 
-filename = "{}/GJ504.csv".format(orbitize.DATADIR)
+filename = "{}/simulated_ra_dec_data.csv".format(orbitize.DATADIR)
 
 # system parameters
 num_secondary_bodies = 1
@@ -33,8 +33,19 @@ my_driver = driver.Driver(
         "num_threads": num_threads,
     },
 )
-total_orbits = 6000  # number of steps x number of walkers (at lowest temperature)
-burn_steps = 10  # steps to burn in per walker
-thin = 2  # only save every 2nd step
+if __name__ == '__main__':
 
-my_driver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+    total_orbits = 6000  # number of steps x number of walkers (at lowest temperature)
+    burn_steps = 10  # steps to burn in per walker
+    thin = 2  # only save every 2nd step
+
+    my_driver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+
+
+if my_driver.sampler.results is not None:
+    print("Sampler results are available.")
+    print("Number of orbits:", len(my_driver.sampler.results.post))
+else:
+    print("No sampler results available. Sampler may not have run correctly.")
+
+
