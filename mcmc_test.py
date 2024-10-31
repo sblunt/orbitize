@@ -42,10 +42,22 @@ if __name__ == '__main__':
     my_driver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
 
 
+try:
+    my_driver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+    print("Sampler ran successfully.")
+except Exception as e:
+    print(f"Error during sampling: {e}")
+
 if my_driver.sampler.results is not None:
     print("Sampler results are available.")
-    print("Number of orbits:", len(my_driver.sampler.results.post))
+    print("Results attributes:", dir(my_driver.sampler.results))
+    
+    if my_driver.sampler.results.post is not None:
+        print("Posterior samples found.")
+    else:
+        print("No posteriors generated; `post` is None.")
 else:
-    print("No sampler results available. Sampler may not have run correctly.")
+    print("No sampler results available.")
+
 
 
