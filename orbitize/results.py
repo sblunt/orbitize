@@ -45,6 +45,8 @@ class Results(object):
         self.lnlike = lnlike
         self.curr_pos = curr_pos
         self.version_number = version_number
+        self.ln_evidence = None
+        self.ln_evidence_err = None
 
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
@@ -114,6 +116,12 @@ class Results(object):
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['version_number'] = self.version_number
 
+        if self.ln_evidence is not None:
+            hf.attrs['ln_evidence'] = self.ln_evidence
+
+        if self.ln_evidence_err is not None:
+            hf.attrs['ln_evidence_err'] = self.ln_evidence_err
+
         # Now add post and lnlike from the results object as datasets
         hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
@@ -147,19 +155,18 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = str(hf.attrs['sampler_name'])
-        try:
+        if 'version_number' in hf.attrs:
             version_number = str(hf.attrs['version_number'])
-        except KeyError:
+        else:
             version_number = "<= 1.13"
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
 
-
-        try:
+        if 'num_secondary_bodies' in hf.attrs:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
-        except KeyError:
+        else:
             # old, has to be single planet fit
-            num_secondary_bodies = 1  
+            num_secondary_bodies = 1
 
         try:
             data_table = table.Table(np.array(hf.get('data')))

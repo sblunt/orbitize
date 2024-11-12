@@ -16,3 +16,4 @@ sphinx
 docutils<0.17
 rebound
 dynesty
+pymultinest
