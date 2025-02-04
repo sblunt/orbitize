@@ -173,7 +173,7 @@ def plot_orbits(
     show_colorbar=True,
     cmap=cmap,
     sep_pa_color="lightgrey",
-    sep_pa_end_year=2025.0,
+    sep_pa_end_year=1875.0,
     cbar_param="Epoch [year]",
     mod180=False,
     rv_time_series=False,
@@ -1077,7 +1077,7 @@ def plot_residuals(
     num_orbits_to_plot=100,
     num_epochs_to_plot=100,
     sep_pa_color="lightgrey",
-    sep_pa_end_year=2025.0,
+    sep_pa_end_year=1925.0,
     cbar_param="Epoch [year]",
     mod180=False,
 ):

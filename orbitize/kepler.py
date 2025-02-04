@@ -58,7 +58,7 @@ def times2trueanom_and_eccanom(
     use_gpu=False,
 ):
 
-    print("hi Farrah!!")
+    
 
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
