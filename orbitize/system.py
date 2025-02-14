@@ -105,7 +105,7 @@ class System(object):
         radec_indices = np.where(self.data_table["quant_type"] == "radec")
         seppa_indices = np.where(self.data_table["quant_type"] == "seppa")
 
-        brightness_indices = np.where(~np.isnan(self.data_table["brightness"]))
+        brightness_indices = np.where(self.data_table["quant_type"] == "brightness")
 
         if len(radec_indices[0]) == 0 and len(seppa_indices[0]) == 0:
             self.fit_astrometry = False
@@ -387,6 +387,7 @@ class System(object):
         dec_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
 
         vz = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+        brightness_out = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
 
         # mass/mtot used to compute each Keplerian orbit will be needed later to compute perturbations
         if self.track_planet_perturbs:
@@ -510,11 +511,13 @@ class System(object):
                     raoff = np.array([raoff])
                     decoff = np.array([decoff])
                     vz_i = np.array([vz_i])
+                    brightness_out = np.array([brightness])
 
                 # add Keplerian ra/deoff for this body to storage arrays
                 ra_kepler[:, body_num, :] = np.reshape(raoff, (n_epochs, n_orbits))
                 dec_kepler[:, body_num, :] = np.reshape(decoff, (n_epochs, n_orbits))
                 vz[:, body_num, :] = np.reshape(vz_i, (n_epochs, n_orbits))
+                brightness_out[:, body_num, :] = np.reshape(brightness, (n_epochs, n_orbits))
 
                 # vz_i is the ith companion radial velocity
                 if self.fit_secondary_mass:
@@ -586,7 +589,7 @@ class System(object):
             else:
                 return raoff, deoff, vz
         else:
-            return raoff, deoff, vz, brightness
+            return raoff, deoff, vz, brightness_out
 
     def compute_model(self, params_arr, use_rebound=False):
         """
