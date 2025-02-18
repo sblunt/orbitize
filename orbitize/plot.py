@@ -1254,6 +1254,349 @@ def plot_period_ratios(results, num_objects, colors):
 
     return ratio_fig
 
+
+def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
+                num_orbits_to_plot=100, num_epochs_to_plot=100,
+                square_plot=True, cmap_list = None, nbody_solver=True,
+                sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
+                cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
+                plot_errorbars=True, figure=None):
+    """
+    Plots one orbital period for a select number of fitted orbits
+    for a given object, with line segments colored according to time
+
+    Args:
+        num_objects (array): the total number of planets to plot
+        start_mjd (float): MJD in which to start plotting orbits (default: 51544,
+            the year 2000)
+        num_orbits_to_plot (int): number of orbits to plot (default: 100)
+        num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
+        square_plot (Boolean): Aspect ratio is always equal, but if
+            square_plot is True (default), then the axes will be square,
+            otherwise, white space padding is used
+        cmap_list (matplotlib.cm.ColorMap): array of color maps to use for making orbit tracks must be
+            the same length as number of objects
+            (default: modified Purples_r)
+        nbody_solver (boolean): Keyword to determine if n-body solver is used to compute orbits (default: False)
+        sep_pa_color (string): any valid matplotlib color string, used to set the
+            color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
+        sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
+            tracks in the Sep/PA panels (default: 2025.0).
+        cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
+            'pan1', 'tau1', 'plx. Number can be switched out. Default is Epoch [year].
+        mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
+            arcs with PAs that cross 360 deg during observations (default: False)
+        rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting and want to
+            display time series, set to True.
+        plot_errorbars (Boolean): set to True by default. Plots error bars of measurements
+        figure (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+            Most users will not need this keyword. 
+
+    Return:
+        ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
+
+
+    (written): Henry Ngo, Sarah Blunt, 2018
+    Additions by Malena Rice, 2019
+
+    """
+    planets = ['HR8799e', 'HR8799d', 'HR8799c', 'HR8799b']
+    sep_pa_figures = []
+
+    for ind in range(num_objects):
+        object_to_plot = int(ind +1)
+        planet_name = planets[ind]
+        cmap = cmap_list[ind]
+
+        if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
+            raise ValueError('start_mjd keyword date must be less than sep_pa_end_year keyword date.')
+
+        if object_to_plot > results.num_secondary_bodies:
+            raise ValueError("Only {0} secondary bodies being fit. Requested to plot body {1} which is out of range".format(results.num_secondary_bodies, object_to_plot))
+
+        if object_to_plot == 0:
+            raise ValueError("Plotting the primary's orbit is currently unsupported. Stay tuned.")
+
+        if rv_time_series and 'm0' not in results.labels:
+            rv_time_series = False
+
+            warnings.warn("It seems that the stellar and companion mass "
+                        "have not been fitted separately. Setting "
+                        "rv_time_series=True is therefore not possible "
+                        "so the argument is set to False instead.")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', ErfaWarning)
+
+            data = results.data[results.data['object'] == object_to_plot]
+            possible_cbar_params = [
+                'sma',
+                'ecc',
+                'inc',
+                'aop'
+                'pan',
+                'tau',
+                'plx'
+            ]
+
+            if cbar_param == 'Epoch [year]':
+                pass
+            elif cbar_param[0:3] in possible_cbar_params:
+                index = results.param_idx[cbar_param]
+            else:
+                raise Exception(
+                    "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
+                )
+            # Select random indices for plotted orbit
+            num_orbits = len(results.post[:, 0])
+            if num_orbits_to_plot > num_orbits:
+                num_orbits_to_plot = num_orbits
+            choose = np.random.randint(0, high=num_orbits, size=num_orbits_to_plot)
+
+            # Get posteriors from random indices
+            standard_post = []
+            if results.sampler_name == 'MCMC':
+                # Convert the randomly chosen posteriors to standard keplerian set
+                for i in np.arange(num_orbits_to_plot):
+                    orb_ind = choose[i]
+                    param_set = np.copy(results.post[orb_ind])
+                    standard_post.append(results.basis.to_standard_basis(param_set))
+            else: # For OFTI, posteriors are already converted
+                for i in np.arange(num_orbits_to_plot):
+                    orb_ind = choose[i]
+                    standard_post.append(results.post[orb_ind])
+
+            standard_post = np.array(standard_post)
+
+            # sma = standard_post[:, results.standard_param_idx['sma{}'.format(object_to_plot)]]
+            # ecc = standard_post[:, results.standard_param_idx['ecc{}'.format(object_to_plot)]]
+            # inc = standard_post[:, results.standard_param_idx['inc{}'.format(object_to_plot)]]
+            # aop = standard_post[:, results.standard_param_idx['aop{}'.format(object_to_plot)]]
+            # pan = standard_post[:, results.standard_param_idx['pan{}'.format(object_to_plot)]]
+            # tau = standard_post[:, results.standard_param_idx['tau{}'.format(object_to_plot)]]
+            # plx = standard_post[:, results.standard_param_idx['plx']]
+
+            # Then, get the other parameters
+            if 'mtot' in results.labels:
+                mtot = standard_post[:, results.standard_param_idx['mtot']]
+            elif 'm0' in results.labels:
+                m0 = standard_post[:, results.standard_param_idx['m0']]
+                m1 = standard_post[:, results.standard_param_idx['m{}'.format(object_to_plot)]]
+                mtot = m0 + m1
+
+            raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+            deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+            epochs = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+
+            # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
+            # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
+            for i in np.arange(num_orbits_to_plot):
+                # Compute period (from Kepler's third law) based on the object being plotted
+                sma = standard_post[:, results.standard_param_idx['sma{}'.format(object_to_plot)]]
+                period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(mtot*u.Msun)))
+                period = period.to(u.day).value
+
+                # Create an epochs array to plot num_epochs_to_plot points over one orbital period
+                epochs[i, :] = np.linspace(start_mjd, float(
+                    start_mjd+period[i]), num_epochs_to_plot)
+
+                # Calculate ra/dec offsets for all epochs of this orbit
+
+                #### HERE SHOULD BE THE MULTI PLANET SOLVER
+
+                raoff0, deoff0, _ = results.system.compute_all_orbits(
+                    standard_post[i, :], epochs[i, :], comp_rebound=nbody_solver
+                )
+                
+                # raoff0, deoff0, _ = kepler.calc_orbit(
+                #     epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
+                #     tau[i], plx[i], mtot[i], tau_ref_epoch=results.tau_ref_epoch
+                # )
+                raoff[i, :] = raoff0[:,object_to_plot,:]
+                deoff[i, :] = deoff0[:,object_to_plot,:]
+
+            # Create a linearly increasing colormap for our range of epochs
+            if cbar_param != 'Epoch [year]':
+                cbar_param_arr = results.post[:, index]
+                norm = mpl.colors.Normalize(vmin=np.min(cbar_param_arr),
+                                            vmax=np.max(cbar_param_arr))
+                norm_yr = mpl.colors.Normalize(vmin=np.min(
+                    cbar_param_arr), vmax=np.max(cbar_param_arr))
+
+            elif cbar_param == 'Epoch [year]':
+
+                min_cbar_date = np.min(epochs)
+                max_cbar_date = np.max(epochs[-1, :])
+
+                # if we're plotting orbital periods greater than 1,000 yrs, limit the colorbar dynamic range
+                if max_cbar_date - min_cbar_date > 1000 * 365.25:
+                    max_cbar_date = min_cbar_date + 1000 * 365.25
+
+                norm = mpl.colors.Normalize(vmin=min_cbar_date, vmax=max_cbar_date)
+
+                norm_yr = mpl.colors.Normalize(
+                    vmin=Time(min_cbar_date, format='mjd').decimalyear,
+                    vmax=Time(max_cbar_date, format='mjd').decimalyear
+                )
+
+            # Create figure for orbit plots
+            if figure is None:
+                fig = plt.figure(figsize=(6, 6))
+                ax = fig.add_subplot()
+
+            else:
+                fig = plt.figure(figure)
+                ax = mpl.axes.Axes(fig, (1,1,1,1))
+            
+            astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
+            astr_epochs=data['epoch'][astr_inds]
+
+            radec_inds = np.where(data['quant_type'] == 'radec')
+            seppa_inds = np.where(data['quant_type'] == 'seppa')
+
+            # transform RA/Dec points to Sep/PA
+            sep_data = np.copy(data['quant1'])
+            sep_err = np.copy(data['quant1_err'])
+            pa_data = np.copy(data['quant2'])
+            pa_err = np.copy(data['quant2_err'])
+
+            if len(radec_inds[0] > 0):
+
+                sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
+                    data['quant1'][radec_inds], data['quant2'][radec_inds]
+                )
+
+                num_radec_pts = len(radec_inds[0])
+                sep_err_from_ra_data = np.empty(num_radec_pts)
+                pa_err_from_dec_data = np.empty(num_radec_pts)
+                for j in np.arange(num_radec_pts):
+
+                    sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = orbitize.system.transform_errors(
+                        np.array(data['quant1'][radec_inds][j]), np.array(data['quant2'][radec_inds][j]), 
+                        np.array(data['quant1_err'][radec_inds][j]), np.array(data['quant2_err'][radec_inds][j]), 
+                        np.array(data['quant12_corr'][radec_inds][j]), orbitize.system.radec2seppa
+                    )
+
+                sep_data[radec_inds] = sep_from_ra_data
+                sep_err[radec_inds] = sep_err_from_ra_data
+
+                pa_data[radec_inds] = pa_from_dec_data
+                pa_err[radec_inds] = pa_err_from_dec_data
+
+            # Transform Sep/PA points to RA/Dec
+            ra_data = np.copy(data['quant1'])
+            ra_err = np.copy(data['quant1_err'])
+            dec_data = np.copy(data['quant2'])
+            dec_err = np.copy(data['quant2_err'])
+
+            if len(seppa_inds[0] > 0):
+
+                ra_from_seppa_data, dec_from_seppa_data = orbitize.system.seppa2radec(
+                    data['quant1'][seppa_inds], data['quant2'][seppa_inds]
+                )
+
+                num_seppa_pts = len(seppa_inds[0])
+                ra_err_from_seppa_data = np.empty(num_seppa_pts)
+                dec_err_from_seppa_data = np.empty(num_seppa_pts)
+                for j in np.arange(num_seppa_pts):
+
+                    ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], _ = orbitize.system.transform_errors(
+                        np.array(data['quant1'][seppa_inds][j]), np.array(data['quant2'][seppa_inds][j]), 
+                        np.array(data['quant1_err'][seppa_inds][j]), np.array(data['quant2_err'][seppa_inds][j]), 
+                        np.array(data['quant12_corr'][seppa_inds][j]), orbitize.system.seppa2radec
+                    )
+
+                ra_data[seppa_inds] = ra_from_seppa_data
+                ra_err[seppa_inds] = ra_err_from_seppa_data
+
+                dec_data[seppa_inds] = dec_from_seppa_data
+                dec_err[seppa_inds] = dec_err_from_seppa_data
+
+            # Plot each orbit 
+            for i in np.arange(num_orbits_to_plot):
+                plt.plot(raoff[i, :], deoff[i, :], c= cmap(0.5), linewidth=0.5, alpha=0.2)
+
+            # modify the axes
+            if square_plot:
+                adjustable_param = 'datalim'
+            else:
+                adjustable_param = 'box'
+            plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr=dec_err, c=cmap(0.9),  linestyle='', marker='o',ms=5)
+            ax.set_aspect('equal', adjustable=adjustable_param)
+            ax.set_xlabel('$\\Delta$RA [mas]')
+            ax.set_ylabel('$\\Delta$Dec [mas]')
+            ax.locator_params(axis='x', nbins=6)
+            ax.locator_params(axis='y', nbins=6)
+            ax.invert_xaxis()  # To go to a left-handed coordinate system
+            plt.tight_layout()
+
+
+            # Create new figure subplot with a sep/PA plot for each planet
+            sep_pa_fig, (sep_ax, pa_ax) = plt.subplots(2,1, figsize = (5,10))
+
+            # plot sep/PA 
+            pa_ax.set_ylabel('PA [$^{{\\circ}}$]')
+            sep_ax.set_ylabel('$\\rho$ [mas]')
+            pa_ax.set_xlabel('Epoch')
+            sep_ax.set_title(planet_name)
+
+
+            epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
+
+            for i in np.arange(num_orbits_to_plot):
+
+                epochs_seppa[i, :] = np.linspace(
+                    start_mjd,
+                    Time(sep_pa_end_year, format='decimalyear').mjd,
+                    num_epochs_to_plot
+                )
+
+                # Calculate ra/dec offsets for all epochs of this orbit
+                if rv_time_series:
+                    raoff0, deoff0, _ = results.system.compute_all_orbits(
+                        standard_post[i, :], epochs_seppa[i, :], comp_rebound=nbody_solver
+                    )
+        
+                    raoff[i, :] = raoff0[:,object_to_plot,:]
+                    deoff[i, :] = deoff0[:,object_to_plot,:]
+                else:
+                    raoff0, deoff0, _ = results.system.compute_all_orbits(
+                        standard_post[i, :], epochs_seppa[i, :], comp_rebound=nbody_solver
+                    )
+        
+                    raoff[i, :] = raoff0[:,object_to_plot,:]
+                    deoff[i, :] = deoff0[:,object_to_plot,:]
+
+                yr_epochs = Time(epochs_seppa[i, :], format='mjd').decimalyear
+
+                seps, pas = orbitize.system.radec2seppa(raoff[i, :], deoff[i, :], mod180=mod180)
+
+                plt.sca(sep_ax)
+                plt.plot(yr_epochs, seps, color=sep_pa_color, zorder=1)
+
+                plt.sca(pa_ax)
+                plt.plot(yr_epochs, pas, color=sep_pa_color, zorder=1)
+
+            # Plot sep/pa data points
+            if plot_errorbars:
+                serr = sep_err
+                perr = pa_err
+            else:
+                yerr = None
+                perr = None
+
+            plt.sca(sep_ax)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,sep_data,yerr=serr, linestyle='',marker='o',ms=5,c=cmap(0.5),zorder=2, capsize=2)
+            plt.sca(pa_ax)
+            plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr, linestyle='',marker='o',ms=5,c=cmap(0.5),zorder=2, capsize=2)
+
+
+        figure = fig
+        sep_pa_figures.append(sep_pa_fig)
+
+    return fig, sep_pa_figures
+
+
 def plot_chains(file, num_planets, save_dir, which_params=['sma', 'ecc', 'inc'], walkers=1000, 
                 colors=[mpl.cm.Purples, mpl.cm.Blues, mpl.cm.Greens, mpl.cm.Oranges],
                 ):
