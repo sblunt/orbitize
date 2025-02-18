@@ -1412,8 +1412,8 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
                 #     epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
                 #     tau[i], plx[i], mtot[i], tau_ref_epoch=results.tau_ref_epoch
                 # )
-                raoff[i, :] = raoff0[:,object_to_plot,:]
-                deoff[i, :] = deoff0[:,object_to_plot,:]
+                raoff[i, :] = raoff0[:,object_to_plot]
+                deoff[i, :] = deoff0[:,object_to_plot]
 
             # Create a linearly increasing colormap for our range of epochs
             if cbar_param != 'Epoch [year]':
