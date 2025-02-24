@@ -43,6 +43,13 @@ if __name__ == '__main__':
 
     my_driver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
 
+    corner_plot_fig = (
+    my_driver.sampler.results.plot_corner()
+    )  # Creates a corner plot and returns Figure object
+    corner_plot_fig.savefig(
+    "my_corner_plot.png"
+    )  # This is matplotlib.figure.Figure.savefig()
+
     epochs = my_driver.system.data_table["epoch"]
 
     orbit_plot_fig = my_driver.sampler.results.plot_orbits(
