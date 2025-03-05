@@ -272,6 +272,12 @@ class Results(object):
         self.param_idx = self.system.param_idx
         self.standard_param_idx = self.basis.standard_basis_idx
 
+        if 'ln_evidence' in hf.attrs:
+            self.ln_evidence = hf.attrs['ln_evidence']
+
+        if 'ln_evidence_err' in hf.attrs:
+            self.ln_evidence_err = hf.attrs['ln_evidence_err']
+
         try:
             curr_pos = np.array(hf.get('curr_pos'))
         except KeyError:
