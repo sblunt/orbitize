@@ -197,7 +197,7 @@ class Results(object):
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
 
-            tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
+            tmpfile = 'thisisprettyhackysorrylmao'
             with open(tmpfile, 'w+') as f:
                 try:
                     for l in np.array(iad_data):
@@ -218,6 +218,8 @@ class Results(object):
                 renormalize_errors,
             )
 
+            os.system('rm {}'.format(tmpfile))
+
             # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
@@ -230,14 +232,14 @@ class Results(object):
             gaiagost_data = hf.get("Gaia_GOST")
             if gaiagost_data is not None:
                 
-                tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
+                tmpfile = 'thisisprettyhackysorrylmao'
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
                 gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
-
+                os.system('rm {}'.format(tmpfile))
         else:
             hipparcos_IAD = None
             gaia = None
@@ -312,15 +314,33 @@ class Results(object):
         Prints median and 68% credible intervals alongside fitting labels
         """
 
+        unit_dict = {
+            'sma1':'au',
+            'ecc1':' ',
+            'inc1':'deg',
+            'aop1':'deg',
+            'pan1':'deg',
+            'tau1':' ',
+            'plx':'mas',
+            'mtot':'Msun'
+        }
+
+        convert_deg = 180.0/np.pi
+
         print('\nparam: med [68% CI]')
         print('-------------------\n')
         for i, l in enumerate(self.system.labels):
+            if l in ['inc1', 'aop1', 'pan1']:
+                conversion = convert_deg
+            else:
+                conversion = 1.0
             print(
-                '{}: {:.3f} [{:.3f} - {:.3f}]'.format(
+                '{}: {:.3f} [{:.3f} - {:.3f}] {}'.format(
                     l, 
-                    np.median(self.post[:,i]),
-                    np.quantile(self.post[:,i], 0.16),
-                    np.quantile(self.post[:,i], 0.84)
+                    np.median(self.post[:,i]*conversion),
+                    np.quantile(self.post[:,i]*conversion, 0.16),
+                    np.quantile(self.post[:,i]*conversion, 0.84),
+                    unit_dict[l]
                 )
             )
         print('-------------------\n')
