@@ -197,7 +197,7 @@ class Results(object):
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
 
-            tmpfile = 'thisisprettyhackysorrylmao'
+            tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
             with open(tmpfile, 'w+') as f:
                 try:
                     for l in np.array(iad_data):
@@ -218,8 +218,6 @@ class Results(object):
                 renormalize_errors,
             )
 
-            os.system('rm {}'.format(tmpfile))
-
             # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
@@ -232,14 +230,14 @@ class Results(object):
             gaiagost_data = hf.get("Gaia_GOST")
             if gaiagost_data is not None:
                 
-                tmpfile = 'thisisprettyhackysorrylmao'
+                tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
                 gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
-                os.system('rm {}'.format(tmpfile))
+
         else:
             hipparcos_IAD = None
             gaia = None
