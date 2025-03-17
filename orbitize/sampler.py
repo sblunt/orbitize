@@ -1,26 +1,23 @@
-import numpy as np
-import astropy.units as u
-import astropy.constants as consts
 import abc
+import multiprocessing as mp
 import time
 import warnings
-from astropy.time import Time
 
+import astropy.units as u
+import astropy.constants as consts
 import dynesty
-
 import emcee
+import matplotlib.pyplot as plt
+import numpy as np
 import ptemcee
-import multiprocessing as mp
 
-from multiprocessing import Pool
+from astropy.time import Time
+from pymultinest.analyse import Analyzer
 
+import orbitize.kepler
 import orbitize.lnlike
 import orbitize.priors
-import orbitize.kepler
-from orbitize import cuda_ext
-
 import orbitize.results
-import matplotlib.pyplot as plt
 
 
 class Sampler(abc.ABC):
@@ -997,7 +994,7 @@ class MCMC(Sampler):
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
-        with Pool(processes=self.num_threads) as pool:
+        with mp.Pool(processes=self.num_threads) as pool:
             if self.use_pt:
                 sampler = ptemcee.Sampler(
                     self.num_walkers,
@@ -1654,7 +1651,10 @@ class MultiNest(Sampler):
         )
 
         analyzer = pymultinest.analyse.Analyzer(
-            n_parameters, outputfiles_basename=output_basename)
+            n_parameters,
+            outputfiles_basename=output_basename,
+            verbose=False,
+        )
 
         sampling_stats = analyzer.get_stats()
         post_samples = analyzer.get_equal_weighted_posterior()
