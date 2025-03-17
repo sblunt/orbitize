@@ -12,7 +12,6 @@ import numpy as np
 import ptemcee
 
 from astropy.time import Time
-from pymultinest.analyse import Analyzer
 
 import orbitize.kepler
 import orbitize.lnlike
