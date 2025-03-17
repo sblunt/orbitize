@@ -9,7 +9,7 @@ filename = "{}/simulated_ra_dec_data.csv".format(orbitize.DATADIR)
 # system parameters
 num_secondary_bodies = 1
 total_mass = 1.75  # [Msol]
-plx = 51.44  # [mas]
+plx = 0.03  # [mas]
 mass_err = 0.05  # [Msol]
 plx_err = 0.12  # [mas]
 
@@ -38,10 +38,17 @@ my_driver = driver.Driver(
 if __name__ == '__main__':
 
     total_orbits = 50000000  # number of steps x number of walkers (at lowest temperature)
-    burn_steps = 10000  # steps to burn in per walker
+    burn_steps = 500000  # steps to burn in per walker
     thin = 10  # only save every 2nd step
 
     my_driver.sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+
+    corner_plot_fig = (
+    my_driver.sampler.results.plot_corner()
+    )  # Creates a corner plot and returns Figure object
+    corner_plot_fig.savefig(
+    "my_corner_plot.png"
+   )     # This is matplotlib.figure.Figure.savefig()
 
     epochs = my_driver.system.data_table["epoch"]
 
@@ -72,5 +79,4 @@ if __name__ == '__main__':
     my_driver.sampler.results.save_results(hdf5_filename)
     loaded_results = results.Results()  # Create blank results object for loading
     loaded_results.load_results(hdf5_filename)
-  
 
