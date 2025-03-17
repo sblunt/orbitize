@@ -16,7 +16,9 @@ class Driver(object):
         input_data: Either a relative path to data file or astropy.table.Table object
             in the orbitize format. See ``orbitize.read_input``
         sampler_str (str): algorithm to use for orbit computation. "MCMC" for
-            Markov Chain Monte Carlo, "OFTI" for Orbits for the Impatient
+            Markov Chain Monte Carlo, "OFTI" for Orbits for the Impatient,
+            "NestedSampler" for nested sampling with Dynesty, or "MultiNest"
+            for nested sampling with (Py)MultiNest.
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
         stellar_or_system_mass (float): mass of the primary star (if fitting for
