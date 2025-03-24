@@ -9,7 +9,7 @@ filename = "{}/simulated_ra_dec_data.csv".format(orbitize.DATADIR)
 # system parameters
 num_secondary_bodies = 1
 total_mass = 1.75  # [Msol]
-plx = 0.03  # [mas]
+plx = 30  # [mas]
 mass_err = 0.05  # [Msol]
 plx_err = 0.12  # [mas]
 
