@@ -12,7 +12,7 @@ pytest
 pandas
 pyerfa
 astroquery
-sphinx
+sphinx>=6
 docutils<0.17
 rebound
 dynesty
