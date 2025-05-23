@@ -73,25 +73,25 @@ def plot_corner(results, param_list=None, **corner_kwargs):
     # Define array of default axis labels (overwritten if user specifies list)
     default_labels = {
 
-        "sma": "$a_{0}$ [au]",
-        "ecc": "$ecc_{0}$",
-        "inc": "$inc_{0}$ [$^\\circ$]",
-        "aop": "$\\omega_{0}$ [$^\\circ$]",
-        "pan": "$\\Omega_{0}$ [$^\\circ$]",
-        "tau": "$\\tau_{0}$",
+        "sma": "$a_{{B}}$ [au]",
+        "ecc": "$ecc$",
+        "inc": "$i$ [$^\\circ$]",
+        "aop": "$\\omega_{{B}}$ [$^\\circ$]",
+        "pan": "$\\Omega$ [$^\\circ$]",
+        "tau": "$\\tau$",
         "tp": "$T_{{\\mathrm{{P}}}}$",
         "plx": "$\\pi$ [mas]",
         "gam": "$\\gamma$ [km/s]",
         "sig": "$\\sigma$ [km/s]",
         "mtot": "$M_T$ [M$_{{\\odot}}$]",
-        "m0": "$M_0$ [M$_{{\\odot}}$]",
-        "m": "$M_{0}$ [M$_{{\\rm Jup}}$]",
-        "pm_ra": "$\\mu_{{\\alpha}}$ [mas/yr]",
+        "m0": "$M_{{a}}$ [M$_{{\\odot}}$]",
+        "m": "$M_{{b}}$ [M$_{{\\odot}}$]",
+        "pm_ra": "$\\mu_{{\\alpha^{{*}}}}$ [mas/yr]",
         "pm_dec": "$\\mu_{{\\delta}}$ [mas/yr]",
         "alpha0": "$\\alpha^{{*}}_{{0}}$ [mas]",
         "delta0": "$\\delta_0$ [mas]",
-        "m": "$M_{0}$ [M$_{{\\rm Jup}}$]",
-        "per": "$P_{0}$ [yr]",
+        # "m": "$M_{0}$ [M$_{{\\rm Jup}}$]",
+        "per": "$P$ [yr]",
         "K": "$K_{0}$ [km/s]",
         "x": "$X_{0}$ [AU]",
         "y": "$Y_{0}$ [AU]",
@@ -129,9 +129,9 @@ def plot_corner(results, param_list=None, **corner_kwargs):
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
     )  # convert angles from rad to deg
-    samples[:, secondary_mass_indices] *= u.solMass.to(
-        u.jupiterMass
-    )  # convert to Jupiter masses for companions
+    # samples[:, secondary_mass_indices] *= u.solMass.to(
+    #     u.jupiterMass
+    # )  # convert to Jupiter masses for companions
 
     if (
         "labels" not in corner_kwargs

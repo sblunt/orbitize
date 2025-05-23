@@ -44,9 +44,8 @@ def chi2_lnlike(
         in log scale, and defines pa chi-sq using complex phase representation.
             log sep chisq = (log sep - log sep_true)^2 / (sep_sigma / sep_true)^2
             pa chisq = 2 * (1 - cos(pa-pa_true))/pa_sigma^2
-i
-    """
 
+    """
     if np.ndim(model) == 3:
         # move M dimension to the primary axis, so that numpy knows to iterate over it
         model = np.rollaxis(model, 2, 0)  # now MxNobsx2 in dimensions
