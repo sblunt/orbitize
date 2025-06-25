@@ -1,10 +1,10 @@
 import os
 
-__version__ = '2.1.3'
+__version__ = "3.1.0"
 
 # set Python env variable to keep track of example data dir
 orbitize_dir = os.path.dirname(__file__)
-DATADIR = os.path.join(orbitize_dir, 'example_data/')
+DATADIR = os.path.join(orbitize_dir, "example_data/")
 
 # Detect a valid CUDA environment
 try:
@@ -18,6 +18,7 @@ except:
 
 try:
     from . import _kepler
+
     cext = True
 except ImportError:
     cext = False

@@ -5,14 +5,21 @@ Test the routines in the orbitize.Results module
 import orbitize
 from orbitize import results, read_input, system, DATADIR, hipparcos, gaia, sampler
 import numpy as np
-import matplotlib.pyplot as plt
 import pytest
 import os
 
-std_labels = ['sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'plx', 'mtot']
+std_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "mtot"]
 std_param_idx = {
-    'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
+    "sma1": 0,
+    "ecc1": 1,
+    "inc1": 2,
+    "aop1": 3,
+    "pan1": 4,
+    "tau1": 5,
+    "plx": 6,
+    "mtot": 7,
 }
+
 
 def test_load_v1_results():
     """
@@ -20,7 +27,7 @@ def test_load_v1_results():
     """
 
     myResults = results.Results()
-    myResults.load_results('{}v1_posterior.hdf5'.format(DATADIR))
+    myResults.load_results("{}v1_posterior.hdf5".format(DATADIR))
 
     n_draws = 100
 
@@ -28,7 +35,8 @@ def test_load_v1_results():
     assert myResults.lnlike.shape == (n_draws,)
     assert myResults.tau_ref_epoch == 0
     assert myResults.labels == std_labels
-    assert myResults.fitting_basis == 'Standard'
+    assert myResults.fitting_basis == "Standard"
+
 
 def simulate_orbit_sampling(n_sim_orbits):
     """
@@ -69,36 +77,33 @@ def simulate_orbit_sampling(n_sim_orbits):
 
 def test_init_and_add_samples(radec_input=False):
     """
-    Tests object creation and add_samples() with some simulated posterior samples
-    Returns results.Results object
+    Tests object creation and add_samples() with some simulated posterior
+    samples, and returns results.Results object
     """
 
     if radec_input:
-        input_file = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
+        input_file = os.path.join(orbitize.DATADIR, "test_val_radec.csv")
     else:
-        input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+        input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
 
     data = read_input.read_file(input_file)
 
     test_system = system.System(1, data, 1, 1)
 
     # Create object
-    results_obj = results.Results(
-        test_system, 
-        sampler_name='testing'
-    )
+    results_obj = results.Results(test_system, sampler_name="testing")
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
     # Test adding samples
-    results_obj.add_samples(sim_post, sim_lnlike)#, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)  # , labels=std_labels)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
     # Test adding more samples
-    results_obj.add_samples(sim_post, sim_lnlike)#, labels=std_labels)
+    results_obj.add_samples(sim_post, sim_lnlike)  # , labels=std_labels)
     # Check shape of results.post
     expected_length = n_orbit_draws1 + n_orbit_draws2
     assert results_obj.post.shape == (expected_length, 8)
@@ -111,16 +116,12 @@ def test_init_and_add_samples(radec_input=False):
 
 @pytest.fixture()
 def results_to_test():
-
-    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
     data = orbitize.read_input.read_file(input_file)
 
     test_system = system.System(1, data, 1, 1)
 
-    results_obj = results.Results(
-        test_system, 
-        sampler_name='testing'
-    )
+    results_obj = results.Results(test_system, sampler_name="testing")
     # Simulate some sample draws, assign random likelihoods
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
@@ -136,6 +137,7 @@ def results_to_test():
     # Return object for testing
     return results_obj
 
+
 def test_results_printing(results_to_test):
     """
     Tests that `results.print_results()` doesn't fail
@@ -145,12 +147,12 @@ def test_results_printing(results_to_test):
 
 
 def test_plot_long_periods(results_to_test):
-
     # make all orbits in the results posterior have absurdly long orbits
-    mtot_idx = results_to_test.param_idx['mtot']
-    results_to_test.post[:,mtot_idx] = 1e-5
+    mtot_idx = results_to_test.param_idx["mtot"]
+    results_to_test.post[:, mtot_idx] = 1e-5
 
     results_to_test.plot_orbits()
+
 
 def test_save_and_load_results(results_to_test, has_lnlike=True):
     """
@@ -161,7 +163,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     results_to_save = results_to_test
     if not has_lnlike:  # manipulate object to remove lnlike (as in OFTI)
         results_to_save.lnlike = None
-    save_filename = 'test_results.h5'
+    save_filename = "test_results.h5"
     # Save to file
     results_to_save.save_results(save_filename)
     # Create new blank results object and load from file
@@ -189,7 +191,7 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
 
     # check that str fields are indeed strs
     # checking just one str entry probably is good enough
-    assert isinstance(loaded_results.data['quant_type'][0], str)
+    assert isinstance(loaded_results.data["quant_type"][0], str)
 
     # Clean up: Remove save file
     os.remove(save_filename)
@@ -203,16 +205,16 @@ def test_plot_corner(results_to_test):
 
     Figure1 = results_to_test.plot_corner()
     assert Figure1 is not None
-    Figure2 = results_to_test.plot_corner(param_list=['sma1', 'ecc1', 'inc1', 'mtot'])
+    Figure2 = results_to_test.plot_corner(param_list=["sma1", "ecc1", "inc1", "mtot"])
     assert Figure2 is not None
 
-    mass_vals = results_to_test.post[:,-1].copy()
+    mass_vals = results_to_test.post[:, -1].copy()
 
     # test that fixing parameters doesn't crash corner plot code
-    results_to_test.post[:,-1] = np.ones(len(results_to_test.post[:,-1]))
+    results_to_test.post[:, -1] = np.ones(len(results_to_test.post[:, -1]))
     Figure3 = results_to_test.plot_corner()
 
-    results_to_test.post[:,-1] = mass_vals
+    results_to_test.post[:, -1] = mass_vals
 
     return Figure1, Figure2, Figure3
 
@@ -222,20 +224,27 @@ def test_plot_orbits(results_to_test):
     Tests plot_orbits() with simulated posterior samples
     """
     Figure1 = results_to_test.plot_orbits(
-        num_orbits_to_plot=1, square_plot=True, show_colorbar=True)
+        num_orbits_to_plot=1, square_plot=True, show_colorbar=True
+    )
     assert Figure1 is not None
     Figure2 = results_to_test.plot_orbits(
-        num_orbits_to_plot=1, square_plot=True, show_colorbar=False)
+        num_orbits_to_plot=1, square_plot=True, show_colorbar=False
+    )
     assert Figure2 is not None
     Figure3 = results_to_test.plot_orbits(
-        num_orbits_to_plot=1, square_plot=False, show_colorbar=True)
+        num_orbits_to_plot=1, square_plot=False, show_colorbar=True
+    )
     assert Figure3 is not None
     Figure4 = results_to_test.plot_orbits(
-        num_orbits_to_plot=1, square_plot=False, show_colorbar=False)
+        num_orbits_to_plot=1, square_plot=False, show_colorbar=False
+    )
     assert Figure4 is not None
-    Figure5 = results_to_test.plot_orbits(num_orbits_to_plot=1, square_plot=False, cbar_param='ecc1')
+    Figure5 = results_to_test.plot_orbits(
+        num_orbits_to_plot=1, square_plot=False, cbar_param="ecc1"
+    )
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
+
 
 def test_save_and_load_hipparcos_only():
     """
@@ -243,32 +252,41 @@ def test_save_and_load_hipparcos_only():
     is saved and loaded properly.
     """
 
-    hip_num = '027321' 
+    hip_num = "027321"
     num_secondary_bodies = 1
-    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
     myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
 
-    input_file = os.path.join(DATADIR, 'betaPic.csv')
+    input_file = os.path.join(DATADIR, "betaPic.csv")
     data_table_with_rvs = read_input.read_file(input_file)
     mySys = system.System(
-        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
-        hipparcos_IAD=myHip, fit_secondary_mass=True
+        1,
+        data_table_with_rvs,
+        1.22,
+        56.95,
+        mass_err=0.08,
+        plx_err=0.26,
+        hipparcos_IAD=myHip,
+        fit_secondary_mass=True,
     )
 
     mySamp = sampler.MCMC(mySys, num_temps=1, num_walkers=50)
     mySamp.run_sampler(1, burn_steps=0)
 
-    save_name = 'test_results.h5'
+    save_name = "test_results.h5"
     mySamp.results.save_results(save_name)
 
     loadedResults = results.Results()
     loadedResults.load_results(save_name)
 
-    assert np.all(loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs)
+    assert np.all(
+        loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs
+    )
     assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
 
-    os.system('rm {}'.format(save_name))
+    os.system("rm {}".format(save_name))
+
 
 def test_save_and_load_gaia_and_hipparcos():
     """
@@ -276,38 +294,47 @@ def test_save_and_load_gaia_and_hipparcos():
     is saved and loaded properly.
     """
 
-    hip_num = '027321' 
+    hip_num = "027321"
     gaia_num = 4792774797545105664
     num_secondary_bodies = 1
-    path_to_iad_file = '{}HIP{}.d'.format(DATADIR, hip_num)
+    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
     myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
     myGaia = gaia.GaiaLogProb(gaia_num, myHip)
 
-    input_file = os.path.join(DATADIR, 'betaPic.csv')
+    input_file = os.path.join(DATADIR, "betaPic.csv")
     data_table_with_rvs = read_input.read_file(input_file)
     mySys = system.System(
-        1, data_table_with_rvs, 1.22, 56.95, mass_err=0.08, plx_err=0.26, 
-        hipparcos_IAD=myHip, gaia=myGaia, fit_secondary_mass=True
+        1,
+        data_table_with_rvs,
+        1.22,
+        56.95,
+        mass_err=0.08,
+        plx_err=0.26,
+        hipparcos_IAD=myHip,
+        gaia=myGaia,
+        fit_secondary_mass=True,
     )
 
     mySamp = sampler.MCMC(mySys, num_temps=1, num_walkers=50)
     mySamp.run_sampler(1, burn_steps=0)
 
-    save_name = 'test_results.h5'
+    save_name = "test_results.h5"
     mySamp.results.save_results(save_name)
 
     loadedResults = results.Results()
     loadedResults.load_results(save_name)
 
-    assert np.all(loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs)
+    assert np.all(
+        loadedResults.system.hipparcos_IAD.epochs == mySys.hipparcos_IAD.epochs
+    )
     assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
     assert np.all(loadedResults.system.gaia.ra == mySys.gaia.ra)
 
-    os.system('rm {}'.format(save_name))
+    os.system("rm {}".format(save_name))
+
 
 if __name__ == "__main__":
-    
     test_load_v1_results()
     test_save_and_load_hipparcos_only()
     test_save_and_load_gaia_and_hipparcos()
@@ -317,22 +344,24 @@ if __name__ == "__main__":
     test_results_printing(test_results)
     test_plot_long_periods(test_results)
     test_results_radec = test_init_and_add_samples(radec_input=True)
-    
+
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
     test_save_and_load_results(test_results, has_lnlike=False)
-    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(test_results)
+    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(
+        test_results
+    )
     test_orbit_figs = test_plot_orbits(test_results)
     test_orbit_figs = test_plot_orbits(test_results_radec)
-    test_corner_fig1.savefig('test_corner1.png');
-    test_corner_fig2.savefig('test_corner2.png')
-    test_corner_fig3.savefig('test_corner3.png')
-    test_orbit_figs[0].savefig('test_orbit1.png')
-    test_orbit_figs[1].savefig('test_orbit2.png')
-    test_orbit_figs[2].savefig('test_orbit3.png')
-    test_orbit_figs[3].savefig('test_orbit4.png')
-    test_orbit_figs[4].savefig('test_orbit5.png')
+    test_corner_fig1.savefig("test_corner1.png")
+    test_corner_fig2.savefig("test_corner2.png")
+    test_corner_fig3.savefig("test_corner3.png")
+    test_orbit_figs[0].savefig("test_orbit1.png")
+    test_orbit_figs[1].savefig("test_orbit2.png")
+    test_orbit_figs[2].savefig("test_orbit3.png")
+    test_orbit_figs[3].savefig("test_orbit4.png")
+    test_orbit_figs[4].savefig("test_orbit5.png")
 
     # clean up
-    os.system('rm test_*.png')
+    os.system("rm test_*.png")

@@ -197,7 +197,7 @@ class Results(object):
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
 
-            tmpfile = 'thisisprettyhackysorrylmao'
+            tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
             with open(tmpfile, 'w+') as f:
                 try:
                     for l in np.array(iad_data):
@@ -211,19 +211,37 @@ class Results(object):
             renormalize_errors = bool(hf.attrs['renormalize_errors'])
 
             hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
-                tmpfile, hip_num, alphadec0_epoch, renormalize_errors
+                tmpfile,
+                hip_num,
+                num_secondary_bodies,
+                alphadec0_epoch,
+                renormalize_errors,
             )
 
-            os.system('rm {}'.format(tmpfile))
+            # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
                 gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
             except KeyError:
                 gaia = None
+
+            # alternatively load HGCA. Note requires hipparcos_IAD attribute
+            gaiagost_data = hf.get("Gaia_GOST")
+            if gaiagost_data is not None:
+                
+                tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
+                tmptbl = table.Table(np.array(gaiagost_data))
+                tmptbl.write(tmpfile, format="ascii", overwrite=True)
+
+                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
+                hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
+
+
         else:
             hipparcos_IAD = None
             gaia = None
+
 
         try:
             fitting_basis = str(hf.attrs['fitting_basis'])
@@ -320,7 +338,7 @@ class Results(object):
         cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
         plot_astrometry=True,
         plot_astrometry_insts=False,
-        plot_errorbars=True, fig=None
+        fig=None
     ):
         """
         Wrapper for orbitize.plot.plot_orbits
@@ -335,7 +353,7 @@ class Results(object):
             cbar_param=cbar_param, mod180=mod180, rv_time_series=rv_time_series, 
             plot_astrometry=plot_astrometry,
             plot_astrometry_insts=plot_astrometry_insts, 
-            plot_errorbars=plot_errorbars, fig=fig
+            fig=fig
         )
 
     def chop_chains(self, burn, num_walkers=1000, trim=0):
@@ -396,5 +414,27 @@ class Results(object):
         print('Chains successfully chopped. Results object updated.')
         return chopped_results
 
+    def plot_propermotion(self,
+                          # system,
+                          object_to_plot=1, start_mjd=44239.,
+                          periods_to_plot=1, end_year=2030.0, alpha = 0.05,
+                          num_orbits_to_plot=100, num_epochs_to_plot=100,
+                          show_colorbar=True,
+                          cmap=orbitize.plot.cmap,
+                          cbar_param=None,
+                    # fig=None
+        ):
+        """
+        Wrapper for orbitize.plot.plot_propermotion
+        """
 
-
+        return orbitize.plot.plot_propermotion(self, self.system,
+                        object_to_plot=object_to_plot, start_mjd=start_mjd,
+                        periods_to_plot=periods_to_plot, end_year=end_year,
+                        alpha = alpha, num_orbits_to_plot=num_orbits_to_plot,
+                        num_epochs_to_plot=num_epochs_to_plot,
+                        show_colorbar=show_colorbar,
+                        cmap=cmap,
+                        cbar_param=cbar_param,
+                        # fig=fig
+                        )

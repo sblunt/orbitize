@@ -31,7 +31,7 @@ create an `issue on GitHub <https://github.com/sblunt/orbitize/issues>`_.
 Attribution:
 ++++++++++++
 
-* If you use ``orbitize`` in your work, please cite `Blunt et al (2019) <https://ui.adsabs.harvard.edu/abs/2019arXiv191001756B/abstract>`_.
+* If you use ``orbitize`` in your work, please cite `Blunt et al (2019) <https://ui.adsabs.harvard.edu/abs/2019arXiv191001756B/abstract>`_ and `Blunt et al (2024) <https://ui.adsabs.harvard.edu/abs/2024JOSS....9.6756B/abstract>`_
 * If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
 * If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
 * If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
@@ -50,9 +50,49 @@ User Guide:
    faq
    contributing
    api
+   manual
 
 Changelog:
 ++++++++++
+
+**3.1.0 (2024-9-09)**
+
+- JOSS paper published! (@sblunt et al)
+
+**3.0.1 (2024-8-19)**
+
+- bugfix for issue #370 involving saving and loading hipparcos.py objects (@sblunt)
+
+**3.0.0 (2024-4-15)**
+
+- implementation of Hipparcos-Gaia catalog of accelerations fitting! (@semaphoreP)
+- fit arbitrary absolute astrometry (@sblunt)
+- implement O'Neil observation-based priors (@sblunt/@clarissardoo)
+- discuss MCMC autocorrelation in MCMC tutorial (@michaelkmpoon)
+- add time warning if OFTI doesn't accept an orbit in first 60 s (@michaelkmpoon)
+- add first parts of orbitize! manual (@sofiacovarrubias/@sblunt)
+- bugfix for rebound MCMC fits (issue #357; @sblunt)
+- implementation of residual plotting method for orbit plots (@Saanikachoudhary and @semaphoreP)
+- plot companion RVs (@chihchunhsu)
+- add documentation about referencing issues when modifying priors to tutorial (@wcroberson)
+
+**2.2.2 (2023-06-30)**
+
+- tests now overwrite any generated text files (@sblunt)
+
+**2.2.1 (2023-06-28)**
+
+- tau_to_tp function now accepts array of after_date (@tomasstolker/@semaphoreP)
+
+**2.2.0 (2023-06-21)**
+
+- set up new CI system using GH actions (@sblunt)
+- removed radvel as dependency, and moved radvel_utils subpackage to new dir (@sblunt). This is a breaking change for users of orbitize.radvel_utils.
+
+**2.1.4 (2023-06-20)**
+
+- unit tests hotfixes (@semaphoreP)
+- use forked ptemcee (@sblunt)
 
 **2.1.3 (2023-02-07)**
 

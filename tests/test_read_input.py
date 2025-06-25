@@ -23,37 +23,37 @@ def _compare_table(input_table):
     quant1_err_expected = [0.005, 0.005, 0.005, 0.1]
     quant2_expected = [0.5, 89.0, 89.3, np.nan]
     quant2_err_expected = [0.05, 0.1, 0.3, np.nan]
-    quant_type_expected = ['radec', 'seppa', 'seppa', 'rv']
-    instrument_expected = ['defrd', 'defsp', 'defsp', 'defrv']
+    quant_type_expected = ["radec", "seppa", "seppa", "rv"]
+    instrument_expected = ["defrd", "defsp", "defsp", "defrv"]
     assert len(input_table) == rows_expected
-    for meas, truth in zip(input_table['epoch'], epoch_expected):
+    for meas, truth in zip(input_table["epoch"], epoch_expected):
         assert truth == pytest.approx(meas)
-    for meas, truth in zip(input_table['object'], object_expected):
+    for meas, truth in zip(input_table["object"], object_expected):
         assert truth == meas
-    for meas, truth in zip(input_table['quant1'], quant1_expected):
+    for meas, truth in zip(input_table["quant1"], quant1_expected):
         if np.isnan(truth):
             assert np.isnan(meas)
         else:
             assert truth == pytest.approx(meas)
-    for meas, truth in zip(input_table['quant1_err'], quant1_err_expected):
+    for meas, truth in zip(input_table["quant1_err"], quant1_err_expected):
         if np.isnan(truth):
             assert np.isnan(meas)
         else:
             assert truth == pytest.approx(meas)
-    for meas, truth in zip(input_table['quant2'], quant2_expected):
+    for meas, truth in zip(input_table["quant2"], quant2_expected):
         if np.isnan(truth):
             assert np.isnan(meas)
         else:
             assert truth == pytest.approx(meas)
-    for meas, truth in zip(input_table['quant2_err'], quant2_err_expected):
+    for meas, truth in zip(input_table["quant2_err"], quant2_err_expected):
         if np.isnan(truth):
             assert np.isnan(meas)
         else:
             assert truth == pytest.approx(meas)
-    for meas, truth in zip(input_table['quant_type'], quant_type_expected):
+    for meas, truth in zip(input_table["quant_type"], quant_type_expected):
         assert truth == meas
 
-    for meas, truth in zip(input_table['instrument'], instrument_expected):
+    for meas, truth in zip(input_table["instrument"], instrument_expected):
         assert truth == meas
 
 
@@ -62,10 +62,11 @@ def test_read_file():
     Test the read_file function using the test_val.csv file and test_val_radec.csv
     """
     # Check that main test input is read in with correct values
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, "test_val.csv")
     _compare_table(read_file(input_file))
-    # Check that an input value with all valid entries and only ra/dec columns can be read
-    input_file_radec = os.path.join(orbitize.DATADIR, 'test_val_radec.csv')
+    # Check that an input value with all valid entries and only ra/dec
+    # columns can be read
+    input_file_radec = os.path.join(orbitize.DATADIR, "test_val_radec.csv")
     read_file(input_file_radec)
 
 
@@ -73,9 +74,9 @@ def test_write_orbitize_input():
     """
     Test the write_orbitize_input and the read_file functions
     """
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, "test_val.csv")
     test_table = read_file(input_file)
-    output_file = os.path.join(orbitize.DATADIR, 'temp_test_orbitize_input.csv')
+    output_file = os.path.join(orbitize.DATADIR, "temp_test_orbitize_input.csv")
     # If temp output file already exists, delete it
     if os.path.isfile(output_file):
         os.remove(output_file)
@@ -97,39 +98,39 @@ def test_cov_input():
     """
     testdir = orbitize.DATADIR
     # Check that main test input is read in with correct values
-    input_file = os.path.join(testdir, 'test_val_cov.csv')
+    input_file = os.path.join(testdir, "test_val_cov.csv")
     input_data = read_file(input_file)
     _compare_table(input_data)
     print(input_data)
     # Check the covariance column
     quant12_corr_truth = [0.25, np.nan, -0.5, np.nan]
-    assert 'quant12_corr' in input_data.columns
+    assert "quant12_corr" in input_data.columns
     for row, truth in zip(input_data, quant12_corr_truth):
-        meas = row['quant12_corr']
+        meas = row["quant12_corr"]
         if np.isnan(truth):
             assert np.isnan(meas)
         else:
             assert truth == pytest.approx(meas)
 
+
 def test_read_old_orbitize_format():
     """
-    Test the read_file function when using an old orbitize data file without 
-    `quant12_corr` and `instrument` fields. 
+    Test the read_file function when using an old orbitize data file without
+    `quant12_corr` and `instrument` fields.
     """
     # Check that main test input is read in with correct values
-    input_file = os.path.join(orbitize.DATADIR, 'old_orbitize_format.csv')
+    input_file = os.path.join(orbitize.DATADIR, "old_orbitize_format.csv")
     input_data = read_file(input_file)
-    
+
     # check correlation and instrument are defualts
-    assert np.isnan(input_data['quant12_corr'][0])
-    assert input_data['instrument'][0] == 'defsp'
+    assert np.isnan(input_data["quant12_corr"][0])
+    assert input_data["instrument"][0] == "defsp"
 
-    assert np.isnan(input_data['quant12_corr'][1])
-    assert input_data['instrument'][1] == 'defrd'
+    assert np.isnan(input_data["quant12_corr"][1])
+    assert input_data["instrument"][1] == "defrd"
 
-    assert np.isnan(input_data['quant12_corr'][2])
-    assert input_data['instrument'][2] == 'defrv'
-
+    assert np.isnan(input_data["quant12_corr"][2])
+    assert input_data["instrument"][2] == "defrv"
 
 
 if __name__ == "__main__":
