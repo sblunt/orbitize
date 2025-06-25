@@ -825,6 +825,9 @@ def plot_n_orbits(results, num_objects = 1, start_mjd=51544.,
                     start_mjd+period[i]), num_epochs_to_plot)
 
                 # Calculate ra/dec offsets for all epochs of this orbit
+
+                #### HERE SHOULD BE THE MULTI PLANET SOLVER
+                
                 raoff0, deoff0, _ = kepler.calc_orbit(
                     epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
                     tau[i], plx[i], mtot[i], tau_ref_epoch=results.tau_ref_epoch
@@ -946,6 +949,7 @@ def plot_n_orbits(results, num_objects = 1, start_mjd=51544.,
             ax.locator_params(axis='x', nbins=6)
             ax.locator_params(axis='y', nbins=6)
             ax.invert_xaxis()  # To go to a left-handed coordinate system
+            plt.tight_layout()
 
 
 
@@ -1079,48 +1083,49 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
     posterior = standard_post.transpose() # need for system.compute input format (params, walkers * steps)
         # transposed post.shape = (param, total_orbits)
 
-    # sma = posterior[results.standard_param_idx['sma{}'.format(objects)], :]
-    #     # using the longest period of all objects  
-    # mtot = posterior[results.standard_param_idx['mtot'], :]
-
     epoch_array = np.zeros((orbits, epochs))
     raoff = np.zeros((epochs, objects + 1, orbits))
     decoff = np.zeros((epochs, objects + 1, orbits))
 
-
     ## plot the ra, dec data points and orbital projections of each object
-    for obj in range(objects):
-        
-        sma = posterior[results.standard_param_idx['sma{}'.format(obj +1)]]
+    # for obj in range(objects):
+    
+    sma = posterior[results.standard_param_idx['sma{}'.format(objects)]]
 
-        all_smas = posterior[results.system.sma_indx]
-        all_masses = posterior[results.system.secondary_mass_indx]
-        within_orbit = np.where(all_smas <= sma)
-        inside_masses = all_masses[within_orbit]
+    all_smas = posterior[results.system.sma_indx]
+    all_masses = posterior[results.system.secondary_mass_indx]
+    within_orbit = np.where(all_smas <= sma)
+    inside_masses = all_masses[within_orbit]
+    if 'm0' not in results.standard_param_idx:
+        mtot = posterior[results.standard_param_idx['mtot']]
+    else:
         m0 = posterior[results.standard_param_idx['m0']]
+        # m1 = 
         mtot = np.sum(inside_masses) + m0
 
-        period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3/(consts.G*(m0*u.Msun)))
-        period = period.to(u.day).value
 
-        for orb in range(orbits):
-            epoch_array[orb, :] = np.linspace(start_mjd, 
-                            float(start_mjd + period[orb]), epochs)
+    period = np.sqrt(4*np.pi**2.0*(sma*u.AU)**3 / (consts.G*(mtot * u.Msun)))
+    period = period.to(u.day).value
 
-            raoff0, decoff0, _ = results.system.compute_all_orbits(
-                posterior[:, orb], epoch_array[orb, :]
-            )
-            raoff[:, obj +1, orb] = raoff0[:, obj +1,0]
-            decoff[:,obj +1, orb] = decoff0[:,obj +1,0]
+    for orb in range(orbits):
+        epoch_array[orb, :] = np.linspace(start_mjd, 
+                        float(start_mjd + period[orb]), epochs)
+
+        raoff0, decoff0, _ = results.system.compute_all_orbits(
+            standard_post[orb, :], epoch_array[orb, :], comp_rebound=True
+        )
+        raoff[:, :, orb] = raoff0
+        decoff[:, :, orb] = decoff0
 
 
-        if figure is None:
-            fig = plt.figure(figsize=(6, 6))
-            ax = fig.add_subplot()
-        else:
-            fig = plt.figure(figure)
-            ax = mpl.axes.Axes(fig, (1,1,1,1))
+    if figure is None:
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_subplot()
+    else:
+        fig = plt.figure(figure)
+        ax = mpl.axes.Axes(fig, (1,1,1,1))
 
+    for obj in range(objects):
         object_to_plot = int(obj + 1)
         data = results.data[results.data['object'] == object_to_plot]
 
@@ -1128,12 +1133,36 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
         for orb in range(orbits):
             plt.plot(raoff[:, obj + 1, orb], decoff[:, obj + 1, orb], color = c(0.5), linewidth = 0.5, alpha=0.2)
 
+        # convert seppa points to ra/dec
+        seppa_inds = np.where(data['quant_type'] == 'seppa')
+
         ra_data = np.copy(data['quant1'])
         ra_err = np.copy(data['quant1_err'])
         dec_data = np.copy(data['quant2'])
         dec_err = np.copy(data['quant2_err'])
 
-        plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr = dec_err, color =c(0.9), marker='o', ms=5, linestyle='')
+        if len(seppa_inds[0] > 0):
+            ra_from_seppa, dec_from_seppa = orbitize.system.seppa2radec(
+                data['quant1'][seppa_inds], data['quant2'][seppa_inds]
+            )
+
+            num_seppa = len(seppa_inds[0])
+            ra_err_from_seppa = np.empty(num_seppa)
+            dec_err_from_seppa = np.empty(num_seppa)
+            for i in np.arange(num_seppa):
+                ra_err_from_seppa[i], dec_err_from_seppa[i], _ = orbitize.system.transform_errors(
+                    np.array(data['quant1'][seppa_inds][i]), np.array(data['quant2'][seppa_inds][i]),
+                    np.array(data['quant1_err'][seppa_inds][i]), np.array(data['quant2_err'][seppa_inds][i]),
+                    np.array(data['quant12_corr'][seppa_inds][i]), orbitize.system.seppa2radec
+                )
+        
+            ra_data[seppa_inds] = ra_from_seppa
+            ra_err[seppa_inds] = ra_err_from_seppa
+            dec_data[seppa_inds] = dec_from_seppa
+            dec_err[seppa_inds] = dec_err_from_seppa
+        
+        # Plot data points on top of orbits
+        plt.errorbar(ra_data, dec_data, xerr= ra_err, yerr = dec_err, color =c(0.001), marker='o', ms=5, linestyle='')
         ax.set_xlabel('$\\Delta$RA [mas]')
         ax.set_ylabel('$\\Delta$Dec [mas]')
         figure = fig
@@ -1142,6 +1171,9 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
 
     # create different plots for each objects sep, pa
     sep_pa_figures = []
+    epochs_seppa = np.linspace(start_mjd, Time(sep_pa_end_year, format='decimalyear').mjd,
+                                        epochs)
+    
 
     for obj in range(objects):
         object_to_plot = int(obj + 1)
@@ -1189,31 +1221,38 @@ def plot_with_system(results, colors = mpl.cm.Purples, objects = 1, orbits = 100
         pa_ax.set_xlabel('Epoch')
         sep_ax.set_title('Object {}'.format(obj +1))
         
-        epochs_seppa = np.linspace(start_mjd, Time(sep_pa_end_year, format='decimalyear').mjd,
-                                                epochs)
-        
+
         # Plotting the computed orbits from MCMC posterior in Sep/ PA over time
         for orb in range(orbits):
-            raoff0, decoff0, _ = results.system.compute_all_orbits(
-                posterior[:, orb], epochs_seppa)
+            # raoff0, decoff0, _ = results.system.compute_all_orbits(
+            #     standard_post[orb], epochs_seppa, comp_rebound=True)
             
-            raoff[:,obj+1, orb] = raoff0[:,obj+1,0]
-            decoff[:,obj+1, orb] = decoff0[:,obj+1,0]
+            # raoff[:,obj+1, orb] = raoff0[:,obj+1,0]
+            # decoff[:,obj+1, orb] = decoff0[:,obj+1,0]
+            epoch_array[orb, :] = np.linspace(start_mjd, 
+                float(start_mjd + period[orb]), epochs)
             
-            yr_epochs = Time(epochs_seppa, format='mjd').decimalyear
+            yr_epochs = Time(epoch_array[orb], format='mjd').decimalyear
+            sep_pa_start_year = Time(start_mjd, format='mjd').decimalyear
             seps, pas = orbitize.system.radec2seppa(raoff[:, obj + 1, orb], decoff[:, obj + 1, orb], mod180=False)
 
             plt.sca(sep_ax)
             plt.plot(yr_epochs, seps, c=sep_pa_color, alpha = 0.3)
+            plt.xlim((sep_pa_start_year, sep_pa_end_year))
             plt.sca(pa_ax)
             plt.plot(yr_epochs, pas, c=sep_pa_color, alpha = 0.3)
+            plt.xlim((sep_pa_start_year, sep_pa_end_year))
+
 
         c = colors[obj]
 
         plt.sca(sep_ax)
-        plt.errorbar(Time(ob_epochs, format='mjd').decimalyear, sep_data, yerr=sep_err, ms=5, linestyle='', marker='o', zorder=2, capsize=2, color=c(0.75))
+        plt.errorbar(Time(ob_epochs, format='mjd').decimalyear, sep_data, yerr=sep_err, ms=5, linestyle='', marker='o', zorder=2, capsize=2, color=c(0.001))
+        plt.ylim((np.min(sep_data) - 0.05*(np.max(sep_data)), np.max(sep_data) + 0.05*(np.max(sep_data))))
         plt.sca(pa_ax)
-        plt.errorbar(Time(ob_epochs, format='mjd').decimalyear, pa_data, yerr=pa_err, ms=5, linestyle='', marker='o', zorder=2, capsize=2, color=c(0.75))
+        plt.errorbar(Time(ob_epochs, format='mjd').decimalyear, pa_data, yerr=pa_err, ms=5, linestyle='', marker='o', zorder=2, capsize=2, color=c(0.001))
+        plt.ylim((np.min(pa_data) - 0.1*(np.max(pa_data)), np.max(pa_data) + 0.1*(np.max(pa_data))))
+
 
         sep_pa_figures.append(sep_pa_fig)
 
@@ -1245,7 +1284,7 @@ def plot_period_ratios(results, num_objects, colors):
     ratio_fig = plt.figure(figsize=(8,8))
 
     for i in range(len(ratios)):
-        plt.hist(ratios[i], color = colors[i](0.5), label='{}-{} ratio'.format(i+1, i))
+        plt.hist(ratios[i], histtype='step', label='{}-{} ratio'.format(i+1, i))
 
     plt.axvline(2, color='r', ls='--', label='2:1 Resonance')
     plt.xlabel('Period Ratio')
@@ -1255,17 +1294,18 @@ def plot_period_ratios(results, num_objects, colors):
     return ratio_fig
 
 
-def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
+def plot_n_orbits_new(results, num_objects=1, start_mjd=51544.,
                 num_orbits_to_plot=100, num_epochs_to_plot=100,
-                square_plot=True, cmap_list = None, nbody_solver=True,
+                square_plot=True, cmap_list=None, nbody_solver=False,
                 sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
                 cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
-                plot_errorbars=True, figure=None):
+                plot_errorbars=True, figure=None, fig_titles=None, tau_ref_epoch=None):
     """
     Plots one orbital period for a select number of fitted orbits
     for a given object, with line segments colored according to time
 
     Args:
+        results (orbitize.results.Results): an orbitize Results object with fit results
         num_objects (array): the total number of planets to plot
         start_mjd (float): MJD in which to start plotting orbits (default: 51544,
             the year 2000)
@@ -1290,7 +1330,8 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
             display time series, set to True.
         plot_errorbars (Boolean): set to True by default. Plots error bars of measurements
         figure (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
-            Most users will not need this keyword. 
+        fig_titles (list): a list of strings to title the orbit, sep, and pa plots -should have length (num_planets + 1) (default: None)
+        tau_ref_epoch (float):
 
     Return:
         ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
@@ -1300,12 +1341,10 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
     Additions by Malena Rice, 2019
 
     """
-    planets = ['HR8799e', 'HR8799d', 'HR8799c', 'HR8799b']
     sep_pa_figures = []
 
     for ind in range(num_objects):
-        object_to_plot = int(ind +1)
-        planet_name = planets[ind]
+        object_to_plot = int(ind +1)        
         cmap = cmap_list[ind]
 
         if Time(start_mjd, format='mjd').decimalyear >= sep_pa_end_year:
@@ -1365,18 +1404,8 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
                 for i in np.arange(num_orbits_to_plot):
                     orb_ind = choose[i]
                     standard_post.append(results.post[orb_ind])
-
             standard_post = np.array(standard_post)
 
-            # sma = standard_post[:, results.standard_param_idx['sma{}'.format(object_to_plot)]]
-            # ecc = standard_post[:, results.standard_param_idx['ecc{}'.format(object_to_plot)]]
-            # inc = standard_post[:, results.standard_param_idx['inc{}'.format(object_to_plot)]]
-            # aop = standard_post[:, results.standard_param_idx['aop{}'.format(object_to_plot)]]
-            # pan = standard_post[:, results.standard_param_idx['pan{}'.format(object_to_plot)]]
-            # tau = standard_post[:, results.standard_param_idx['tau{}'.format(object_to_plot)]]
-            # plx = standard_post[:, results.standard_param_idx['plx']]
-
-            # Then, get the other parameters
             if 'mtot' in results.labels:
                 mtot = standard_post[:, results.standard_param_idx['mtot']]
             elif 'm0' in results.labels:
@@ -1389,7 +1418,7 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
             epochs = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
             # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
-            # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
+            ## need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
             for i in np.arange(num_orbits_to_plot):
                 # Compute period (from Kepler's third law) based on the object being plotted
                 sma = standard_post[:, results.standard_param_idx['sma{}'.format(object_to_plot)]]
@@ -1401,19 +1430,13 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
                     start_mjd+period[i]), num_epochs_to_plot)
 
                 # Calculate ra/dec offsets for all epochs of this orbit
-
-                #### HERE SHOULD BE THE MULTI PLANET SOLVER
-
+                # compute_all_orbits automatically uses perturbation approx. when passed masses in param list
                 raoff0, deoff0, _ = results.system.compute_all_orbits(
-                    standard_post[i, :], epochs[i, :], comp_rebound=nbody_solver
+                    standard_post[i, :], epochs[i, :], comp_rebound=nbody_solver, tau_ref_epoch=tau_ref_epoch
                 )
                 
-                # raoff0, deoff0, _ = kepler.calc_orbit(
-                #     epochs[i, :], sma[i], ecc[i], inc[i], aop[i], pan[i],
-                #     tau[i], plx[i], mtot[i], tau_ref_epoch=results.tau_ref_epoch
-                # )
-                raoff[i, :] = raoff0[:,object_to_plot]
-                deoff[i, :] = deoff0[:,object_to_plot]
+                raoff[i, :] = raoff0[:,object_to_plot,0]
+                deoff[i, :] = deoff0[:,object_to_plot,0]
 
             # Create a linearly increasing colormap for our range of epochs
             if cbar_param != 'Epoch [year]':
@@ -1512,7 +1535,7 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
                 dec_data[seppa_inds] = dec_from_seppa_data
                 dec_err[seppa_inds] = dec_err_from_seppa_data
 
-            # Plot each orbit 
+            # Plot each orbit (for each planet,, num_object_to_plot)
             for i in np.arange(num_orbits_to_plot):
                 plt.plot(raoff[i, :], deoff[i, :], c= cmap(0.5), linewidth=0.5, alpha=0.2)
 
@@ -1528,19 +1551,16 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
             ax.locator_params(axis='x', nbins=6)
             ax.locator_params(axis='y', nbins=6)
             ax.invert_xaxis()  # To go to a left-handed coordinate system
-            plt.tight_layout()
+            # plt.tight_layout()
 
 
             # Create new figure subplot with a sep/PA plot for each planet
             sep_pa_fig, (sep_ax, pa_ax) = plt.subplots(2,1, figsize = (5,10))
-
-            # plot sep/PA 
             pa_ax.set_ylabel('PA [$^{{\\circ}}$]')
             sep_ax.set_ylabel('$\\rho$ [mas]')
             pa_ax.set_xlabel('Epoch')
-            sep_ax.set_title(planet_name)
 
-
+            # Plot Sep/PA 
             epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
             for i in np.arange(num_orbits_to_plot):
@@ -1552,20 +1572,12 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
                 )
 
                 # Calculate ra/dec offsets for all epochs of this orbit
-                if rv_time_series:
-                    raoff0, deoff0, _ = results.system.compute_all_orbits(
-                        standard_post[i, :], epochs_seppa[i, :], comp_rebound=nbody_solver
-                    )
-        
-                    raoff[i, :] = raoff0[:,object_to_plot,:]
-                    deoff[i, :] = deoff0[:,object_to_plot,:]
-                else:
-                    raoff0, deoff0, _ = results.system.compute_all_orbits(
-                        standard_post[i, :], epochs_seppa[i, :], comp_rebound=nbody_solver
-                    )
-        
-                    raoff[i, :] = raoff0[:,object_to_plot,:]
-                    deoff[i, :] = deoff0[:,object_to_plot,:]
+                raoff0, deoff0, _ = results.system.compute_all_orbits(
+                    standard_post[i, :], epochs_seppa[i, :], comp_rebound=nbody_solver, tau_ref_epoch=tau_ref_epoch
+                )
+    
+                raoff[i, :] = raoff0[:,object_to_plot,0]
+                deoff[i, :] = deoff0[:,object_to_plot,0]
 
                 yr_epochs = Time(epochs_seppa[i, :], format='mjd').decimalyear
 
@@ -1582,7 +1594,7 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
                 serr = sep_err
                 perr = pa_err
             else:
-                yerr = None
+                serr = None
                 perr = None
 
             plt.sca(sep_ax)
@@ -1590,10 +1602,17 @@ def plot_n_orbits_new(results, num_objects = 1, start_mjd=51544.,
             plt.sca(pa_ax)
             plt.errorbar(Time(astr_epochs,format='mjd').decimalyear,pa_data,yerr=perr, linestyle='',marker='o',ms=5,c=cmap(0.5),zorder=2, capsize=2)
 
+            # Add Figure titles
+            if fig_titles is not None:
+                seppa_titles = fig_titles[1:]
+                ax.set_title(fig_titles[0])
+                sep_ax.set_title(seppa_titles[ind])
 
         figure = fig
         sep_pa_figures.append(sep_pa_fig)
+        plt.close(fig=sep_pa_fig)
 
+    plt.close(fig=figure)
     return fig, sep_pa_figures
 
 
@@ -1650,7 +1669,7 @@ def plot_coplanarity(results, num_objects, fig=None):
     '''
     inputs
     results (orbitize.results.Results): orbitize results object
-    num_objects (int): number of planetary companions in the system
+    num_objects (int): number of companions in the system
     fig (matplotlib.pyplot.figure): figure on which histograms are plotted default=None
 
     returns
@@ -1673,13 +1692,15 @@ def plot_coplanarity(results, num_objects, fig=None):
             inc2 = post[:, results.standard_param_idx['inc{}'.format(second)]]
             pan2 = post[:, results.standard_param_idx['pan{}'.format(second)]]
 
-            arg_non_cop = (np.cos(inc1) * np.cos(inc2)) + (np.sin(inc1) * np.sin(inc2) * np.cos(pan1 - pan2))
+            cos_cop = (np.cos(inc1) * np.cos(inc2)) + (np.sin(inc1) * np.sin(inc2) * np.cos(pan1 - pan2))
+            coplanarity_rad = np.arccos(cos_cop)
+            coplanarity = np.rad2deg(coplanarity_rad)
 
-            plt.hist(arg_non_cop, label="{} & {}".format(string.ascii_lowercase[2:num_objects+1][-planet], string.ascii_lowercase[1:num_objects+1][-second]))
+            plt.hist(coplanarity, histtype='step', label="{} & {}".format(string.ascii_lowercase[2:num_objects+1][-planet], string.ascii_lowercase[1:num_objects+1][-second]))
             second += 1
 
     plt.title('Coplanarity')
-    plt.xlabel("Mutual Inclination")
+    plt.xlabel("Mutual Inclination [deg]")
     plt.legend()
 
     return fig

@@ -283,7 +283,7 @@ class System(object):
 
         
 
-    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
+    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False, tau_ref_epoch=None):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
         interactions. Also computes total quantities like RV (without jitter/gamma)
@@ -313,6 +313,8 @@ class System(object):
                     radial velocities at each epoch.
 
         """
+        if tau_ref_epoch is None:
+            tau_ref_epoch = self.tau_ref_epoch
 
         if epochs is None:
             epochs = self.data_table['epoch']
@@ -356,7 +358,7 @@ class System(object):
                 # if not fitting for secondary mass, then total mass must be stellar mass
                 mtot = params_arr[self.basis.param_idx['mtot']]
             
-            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=self.tau_ref_epoch, m_pl=m_pl, output_star=True)
+            raoff, deoff, vz = nbody.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, m_pl=m_pl, output_star=True)
 
         else:
                 for body_num in np.arange(self.num_secondary_bodies)+1:
@@ -397,7 +399,7 @@ class System(object):
                     # solve Kepler's equation
                     raoff, decoff, vz_i = kepler.calc_orbit(
                         epochs, sma, ecc, inc, argp, lan, tau, plx, mtot,
-                        mass_for_Kamp=m0, tau_ref_epoch=self.tau_ref_epoch
+                        mass_for_Kamp=m0, tau_ref_epoch=tau_ref_epoch
                     )
 
                     # raoff, decoff, vz are scalers if the length of epochs is 1
