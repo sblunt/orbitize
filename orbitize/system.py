@@ -98,9 +98,14 @@ class System(object):
         # List of index arrays corresponding to each rv for each body
         self.rv = []
 
+        # index arrays corresponding to brightness for each body
+        self.brightness = []
+
         self.fit_astrometry = True
         radec_indices = np.where(self.data_table["quant_type"] == "radec")
         seppa_indices = np.where(self.data_table["quant_type"] == "seppa")
+
+        brightness_indices = np.where(self.data_table["quant_type"] == "brightness")
 
         if len(radec_indices[0]) == 0 and len(seppa_indices[0]) == 0:
             self.fit_astrometry = False
@@ -140,6 +145,7 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
             self.rv.append(np.intersect1d(self.body_indices[body_num], rv_indices))
+            self.brightness.append(np.intersect1d(self.body_indices[body_num], brightness_indices))
 
         # we should track the influence of the planet(s) on each other/the star if:
         # we are not fitting massless planets and
@@ -302,6 +308,7 @@ class System(object):
 
         self.param_idx = self.basis.param_idx
 
+
     def save(self, hf):
         """
         Saves the current object to an hdf5 file
@@ -380,6 +387,7 @@ class System(object):
         dec_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
 
         vz = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+        brightness_out = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
 
         # mass/mtot used to compute each Keplerian orbit will be needed later to compute perturbations
         if self.track_planet_perturbs:
@@ -483,16 +491,33 @@ class System(object):
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
 
+                tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=self.tau_ref_epoch)
+                
+
+                R = (sma*(1-ecc**2))/(1+ecc*np.cos(tanom))
+        
+                z = (R)*(-np.cos(argp)*np.sin(inc)*np.sin(tanom)-np.cos(tanom)*np.sin(inc)*np.sin(argp))
+                
+                B = np.arctan2(-R, z)+ np.pi
+        
+                Alpha = (1/np.pi)*(np.sin(B)+(np.pi-B)*np.cos(B))
+
+                Albedo = 0.5
+                brightness = Albedo*Alpha/R**2
+        
+
                 # raoff, decoff, vz are scalers if the length of epochs is 1
                 if len(epochs) == 1:
                     raoff = np.array([raoff])
                     decoff = np.array([decoff])
                     vz_i = np.array([vz_i])
+                    brightness_out = np.array([brightness])
 
                 # add Keplerian ra/deoff for this body to storage arrays
                 ra_kepler[:, body_num, :] = np.reshape(raoff, (n_epochs, n_orbits))
                 dec_kepler[:, body_num, :] = np.reshape(decoff, (n_epochs, n_orbits))
                 vz[:, body_num, :] = np.reshape(vz_i, (n_epochs, n_orbits))
+                brightness_out[:, body_num, :] = np.reshape(brightness, (n_epochs, n_orbits))
 
                 # vz_i is the ith companion radial velocity
                 if self.fit_secondary_mass:
@@ -570,7 +595,7 @@ class System(object):
             else:
                 return raoff, deoff, vz
         else:
-            return raoff, deoff, vz
+            return raoff, deoff, vz, brightness_out
 
     def compute_model(self, params_arr, use_rebound=False):
         """
@@ -605,7 +630,7 @@ class System(object):
                 standard_params_arr, comp_rebound=True
             )
         else:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
+            raoff, decoff, vz, brightness = self.compute_all_orbits(standard_params_arr)
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
@@ -656,6 +681,14 @@ class System(object):
             if len(self.rv[body_num]) > 0:
                 model[self.rv[body_num], 0] = vz[self.rv[body_num], body_num, :]
                 model[self.rv[body_num], 1] = np.nan
+
+            # TODO (farrah): add brightness to model here (use RV block above as template)
+            # Brightness
+            if len(self.brightness[body_num]) > 0:
+                model[self.brightness[body_num], 0] = brightness[self.brightness[body_num], body_num, :]
+                model[self.brightness[body_num], 1] = np.nan
+            # (assume self.brightness is array of indices of epochs with brightness measurements)
+
 
         # if we have abs astrometry measurements in the input file (i.e. not
         # from Hipparcos or Gaia), add the parallactic & proper motion here by
