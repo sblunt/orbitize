@@ -55,6 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.2.0 (2025-7-18)**
+
+- modernize install: setup.py -> pyproject.toml (@sblunt)
+
 **3.1.0 (2024-9-09)**
 
 - JOSS paper published! (@sblunt et al)
