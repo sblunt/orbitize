@@ -51,12 +51,7 @@ def test_nested_sampler():
     dynamic_eccentricities = mysampler.results.post[:, lab["ecc1"]]
     assert np.median(dynamic_eccentricities) == pytest.approx(ecc, abs=0.1)
 
-<<<<<<< HEAD
-    _ = mysampler.run_sampler(bound="multi", static=True, num_threads=8, run_nested_kwargs={})
-=======
-
-    _ = mysampler.run_sampler(bound="multi", static=True, start_method=start_method, num_threads=8)
->>>>>>> main
+    _ = mysampler.run_sampler(bound="multi", static=True, start_method=start_method, num_threads=8, run_nested_kwargs={})
     print("Finished second run!")
 
     static_eccentricities = mysampler.results.post[:, lab["ecc1"]]
