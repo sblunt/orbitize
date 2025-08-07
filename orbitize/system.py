@@ -554,9 +554,15 @@ class System(object):
             deoff = dec_kepler + dec_perturb
 
         if self.fitting_basis == "XYZ":
+            
             # Find and filter out unbound orbits
-            bad_orbits = np.where(np.logical_or(ecc >= 1.0, ecc < 0.0))[0]
-            if bad_orbits.size != 0:
+            bad_orbits = []
+            if isinstance(ecc, float):
+                if ecc >= 1.0 or ecc < 0.0:
+                    bad_orbits = [0]
+            else:
+                bad_orbits = np.where(np.logical_or(ecc >= 1.0, ecc < 0.0))[0]
+            if len(bad_orbits) > 0:
                 raoff[:, :, bad_orbits] = np.inf
                 deoff[:, :, bad_orbits] = np.inf
                 vz[:, :, bad_orbits] = np.inf
