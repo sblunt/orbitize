@@ -12,8 +12,6 @@ pytest
 pandas
 pyerfa
 astroquery
-sphinx>=6
-docutils<0.17
 rebound
 dynesty
 pymultinest
