@@ -55,6 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.2.1 (2026-1-18)**
+
+- fix bug with install (#342) (@sblunt)
+
 **3.2.0 (2025-7-18)**
 
 - modernize install: setup.py -> pyproject.toml (@sblunt)
