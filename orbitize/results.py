@@ -380,3 +380,45 @@ class Results(object):
                         cbar_param=cbar_param,
                         # fig=fig
                         )
+    
+    def cite(self):
+        """
+        Handy method for printing out the papers you should cite based on your orbitize.Results
+        object.
+        """
+
+        papers2cite = {"Blunt+ (2020)":"https://ui.adsabs.harvard.edu/abs/2020AJ....159...89B"}
+
+        if int(orbitize.__version__[0]) >= 3:
+            papers2cite["Blunt+ (2024)"] = "https://ui.adsabs.harvard.edu/abs/2024JOSS....9.6756B"
+        
+        if self.sampler_name == 'OFTI':
+            papers2cite["Blunt+ (2017)"] = "https://ui.adsabs.harvard.edu/abs/2017AJ....153..229B"
+
+        if self.sampler_name == 'MCMC':
+            papers2cite["Foreman-Mackey+ (2013)"] = "https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F"
+            papers2cite["Voudsen+ (2016)"] = "https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V"
+        if self.sampler_name == 'dynesty':
+            papers2cite['Dynesty'] = "see https://dynesty.readthedocs.io/en/v3.0.0/#citations"
+        if isinstance(self.system.basis, orbitize.basis.XYZ):
+            papers2cite['Ferrer-Chavez+ 2021'] = "https://ui.adsabs.harvard.edu/abs/2021RNAAS...5..162F"
+        if isinstance(self.system.basis, orbitize.basis.ObsPriors):
+            papers2cite["O'Neil+ 2019"] = "https://ui.adsabs.harvard.edu/abs/2019AJ....158....4O"
+        if self.system.use_rebound:
+            papers2cite['Rebound'] = "see https://rebound.hanno-rein.de/"
+        if self.system.gaia is not None:
+            if isinstance(self.system.gaia, orbitize.gaia.GaiaLogProb):
+                if self.system.gaia.dr == 'edr3':
+                    papers2cite['Gaia Collab+ 2021'] = "https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G"
+                if self.system.gaia.dr == 'dr2':
+                    papers2cite['Gaia Collab+ 2018'] = "https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract"
+            elif isinstance(self.system.gaia, orbitize.gaia.HGCALogProb):
+                papers2cite['Brandt+ 2018'] = "https://ui.adsabs.harvard.edu/abs/2018ApJS..239...31B"
+                papers2cite['Brandt+ 2021'] = "https://ui.adsabs.harvard.edu/abs/2021ApJS..254...42B"
+        if self.system.hipparcos_IAD is not None:
+            papers2cite["Nielsen+ 2020"] = "https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N"
+            papers2cite["van Leeuwen+ 2007"] = "https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V"
+
+        return papers2cite
+
+
