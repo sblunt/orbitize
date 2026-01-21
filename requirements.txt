@@ -14,3 +14,4 @@ pyerfa
 astroquery
 rebound
 dynesty
+pymultinest
