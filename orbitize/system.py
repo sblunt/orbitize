@@ -42,6 +42,9 @@ class System(object):
             basis to be used. See basis.py for a list of implemented fitting bases.
         use_rebound (bool): if True, use an n-body backend solver instead
             of a Keplerian solver.
+        astrometric_jitter (bool): if True, include a fitted jitter term in the 
+            model (will be applied to Hipparcos data and arbitrary absolute astrometry
+            data)
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class,
@@ -67,6 +70,7 @@ class System(object):
         gaia=None,
         fitting_basis="Standard",
         use_rebound=False,
+        astrometric_jitter=False,
     ):
         self.num_secondary_bodies = num_secondary_bodies
         self.data_table = data_table
@@ -81,6 +85,7 @@ class System(object):
         self.gaia = gaia
         self.fitting_basis = fitting_basis
         self.use_rebound = use_rebound
+        self.astrometric_jitter=astrometric_jitter
 
         self.best_epochs = []
         self.input_table = self.data_table.copy()
@@ -235,6 +240,7 @@ class System(object):
             hipparcos_IAD=self.hipparcos_IAD,
             rv=contains_rv,
             rv_instruments=self.rv_instruments,
+            astrometric_jitter=self.astrometric_jitter,
             **self.extra_basis_kwargs
         )
 
@@ -454,8 +460,11 @@ class System(object):
                     within_orbit = np.where(all_smas <= sma)
                     outside_orbit = np.where(all_smas > sma)
                     all_pl_masses = params_arr[self.secondary_mass_indx]
-                    inside_masses = all_pl_masses[within_orbit]
-                    mtot = np.sum(inside_masses) + m0
+                    inside_masses = all_pl_masses[within_orbit].reshape((-1, n_orbits))
+                    if n_orbits == 1:
+                        mtot = np.sum(inside_masses) + m0
+                    else:
+                        mtot = np.sum(inside_masses, axis=0) + m0
 
                 else:
                     m_pl = np.zeros(self.num_secondary_bodies)
