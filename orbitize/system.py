@@ -2,6 +2,7 @@ import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
 from orbitize.read_input import read_file
+import matplotlib.pyplot as plt
 
 
 class System(object):
@@ -301,6 +302,9 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
+
+        # plot astrometry
+        self.plot_astrometry()
 
     def save(self, hf):
         """
@@ -723,6 +727,92 @@ class System(object):
             )
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
 
+    def plot_astrometry(self, center_on_star=False):
+        """
+        Plot astrometry to ensure data is correct.
+
+        Args:
+            center_on_star(bool, optional): center plot on star
+
+        Written: David Trevascus, 2024
+        """
+        
+        n_obj = len(np.unique(self.data_table['object'])) # number of planets in the system
+
+        # create figure
+        fig, axs = plt.subplots()
+
+        # plot each object separately
+        for n in range(n_obj):
+            
+            # separate out data table entries for this object
+            mask_obj = self.data_table['object'] == n + 1
+            data_table_obj = self.data_table[mask_obj]
+
+            # number of entries for this object
+            n_obs = len(data_table_obj) # number of entries in the data table
+
+            # set empty arrays for radec astrometry
+            ra = np.zeros(n_obs)
+            ra_err = np.zeros(n_obs)
+            dec = np.zeros(n_obs)
+            dec_err = np.zeros(n_obs)
+            radec_corr = np.zeros(n_obs)
+        
+            # get radec astrometry
+            for i in range(n_obs):
+                j = np.where(mask_obj)[0][i] # index obj entries in input table
+                if np.isin(j, self.all_radec): # get radec astrometry
+                    ra[i] = data_table_obj[i]['quant1']
+                    ra_err[i] = data_table_obj[i]['quant1_err']
+                    dec[i] = data_table_obj[i]['quant2']
+                    dec_err[i] = data_table_obj[i]['quant2_err']
+                    radec_corr[i] = data_table_obj[i]['quant12_corr']
+
+                elif np.isin(j, self.all_seppa): # get seppa astrometry, convert to radec
+                    sep = data_table_obj[i]['quant1']
+                    sep_err = data_table_obj[i]['quant1_err']
+                    pa = data_table_obj[i]['quant2']
+                    pa_err = data_table_obj[i]['quant2_err']
+                    seppa_corr = data_table_obj[i]['quant12_corr']
+
+                    ra[i], dec[i] = seppa2radec(sep, pa)
+
+                    if np.isnan(seppa_corr):
+                        ra_err[i] = np.sqrt((ra[i]/sep * sep_err)**2 + (dec[i] * np.radians(pa_err))**2)
+                        dec_err[i] = np.sqrt((dec[i]/sep * sep_err)**2 + (ra[i] * np.radians(pa_err))**2)
+                    else:
+                        ra_err[i], dec_err[i], radec_corr[i] = transform_errors(
+                            sep, pa, sep_err, pa_err, seppa_corr, seppa2radec
+                        )
+
+            # plot radec astrometry
+            axs.errorbar(
+                ra, 
+                dec, 
+                xerr=ra_err, 
+                yerr=dec_err,
+                linestyle='None',
+                marker='o',
+                #color='k',
+                capsize=3,
+                label=str(n + 1)
+            )
+
+        # set axis labels
+        axs.set_xlabel('RA offset (mas)')
+        axs.set_ylabel('Dec offset (mas)')
+        axs.legend()
+
+        if center_on_star == True:
+            # plot start at centre
+            axs.plot(0, 0, marker='*', color='k', markersize=12)
+
+            # set plot limits so star is centred
+            xlim = max(axs.get_xlim())
+            ylim = max(axs.get_ylim())
+            axs.set_xlim(-xlim, xlim)
+            axs.set_ylim(-ylim, ylim)
 
 def radec2seppa(ra, dec, mod180=False):
     """
