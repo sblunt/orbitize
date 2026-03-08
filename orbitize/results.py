@@ -152,8 +152,12 @@ class Results(object):
             version_number = str(hf.attrs['version_number'])
         except KeyError:
             version_number = "<= 1.13"
-        post = np.array(hf.get('post'))
-        lnlike = np.array(hf.get('lnlike'))
+        post = hf.get('post')
+        if post is not None:
+            post = np.array(post)
+        lnlike = hf.get('lnlike')
+        if lnlike is not None:
+            lnlike = np.array(lnlike)
 
 
         try:
