@@ -115,7 +115,8 @@ class Results(object):
         hf.attrs['version_number'] = self.version_number
 
         # Now add post and lnlike from the results object as datasets
-        hf.create_dataset('post', data=self.post)
+        if self.post is not None:
+            hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)

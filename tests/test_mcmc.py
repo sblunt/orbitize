@@ -50,12 +50,14 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
         400, burn_steps=10, output_filename=output_filename, periodic_save_freq=2
     )
 
+    # TODO: Add test for restarting from saved results when burn-in is interrupted (i.e. no regular steps have been done) 
+
     # run it a little more (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)
     assert myDriver.sampler.results.post.shape[0] == 500
 
-    # run it a little more
-    myDriver.sampler.run_sampler(1000, burn_steps=1)
+    # run it a little more and save
+    myDriver.sampler.run_sampler(1000, burn_steps=1, output_filename=output_filename, periodic_save_freq=2)
     assert myDriver.sampler.results.post.shape[0] == 1500
 
     # test results object exists and has 1500*100 steps
