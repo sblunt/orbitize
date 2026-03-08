@@ -44,21 +44,21 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
         }
     )
 
-    # run it a little (tests 0 burn-in steps)
+    # run it some (tests adding to results object, and periodic saving)
+    output_filename = os.path.join(orbitize.DATADIR, 'test_mcmc.hdf5')
+    myDriver.sampler.run_sampler(
+        400, burn_steps=10, output_filename=output_filename, periodic_save_freq=2
+    )
+
+    # run it a little more (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)
-    assert myDriver.sampler.results.post.shape[0] == 100
+    assert myDriver.sampler.results.post.shape[0] == 500
 
     # run it a little more
     myDriver.sampler.run_sampler(1000, burn_steps=1)
-    assert myDriver.sampler.results.post.shape[0] == 1100
+    assert myDriver.sampler.results.post.shape[0] == 1500
 
-    # run it a little more (tests adding to results object, and periodic saving)
-    output_filename = os.path.join(orbitize.DATADIR, 'test_mcmc.hdf5')
-    myDriver.sampler.run_sampler(
-        400, burn_steps=1, output_filename=output_filename, periodic_save_freq=2
-    )
-
-    # test results object exists and has 2100*100 steps
+    # test results object exists and has 1500*100 steps
     assert os.path.exists(output_filename)
     saved_results = results.Results()
     saved_results.load_results(output_filename)
