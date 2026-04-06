@@ -7,6 +7,8 @@ from astropy.time import Time
 
 import dynesty
 
+import nautilus
+
 import emcee
 import ptemcee
 import multiprocessing as mp
@@ -1447,3 +1449,69 @@ class NestedSampler(Sampler):
         num_iter = self.dynesty_sampler.results["niter"]
 
         return self.dynesty_sampler.results["samples"], num_iter
+
+class NautilusSampler(Sampler):
+    def __init__(self, system):
+        super(NautilusSampler, self).__init__(system)
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+        self.start = time.time()
+    
+    def ptform(self, u):
+        """
+        Prior transform function.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: 1D u samples transformed to a chosen Prior
+                Class distribution.
+        """
+        utform = np.zeros(len(u))
+        for i in range(len(u)):
+            try:
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            except AttributeError:  # prior is a fixed number
+                utform[i] = self.system.sys_priors[i]
+        return utform
+    
+    def run_sampler(
+            self,
+            n_live: int = 2000,
+            n_update: None|int = None,
+            verbose: bool = False,
+            sampler_kwargs: dict = {},
+            run_kwargs: dict = {}
+        ):
+        
+        sampler = nautilus.Sampler(
+            prior=self.ptform,
+            likelihood=self._logl,
+            n_dim=len(self.system.sys_priors),
+            n_live=n_live,
+            n_update=n_update,
+            **sampler_kwargs
+            )
+
+        success = sampler.run(
+            verbose=verbose,
+            **run_kwargs
+        )
+
+        # TODO: use weighted posterior for higher accuracy
+        points, low_w, log_l = sampler.posterior(equal_weight = True)
+
+        self.results.add_samples(
+            points,
+            log_l
+        )
+
+        return points
