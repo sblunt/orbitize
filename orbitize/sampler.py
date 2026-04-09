@@ -1488,6 +1488,7 @@ class NautilusSampler(Sampler):
             n_live: int = 2000,
             n_update: None|int = None,
             verbose: bool = False,
+            num_threads: int = 1,
             sampler_kwargs: dict = {},
             run_kwargs: dict = {}
         ):
@@ -1498,6 +1499,7 @@ class NautilusSampler(Sampler):
             n_dim=len(self.system.sys_priors),
             n_live=n_live,
             n_update=n_update,
+            pool=num_threads,
             **sampler_kwargs
             )
 
