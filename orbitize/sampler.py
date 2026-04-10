@@ -1489,6 +1489,7 @@ class NautilusSampler(Sampler):
             n_update: None|int = None,
             verbose: bool = False,
             num_threads: int = 1,
+            savefile: str = None,
             sampler_kwargs: dict = {},
             run_kwargs: dict = {}
         ):
@@ -1500,6 +1501,7 @@ class NautilusSampler(Sampler):
             n_live=n_live,
             n_update=n_update,
             pool=num_threads,
+            filepath=savefile,
             **sampler_kwargs
             )
 
