@@ -831,7 +831,7 @@ def all_lnpriors(params, priors):
 
         logp += prior.compute_lnprob(param)  # return a float
 
-    return logp
+    return float(np.squeeze(logp))
 
 
 if __name__ == "__main__":

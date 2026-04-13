@@ -380,3 +380,8 @@ class Results(object):
                         cbar_param=cbar_param,
                         # fig=fig
                         )
+    def plot_dr4_orbit(self, system, **kwargs):
+        """Wrapper for plot_dr4_orbit;
+         DR4 sky-projected orbit. See orbitize.plot.plot_dr4_orbit."""
+        from orbitize.plot import plot_dr4_orbit
+        return plot_dr4_orbit(self, system, **kwargs)

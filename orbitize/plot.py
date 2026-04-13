@@ -1771,3 +1771,136 @@ def plot_propermotion(
         plt.tight_layout()
 
     return fig
+def _get_star_offsets_dr4(params, system, epochs_mjd):
+    """Primary star's RA/Dec offsets from barycenter (sign-corrected)."""
+    raoff, deoff, _ = system.compute_all_orbits(params, epochs=epochs_mjd)
+    return -raoff[:, 0, 0], -deoff[:, 0, 0]
+
+
+def _model_along_scan_dr4(params, system, dr4):
+    """Full along-scan model for a single parameter draw."""
+    from astropy.time import Time
+    epochs_mjd = Time(dr4.gaia_epoch, format="decimalyear").mjd
+    raoff, deoff = _get_star_offsets_dr4(params, system, epochs_mjd)
+
+    orbit_al = raoff * dr4.sin_scan + deoff * dr4.cos_scan
+
+    return (
+        params[system.param_idx["dr4_ra_off"]] * dr4.sin_scan
+        + params[system.param_idx["dr4_dec_off"]] * dr4.cos_scan
+        + params[system.param_idx["dr4_pmra"]] * dr4.pm_ra_basis
+        + params[system.param_idx["dr4_pmdec"]] * dr4.pm_dec_basis
+        + params[system.param_idx["plx"]] * dr4.parallax_factor_al
+        + orbit_al
+    )
+
+
+def plot_dr4_orbit(
+    results, system, num_orbits_to_plot=100, num_epochs_to_plot=500,
+    square_plot=True, show_colorbar=True, cbar_param="Epoch [year]",
+    fontsize=20, fig=None,
+):
+    """
+    Plot the sky-projected stellar orbit from a DR4 epoch astrometry fit.
+
+    Args:
+        results (orbitize.results.Results): Results object with posterior
+        system (orbitize.system.System): System object with system.gaia
+            set to a DR4LogProb instance
+        num_orbits_to_plot (int): number of posterior draws to overplot
+        num_epochs_to_plot (int): number of points per orbit track
+        square_plot (bool): if True, axes are square
+        show_colorbar (bool): display epoch colorbar
+        cbar_param (str): colorbar label
+        fontsize (int): font size for axis labels
+        fig (matplotlib.pyplot.Figure): optional predefined Figure
+
+    Returns:
+        matplotlib.pyplot.Figure
+
+    Written: Clarissa Do O, 2026
+    """
+    from astropy.time import Time
+    from matplotlib.collections import LineCollection
+
+    dr4 = system.gaia
+    post = results.post
+
+    n_draws = min(num_orbits_to_plot, len(post))
+    choose = np.random.randint(0, high=len(post), size=n_draws)
+
+    epochs_decyr = dr4.gaia_epoch
+    epochs_mjd = Time(epochs_decyr, format="decimalyear").mjd
+
+    t_fine_decyr = np.linspace(
+        epochs_decyr.min() - 0.5, epochs_decyr.max() + 0.5, num_epochs_to_plot
+    )
+    t_fine_mjd = Time(t_fine_decyr, format="decimalyear").mjd
+
+    norm_yr = mpl.colors.Normalize(
+        vmin=t_fine_decyr.min(), vmax=t_fine_decyr.max()
+    )
+
+    if fig is None:
+        fig, ax = plt.subplots(1, 1, figsize=(9, 8))
+        fig.subplots_adjust(right=0.82)
+    else:
+        ax = fig.get_axes()[0]
+
+    # Posterior orbit draws
+    for idx in choose:
+        params = post[idx]
+        ra_fine, de_fine = _get_star_offsets_dr4(params, system, t_fine_mjd)
+
+        points = np.array([ra_fine, de_fine]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        lc = LineCollection(
+            segments, cmap=cmap, norm=norm_yr, linewidth=1.0, alpha=0.3
+        )
+        lc.set_array(t_fine_decyr)
+        ax.add_collection(lc)
+
+    # Project data onto sky
+    median_params = np.median(post, axis=0)
+    raoff_data, deoff_data = _get_star_offsets_dr4(median_params, system, epochs_mjd)
+    median_model_al = _model_along_scan_dr4(median_params, system, dr4)
+    al_resid = dr4.centroid_pos_al - median_model_al
+
+    ra_data = raoff_data + al_resid * dr4.sin_scan
+    de_data = deoff_data + al_resid * dr4.cos_scan
+
+    ax.scatter(ra_data, de_data, marker="*", c="red", s=60, zorder=10)
+
+    for j in range(len(epochs_mjd)):
+        err = dr4.centroid_pos_error_al[j]
+        ra1 = raoff_data[j] + (al_resid[j] + err) * dr4.sin_scan[j]
+        ra2 = raoff_data[j] + (al_resid[j] - err) * dr4.sin_scan[j]
+        de1 = deoff_data[j] + (al_resid[j] + err) * dr4.cos_scan[j]
+        de2 = deoff_data[j] + (al_resid[j] - err) * dr4.cos_scan[j]
+        ax.plot([ra1, ra2], [de1, de2], "k-", lw=0.6, alpha=0.5)
+
+    ax.plot(0, 0, "+", color="k", ms=15, mew=2, zorder=10)
+
+    if square_plot:
+        ax.set_aspect("equal", adjustable="datalim")
+    ax.set_xlabel(r"$\Delta\alpha\cos\delta$ [mas]", fontsize=fontsize)
+    ax.set_ylabel(r"$\Delta\delta$ [mas]", fontsize=fontsize)
+    ax.invert_xaxis()
+    ax.locator_params(axis="x", nbins=6)
+    ax.locator_params(axis="y", nbins=6)
+    ax.tick_params(axis="both", labelsize=fontsize - 5)
+    ax.minorticks_on()
+
+    if show_colorbar:
+        cbar_ax = fig.add_axes([
+            ax.get_position().x1 + 0.01, ax.get_position().y0,
+            0.02, ax.get_position().height,
+        ])
+        cbar = mpl.colorbar.ColorbarBase(
+            cbar_ax, cmap=cmap, norm=norm_yr,
+            orientation="vertical", label=cbar_param,
+        )
+        cbar.ax.tick_params(labelsize=fontsize - 5)
+        cbar.set_label(label=cbar_param, size=fontsize)
+
+    return fig
