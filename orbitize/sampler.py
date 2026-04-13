@@ -1475,13 +1475,17 @@ class NautilusSampler(Sampler):
             numpy array of floats: 1D u samples transformed to a chosen Prior
                 Class distribution.
         """
-        utform = np.zeros(len(u))
+        utform = np.zeros(u.shape)
         for i in range(len(u)):
-            try:
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            except AttributeError:  # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
+            for j in range(len(u[0])):
+                try:
+                    utform[i, j] = self.system.sys_priors[j].transform_samples(u[i, j])
+                except AttributeError:  # prior is a fixed number
+                    utform[i, j] = self.system.sys_priors[i, j]
         return utform
+    
+    def nautilus_logl(self, u: np.ndarray):
+        return self._logl(u.T).T
     
     def run_sampler(
             self,
@@ -1496,8 +1500,9 @@ class NautilusSampler(Sampler):
         
         sampler = nautilus.Sampler(
             prior=self.ptform,
-            likelihood=self._logl,
+            likelihood=self.nautilus_logl,
             n_dim=len(self.system.sys_priors),
+            vectorized=True,
             n_live=n_live,
             n_update=n_update,
             pool=num_threads,
