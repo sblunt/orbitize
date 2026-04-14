@@ -1469,37 +1469,50 @@ class NautilusSampler(Sampler):
         Prior transform function.
 
         Args:
-            u (array of floats): list of samples with values 0 < u < 1.
+            u (np.array of floats): MxR array of uniform
+                samples with values 0 < u < 1,
+                where M is the number of orbits,
+                and R is the number of parameters.
 
         Returns:
-            numpy array of floats: 1D u samples transformed to a chosen Prior
-                Class distribution.
+            numpy MxR array of floats: u samples transformed to
+                a chosen Prior Class distribution.
         """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
+        utform = np.zeros(u.shape)
+        for i in range(u.shape[1]):
             try:
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            except AttributeError:  # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
+                utform[:, i] = self.system.sys_priors[i].transform_samples(u[:, i])
+            except AttributeError: # prior is a fixed number
+                utform[:, i] = self.system.sys_priors[i]
         return utform
+    
+    def nautilus_logl(self, u: np.ndarray):
+        return self._logl(u.T).T
     
     def run_sampler(
             self,
             n_live: int = 2000,
             n_update: None|int = None,
             verbose: bool = False,
+            num_threads: int = 1,
+            savefile: str = None,
             sampler_kwargs: dict = {},
             run_kwargs: dict = {}
         ):
         
         sampler = nautilus.Sampler(
             prior=self.ptform,
-            likelihood=self._logl,
+            likelihood=self.nautilus_logl,
             n_dim=len(self.system.sys_priors),
+            vectorized=True,
             n_live=n_live,
             n_update=n_update,
+            pool=num_threads,
+            filepath=savefile,
             **sampler_kwargs
             )
+        
+        self.naut_sampler = sampler
 
         success = sampler.run(
             verbose=verbose,
