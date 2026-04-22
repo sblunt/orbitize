@@ -1519,12 +1519,15 @@ class NautilusSampler(Sampler):
             **run_kwargs
         )
 
-        # TODO: use weighted posterior for higher accuracy
-        points, low_w, log_l = sampler.posterior(equal_weight = True)
+        points, _, log_l = sampler.posterior(equal_weight = True)
+        weighted_points, log_w, weighted_log_l = sampler.posterior()
 
         self.results.add_samples(
             points,
-            log_l
+            log_l,
+            weighted_post=weighted_points,
+            weighted_lnlike=weighted_log_l,
+            lnweight=log_w
         )
 
         return points
