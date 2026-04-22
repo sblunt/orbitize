@@ -36,7 +36,7 @@ class Results(object):
 
     def __init__(
         self, system=None, sampler_name=None, post=None, lnlike=None,
-        version_number=None, curr_pos=None
+        version_number=None, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None
     ):
 
         self.system = system
@@ -45,6 +45,9 @@ class Results(object):
         self.lnlike = lnlike
         self.curr_pos = curr_pos
         self.version_number = version_number
+        self._weighted_post = weighted_post
+        self._weighted_lnlike = weighted_lnlike
+        self.lnweight = lnweight
 
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
@@ -56,7 +59,25 @@ class Results(object):
             self.param_idx = self.system.param_idx
             self.standard_param_idx = self.system.basis.standard_basis_idx
 
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
+    @property
+    def weighted_post(self):
+        if self._weighted_post is not None:
+            return self._weighted_post
+        return self.post
+    
+    @property
+    def weighted_lnlike(self):
+        if self._weighted_lnlike is not None:
+            return self._weighted_lnlike
+        return self.lnlike
+    
+    @property
+    def weights(self):
+        if self.lnweight is None:
+            return None
+        return np.exp(self.lnweight)
+
+    def add_samples(self, orbital_params, lnlikes, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number 
         to the results
@@ -86,6 +107,16 @@ class Results(object):
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
+        
+        if weighted_post is not None:
+            if self._weighted_post is None:
+                self._weighted_post = weighted_post
+                self._weighted_lnlike = weighted_lnlike
+                self.lnweight = lnweight
+            else:
+                self._weighted_post = np.vstack((self._weighted_post, weighted_post))
+                self._weighted_lnlike = np.append(self._weighted_lnlike, weighted_lnlike)
+                self.lnweight = np.append(self.lnweight, lnweight)
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
