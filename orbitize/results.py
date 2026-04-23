@@ -154,6 +154,12 @@ class Results(object):
         if self.curr_pos is not None:
             hf.create_dataset("curr_pos", data=self.curr_pos)
 
+        if self._weighted_post is not None and self._weighted_lnlike is not None and self.lnweight is not None:
+            hf.create_dataset("weighted_post", data=self._weighted_post)
+            hf.create_dataset("weighted_lnlike", data=self._weighted_lnlike)
+            hf.create_dataset("lnweight", data=self.lnweight)
+
+
         self.system.save(hf)
 
         hf.close()  # Closes file object, which writes file to disk
@@ -185,7 +191,15 @@ class Results(object):
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
 
-
+        try:
+            weighted_post = np.array(hf.get('weighted_post'))
+            weighted_lnlike = np.array(hf.get('weighted_lnlike'))
+            lnweight = np.array(hf.get("lnweight"))
+        except KeyError:
+            weighted_post = None
+            weighted_lnlike = None
+            lnweight = None
+            
         try:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
         except KeyError:
@@ -325,14 +339,14 @@ class Results(object):
                     'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
 
             # Now append post and lnlike
-            self.add_samples(post, lnlike)#, self.labels)
+            self.add_samples(post, lnlike, weighted_post=weighted_post, weighted_lnlike=weighted_lnlike, lnweight=lnweight)#, self.labels)
         else:
 
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None:# and self.tau_ref_epoch is None :
+            if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None and self._weighted_lnlike is None and self._weighted_post is None and self.lnweight is None:# and self.tau_ref_epoch is None :
                 self.sampler_name = sampler_name
                 self.version_number = version_number
-                self.add_samples(post, lnlike)#, self.labels)
+                self.add_samples(post, lnlike, weighted_post=weighted_post, weighted_lnlike=weighted_lnlike, lnweight=lnweight)#, self.labels)
 
             else:
                 raise Exception(
