@@ -349,9 +349,9 @@ class Results(object):
             print(
                 '{}: {:.3f} [{:.3f} - {:.3f}]'.format(
                     l, 
-                    np.median(self.post[:,i]),
-                    np.quantile(self.post[:,i], 0.16),
-                    np.quantile(self.post[:,i], 0.84)
+                    np.quantile(self.weighted_post[:,i], 0.5, method="inverted_cdf", weights = self.weights),
+                    np.quantile(self.weighted_post[:,i], 0.16, method="inverted_cdf", weights = self.weights),
+                    np.quantile(self.weighted_post[:,i], 0.84, method="inverted_cdf", weights = self.weights)
                 )
             )
         print('-------------------\n')
