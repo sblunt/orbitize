@@ -52,7 +52,7 @@ my_system = system.System(
 
 my_sampler = sampler.NautilusSampler(my_system)
 
-print(f"Running sampler with {n_threads=} {n_live=} {n_update=} {sampler_args=} {run_args=}")
+print(f"Running sampler with {n_threads} {n_live} {n_update} {sampler_args} {run_args}")
 # Run the sampler to compute some orbits, yeah!
 my_sampler.run_sampler(n_live,
                        n_update,

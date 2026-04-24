@@ -1492,7 +1492,7 @@ class NautilusSampler(Sampler):
     def run_sampler(
             self,
             n_live: int = 2000,
-            n_update: None|int = None,
+            n_update: int = None,
             verbose: bool = False,
             num_threads: int = 1,
             savefile: str = None,
@@ -1500,27 +1500,28 @@ class NautilusSampler(Sampler):
             run_kwargs: dict = {}
         ):
         
-        sampler = nautilus.Sampler(
-            prior=self.ptform,
-            likelihood=self.nautilus_logl,
-            n_dim=len(self.system.sys_priors),
-            vectorized=True,
-            n_live=n_live,
-            n_update=n_update,
-            pool=num_threads,
-            filepath=savefile,
-            **sampler_kwargs
+        with Pool(processes=num_threads) as pool: #TODO: 1 thread
+            sampler = nautilus.Sampler(
+                prior=self.ptform,
+                likelihood=self.nautilus_logl,
+                n_dim=len(self.system.sys_priors),
+                vectorized=True,
+                n_live=n_live,
+                n_update=n_update,
+                pool=pool,
+                filepath=savefile,
+                **sampler_kwargs
+                )
+            
+            self.naut_sampler = sampler
+
+            success = sampler.run(
+                verbose=verbose,
+                **run_kwargs
             )
-        
-        self.naut_sampler = sampler
 
-        success = sampler.run(
-            verbose=verbose,
-            **run_kwargs
-        )
-
-        points, _, log_l = sampler.posterior(equal_weight = True)
-        weighted_points, log_w, weighted_log_l = sampler.posterior()
+            points, _, log_l = sampler.posterior(equal_weight = True)
+            weighted_points, log_w, weighted_log_l = sampler.posterior()
 
         self.results.add_samples(
             points,
