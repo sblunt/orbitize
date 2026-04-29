@@ -1,4 +1,5 @@
 import os
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
 import matplotlib.pyplot as plt
 
 import orbitize
@@ -22,9 +23,9 @@ plx_err = 0.26  # mas
 # Sampler parameters
 likelihood_func_name = "chi2_lnlike"
 n_threads = mp.cpu_count()
-n_live = 3000
+n_live = 2000
 n_update = None
-sampler_args = {"n_networks": 10}
+sampler_args = {"n_networks": 4}
 run_args = {"f_live": 0.01, "n_eff": 10000}
 
 I = 1
