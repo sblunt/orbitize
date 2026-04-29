@@ -1500,28 +1500,43 @@ class NautilusSampler(Sampler):
             run_kwargs: dict = {}
         ):
         
-        with Pool(processes=num_threads) as pool: #TODO: 1 thread
-            sampler = nautilus.Sampler(
+        if isinstance(num_threads, int) and num_threads > 1:
+            with Pool(processes=num_threads) as pool:
+                self.naut_sampler = nautilus.Sampler(
+                    prior=self.ptform,
+                    likelihood=self.nautilus_logl,
+                    n_dim=len(self.system.sys_priors),
+                    vectorized=True,
+                    n_live=n_live,
+                    n_update=n_update,
+                    pool=pool,
+                    filepath=savefile,
+                    **sampler_kwargs
+                    )
+
+                success = self.naut_sampler.run(
+                    verbose=verbose,
+                    **run_kwargs
+                )
+        else:
+            self.naut_sampler = nautilus.Sampler(
                 prior=self.ptform,
                 likelihood=self.nautilus_logl,
                 n_dim=len(self.system.sys_priors),
                 vectorized=True,
                 n_live=n_live,
                 n_update=n_update,
-                pool=pool,
+                pool=num_threads,
                 filepath=savefile,
                 **sampler_kwargs
                 )
-            
-            self.naut_sampler = sampler
 
-            success = sampler.run(
+            success = self.naut_sampler.run(
                 verbose=verbose,
                 **run_kwargs
             )
-
-            points, _, log_l = sampler.posterior(equal_weight = True)
-            weighted_points, log_w, weighted_log_l = sampler.posterior()
+        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+        weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 
         self.results.add_samples(
             points,
