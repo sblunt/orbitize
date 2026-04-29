@@ -23,6 +23,8 @@ from orbitize import cuda_ext
 import orbitize.results
 import matplotlib.pyplot as plt
 
+import sys
+
 
 class Sampler(abc.ABC):
     """
@@ -1499,8 +1501,7 @@ class NautilusSampler(Sampler):
             sampler_kwargs: dict = {},
             run_kwargs: dict = {}
         ):
-        
-        if isinstance(num_threads, int) and num_threads > 1:
+        if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
             with Pool(processes=num_threads) as pool:
                 self.naut_sampler = nautilus.Sampler(
                     prior=self.ptform,
