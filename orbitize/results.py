@@ -9,7 +9,6 @@ import orbitize.basis
 import orbitize.plot
 import orbitize.gaia, orbitize.hipparcos
 
-
 class Results(object):
     """
     A class to store accepted orbital configurations from the sampler
@@ -192,9 +191,9 @@ class Results(object):
         lnlike = np.array(hf.get('lnlike'))
 
         try:
-            weighted_post = np.array(hf.get('weighted_post'))
-            weighted_lnlike = np.array(hf.get('weighted_lnlike'))
-            lnweight = np.array(hf.get("lnweight"))
+            weighted_post = array_not_none(hf.get('weighted_post'))
+            weighted_lnlike = array_not_none(hf.get('weighted_lnlike'))
+            lnweight = array_not_none(hf.get("lnweight"))
         except KeyError:
             weighted_post = None
             weighted_lnlike = None
@@ -425,3 +424,8 @@ class Results(object):
                         cbar_param=cbar_param,
                         # fig=fig
                         )
+
+def array_not_none(raw):
+    if raw is not None:
+        return np.array(raw)
+    return raw
