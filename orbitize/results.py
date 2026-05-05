@@ -75,7 +75,16 @@ class Results(object):
         if self.lnweight is None:
             return None
         return np.exp(self.lnweight)
+    
+    def downsample(self, amount, duplicates = True):
+        """
+        Samples from the posterior an amount of times. If the posterior
+        is weighted, samples proportionally to weight to get an equal-weighted posterior.
+        """
 
+        indexes = np.random.choice(len(self.weighted_post), amount, duplicates, self.weights)
+        return self.weighted_post[indexes], self.weighted_lnlike[indexes]
+        
     def add_samples(self, orbital_params, lnlikes, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number 
@@ -369,11 +378,11 @@ class Results(object):
             )
         print('-------------------\n')
     
-    def plot_corner(self, param_list=None, **corner_kwargs):
+    def plot_corner(self, param_list=None, downsample=None, **corner_kwargs):
         """
         Wrapper for orbitize.plot.plot_corner
         """
-        return orbitize.plot.plot_corner(self, param_list, **corner_kwargs)
+        return orbitize.plot.plot_corner(self, param_list, downsample, **corner_kwargs)
 
     def plot_orbits(self, object_to_plot=1, start_mjd=51544.,
         num_orbits_to_plot=100, num_epochs_to_plot=100,

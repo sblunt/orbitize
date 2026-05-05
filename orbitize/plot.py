@@ -28,8 +28,7 @@ cmap = colors.LinearSegmentedColormap.from_list(
     cmap(np.linspace(0.0, 0.7, 1000)),
 )
 
-
-def plot_corner(results, param_list=None, **corner_kwargs):
+def plot_corner(results, param_list=None, downsample=None, **corner_kwargs):
     """
     Make a corner plot of posterior on orbit fit from any sampler
 
@@ -55,6 +54,9 @@ def plot_corner(results, param_list=None, **corner_kwargs):
                 sigma: rv jitter
                 mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass == True)
                 mtot: total mass (only if fit_secondary_mass == False)
+        
+        downsample (int):
+            amount of samples to randomly draw from the posterior using ``results.downsample``
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
@@ -123,8 +125,15 @@ def plot_corner(results, param_list=None, **corner_kwargs):
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 secondary_mass_indices.append(i)
 
+    if downsample:
+        post, _ = results.downsample(downsample)
+        weights = None
+    else:
+        post = results.weighted_post
+        weights = results.weights
+
     samples = np.copy(
-        results.weighted_post[:, param_indices]
+        post[:, param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -159,7 +168,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
 
         corner_kwargs["labels"] = reduced_labels_list
 
-    figure = corner.corner(samples, **corner_kwargs, weights=results.weights)
+    figure = corner.corner(samples, **corner_kwargs, weights=weights)
     return figure
 
 
