@@ -40,7 +40,7 @@ tau_ref_epoch = 50000
 
 
 # Read in data
-data_table = read_input.read_file(orbitize.DATADIR + datafile)
+data_table = read_input.read_file(datafile)
 
 # Initialize System object which stores data & sets priors
 my_system = system.System(
