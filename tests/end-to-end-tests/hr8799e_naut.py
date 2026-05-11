@@ -15,12 +15,12 @@ import time
 savedir = ""
 
 # System parameters
-datafile = "GJ504.csv"
+datafile = "hr8799e_1epochgravity.csv"
 num_secondary_bodies = 1
-system_mass = 1.22  # Msol
-plx = 56.95  # mas
-mass_err = 0.08  # Msol
-plx_err = 0.26  # mas
+system_mass = 1.52  # Msol
+plx = 24.2175  # mas
+mass_err = 0.15  # Msol
+plx_err = 0.0881  # mas
 
 # Sampler parameters
 likelihood_func_name = "chi2_lnlike"
@@ -32,9 +32,9 @@ run_args = {"f_live": 0.01, "n_eff": 10000}
 
 I = 1
 
-naut_file = f"{savedir}GJ504_naut_{I}.hdf5"
+naut_file = f"{savedir}hr8799e_naut_{I}.hdf5"
 
-results_file = f"{savedir}GJ504_results_{I}.hdf5"
+results_file = f"{savedir}hr8799e_naut_results_{I}.hdf5"
 
 tau_ref_epoch = 50000
 
@@ -73,6 +73,6 @@ my_sampler.results.save_results(results_file)
 
 # make corner plot
 # fig = my_sampler.results.plot_corner()
-# plt.savefig(f"{savedir}GJ504_naut_corner_{I}.png", dpi=250)
+# plt.savefig(f"{savedir}hr8799e_naut_corner_{I}.png", dpi=250)
 
 my_sampler.results.print_results()
