@@ -54,6 +54,14 @@ User Guide:
 
 Changelog:
 ++++++++++
+
+**3.3.0 (2026-5-18)**
+
+- add support for multinest! (@tomasstolker)
+- bugfix for periodic saving in MCMC (@eshelDror)
+- bugfix for corner plot failing if any parameters are fixed (@tomasstolker)
+- quick fix for #402 (@ell-bogat)
+
 **3.2.2 (2026-4-12)**
 
 - fix a few bugs causing unit test failures (#400) (@sblunt)
