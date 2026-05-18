@@ -3,19 +3,6 @@
 Installation
 ============
 
-Important Temporary Note
-++++++++++++++++++++++++
-Sarah has been locked out of her pypi.org account (???) which means that you can't pip install
-the latest version of `orbitize`. If you want to install version 3, you can install the 
-version of the code on github using:
-
-.. code-block:: bash
-
-	$ pip install git+https://github.com/sblunt/orbitize.git
-
-If you're reading this, please upvote Sarah's request to reinstate her pypi.org account: https://github.com/pypi/support/issues/3898
-
-
 For Users
 +++++++++
 
@@ -100,7 +87,8 @@ of the repo:
 
 .. code-block:: bash
 	
-	$ pip install -r requirements.txt -e .
+	$ pip install -r requirements.txt
+	$ pip install -e . --upgrade
 
 Issues?
 +++++++
