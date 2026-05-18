@@ -123,7 +123,8 @@ class Results(object):
             hf.attrs['ln_evidence_err'] = self.ln_evidence_err
 
         # Now add post and lnlike from the results object as datasets
-        hf.create_dataset('post', data=self.post)
+        if self.post is not None:
+            hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
@@ -159,8 +160,12 @@ class Results(object):
             version_number = str(hf.attrs['version_number'])
         else:
             version_number = "<= 1.13"
-        post = np.array(hf.get('post'))
-        lnlike = np.array(hf.get('lnlike'))
+        post = hf.get('post')
+        if post is not None:
+            post = np.array(post)
+        lnlike = hf.get('lnlike')
+        if lnlike is not None:
+            lnlike = np.array(lnlike)
 
         if 'num_secondary_bodies' in hf.attrs:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
