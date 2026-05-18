@@ -163,10 +163,14 @@ class Results(object):
 
         try:
             data_table = table.Table(np.array(hf.get('data')))
+            # Decode byte string columns to str for consistent in-memory types
+            for col in data_table.colnames:
+                if data_table[col].dtype.kind == "S":
+                    data_table[col] = np.char.decode(data_table[col], "utf-8")
         except ValueError: # old version of results; add a dummy table
             data_table = table.Table(
                 names = (
-                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2', 
+                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2',
                     'quant2_err', 'quant12_corr', 'quant_type', 'instrument'
                 ),
                 dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')

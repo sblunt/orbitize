@@ -829,9 +829,9 @@ def all_lnpriors(params, priors):
     for param, prior in zip(params, priors):
         param = np.array([param])
 
-        logp += prior.compute_lnprob(param)  # return a float
+        logp += np.squeeze(prior.compute_lnprob(param))
 
-    return logp
+    return float(logp)
 
 
 if __name__ == "__main__":
