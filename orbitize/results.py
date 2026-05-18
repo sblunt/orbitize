@@ -57,7 +57,7 @@ class Results(object):
             self.param_idx = self.system.param_idx
             self.standard_param_idx = self.system.basis.standard_basis_idx
 
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
+    def add_samples(self, orbital_params, lnlikes, chi2, curr_pos=None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number 
         to the results
@@ -82,11 +82,13 @@ class Results(object):
         if self.post is None:
             self.post = orbital_params
             self.lnlike = lnlikes
+            self.chi2 = chi2  # --> can we get this from modifying lnlike or do we need to add chi2 as a param?
 
         # Otherwise, need to append properly
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
+            self.chi2 = np.append(self.chi2, chi2)
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
