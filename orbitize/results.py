@@ -101,7 +101,7 @@ class Results(object):
         Save attributes from the ``results.Results`` object.
 
         ``sampler_name``, ``tau_ref_epcoh``, ``version_number`` are attributes of the root group.
-        ``post``, ``lnlike``, and ``parameter_labels`` are datasets
+        ``post``, ``lnlike``, ``parameter_labels`, and ``chi2`` are datasets
         that are members of the root group.
 
         Written: Henry Ngo, 2018
@@ -120,6 +120,9 @@ class Results(object):
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
+
+        if self.chi2 is not None:
+            hf.create_dataset('chi2', data=self.chi2)
 
         if self.curr_pos is not None:
             hf.create_dataset("curr_pos", data=self.curr_pos)
