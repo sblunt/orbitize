@@ -89,6 +89,10 @@ class Sampler(abc.ABC):
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
+        # NOTE: this won't work if we're fitting more than just astrometry. This is a hack for betelgeuse.
+        if "sigma_ast" in self.system.param_idx:
+            jitter = np.ones_like(model) * params[self.system.param_idx["sigma_ast"]]
+
         lnlikes = self.lnlike(
             data, errs, corrs, model, jitter, seppa_indices, chi2_type=self.chi2_type
         )
@@ -100,30 +104,31 @@ class Sampler(abc.ABC):
             lnlikes_sum += self.custom_lnlike(params)
 
         if self.system.hipparcos_IAD is not None:
-            # compute Ra/Dec predictions at the Hipparcos IAD epochs
-            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
-                params, epochs=self.system.hipparcos_IAD.epochs_mjd
-            )
+            if self.system.hipparcos_IAD.include_hip_iad_in_likelihood:
+                # compute Ra/Dec predictions at the Hipparcos IAD epochs
+                raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+                    params, epochs=self.system.hipparcos_IAD.epochs_mjd
+                )
 
-            (
-                raoff_model_hip_epoch,
-                deoff_model_hip_epoch,
-                _,
-            ) = self.system.compute_all_orbits(
-                params, epochs=Time([1991.25], format="decimalyear").mjd
-            )
+                (
+                    raoff_model_hip_epoch,
+                    deoff_model_hip_epoch,
+                    _,
+                ) = self.system.compute_all_orbits(
+                    params, epochs=Time([1991.25], format="decimalyear").mjd
+                )
 
-            # subtract off position of star at reference Hipparcos epoch
-            raoff_model[:, 0, :] -= raoff_model_hip_epoch[:, 0, :]
-            deoff_model[:, 0, :] -= deoff_model_hip_epoch[:, 0, :]
+                # subtract off position of star at reference Hipparcos epoch
+                raoff_model[:, 0, :] -= raoff_model_hip_epoch[:, 0, :]
+                deoff_model[:, 0, :] -= deoff_model_hip_epoch[:, 0, :]
 
-            # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
-            lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
-                raoff_model[:, 0, :],
-                deoff_model[:, 0, :],
-                params,
-                self.system.param_idx,
-            )
+                # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
+                lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
+                    raoff_model[:, 0, :],
+                    deoff_model[:, 0, :],
+                    params,
+                    self.system.param_idx,
+                )
 
         if self.system.gaia is not None:
             gaiahip_epochs = Time(
