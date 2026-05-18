@@ -157,6 +157,7 @@ class Results(object):
             version_number = "<= 1.13"
         post = np.array(hf.get('post'))
         lnlike = np.array(hf.get('lnlike'))
+        chi2 = np.array(hf.get('chi2'))
 
 
         try:
@@ -301,15 +302,15 @@ class Results(object):
                 raise Exception(
                     'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
 
-            # Now append post and lnlike
-            self.add_samples(post, lnlike)#, self.labels)
+            # Now append post, lnlike, and chi2
+            self.add_samples(post, lnlike, chi2)#, self.labels)
         else:
 
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None:# and self.tau_ref_epoch is None :
+            if self.sampler_name is None and self.post is None and self.lnlike is None and self.chi2 is None and self.version_number is None:# and self.tau_ref_epoch is None :
                 self.sampler_name = sampler_name
                 self.version_number = version_number
-                self.add_samples(post, lnlike)#, self.labels)
+                self.add_samples(post, lnlike, chi2)#, self.labels)
 
             else:
                 raise Exception(
