@@ -40,7 +40,7 @@ def test_nested_sampler():
     mySys.sys_priors[lab["mtot"]] = mtot
 
     start_method="fork"
-    if sys.platform == "darwin":
+    if sys.platform in ["darwin", "win32"]:
         start_method="spawn"
 
     # run both static & dynamic nested samplers

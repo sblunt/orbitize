@@ -27,6 +27,7 @@ dependencies = [
     "rebound",
     "dynesty",
     "pymultinest"
+    "tk"
 ]
 
 [tool.setuptools.dynamic]
