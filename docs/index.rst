@@ -54,6 +54,9 @@ User Guide:
 
 Changelog:
 ++++++++++
+**3.2.2 (2026-4-12)**
+
+- fix a few bugs causing unit test failures (#400) (@sblunt)
 
 **3.2.1 (2026-1-18)**
 
