@@ -156,11 +156,11 @@ def test_orbit_calculation():
     myGaia.ra = myHip.alpha0 + (
         myGaia.mas2deg
         * pm_a
-        * (myGaia.gaia_epoch - myGaia.hipparcos_epoch)
+        * (myGaia.gaia_epoch.jyear - myGaia.hipparcos_epoch.jyear)
         / np.cos(np.radians(myHip.delta0))
     )
     myGaia.dec = myHip.delta0 + (
-        myGaia.mas2deg * pm_d * (myGaia.gaia_epoch - myGaia.hipparcos_epoch)
+        myGaia.mas2deg * pm_d * (myGaia.gaia_epoch.jyear - myGaia.hipparcos_epoch.jyear)
     )
     test_samples = [sma, ecc, inc, aop, pan, tau, plx, m0, m1, a0, d0, pm_a, pm_d]
 
@@ -194,7 +194,7 @@ def test_orbit_calculation():
     myGaia.dec = myHip.delta0 + 1
 
     sma = 2 * (myGaia.dec - myHip.delta0) * deg2arcsec * (plx * mas2arcsec)  # [au]
-    per = 2 * (myGaia.gaia_epoch - myGaia.hipparcos_epoch)  # [yr]
+    per = 2 * (myGaia.gaia_epoch.jyear - myGaia.hipparcos_epoch.jyear)  # [yr]
     mtot = sma**3 / per**2
 
     test_samples[param_idx["sma1"]] = sma
@@ -203,7 +203,7 @@ def test_orbit_calculation():
 
     # passes through peri (+sma decl for e=0 orbits) at Hipparcos epoch
     # -> @ Gaia epoch, primary should be at +sma decl
-    tau = basis.tp_to_tau(myGaia.hipparcos_epoch, 58849, per)
+    tau = basis.tp_to_tau(myGaia.hipparcos_epoch.jyear, 58849, per)
     test_samples[param_idx["tau1"]] = tau
 
     # choose sma and mass so that Hipparcos/Gaia difference is only due to orbit.
@@ -308,8 +308,8 @@ def test_nointernet():
 
 if __name__ == "__main__":
     test_nointernet()
-    # test_dr2_edr3()
-    # test_system_setup()
-    # test_valueerror()
-    # test_orbit_calculation()
+    test_dr2_edr3()
+    test_system_setup()
+    test_valueerror()
+    test_orbit_calculation()
     test_hgca()

@@ -1,5 +1,4 @@
 import numpy as np
-from astropy.io import ascii
 import pandas as pd
 import emcee
 from scipy.stats import norm
@@ -17,29 +16,28 @@ class PMPlx_Motion(object):
     parallax and proper motion model (NO orbital motion is added in this class).
 
     Args:
-        times_mjd (np.array of float): times (in mjd) at which we have absolute astrometric
+        epochs_mjd (np.array of float): times (in mjd) at which we have absolute astrometric
             measurements
         alpha0 (float): measured RA position (in degrees) of the object at alphadec0_epoch (see below).
         delta0 (float): measured Dec position (in degrees) of the object at alphadec0_epoch (see below).
         alphadec0_epoch (float): a (fixed) reference time. For stars with Hipparcos data, this
-            should generally be 1991.25, but you can define it however you want. Absolute
+            should generally be J1991.25, but you can define it however you want. Absolute
             astrometric data (passed in via an orbitize! data table) should be defined
             as offsets from the reported position of the object at this epoch (with propagated
             uncertainties). For example, if you have two absolute astrometric measurements
-            taken with GRAVITY, as well as a Hipparcos-derived position (at epoch 1991.25),
-            alphadec0_epoch should be 1991.25, and you should pass in absolute astrometry
+            taken with GRAVITY, as well as a Hipparcos-derived position (at epoch J1991.25),
+            alphadec0_epoch should be J1991.25, and you should pass in absolute astrometry
             in terms of mas *offset* from the Hipparcos catalog position, with propagated
             errors of your measurement and the Hipparcos measurement.
     """
 
-    def __init__(self, epochs_mjd, alpha0, delta0, alphadec0_epoch=1991.25):
+    def __init__(self, epochs_mjd, alpha0, delta0, alphadec0_epoch=Time("J1991.25", format="jyear_str").jyear):
         self.epochs_mjd = epochs_mjd
         self.alphadec0_epoch = alphadec0_epoch
         self.alpha0 = alpha0
         self.delta0 = delta0
 
         epochs = Time(epochs_mjd, format="mjd")
-        self.epochs = epochs.decimalyear
 
         # compute Earth XYZ position in barycentric coordinates
         bary_pos, _ = get_body_barycentric_posvel("earth", epochs)
@@ -61,7 +59,7 @@ class PMPlx_Motion(object):
                 indices in an array of fitting parameters (generally
                 set to System.basis.param_idx).
             epochs: if None, use self.epochs for astrometric predictions. Otherwise,
-                use this array passed in [in decimalyear].
+                use this array passed in [in mjd].
 
         Returns:
             tuple of:
@@ -78,14 +76,14 @@ class PMPlx_Motion(object):
         delta_H0 = samples[param_idx["delta0"]]
 
         if epochs is None:
-            epochs = self.epochs
+            epochs = Time(self.epochs_mjd, format='mjd')
             X = self.X
             Y = self.Y
             Z = self.Z
         else:
             # compute Earth XYZ position in barycentric coordinates
             bary_pos, _ = get_body_barycentric_posvel(
-                "earth", Time(epochs, format="decimalyear")
+                "earth", Time(epochs, format="mjd")
             )
             X = bary_pos.x.value  # [au]
             Y = bary_pos.y.value  # [au]
@@ -105,7 +103,7 @@ class PMPlx_Motion(object):
                     X[i] * np.sin(np.radians(self.alpha0))
                     - Y[i] * np.cos(np.radians(self.alpha0))
                 )
-                + (epochs[i] - self.alphadec0_epoch) * pm_ra
+                + (epochs[i].jyear - self.alphadec0_epoch) * pm_ra
             )
             delta_C_array[i] = (
                 delta_H0
@@ -119,7 +117,7 @@ class PMPlx_Motion(object):
                     * np.sin(np.radians(self.delta0))
                     - Z[i] * np.cos(np.radians(self.delta0))
                 )
-                + (epochs[i] - self.alphadec0_epoch) * pm_dec
+                + (epochs[i].jyear - self.alphadec0_epoch) * pm_dec
             )
         return alpha_C_st_array, delta_C_array
 
@@ -137,9 +135,9 @@ class HipparcosLogProb(object):
     are described here for completeness. See Nielsen+ 2020 for more detail.
 
     - alpha0: RA offset from the reported Hipparcos position at a particular
-        epoch (usually 1991.25) [mas]
+        epoch (usually J1991.25) [mas]
     - delta0: Dec offset from the reported Hipparcos position at a particular
-        epoch (usually 1991.25) [mas]
+        epoch (usually J1991.25) [mas]
     - pm_ra: RA proper motion [mas/yr]
     - pm_dec: Dec proper motion [mas/yr]
     - plx: parallax [mas]
@@ -157,7 +155,7 @@ class HipparcosLogProb(object):
             zeros in the prefix if number is <100,000. (i.e. 27321 should be
             passed in as '027321').
         num_secondary_bodies (int): number of companions in the system
-        alphadec0_epoch (float): epoch (in decimal year) that the fitting
+        alphadec0_epoch (float): epoch (in Julian decimal year) that the fitting
             parameters alpha0 and delta0 are defined relative to (see above).
         renormalize_errors (bool): if True, normalize the scan errors to get
             chisq_red = 1, following Nielsen+ 2020 (eq 10). In general, this
@@ -173,7 +171,7 @@ class HipparcosLogProb(object):
         path_to_iad_file,
         hip_num,
         num_secondary_bodies,
-        alphadec0_epoch=1991.25,
+        alphadec0_epoch=Time("J1991.25", format="jyear_str").jyear,
         renormalize_errors=False,
     ):
         self.path_to_iad_file = path_to_iad_file
@@ -284,7 +282,11 @@ class HipparcosLogProb(object):
 
         n_lines = len(iad)
 
-        times = iad[1] + 1991.25
+
+        self.epochs = Time(
+            iad[1] * 365.25 + Time("J1991.25",format="jyear_str").jd, format='jd'
+        )
+
         self.cos_phi = iad[3]  # scan direction
         self.sin_phi = iad[4]
         self.R = iad[5]  # abscissa residual [mas]
@@ -295,18 +297,18 @@ class HipparcosLogProb(object):
 
         if n_lines - len(good_scans) > 0:
             print("{} Hipparcos scans rejected.".format(n_lines - len(good_scans)))
-        times = times[good_scans]
+        self.epochs = self.epochs[good_scans]
         self.cos_phi = self.cos_phi[good_scans]
         self.sin_phi = self.sin_phi[good_scans]
         self.R = self.R[good_scans]
         self.eps = self.eps[good_scans]
 
+        self.epochs_mjd = self.epochs.mjd
+
         # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
         self.eps = np.sqrt(self.eps**2 - self.var**2)
 
-        epochs = Time(times, format="decimalyear")
-        self.epochs = epochs.decimalyear
-        self.epochs_mjd = epochs.mjd
+
 
         self.hipparcos_plxpm_predictor = PMPlx_Motion(
             self.epochs_mjd,
@@ -316,7 +318,7 @@ class HipparcosLogProb(object):
         )
 
         if self.renormalize_errors:
-            D = len(epochs) - 6
+            D = len(self.epochs) - 6
             G = f2
 
             f = (G * np.sqrt(2 / (9 * D)) + 1 - (2 / (9 * D))) ** (3 / 2)
@@ -333,7 +335,7 @@ class HipparcosLogProb(object):
                 self.hipparcos_plxpm_predictor.X * np.sin(np.radians(self.alpha0))
                 - self.hipparcos_plxpm_predictor.Y * np.cos(np.radians(self.alpha0))
             )
-            + (self.epochs - 1991.25) * self.pm_ra0
+            + (self.epochs.jyear - self.alphadec0_epoch) * self.pm_ra0
         )
 
         changein_delta = (
@@ -347,7 +349,7 @@ class HipparcosLogProb(object):
                 * np.sin(np.radians(self.delta0))
                 - self.hipparcos_plxpm_predictor.Z * np.cos(np.radians(self.delta0))
             )
-            + (self.epochs - 1991.25) * self.pm_dec0
+            + (self.epochs.jyear - self.alphadec0_epoch) * self.pm_dec0
         )
 
         # compute abcissa point (Nielsen+ Eq 3)

@@ -126,12 +126,9 @@ class Sampler(abc.ABC):
             )
 
         if self.system.gaia is not None:
-            gaiahip_epochs = Time(
-                np.append(
-                    self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch
-                ),
-                format="decimalyear",
-            ).mjd
+            gaiahip_epochs = np.append(
+                self.system.gaia.hipparcos_epoch.mjd, self.system.gaia.gaia_epoch.mjd
+            )
 
             # compute Ra/Dec predictions at the Gaia epoch
             raoff_model, deoff_model, _ = self.system.compute_all_orbits(
