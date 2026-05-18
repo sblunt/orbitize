@@ -449,7 +449,7 @@ class HipparcosLogProb(object):
         )
         lnlike = -0.5 * chi2 - np.sum(np.log(np.sqrt(2 * np.pi * eps)))
 
-        return lnlike
+        return np.squeeze(lnlike)
 
 
 def nielsen_iad_refitting_test(
