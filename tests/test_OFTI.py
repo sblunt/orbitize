@@ -41,7 +41,7 @@ def test_scale_and_rotate():
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
     # test to make sure sep and pa scaled to scale-and-rotate epoch
-    sar_epoch = s.system.data_table[s.epoch_idx]
+    sar_epoch = s.system.data_table[s.epoch_idx[0]]
     assert sep_sar == pytest.approx(sar_epoch["quant1"], abs=sar_epoch["quant1_err"])
     assert pa_sar == pytest.approx(sar_epoch["quant2"], abs=sar_epoch["quant2_err"])
 
@@ -97,7 +97,7 @@ def test_scale_and_rotate():
     sep, pa = orbitize.system.radec2seppa(ra, dec)
     sep_sar, pa_sar = np.median(sep[s.epoch_idx]), np.median(pa[s.epoch_idx])
 
-    sar_epoch = s.system.data_table[s.epoch_idx]
+    sar_epoch = s.system.data_table[s.epoch_idx[0]]
     assert sep_sar == pytest.approx(sar_epoch["quant1"], abs=sar_epoch["quant1_err"])
     assert pa_sar == pytest.approx(sar_epoch["quant2"], abs=sar_epoch["quant2_err"])
 
