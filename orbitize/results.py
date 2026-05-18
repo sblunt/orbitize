@@ -163,10 +163,14 @@ class Results(object):
 
         try:
             data_table = table.Table(np.array(hf.get('data')))
+            # Decode byte string columns to str for consistent in-memory types
+            for col in data_table.colnames:
+                if data_table[col].dtype.kind == "S":
+                    data_table[col] = np.char.decode(data_table[col], "utf-8")
         except ValueError: # old version of results; add a dummy table
             data_table = table.Table(
                 names = (
-                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2', 
+                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2',
                     'quant2_err', 'quant12_corr', 'quant_type', 'instrument'
                 ),
                 dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')
@@ -197,7 +201,7 @@ class Results(object):
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
 
-            tmpfile = 'thisisprettyhackysorrylmao'
+            tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
             with open(tmpfile, 'w+') as f:
                 try:
                     for l in np.array(iad_data):
@@ -218,8 +222,6 @@ class Results(object):
                 renormalize_errors,
             )
 
-            os.system('rm {}'.format(tmpfile))
-
             # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
@@ -232,14 +234,14 @@ class Results(object):
             gaiagost_data = hf.get("Gaia_GOST")
             if gaiagost_data is not None:
                 
-                tmpfile = 'thisisprettyhackysorrylmao'
+                tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
                 gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
-                os.system('rm {}'.format(tmpfile))
+
         else:
             hipparcos_IAD = None
             gaia = None

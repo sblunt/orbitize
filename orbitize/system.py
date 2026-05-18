@@ -320,7 +320,13 @@ class System(object):
 
         hf.attrs["num_secondary_bodies"] = self.num_secondary_bodies
 
-        hf.create_dataset("data", data=self.input_table)
+        # h5py doesn't support numpy unicode dtypes; encode string columns as bytes
+        data_arr = np.array(self.input_table)
+        encoded_dtype = [
+            (name, "S{}".format(dt.itemsize // 4)) if dt.kind == "U" else (name, dt)
+            for name, (dt, _) in data_arr.dtype.fields.items()
+        ]
+        hf.create_dataset("data", data=data_arr.astype(encoded_dtype))
 
         hf.attrs["restrict_angle_ranges"] = self.restrict_angle_ranges
         hf.attrs["tau_ref_epoch"] = self.tau_ref_epoch
@@ -579,9 +585,15 @@ class System(object):
             deoff = dec_kepler + dec_perturb
 
         if self.fitting_basis == "XYZ":
+            
             # Find and filter out unbound orbits
-            bad_orbits = np.where(np.logical_or(ecc >= 1.0, ecc < 0.0))[0]
-            if bad_orbits.size != 0:
+            bad_orbits = []
+            if isinstance(ecc, float):
+                if ecc >= 1.0 or ecc < 0.0:
+                    bad_orbits = [0]
+            else:
+                bad_orbits = np.where(np.logical_or(ecc >= 1.0, ecc < 0.0))[0]
+            if len(bad_orbits) > 0:
                 raoff[:, :, bad_orbits] = np.inf
                 deoff[:, :, bad_orbits] = np.inf
                 vz[:, :, bad_orbits] = np.inf

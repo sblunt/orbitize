@@ -104,7 +104,7 @@ def read_file(filename):
             "quant_type",
             "instrument",
         ),
-        dtype=(float, int, float, float, float, float, float, "S5", "S5"),
+        dtype=(float, int, float, float, float, float, float, "S5", "U20"),
     )
 
     # read file
