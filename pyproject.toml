@@ -25,7 +25,8 @@ dependencies = [
     "pyerfa",
     "astroquery",
     "rebound",
-    "dynesty"
+    "dynesty",
+    "pymultinest"
 ]
 
 [tool.setuptools.dynamic]
