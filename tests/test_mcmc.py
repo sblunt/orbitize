@@ -52,8 +52,6 @@ def do_mcmc_runs(num_temps=0, num_threads=1, make_corner_plot=False):
         400, burn_steps=10, output_filename=output_filename, periodic_save_freq=2
     )
 
-    # TODO: Add test for restarting from saved results when burn-in is interrupted (i.e. no regular steps have been done) 
-
     # run it a little more (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)
     assert myDriver.sampler.results.post.shape[0] == 500
@@ -98,6 +96,9 @@ def do_mcmc_runs(num_temps=0, num_threads=1, make_corner_plot=False):
     if make_corner_plot:
         assert myDriver.system.plx_err == 0 # (check that we're actually fixing at least one param: plx)
         plot_corner(new_sampler.results)
+
+    # clean up
+    os.system(f'rm {output_filename} {output_filename_2}')
 
 
 def do_examine_chop_chains(num_temps=0, num_threads=1):
