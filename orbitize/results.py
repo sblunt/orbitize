@@ -36,7 +36,7 @@ class Results(object):
 
     def __init__(
         self, system=None, sampler_name=None, post=None, lnlike=None,
-        version_number=None, curr_pos=None
+        version_number=None, curr_pos=None, chi2=None
     ):
 
         self.system = system
@@ -45,6 +45,7 @@ class Results(object):
         self.lnlike = lnlike
         self.curr_pos = curr_pos
         self.version_number = version_number
+        self.chi2 = chi2
 
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
