@@ -139,7 +139,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in param_indices:
+        for i in range(len(param_indices)):
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
