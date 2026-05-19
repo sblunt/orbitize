@@ -1441,7 +1441,7 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
-                        nlive=None,
+                        nlive=nlive
                     )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
@@ -1460,7 +1460,7 @@ class NestedSampler(Sampler):
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
-                    nlive=None,
+                    nlive=nlive,
                 )
             self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
