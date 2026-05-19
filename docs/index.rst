@@ -55,7 +55,7 @@ User Guide:
 Changelog:
 ++++++++++
 
-**3.3.0 (2026-5-18)**
+**3.3.0 (2026-5-19)**
 
 - add support for multinest! (@tomasstolker)
 - bugfix for periodic saving in MCMC (@eshelDror)
