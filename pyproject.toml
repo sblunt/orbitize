@@ -26,6 +26,7 @@ dependencies = [
     "astroquery",
     "rebound",
     "dynesty",
+    "pymultinest",
     "tk"
 ]
 
