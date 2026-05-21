@@ -301,7 +301,12 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
-
+        # Register extra parameters from the Gaia DR4 likelihood object
+        if self.gaia is not None and hasattr(self.gaia, 'extra_param_names'):
+            for name, prior in zip(self.gaia.extra_param_names, self.gaia.extra_param_priors):
+                self.labels.append(name)
+                self.sys_priors.append(prior)
+            self.param_idx = {label: i for i, label in enumerate(self.labels)}
     def save(self, hf):
         """
         Saves the current object to an hdf5 file

@@ -455,3 +455,197 @@ class HGCALogProb(object):
         x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
 
         return x
+
+
+import numpy as np
+import astropy.time as time
+from astropy.io.ascii import read
+
+from orbitize import priors
+
+
+class DR4LogProb(object):
+    """
+    Class to compute the log probability of an orbit with respect to Gaia DR4
+    astrometric measurements (epoch astrometry).
+    We treat the four linear astrometric parameters (proper motion RA/Dec and position RA/Dec)
+    due to linear motion
+    as explicit MCMC parameters constrained
+    by Gaussian priors from the Gaia catalog.
+
+    The forward model for each scan at epoch t_i is::
+
+        eta_i = dr4_ra_off  * sin(psi_i)  +  dr4_dec_off * cos(psi_i)
+              + dr4_pmra * dt_i * sin(psi_i)  +  dr4_pmdec * dt_i * cos(psi_i)
+              + plx * parallax_factor_i
+              + raoff_orbit_i * sin(psi_i)  +  deoff_orbit_i * cos(psi_i)
+
+    where psi_i is the scan position angle, dt_i = (t_i - t_ref) in Julian
+    years, and the last line is the orbital perturbation of the primary star
+    passed in by the sampler.
+
+    Required parameters in the MCMC state vector (in addition to the usual
+    orbital elements, plx, masses):
+
+        dr4_ra_off   – positional offset in RA* at reference epoch [mas]
+        dr4_dec_off  – positional offset in Dec  at reference epoch [mas]
+        dr4_pmra     – proper motion in RA*  [mas/yr]
+        dr4_pmdec    – proper motion in Dec  [mas/yr]
+
+    These are registered automatically when the System is constructed with
+    gaia=dr4 (requires the corresponding hooks in system.py; see
+    extra_param_names and extra_param_priors below). Alternatively,
+    they can be injected manually after System creation.
+
+    Pass this object into the gaia keyword of orbitize.system.System.
+    You must 'set fit_secondary_mass=True' so that the star's barycentric
+    wobble is computed.
+
+    Args:
+        gaia_num (int): Gaia source ID
+        dr4_filepath (str): path to CSV file containing DR4 epoch astrometry
+            with columns: 'obs_time_tcb', 'centroid_pos_al',
+            'centroid_pos_error_al', 'parallax_factor_al',
+            'scan_pos_angle', 'field_of_view'
+        ref_epoch_jd (float): reference epoch in JD (TCB) for the linear
+            astrometric model.  Default 2457936.875 (J2017.5).
+        catalog_pmra (float): Gaia catalog proper motion in RA* [mas/yr].
+        catalog_pmra_err (float): 1-sigma uncertainty on catalog_pmra.
+        catalog_pmdec (float): Gaia catalog proper motion in Dec [mas/yr].
+        catalog_pmdec_err (float): 1-sigma uncertainty on catalog_pmdec.
+        catalog_ra_off (float): positional offset in RA* at ref_epoch_jd [mas].  Default 0.
+        catalog_ra_off_err (float): 1-sigma uncertainty [mas].  Default 1 (weakly informative; Gaia positions are sub-mas,
+         but the offset is defined relative to an arbitrary origin).
+        catalog_dec_off (float): positional offset in Dec at `ef_epoch_jd [mas].  Default 0.
+        catalog_dec_off_err (float): 1-sigma uncertainty [mas].  Default 1.
+
+    Written: Clarissa Do O, 2026
+    """
+
+    # The four parameter names this class injects into the System.
+    extra_param_names = ("dr4_ra_off", "dr4_dec_off", "dr4_pmra", "dr4_pmdec")
+
+    def __init__(
+        self,
+        gaia_num,
+        dr4_filepath,
+        ref_epoch_jd=2457936.875, #2017.5, same as tutorial
+        catalog_pmra=0.0,
+        catalog_pmra_err=100.0,
+        catalog_pmdec=0.0,
+        catalog_pmdec_err=100.0,
+        catalog_ra_off=0.0,
+        catalog_ra_off_err=1.0,
+        catalog_dec_off=0.0,
+        catalog_dec_off_err=1.0,
+    ):
+        self.gaia_num = gaia_num
+        self.dr4_filepath = dr4_filepath
+        self.ref_epoch_jd = ref_epoch_jd
+
+        # read DR4 epoch astrometry
+        dr4_dat = read(dr4_filepath)
+
+        epochs_time = time.Time(
+            dr4_dat["obs_time_tcb"], format="jd", scale="tcb"
+        )
+        epochs_decyr = epochs_time.decimalyear
+        epochs_jd = np.array(dr4_dat["obs_time_tcb"])
+
+        self.n_obs = len(epochs_decyr)
+
+        # along scan measurements and errors [mas]
+        self.centroid_pos_al = np.array(dr4_dat["centroid_pos_al"])
+        self.centroid_pos_error_al = np.array(dr4_dat["centroid_pos_error_al"])
+
+        # parallax factors (pre-projected onto scan direction)
+        self.parallax_factor_al = np.array(dr4_dat["parallax_factor_al"])
+
+        # scan position angles [rad] and their sin/cos
+        scan_angle = np.array(dr4_dat["scan_pos_angle"])
+        self.sin_scan = np.sin(scan_angle)
+        self.cos_scan = np.cos(scan_angle)
+
+        # FOV identifier, currently not used but read in.
+        self.fov = np.array(dr4_dat["field_of_view"])
+
+        # time offsets from reference epoch [Julian yr]
+        self.dt_yr = (epochs_jd - ref_epoch_jd) / 365.25
+
+        # pre-compute scan projection of PM basis vectors
+        self.pm_ra_basis = self.dt_yr * self.sin_scan   # pmra, projected
+        self.pm_dec_basis = self.dt_yr * self.cos_scan   # pmdec, projected
+
+        # constant part of the lnlike normalization
+        self._log_norm = np.sum(np.log(2.0 * np.pi * self.centroid_pos_error_al ** 2))
+        self._weights = 1.0 / self.centroid_pos_error_al ** 2
+
+        # sampler interface (matches HGCALogProb convention so things don't break)
+        self.hipparcos_epoch = np.array([])   # empty
+        self.gaia_epoch = epochs_decyr        # DR4 scan epochs [decimal yr]
+
+        # priors for the four linear astrometric parameters
+        self.extra_param_priors=(
+            priors.GaussianPrior(catalog_ra_off,catalog_ra_off_err,no_negatives=False),
+            priors.GaussianPrior(catalog_dec_off,catalog_dec_off_err,no_negatives=False),
+            priors.GaussianPrior(catalog_pmra,catalog_pmra_err,no_negatives=False),
+            priors.GaussianPrior(catalog_pmdec,catalog_pmdec_err,no_negatives=False),
+        )
+
+
+    def _save(self, hf):
+        """Save to an open HDF5 file."""
+        hf.attrs["gaia_num"] = self.gaia_num
+        hf.attrs["dr"] = "dr4"
+        hf.attrs["dr4_ref_epoch_jd"] = self.ref_epoch_jd
+
+        dr4_dat = read(self.dr4_filepath, converters={"*": [int, float, bytes]})
+        hf.create_dataset("Gaia_DR4", data=dr4_dat)
+
+    def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
+        """
+        Compute the Gaussian lnlike of the DR4 along-scan data.
+        The four astrometric offsets (``dr4_ra_off``, ``dr4_dec_off``, ``dr4_pmra``, ``dr4_pmdec``)
+        are read from the MCMC state vector; their Gaussian priors are evaluated
+        separately by the sampler's standard prior machinery.
+
+        Args:
+            raoff_model (np.array): NxM primary RA offsets from the
+                barycenter due to orbital motion [mas].
+            deoff_model (np.array): NxM primary Dec offsets [mas].
+            samples (np.array): current parameter vector.
+            param_idx (dict): parameter-name to index mapping.
+
+        Returns:
+            float: log-likelihood summed over all scans.
+        """
+        # orbital parameters
+        plx = samples[param_idx["plx"]]
+
+        # four explicit astrometric parameters, they come from the catalog
+        ra_off = samples[param_idx["dr4_ra_off"]]    # [mas]
+        dec_off = samples[param_idx["dr4_dec_off"]]   # [mas]
+        pmra = samples[param_idx["dr4_pmra"]]        # [mas/yr]
+        pmdec = samples[param_idx["dr4_pmdec"]]       # [mas/yr]
+
+        # project orbital perturbation onto along-scan direction
+        orbit_al = - (
+            raoff_model[:, 0] * self.sin_scan
+            + deoff_model[:, 0] * self.cos_scan
+        )
+
+        # full along-scan model: position + PM + parallax + orbit
+        model_al = (
+            ra_off * self.sin_scan # position offset, projected
+            + dec_off * self.cos_scan # position offset, projected
+            + pmra * self.pm_ra_basis # proper motion, projected
+            + pmdec * self.pm_dec_basis # proper motion, projected
+            + plx * self.parallax_factor_al # plx and its factor
+            + orbit_al # residual due to planet or companion
+        )
+
+        # Gaussian lnlike
+        residuals = self.centroid_pos_al - model_al
+        chi2 = np.sum(residuals ** 2 * self._weights)
+
+        return float(-0.5 * (chi2 + self._log_norm))
