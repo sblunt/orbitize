@@ -8,6 +8,7 @@ import orbitize.sampler as sampler
 import orbitize.system as system
 import orbitize.read_input as read_input
 import orbitize.results as results
+from orbitize.plot import plot_corner
 import matplotlib.pyplot as plt
 
 std_param_idx_fixed_mtot_plx = {
@@ -18,14 +19,15 @@ std_param_idx = {
     'sma1': 0, 'ecc1':1, 'inc1':2, 'aop1':3, 'pan1':4, 'tau1':5, 'plx':6, 'mtot':7
 }
 
-def test_mcmc_runs(num_temps=0, num_threads=1):
+def do_mcmc_runs(num_temps=0, num_threads=1, make_corner_plot=False):
     """
-    Tests the MCMC sampler by making sure it even runs
+    Tests the MCMC sampler by making sure it runs
     Args:
-        num_temps: Number of temperatures to use
+        num_temps (int): Number of temperatures to use
             Uses Parallel Tempering MCMC (ptemcee) if > 1,
             otherwises, uses Affine-Invariant Ensemble Sampler (emcee)
-        num_threads: number of threads to run
+        num_threads (int): number of threads to run
+        make_corner_plot (bool): if True, make a corner plot of the results
     """
 
     # use the test_csv dir
@@ -44,21 +46,21 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
         }
     )
 
-    # run it a little (tests 0 burn-in steps)
-    myDriver.sampler.run_sampler(100)
-    assert myDriver.sampler.results.post.shape[0] == 100
-
-    # run it a little more
-    myDriver.sampler.run_sampler(1000, burn_steps=1)
-    assert myDriver.sampler.results.post.shape[0] == 1100
-
-    # run it a little more (tests adding to results object, and periodic saving)
+    # run it some (tests adding to results object, and periodic saving)
     output_filename = os.path.join(orbitize.DATADIR, 'test_mcmc.hdf5')
     myDriver.sampler.run_sampler(
-        400, burn_steps=1, output_filename=output_filename, periodic_save_freq=2
+        400, burn_steps=10, output_filename=output_filename, periodic_save_freq=2
     )
 
-    # test results object exists and has 2100*100 steps
+    # run it a little more (tests 0 burn-in steps)
+    myDriver.sampler.run_sampler(100)
+    assert myDriver.sampler.results.post.shape[0] == 500
+
+    # run it a little more and save
+    myDriver.sampler.run_sampler(1000, burn_steps=1, output_filename=output_filename, periodic_save_freq=2)
+    assert myDriver.sampler.results.post.shape[0] == 1500
+
+    # test results object exists and has 1500*100 steps
     assert os.path.exists(output_filename)
     saved_results = results.Results()
     saved_results.load_results(output_filename)
@@ -90,8 +92,16 @@ def test_mcmc_runs(num_temps=0, num_threads=1):
     assert new_sampler.results.post.shape[0] == 2000
     assert new_sampler.results.post[0,0] == myDriver.sampler.results.post[0,0]
 
+    # test that corner plot works, even with fixed parameters
+    if make_corner_plot:
+        assert myDriver.system.plx_err == 0 # (check that we're actually fixing at least one param: plx)
+        plot_corner(new_sampler.results)
 
-def test_examine_chop_chains(num_temps=0, num_threads=1):
+    # clean up
+    os.system(f'rm {output_filename} {output_filename_2}')
+
+
+def do_examine_chop_chains(num_temps=0, num_threads=1):
     """
     Tests the MCMC sampler's examine_chains and chop_chains methods
     Args:
@@ -186,16 +196,21 @@ def test_mcmc_param_idx():
 
     assert myDriver.sampler.sampled_param_idx == std_param_idx
 
+def test_mcmc_runs():
+    # Parallel Tempering tests (only test corner plot once)
+    do_mcmc_runs(num_temps=2, num_threads=1, make_corner_plot=True)
+    do_mcmc_runs(num_temps=2, num_threads=4)
+    # Ensemble MCMC tests
+    do_mcmc_runs(num_temps=0, num_threads=1)
+    do_mcmc_runs(num_temps=0, num_threads=8)
+
+def test_chop_chains():
+    # Test examine/chop chains
+    do_examine_chop_chains(num_temps=5)  # PT
+    do_examine_chop_chains(num_temps=0)  # Ensemble
+
 
 if __name__ == "__main__":
-    # Parallel Tempering tests
-    test_mcmc_runs(num_temps=2, num_threads=1)
-    test_mcmc_runs(num_temps=2, num_threads=4)
-    # Ensemble MCMC tests
-    test_mcmc_runs(num_temps=0, num_threads=1)
-    test_mcmc_runs(num_temps=0, num_threads=8)
-    # Test examine/chop chains
-    test_examine_chop_chains(num_temps=5)  # PT
-    test_examine_chop_chains(num_temps=0)  # Ensemble
-    # param_idx utility tests
+    test_mcmc_runs()
+    test_chop_chains()
     test_mcmc_param_idx()

@@ -48,6 +48,8 @@ class Results(object):
         self._weighted_post = weighted_post
         self._weighted_lnlike = weighted_lnlike
         self.lnweight = lnweight
+        self.ln_evidence = None
+        self.ln_evidence_err = None
 
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
@@ -145,8 +147,15 @@ class Results(object):
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['version_number'] = self.version_number
 
+        if self.ln_evidence is not None:
+            hf.attrs['ln_evidence'] = self.ln_evidence
+
+        if self.ln_evidence_err is not None:
+            hf.attrs['ln_evidence_err'] = self.ln_evidence_err
+
         # Now add post and lnlike from the results object as datasets
-        hf.create_dataset('post', data=self.post)
+        if self.post is not None:
+            hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
@@ -184,12 +193,10 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = str(hf.attrs['sampler_name'])
-        try:
+        if 'version_number' in hf.attrs:
             version_number = str(hf.attrs['version_number'])
-        except KeyError:
+        else:
             version_number = "<= 1.13"
-        post = np.array(hf.get('post'))
-        lnlike = np.array(hf.get('lnlike'))
 
         try:
             weighted_post = np.array(hf.get('weighted_post'))
@@ -200,18 +207,29 @@ class Results(object):
             weighted_lnlike = None
             lnweight = None
             
-        try:
+        post = hf.get('post')
+        if post is not None:
+            post = np.array(post)
+        lnlike = hf.get('lnlike')
+        if lnlike is not None:
+            lnlike = np.array(lnlike)
+
+        if 'num_secondary_bodies' in hf.attrs:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
-        except KeyError:
+        else:
             # old, has to be single planet fit
-            num_secondary_bodies = 1  
+            num_secondary_bodies = 1
 
         try:
             data_table = table.Table(np.array(hf.get('data')))
+            # Decode byte string columns to str for consistent in-memory types
+            for col in data_table.colnames:
+                if data_table[col].dtype.kind == "S":
+                    data_table[col] = np.char.decode(data_table[col], "utf-8")
         except ValueError: # old version of results; add a dummy table
             data_table = table.Table(
                 names = (
-                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2', 
+                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2',
                     'quant2_err', 'quant12_corr', 'quant_type', 'instrument'
                 ),
                 dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')
@@ -309,6 +327,12 @@ class Results(object):
         self.basis = self.system.basis
         self.param_idx = self.system.param_idx
         self.standard_param_idx = self.basis.standard_basis_idx
+
+        if 'ln_evidence' in hf.attrs:
+            self.ln_evidence = hf.attrs['ln_evidence']
+
+        if 'ln_evidence_err' in hf.attrs:
+            self.ln_evidence_err = hf.attrs['ln_evidence_err']
 
         try:
             curr_pos = np.array(hf.get('curr_pos'))
