@@ -316,6 +316,7 @@ class Results(object):
         Prints median and 68% credible intervals alongside fitting labels
         """
 
+        # TODO: we should put this in basis, not here. Same for corner plot labels.
         unit_dict = {  
             "sma": "au",
             "ecc": "",
