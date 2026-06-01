@@ -277,6 +277,7 @@ def profile_system():
 
 
 def test_OFTI_multiplanet():
+
     # initialize sampler
     input_file = os.path.join(orbitize.DATADIR, "test_val_multi.csv")
     myDriver = orbitize.driver.Driver(
@@ -297,11 +298,19 @@ def test_OFTI_multiplanet():
 
     sma1_exp = 66
     sma2_exp = 40
-    print(sma1, sma2)
+
     assert sma1 == pytest.approx(sma1_exp, abs=0.3 * sma1_exp)
     assert sma2 == pytest.approx(sma2_exp, abs=0.3 * sma2_exp)
     assert np.all(orbits[:, idx["ecc1"]] < 0.1)
     assert np.all(orbits[:, idx["ecc2"]] < 0.1)
+
+    s.results.print_results()
+
+    # test that the results printing unit printing is working correctly
+    results_lines = s.results.results_str.split('\n')
+    assert results_lines[-3][-4:] == 'Msun'
+    # check that the degree unit conversion was performed
+    assert float(results_lines[-6][6:13]) > 2 * np.pi and float(results_lines[-6][6:13]) < 360
 
 
 @pytest.hookimpl(trylast=True)
@@ -416,9 +425,9 @@ if __name__ == "__main__":
     # test_run_sampler()
 
     # test_OFTI_covariances()
-    # test_OFTI_multiplanet()
+    test_OFTI_multiplanet()
     # test_not_implemented()
     # test_fixed_sys_params_sampling()
-    test_OFTI_pan_priors()
+    # test_OFTI_pan_priors()
     # # profile_system()
     # print("Done!")
