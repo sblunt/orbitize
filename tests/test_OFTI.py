@@ -277,6 +277,7 @@ def profile_system():
 
 
 def test_OFTI_multiplanet():
+
     # initialize sampler
     input_file = os.path.join(orbitize.DATADIR, "test_val_multi.csv")
     myDriver = orbitize.driver.Driver(
@@ -289,7 +290,7 @@ def test_OFTI_multiplanet():
     # change eccentricity prior for c
     myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
 
-    orbits = s.run_sampler(50)
+    orbits = s.run_sampler(500)
 
     idx = s.system.param_idx
     sma1 = np.median(orbits[:, idx["sma1"]])
@@ -303,29 +304,14 @@ def test_OFTI_multiplanet():
     assert np.all(orbits[:, idx["ecc1"]] < 0.1)
     assert np.all(orbits[:, idx["ecc2"]] < 0.1)
 
-    # test the results printing
-    assert s.results.results_str == """
+    s.results.print_results()
 
-    param: med [68% CI]
-    -------------------
+    # test that the results printing unit printing is working correctly
+    results_lines = s.results.results_str.split('\n')
+    assert results_lines[-3][-4:] == 'Msun'
+    # check that the degree unit conversion was performed
+    assert float(results_lines[-6][6:13]) > 2 * np.pi and float(results_lines[-6][6:13]) < 360
 
-    sma1: 73.384 [68.195 - 85.656] au
-    ecc1: 0.050 [0.017 - 0.082]
-    inc1: 0.484 [0.289 - 0.664] deg
-    aop1: 3.313 [1.190 - 5.230] deg
-    pan1: 3.872 [1.227 - 5.685] deg
-    tau1: 0.495 [0.190 - 0.836]
-    sma2: 43.643 [39.299 - 63.816] au
-    ecc2: 0.048 [0.016 - 0.082]
-    inc2: 0.919 [0.491 - 1.346] deg
-    aop2: 3.020 [1.072 - 5.161] deg
-    pan2: 3.218 [1.579 - 5.699] deg
-    tau2: 0.500 [0.150 - 0.844]
-    plx: 24.514 [23.919 - 25.200] mas
-    mtot: 1.464 [1.325 - 1.593] Msun
-    -------------------
-
-    """
 
 @pytest.hookimpl(trylast=True)
 def test_OFTI_covariances():

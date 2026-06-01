@@ -348,20 +348,24 @@ class Results(object):
 
         self.results_str = '' 
 
-        self.results_str += '\nparam: med [68% CI]'
+        self.results_str += '\nparam: med [68% CI]\n'
         self.results_str += '-------------------\n'
-        for i, l in enumerate(self.system.labels):
+
+        for l in self.system.labels:
+            idx = self.system.param_idx[l]
             if l[-1].isdigit():
                 lookup_label = l[:-1]
-            if l in ['inc', 'aop', 'pan']:
+            else:
+                lookup_label = l
+            if lookup_label in ['inc', 'aop', 'pan']:
                 conversion = convert_deg
             else:
                 conversion = 1.0
-            self.results_str += '{}: {:.3f} [{:.3f} - {:.3f}] {}'.format(
+            self.results_str += '{}: {:.3f} [{:.3f} - {:.3f}] {}\n'.format(
                     l, 
-                    np.median(self.post[:,i]*conversion),
-                    np.quantile(self.post[:,i]*conversion, 0.16),
-                    np.quantile(self.post[:,i]*conversion, 0.84),
+                    np.median(self.post[:,idx]*conversion),
+                    np.quantile(self.post[:,idx]*conversion, 0.16),
+                    np.quantile(self.post[:,idx]*conversion, 0.84),
                     unit_dict[lookup_label]
                 )
             
