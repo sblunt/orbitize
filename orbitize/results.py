@@ -24,6 +24,8 @@ class Results(object):
             parameters in the fit (default: None).
         lnlike (np.array of float): M array of log-likelihoods corresponding to
             the orbits described in ``post`` (default: None).
+        chi2 (np.array of float): M array of chi2 values corresponding to the orbits
+            in ``post`` (default: None)
         version_number (str): version of orbitize that produced these results. 
         data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
         curr_pos (np.array of float): for MCMC only. A multi-D array of the 
@@ -66,6 +68,7 @@ class Results(object):
             orbital_params (np.array): add sets of orbital params (could be multiple) 
                 to results
             lnlike (np.array): add corresponding lnlike values to results
+            chi2 (np.array): add corresponding chi2 values to results
             curr_pos (np.array of float): for MCMC only. A multi-D array of the 
                 current walker positions
 
