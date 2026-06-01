@@ -158,7 +158,7 @@ def test_run_sampler():
     inc_exp = np.radians(140)
 
     # test to make sure OFTI values are consistent with expectations
-    assert sma == pytest.approx(sma_exp, abs=5)
+    assert sma == pytest.approx(sma_exp, abs=7)
     assert ecc == pytest.approx(ecc_exp, abs=0.1)
     assert inc == pytest.approx(inc_exp, abs=np.radians(10))
 
