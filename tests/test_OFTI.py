@@ -289,7 +289,7 @@ def test_OFTI_multiplanet():
     # change eccentricity prior for c
     myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
 
-    orbits = s.run_sampler(500)
+    orbits = s.run_sampler(50)
 
     idx = s.system.param_idx
     sma1 = np.median(orbits[:, idx["sma1"]])
@@ -297,12 +297,35 @@ def test_OFTI_multiplanet():
 
     sma1_exp = 66
     sma2_exp = 40
-    print(sma1, sma2)
+
     assert sma1 == pytest.approx(sma1_exp, abs=0.3 * sma1_exp)
     assert sma2 == pytest.approx(sma2_exp, abs=0.3 * sma2_exp)
     assert np.all(orbits[:, idx["ecc1"]] < 0.1)
     assert np.all(orbits[:, idx["ecc2"]] < 0.1)
 
+    # test the results printing
+    assert s.results.results_str == """
+
+    param: med [68% CI]
+    -------------------
+
+    sma1: 73.384 [68.195 - 85.656] au
+    ecc1: 0.050 [0.017 - 0.082]
+    inc1: 0.484 [0.289 - 0.664] deg
+    aop1: 3.313 [1.190 - 5.230] deg
+    pan1: 3.872 [1.227 - 5.685] deg
+    tau1: 0.495 [0.190 - 0.836]
+    sma2: 43.643 [39.299 - 63.816] au
+    ecc2: 0.048 [0.016 - 0.082]
+    inc2: 0.919 [0.491 - 1.346] deg
+    aop2: 3.020 [1.072 - 5.161] deg
+    pan2: 3.218 [1.579 - 5.699] deg
+    tau2: 0.500 [0.150 - 0.844]
+    plx: 24.514 [23.919 - 25.200] mas
+    mtot: 1.464 [1.325 - 1.593] Msun
+    -------------------
+
+    """
 
 @pytest.hookimpl(trylast=True)
 def test_OFTI_covariances():
@@ -416,9 +439,9 @@ if __name__ == "__main__":
     # test_run_sampler()
 
     # test_OFTI_covariances()
-    # test_OFTI_multiplanet()
+    test_OFTI_multiplanet()
     # test_not_implemented()
     # test_fixed_sys_params_sampling()
-    test_OFTI_pan_priors()
+    # test_OFTI_pan_priors()
     # # profile_system()
     # print("Done!")
