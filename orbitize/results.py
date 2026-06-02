@@ -27,6 +27,15 @@ class Results(object):
         data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
         curr_pos (np.array of float): for MCMC only. A multi-D array of the 
             current walker positions that is used for restarting a MCMC sampler. 
+        weighted_post (np.array of float): RxN array of orbital parameters
+            (posterior output from weighted orbit-fitting process), where R is the
+            number of orbits generated, and N is the number of varying orbital
+            parameters in the fit (default: None).
+        weighted_lnlike (np.array of float): R array of log-likelihoods corresponding to
+            the orbits described in ``weighted_post`` (default: None).
+        lnweights (np.array of float): R array of log-weights corresponding to the orbits
+            and log-likelihoods described in ``weighted_post`` and ``weighted_lnlike`` (default: None)
+        
 
     Written: Henry Ngo, Sarah Blunt, 2018
 
@@ -35,7 +44,7 @@ class Results(object):
 
     def __init__(
         self, system=None, sampler_name=None, post=None, lnlike=None,
-        version_number=None, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None
+        version_number=None, curr_pos=None, weighted_post=None, weighted_lnlike=None, lnweight=None
     ):
 
         self.system = system
@@ -62,32 +71,56 @@ class Results(object):
 
     @property
     def weighted_post(self):
+        """
+        Returns the weighted posterior if it exists,
+        otherwise returns the unweighted posterior.
+        """
         if self._weighted_post is not None:
             return self._weighted_post
         return self.post
     
     @property
     def weighted_lnlike(self):
+        """
+        Returns the weighted log-likelihoods if it exists,
+        otherwise returns the unweighted log-likelihoods.
+        """
         if self._weighted_lnlike is not None:
             return self._weighted_lnlike
         return self.lnlike
     
     @property
     def weights(self):
+        """
+        Returns the weights of ``weighted_post`` and ``weighted_lnlike``
+        if it exists, otherwise returns None.
+        """
         if self.lnweight is None:
             return None
         return np.exp(self.lnweight)
     
-    def downsample(self, amount, duplicates = True):
+    def downsample(self, amount, duplicates=True):
         """
-        Samples from the posterior an amount of times. If the posterior
-        is weighted, samples proportionally to weight to get an equal-weighted posterior.
+        Samples from the posterior, or the weighted posterior if it exists.
+
+        Args:
+            amount (int): number of samples to draw from the posetrior
+            duplicates (bool): whether to replace sampled orbits from the posterior,
+                which may cause duplicate samples (default: True)
+        
+        Returns:
+            tuple:
+
+                numpy.array of float: orbital parameters of the samples (``amount``xN, where N is number of varying orbital parameters)
+
+                numpy.array of float: log-likelihoods of the samples (length ``amount``)
+
         """
 
         indexes = np.random.choice(len(self.weighted_post), amount, duplicates, self.weights)
         return self.weighted_post[indexes], self.weighted_lnlike[indexes]
         
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None): 
+    def add_samples(self, orbital_params, lnlikes, curr_pos=None, weighted_post=None, weighted_lnlike=None, lnweight=None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number 
         to the results
@@ -502,6 +535,9 @@ class Results(object):
                         )
 
 def array_not_none(raw):
+    """
+    Returns a numpy.array of the input if it is not None, else returns None
+    """
     if raw is not None:
         return np.array(raw)
     return raw
