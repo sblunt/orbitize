@@ -1312,7 +1312,29 @@ class MCMC(Sampler):
         return
 
 
-class NestedSampler(Sampler):
+class BaseNestedSampler(Sampler):
+    def ptform(self, u):
+        """
+        Prior transform function.
+
+        Args:
+            u (array of floats): list of samples with values 0 < u < 1.
+
+        Returns:
+            numpy array of floats: u samples transformed to a chosen Prior
+                Class distribution.
+        """
+        utform = np.zeros(len(u))
+        for i in range(len(u)):
+            if hasattr(self.system.sys_priors[i], 'transform_samples'):
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            else:
+                # prior is a fixed number
+                utform[i] = self.system.sys_priors[i]
+        return utform
+
+
+class NestedSampler(BaseNestedSampler):
     """
     Implements nested sampling using the Dynesty package.
 
@@ -1354,26 +1376,6 @@ class NestedSampler(Sampler):
         )
         self.start = time.time()
         self.dynesty_sampler = None
-
-    def ptform(self, u):
-        """
-        Prior transform function.
-
-        Args:
-            u (array of floats): list of samples with values 0 < u < 1.
-
-        Returns:
-            numpy array of floats: 1D u samples transformed to a chosen Prior
-                Class distribution.
-        """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
-            if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            else:
-                # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
-        return utform
 
     def run_sampler(
         self,
@@ -1680,8 +1682,36 @@ class MultiNest(Sampler):
         return post_samples[:, :-1]
 
 class NautilusSampler(Sampler):
-    def __init__(self, system):
-        super(NautilusSampler, self).__init__(system)
+    """
+    Implements nested sampling using the Nautilus-Sampler package.
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
+
+    Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
+    """
+    def __init__(self,
+        system,
+        chi2_type,
+        like,
+        custom_lnlike
+    ):
+        
+        super(MultiNest, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
 
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -1693,41 +1723,47 @@ class NautilusSampler(Sampler):
         )
         self.start = time.time()
     
-    def ptform(self, u):
-        """
-        Prior transform function.
-
-        Args:
-            u (np.array of floats): MxR array of uniform
-                samples with values 0 < u < 1,
-                where M is the number of orbits,
-                and R is the number of parameters.
-
-        Returns:
-            numpy MxR array of floats: u samples transformed to
-                a chosen Prior Class distribution.
-        """
-        utform = np.zeros(u.shape)
-        for i in range(u.shape[1]):
-            try:
-                utform[:, i] = self.system.sys_priors[i].transform_samples(u[:, i])
-            except AttributeError: # prior is a fixed number
-                utform[:, i] = self.system.sys_priors[i]
-        return utform
+    def nautilus_ptform(self, u):
+        return self.ptform(u.T).T
     
     def nautilus_logl(self, u: np.ndarray):
         return self._logl(u.T).T
     
     def run_sampler(
-            self,
-            n_live: int = 2000,
-            n_update: int = None,
-            verbose: bool = False,
-            num_threads: int = 1,
-            savefile: str = None,
-            sampler_kwargs: dict = {},
-            run_kwargs: dict = {}
-        ):
+        self,
+        n_live = 2000,
+        n_update = None,
+        verbose = False,
+        num_threads = 1,
+        savefile = None,
+        sampler_kwargs = {},
+        run_kwargs = {}
+    ):
+        """Runs the nested sampler from the Dynesty package.
+
+        Args:
+            n_live (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 2000).
+            n_update (int): Number of points added to the live set before
+                creating a new shell. When None defaults to `n_live` (default: None).
+            verbose (bool): Print progress when running sampler (default: False).
+            num_threads (int, tuple, pool): number of threads to use for parallelization.
+                If a tuple of two integers, the number of threads for
+                likelihood evaluations and sampler calculations respectively. If a thread
+                pool, the pool used for parallelization (default=1).
+            savefile (str): File used by Nautilus to save progress.
+                If file already exists, resumes from saved progress.
+            sampler_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler,
+                such as `periodic`
+            run_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler.run,
+                such as `n_eff`
+
+
+        Returns:
+            numpy.array of float: equal-weighted posterior samples
+        """
         if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
             with Pool(processes=num_threads) as pool:
                 self.naut_sampler = nautilus.Sampler(
