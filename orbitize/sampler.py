@@ -1324,8 +1324,8 @@ class BaseNestedSampler(Sampler):
             numpy array of floats: u samples transformed to a chosen Prior
                 Class distribution.
         """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
+        utform = np.zeros(u.shape)
+        for i in range(u.shape[0]):
             if hasattr(self.system.sys_priors[i], 'transform_samples'):
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
             else:
@@ -1681,7 +1681,7 @@ class MultiNest(Sampler):
 
         return post_samples[:, :-1]
 
-class NautilusSampler(Sampler):
+class NautilusSampler(BaseNestedSampler):
     """
     Implements nested sampling using the Nautilus-Sampler package.
 
@@ -1701,12 +1701,11 @@ class NautilusSampler(Sampler):
     """
     def __init__(self,
         system,
-        chi2_type,
-        like,
-        custom_lnlike
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
     ):
-        
-        super(MultiNest, self).__init__(
+        super(NautilusSampler, self).__init__(
             system,
             like=like,
             chi2_type=chi2_type,
@@ -1767,7 +1766,7 @@ class NautilusSampler(Sampler):
         if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
             with Pool(processes=num_threads) as pool:
                 self.naut_sampler = nautilus.Sampler(
-                    prior=self.ptform,
+                    prior=self.nautilus_ptform,
                     likelihood=self.nautilus_logl,
                     n_dim=len(self.system.sys_priors),
                     vectorized=True,
@@ -1784,7 +1783,7 @@ class NautilusSampler(Sampler):
                 )
         else:
             self.naut_sampler = nautilus.Sampler(
-                prior=self.ptform,
+                prior=self.nautilus_ptform,
                 likelihood=self.nautilus_logl,
                 n_dim=len(self.system.sys_priors),
                 vectorized=True,
