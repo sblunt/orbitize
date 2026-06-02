@@ -334,18 +334,61 @@ class Results(object):
         Prints median and 68% credible intervals alongside fitting labels
         """
 
-        print('\nparam: med [68% CI]')
-        print('-------------------\n')
-        for i, l in enumerate(self.system.labels):
-            print(
-                '{}: {:.3f} [{:.3f} - {:.3f}]'.format(
+        # TODO: we should put this in basis, not here. Same for corner plot labels.
+        unit_dict = {  
+            "sma": "au",
+            "ecc": "",
+            "inc": "deg",
+            "aop": "deg",
+            "pan": "deg",
+            "tau": "",
+            "tp": "",
+            "plx": "mas",
+            "gam": "km/s",
+            "sig": "km/s",
+            "mtot": "Msun",
+            "m": "Msun",
+            "pm_ra": "mas/yr",
+            "pm_dec": "mas/yr",
+            "alpha0": "mas",
+            "delta0": "mas",
+            "per": "yr",
+            "K": "km/s",
+            "x": "au",
+            "y": "au",
+            "z": "au",
+            "xdot": "km/s",
+            "ydot": "km/s",
+            "zdot": "km/s",
+        }
+
+        convert_deg = 180.0/np.pi
+
+        self.results_str = '' 
+
+        self.results_str += '\nparam: med [68% CI]\n'
+        self.results_str += '-------------------\n'
+
+        for l in self.system.labels:
+            idx = self.system.param_idx[l]
+            if l[-1].isdigit():
+                lookup_label = l[:-1]
+            else:
+                lookup_label = l
+            if lookup_label in ['inc', 'aop', 'pan']:
+                conversion = convert_deg
+            else:
+                conversion = 1.0
+            self.results_str += '{}: {:.3f} [{:.3f} - {:.3f}] {}\n'.format(
                     l, 
-                    np.median(self.post[:,i]),
-                    np.quantile(self.post[:,i], 0.16),
-                    np.quantile(self.post[:,i], 0.84)
+                    np.median(self.post[:,idx]*conversion),
+                    np.quantile(self.post[:,idx]*conversion, 0.16),
+                    np.quantile(self.post[:,idx]*conversion, 0.84),
+                    unit_dict[lookup_label]
                 )
-            )
-        print('-------------------\n')
+            
+        self.results_str += '-------------------\n'
+        print(self.results_str)
     
     def plot_corner(self, param_list=None, **corner_kwargs):
         """
