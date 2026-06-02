@@ -396,3 +396,43 @@ def _CUDA_mikkola_solver(manom, ecc):
     kep_gpu_ctx.mikkola(manom, ecc, eanom)
 
     return eanom
+
+def calc_max_lighttravel_corr(sma, mtot, ecc, plx):
+    """
+    Calculate the maximum amplitude of light travel time correction for a given orbit.
+    
+    Args:
+        sma (np.array): array of semimajor axes
+        mtot (np.array): array of system masses
+        ecc (np.array): array of eccentricities
+        plx (np.array): array of system parallaxes
+    Return:
+        ra_corr (np.array): array of maximum possible corrections to RA
+
+    Written: Ellis Bogat, 2026
+    """
+
+    ra_corr_disp = (np.sqrt(consts.G * mtot * sma * (1+ecc)) / consts.c).to(u.au)
+
+    ra_corr = ra_corr_disp.value * plx.to(u.arcsec) 
+
+    return ra_corr
+
+def calc_z(ra0,dec0,inc,aop,plx) :
+    """
+    Calculate the z coordinate of the planet, given the RA and Dec offsets, inclination, argument of periastron, and parallax.
+    
+    Parameters:
+        ra0 (np.array) : float
+        dec0 (np.array) : float    
+        inc (np.array) : float
+        aop (np.array) : float
+        plx (np.array) : float
+    
+    Written: Sarah Blunt
+    """
+
+    return np.sin(np.radians(inc)) * (
+                np.cos(np.radians(aop)) * ra0
+                + np.sin(np.radians(aop)) * dec0
+            ) * plx

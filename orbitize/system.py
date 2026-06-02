@@ -1,6 +1,7 @@
 import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
+import astropy.constants as consts
 from orbitize.read_input import read_file
 
 
@@ -336,6 +337,18 @@ class System(object):
         hf.attrs["fitting_basis"] = self.fitting_basis
         hf.attrs["use_rebound"] = self.use_rebound
 
+    def get_lightcorrected_epochs(self,params_arr,raoff,decoff):
+
+        inc = params_arr[self.inc_indx]
+        aop = params_arr[self.aop_indx]
+        plx = params_arr[self.basis.standard_basis_idx["plx"]]
+
+        z = kepler.calc_z(raoff,decoff,inc,aop,plx)
+        deltat = z / consts.c
+        corrected_epochs = self.data_table["epoch"] - deltat
+        
+        return corrected_epochs
+    
     def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
@@ -578,7 +591,8 @@ class System(object):
         else:
             return raoff, deoff, vz
 
-    def compute_model(self, params_arr, use_rebound=False):
+    def compute_model(self, params_arr, use_rebound=False,
+                           corr_lighttravel=False):
         """
         Compute model predictions for an array of fitting parameters.
         Calls the above compute_all_orbits() function, adds jitter/gamma to
@@ -594,6 +608,8 @@ class System(object):
             use_rebound (bool, optional): A secondary optional input for
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
+            corr_lighttravel (bool, optional): If True, correct for light travel 
+                time in the system when computing model predictions. Default is False.
 
         Returns:
             tuple of:
@@ -612,6 +628,20 @@ class System(object):
             )
         else:
             raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
+
+        if corr_lighttravel:
+            corrected_epochs = self.get_lightcorrected_epochs(standard_params_arr,
+                                                              raoff,decoff)
+
+            if use_rebound:
+                raoff, decoff, vz = self.compute_all_orbits(
+                    standard_params_arr, comp_rebound=True,
+                    epochs = corrected_epochs
+                )
+            else:
+                raoff, decoff, vz = self.compute_all_orbits(standard_params_arr,
+                    epochs = corrected_epochs)
+
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
