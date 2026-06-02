@@ -27,10 +27,10 @@ imaged planets. A detailed description of how τ is related to other quantities 
 
 Our goal with the default prior is to have an isotropic distribution of the orbital plane.
 To obtain this, we use inclination and position angle of the ascending node (PAN) to
-define the orbital plane. They actually coorespond to the two angles in a spherical coordinate system:
-inclinaion is the polar angle and PAN is the azimuthal angle. Becuase of this choice of coordinates,
+define the orbital plane. They actually correspond to the two angles in a spherical coordinate system:
+inclination is the polar angle and PAN is the azimuthal angle. Because of this choice of coordinates,
 there are less orbital configurations near the poles (when inclination is near 0 or 180), so we use
-a sine prior to downweigh those areas to give us an isotropic distribution. 
+a sine prior to downweight those areas to give us an isotropic distribution. 
 A more detailed discussion of this is here:
 
 .. toctree::

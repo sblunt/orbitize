@@ -55,6 +55,21 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.3.1 (2026-6-1)**
+
+- results.print_results() now prints angles in degrees and displays units (issue 385; @chihchunhsu and @sblunt)
+
+**3.3.0 (2026-5-19)**
+
+- add support for multinest! (@tomasstolker)
+- bugfix for periodic saving in MCMC (@eshelDror)
+- bugfix for corner plot failing if any parameters are fixed (@tomasstolker)
+- quick fix for #402 (@ell-bogat)
+
+**3.2.2 (2026-4-12)**
+
+- fix a few bugs causing unit test failures (#400) (@sblunt)
+
 **3.2.1 (2026-1-18)**
 
 - fix bug with install (#342) (@sblunt)
