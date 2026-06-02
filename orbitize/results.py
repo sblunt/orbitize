@@ -131,6 +131,12 @@ class Results(object):
             lnlike (np.array): add corresponding lnlike values to results
             curr_pos (np.array of float): for MCMC only. A multi-D array of the 
                 current walker positions
+            weighted_post (np.array): for Nautilus only. Sets of orbital params
+                associated with ``lnweight`` to add to results.
+            weighted_lnlike (np.array): for Nautilus only. Corresponding weighted lnlike
+                values for ``weighted_post`` to add to results.
+            weighted_post (np.array): for Nautilus only. Log of weights associated
+                with ``weighted_post`` and ``weighted_lnlike``.
 
         Written: Henry Ngo, 2018
 
@@ -239,21 +245,11 @@ class Results(object):
         else:
             version_number = "<= 1.13"
 
-        try:
-            weighted_post = array_not_none(hf.get('weighted_post'))
-            weighted_lnlike = array_not_none(hf.get('weighted_lnlike'))
-            lnweight = array_not_none(hf.get("lnweight"))
-        except KeyError:
-            weighted_post = None
-            weighted_lnlike = None
-            lnweight = None
-            
-        post = hf.get('post')
-        if post is not None:
-            post = np.array(post)
-        lnlike = hf.get('lnlike')
-        if lnlike is not None:
-            lnlike = np.array(lnlike)
+        post = array_not_none(hf.get('post'))
+        lnlike = array_not_none(hf.get('lnlike'))
+        weighted_post = array_not_none(hf.get('weighted_post'))
+        weighted_lnlike = array_not_none(hf.get('weighted_lnlike'))
+        lnweight = array_not_none(hf.get("lnweight"))
 
         if 'num_secondary_bodies' in hf.attrs:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
@@ -375,10 +371,7 @@ class Results(object):
         if 'ln_evidence_err' in hf.attrs:
             self.ln_evidence_err = hf.attrs['ln_evidence_err']
 
-        try:
-            curr_pos = np.array(hf.get('curr_pos'))
-        except KeyError:
-            curr_pos = None
+        curr_pos = array_not_none(hf.get('curr_pos'))
 
         hf.close()  # Closes file object
 
