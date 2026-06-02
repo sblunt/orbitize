@@ -1764,7 +1764,7 @@ class NautilusSampler(BaseNestedSampler):
             numpy.array of float: equal-weighted posterior samples
         """
         if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
-            with Pool(processes=num_threads) as pool:
+            with mp.Pool(processes=num_threads) as pool:
                 self.naut_sampler = nautilus.Sampler(
                     prior=self.nautilus_ptform,
                     likelihood=self.nautilus_logl,
