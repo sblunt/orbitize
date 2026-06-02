@@ -55,6 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.3.1 (2026-6-1)**
+
+- results.print_results() now prints angles in degrees and displays units (issue 385; @chihchunhsu and @sblunt)
+
 **3.3.0 (2026-5-19)**
 
 - add support for multinest! (@tomasstolker)
