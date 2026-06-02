@@ -48,6 +48,8 @@ class Results(object):
         self._weighted_post = weighted_post
         self._weighted_lnlike = weighted_lnlike
         self.lnweight = lnweight
+        self.ln_evidence = None
+        self.ln_evidence_err = None
 
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
@@ -145,8 +147,15 @@ class Results(object):
         hf.attrs['sampler_name'] = self.sampler_name
         hf.attrs['version_number'] = self.version_number
 
+        if self.ln_evidence is not None:
+            hf.attrs['ln_evidence'] = self.ln_evidence
+
+        if self.ln_evidence_err is not None:
+            hf.attrs['ln_evidence_err'] = self.ln_evidence_err
+
         # Now add post and lnlike from the results object as datasets
-        hf.create_dataset('post', data=self.post)
+        if self.post is not None:
+            hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
             hf.create_dataset('lnlike', data=self.lnlike)
@@ -184,12 +193,10 @@ class Results(object):
         hf = h5py.File(filename, 'r')  # Opens file for reading
         # Load up each dataset from hdf5 file
         sampler_name = str(hf.attrs['sampler_name'])
-        try:
+        if 'version_number' in hf.attrs:
             version_number = str(hf.attrs['version_number'])
-        except KeyError:
+        else:
             version_number = "<= 1.13"
-        post = np.array(hf.get('post'))
-        lnlike = np.array(hf.get('lnlike'))
 
         try:
             weighted_post = np.array(hf.get('weighted_post'))
@@ -200,18 +207,29 @@ class Results(object):
             weighted_lnlike = None
             lnweight = None
             
-        try:
+        post = hf.get('post')
+        if post is not None:
+            post = np.array(post)
+        lnlike = hf.get('lnlike')
+        if lnlike is not None:
+            lnlike = np.array(lnlike)
+
+        if 'num_secondary_bodies' in hf.attrs:
             num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
-        except KeyError:
+        else:
             # old, has to be single planet fit
-            num_secondary_bodies = 1  
+            num_secondary_bodies = 1
 
         try:
             data_table = table.Table(np.array(hf.get('data')))
+            # Decode byte string columns to str for consistent in-memory types
+            for col in data_table.colnames:
+                if data_table[col].dtype.kind == "S":
+                    data_table[col] = np.char.decode(data_table[col], "utf-8")
         except ValueError: # old version of results; add a dummy table
             data_table = table.Table(
                 names = (
-                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2', 
+                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2',
                     'quant2_err', 'quant12_corr', 'quant_type', 'instrument'
                 ),
                 dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')
@@ -310,6 +328,12 @@ class Results(object):
         self.param_idx = self.system.param_idx
         self.standard_param_idx = self.basis.standard_basis_idx
 
+        if 'ln_evidence' in hf.attrs:
+            self.ln_evidence = hf.attrs['ln_evidence']
+
+        if 'ln_evidence_err' in hf.attrs:
+            self.ln_evidence_err = hf.attrs['ln_evidence_err']
+
         try:
             curr_pos = np.array(hf.get('curr_pos'))
         except KeyError:
@@ -357,18 +381,61 @@ class Results(object):
         Prints median and 68% credible intervals alongside fitting labels
         """
 
-        print('\nparam: med [68% CI]')
-        print('-------------------\n')
-        for i, l in enumerate(self.system.labels):
-            print(
-                '{}: {:.3f} [{:.3f} - {:.3f}]'.format(
+        # TODO: we should put this in basis, not here. Same for corner plot labels.
+        unit_dict = {  
+            "sma": "au",
+            "ecc": "",
+            "inc": "deg",
+            "aop": "deg",
+            "pan": "deg",
+            "tau": "",
+            "tp": "",
+            "plx": "mas",
+            "gam": "km/s",
+            "sig": "km/s",
+            "mtot": "Msun",
+            "m": "Msun",
+            "pm_ra": "mas/yr",
+            "pm_dec": "mas/yr",
+            "alpha0": "mas",
+            "delta0": "mas",
+            "per": "yr",
+            "K": "km/s",
+            "x": "au",
+            "y": "au",
+            "z": "au",
+            "xdot": "km/s",
+            "ydot": "km/s",
+            "zdot": "km/s",
+        }
+
+        convert_deg = 180.0/np.pi
+
+        self.results_str = '' 
+
+        self.results_str += '\nparam: med [68% CI]\n'
+        self.results_str += '-------------------\n'
+
+        for l in self.system.labels:
+            idx = self.system.param_idx[l]
+            if l[-1].isdigit():
+                lookup_label = l[:-1]
+            else:
+                lookup_label = l
+            if lookup_label in ['inc', 'aop', 'pan']:
+                conversion = convert_deg
+            else:
+                conversion = 1.0
+            self.results_str += '{}: {:.3f} [{:.3f} - {:.3f}] {}\n'.format(
                     l, 
-                    np.quantile(self.weighted_post[:,i], 0.5, method="inverted_cdf", weights = self.weights),
-                    np.quantile(self.weighted_post[:,i], 0.16, method="inverted_cdf", weights = self.weights),
-                    np.quantile(self.weighted_post[:,i], 0.84, method="inverted_cdf", weights = self.weights)
+                    np.median(self.post[:,idx]*conversion),
+                    np.quantile(self.post[:,idx]*conversion, 0.16),
+                    np.quantile(self.post[:,idx]*conversion, 0.84),
+                    unit_dict[lookup_label]
                 )
-            )
-        print('-------------------\n')
+            
+        self.results_str += '-------------------\n'
+        print(self.results_str)
     
     def plot_corner(self, param_list=None, **corner_kwargs):
         """

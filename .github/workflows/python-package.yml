@@ -3,6 +3,7 @@
 name: CI tests
 
 on:
+  workflow_dispatch:
   push:
     branches: 
       - '*' # run on all
