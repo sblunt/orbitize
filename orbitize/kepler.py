@@ -89,16 +89,17 @@ def calc_orbit(
 
     Written: Jason Wang, Henry Ngo, 2018
     """
+    # Necessary for _calc_ecc_anom, for now
+    if np.isscalar(epochs):  # just in case epochs is given as a scalar
+        epochs = np.array([epochs])
+
     n_orbs = np.size(sma)  # num sets of input orbital parameters
-    n_dates = np.size(epochs)  # number of dates to compute offsets and vz
+    n_dates = np.len(epochs)  # number of dates to compute offsets and vz
 
     # return planetary RV if `mass_for_Kamp` is not defined
     if mass_for_Kamp is None:
         mass_for_Kamp = mtot
 
-    # Necessary for _calc_ecc_anom, for now
-    if np.isscalar(epochs):  # just in case epochs is given as a scalar
-        epochs = np.array([epochs])
     ecc_arr = np.tile(ecc, (n_dates, 1))
 
     # # compute mean anomaly (size: n_orbs x n_dates)
@@ -397,42 +398,48 @@ def _CUDA_mikkola_solver(manom, ecc):
 
     return eanom
 
-def calc_max_lighttravel_corr(sma, mtot, ecc, plx):
+def calc_max_lighttravel_corr(sma, mtot, ecc, plx, inc = 90*u.deg):
     """
-    Calculate the maximum amplitude of light travel time correction for a given orbit.
+    Calculate the maximum amplitude of astrometric correction  (in mas) due to
+    light travel time for a given orbit. Expects astropy quantities.
     
     Args:
         sma (np.array): array of semimajor axes
         mtot (np.array): array of system masses
         ecc (np.array): array of eccentricities
         plx (np.array): array of system parallaxes
+        inc (np.array): array of orbital inclinations, defaults to 90 degrees
     Return:
         ra_corr (np.array): array of maximum possible corrections to RA
 
     Written: Ellis Bogat, 2026
     """
 
-    ra_corr_disp = (np.sqrt(consts.G * mtot * sma * (1+ecc)) / consts.c).to(u.au)
+    ra_corr_disp = (np.sqrt(consts.G * mtot * sma * (1+ecc)) / consts.c).to(u.au) * np.sin(inc.to(u.rad).value)
 
-    ra_corr = ra_corr_disp.value * plx.to(u.arcsec) 
+    ra_corr = ra_corr_disp.value * plx.to(u.mas) 
 
     return ra_corr
 
 def calc_z(ra0,dec0,inc,aop,plx) :
     """
-    Calculate the z coordinate of the planet, given the RA and Dec offsets, inclination, argument of periastron, and parallax.
+    Calculate the z coordinate of the planet, given the RA and Dec offsets, 
+    inclination, argument of periastron, and parallax. 
     
     Parameters:
-        ra0 (np.array) : float
-        dec0 (np.array) : float    
-        inc (np.array) : float
-        aop (np.array) : float
-        plx (np.array) : float
+        ra0 (np.array) : RA for inc=aop=pan=0 [mas]
+        dec0 (np.array) : Dec for inc=aop=pan=0 [mas]
+        inc (np.array) : orbital inclination [deg]
+        aop (np.array) : argument of periastron [deg]
+        plx (np.array) : system parallax [mas]
+
+    Returns:
+        z (np.array) : z coordinate of planet in AU
     
-    Written: Sarah Blunt
+    Written: Sarah Blunt & Ellis Bogat
     """
 
     return np.sin(np.radians(inc)) * (
                 np.cos(np.radians(aop)) * ra0
                 + np.sin(np.radians(aop)) * dec0
-            ) * plx
+            ) / plx

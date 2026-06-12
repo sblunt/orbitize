@@ -47,7 +47,7 @@ class Sampler(abc.ABC):
     def run_sampler(self, total_orbits):
         pass
 
-    def _logl(self, params):
+    def _logl(self, params, corr_lighttravel):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -58,13 +58,14 @@ class Sampler(abc.ABC):
                 parameters being fit, and M is the number of orbits
                 we need model predictions for. Must be in the same order
                 documented in System() above. If M=1, this can be a 1d array.
+            corr_lighttravel (bool): whether to correct for light travel delays
 
         Returns:
             float: sum of all log likelihoods of the data given input model
 
         """
         # compute the model based on system params
-        model, jitter = self.system.compute_model(params)
+        model, jitter = self.system.compute_model(params,corr_lighttravel=corr_lighttravel)
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array(
@@ -409,7 +410,7 @@ class OFTI(
 
         return samples
 
-    def reject(self, samples):
+    def reject(self, samples, corr_lighttravel=False):
         """
         Runs rejection sampling on some prepared samples.
 
@@ -428,7 +429,7 @@ class OFTI(
 
         """
 
-        lnp = self._logl(samples)
+        lnp = self._logl(samples,corr_lighttravel)
 
         # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array(
@@ -470,7 +471,8 @@ class OFTI(
         return saved_orbits, lnlikes
 
     def _sampler_process(
-        self, output, total_orbits, num_samples=10000, Value=0, lock=None
+        self, output, total_orbits, num_samples=10000, Value=0, lock=None,
+        corr_lighttravel=False
     ):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
@@ -504,7 +506,7 @@ class OFTI(
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
             samples = self.prepare_samples(num_samples)
-            accepted_orbits, lnlikes = self.reject(samples)
+            accepted_orbits, lnlikes = self.reject(samples,corr_lighttravel)
 
             if len(accepted_orbits) == 0:
                 pass
@@ -527,7 +529,8 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0
+        self, total_orbits, num_samples=10000, num_cores=None, 
+        OFTI_warning=60.0, corr_lighttravel=False
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -568,7 +571,7 @@ class OFTI(
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output, nrun_per_core, num_samples, orbits_saved, lock),
+                    args=(output, nrun_per_core, num_samples, orbits_saved, lock,corr_lighttravel),
                 )
                 for x in range(num_cores)
             ]
@@ -627,7 +630,7 @@ class OFTI(
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
                 samples = self.prepare_samples(num_samples)
-                accepted_orbits, lnlikes = self.reject(samples)
+                accepted_orbits, lnlikes = self.reject(samples,corr_lighttravel)
 
                 if len(accepted_orbits) == 0:
                     check_time = time.time() - start_time
@@ -813,7 +816,7 @@ class MCMC(Sampler):
 
         return sampled_params
 
-    def _logl(self, params, include_logp=False):
+    def _logl(self, params, corr_lighttravel, include_logp=False):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -847,7 +850,7 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(MCMC, self)._logl(full_params) + logp
+        return super(MCMC, self)._logl(full_params,corr_lighttravel) + logp
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
@@ -956,6 +959,7 @@ class MCMC(Sampler):
         examine_chains=False,
         output_filename=None,
         periodic_save_freq=None,
+        corr_lighttravel=False,
     ):
         """
         Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
@@ -1005,6 +1009,7 @@ class MCMC(Sampler):
                     logpargs=[
                         self.priors,
                     ],
+                    loglkwargs={"corr_lighttravel":corr_lighttravel}
                 )
             else:
                 sampler = emcee.EnsembleSampler(
@@ -1012,7 +1017,8 @@ class MCMC(Sampler):
                     self.num_params,
                     self._logl,
                     pool=pool,
-                    kwargs={"include_logp": True},
+                    kwargs={"include_logp": True,
+                            "corr_lighttravel":corr_lighttravel},
                 )
 
             print("Starting Burn in")
@@ -1616,7 +1622,7 @@ class MultiNest(Sampler):
 
             return param_cube
 
-        def _loglike_multinest(param_cube, n_dim, n_param):
+        def _loglike_multinest(param_cube, n_dim, n_param,corr_lighttravel):
             """
             Parameters
             ----------
@@ -1638,7 +1644,7 @@ class MultiNest(Sampler):
             for i in range(n_param):
                 param_array[i] = param_cube[i]
 
-            return self._logl(param_array)
+            return self._logl(param_array,corr_lighttravel)
 
         pymultinest.run(
             _loglike_multinest,

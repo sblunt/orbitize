@@ -1,7 +1,7 @@
 import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
-import astropy.constants as consts
+import astropy.constants as consts, astropy.units as u
 from orbitize.read_input import read_file
 
 
@@ -337,16 +337,23 @@ class System(object):
         hf.attrs["fitting_basis"] = self.fitting_basis
         hf.attrs["use_rebound"] = self.use_rebound
 
-    def get_lightcorrected_epochs(self,params_arr,raoff,decoff):
+    def get_lightcorrected_epochs(self,params_arr,epochs=None,comp_rebound=False):
 
         inc = params_arr[self.inc_indx]
         aop = params_arr[self.aop_indx]
         plx = params_arr[self.basis.standard_basis_idx["plx"]]
+    
+        # first compute all orbits assuming inc=aop=pan=0
+        params_arr_temp = params_arr.copy()
+        params_arr_temp[self.inc_indx] = 0
+        params_arr_temp[self.aop_indx] = 0
+        params_arr_temp[self.pan_indx] = 0
+    
+        ra0,dec0,_ = self.compute_all_orbits(params_arr_temp,epochs=None,comp_rebound=comp_rebound)
+        z = kepler.calc_z(ra0,dec0,inc,aop,plx) * u.AU
+        deltat = ((z / consts.c).to(u.day).value)
+        corrected_epochs = (self.data_table["epoch"][:,np.newaxis,np.newaxis] - deltat)
 
-        z = kepler.calc_z(raoff,decoff,inc,aop,plx)
-        deltat = z / consts.c
-        corrected_epochs = self.data_table["epoch"] - deltat
-        
         return corrected_epochs
     
     def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
@@ -383,13 +390,16 @@ class System(object):
         if epochs is None:
             epochs = self.data_table["epoch"]
 
+        else:
+            assert (epochs.ndim == 3) or (epochs.ndim == 1) 
+            # if ndim > 1 it should be of shape (n_epochs,n_bodies,n_orbits)
+
         n_epochs = len(epochs)
 
         if len(params_arr.shape) == 1:
             n_orbits = 1
         else:
             n_orbits = params_arr.shape[1]
-
         ra_kepler = np.zeros(
             (n_epochs, self.num_secondary_bodies + 1, n_orbits)
         )  # N_epochs x N_bodies x N_orbits
@@ -405,7 +415,7 @@ class System(object):
             masses = np.zeros((self.num_secondary_bodies + 1, n_orbits))
             mtots = np.zeros((self.num_secondary_bodies + 1, n_orbits))
 
-        if comp_rebound or self.use_rebound:
+        if comp_rebound or self.use_rebound: # TODO: handle 3d epochs
             sma = params_arr[self.sma_indx]
             ecc = params_arr[self.ecc_indx]
             inc = params_arr[self.inc_indx]
@@ -440,6 +450,13 @@ class System(object):
 
         else:
             for body_num in np.arange(self.num_secondary_bodies) + 1:
+
+                # Handle the case where we want to compute the position for a slightly different
+                # epoch for each body and orbit (light travel time corrections)
+                if epochs.ndim > 1:
+                    body_epochs = epochs[:,body_num-1,:]
+                    # body_epochs shape: (n_epochs,n_orbits)
+                else: body_epochs = epochs
                 sma = params_arr[
                     self.basis.standard_basis_idx["sma{}".format(body_num)]
                 ]
@@ -489,7 +506,7 @@ class System(object):
 
                 # solve Kepler's equation
                 raoff, decoff, vz_i = kepler.calc_orbit(
-                    epochs,
+                    body_epochs,
                     sma,
                     ecc,
                     inc,
@@ -503,7 +520,7 @@ class System(object):
                 )
 
                 # raoff, decoff, vz are scalers if the length of epochs is 1
-                if len(epochs) == 1:
+                if len(body_epochs) == 1:
                     raoff = np.array([raoff])
                     decoff = np.array([decoff])
                     vz_i = np.array([vz_i])
@@ -622,26 +639,18 @@ class System(object):
         to_convert = np.copy(params_arr)
         standard_params_arr = self.basis.to_standard_basis(to_convert)
 
-        if use_rebound:
-            raoff, decoff, vz = self.compute_all_orbits(
-                standard_params_arr, comp_rebound=True
-            )
-        else:
-            raoff, decoff, vz = self.compute_all_orbits(standard_params_arr)
-
         if corr_lighttravel:
             corrected_epochs = self.get_lightcorrected_epochs(standard_params_arr,
-                                                              raoff,decoff)
+                                                              comp_rebound=use_rebound)
+            epochs = corrected_epochs
+        else:
+            epochs = None
+                
 
-            if use_rebound:
-                raoff, decoff, vz = self.compute_all_orbits(
-                    standard_params_arr, comp_rebound=True,
-                    epochs = corrected_epochs
-                )
-            else:
-                raoff, decoff, vz = self.compute_all_orbits(standard_params_arr,
-                    epochs = corrected_epochs)
-
+        raoff, decoff, vz = self.compute_all_orbits(
+                standard_params_arr, comp_rebound=use_rebound,
+                epochs=epochs
+            )
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
