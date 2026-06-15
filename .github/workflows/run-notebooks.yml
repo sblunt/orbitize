@@ -1,6 +1,7 @@
 name: Test jupyter notebook tutorials
 
 on:
+  workflow_dispatch:
   push:
     branches: 
       - main # only rerun tutorials when making PRs or changing main
