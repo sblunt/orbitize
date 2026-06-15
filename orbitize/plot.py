@@ -1673,7 +1673,7 @@ def plot_propermotion(
     axs[0].set_ylabel(r"$\mu_\alpha^*$ [mas/yr]")
 
     axs[0].errorbar(
-        np.nanmedian(system.gaia.hipparcos_epoch),
+        np.nanmedian(system.gaia.hipparcos_epoch.jyear),
         system.gaia.hip_pm[0],
         yerr=system.gaia.hip_pm_err[0],
         zorder=30,
@@ -1683,10 +1683,10 @@ def plot_propermotion(
     )
 
     hgca_epoch = (
-        system.gaia.gaia_epoch_ra + np.nanmedian(system.gaia.hipparcos_epoch)
+        system.gaia.gaia_epoch_ra + np.nanmedian(system.gaia.hipparcos_epoch.jyear)
     ) / 2
     hgca_epoch_err = (
-        system.gaia.gaia_epoch_ra - np.nanmedian(system.gaia.hipparcos_epoch)
+        system.gaia.gaia_epoch_ra - np.nanmedian(system.gaia.hipparcos_epoch.jyear)
     ) / 2
 
     axs[0].errorbar(
@@ -1714,7 +1714,7 @@ def plot_propermotion(
     axs[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
     axs[1].errorbar(
-        np.nanmedian(system.gaia.hipparcos_epoch),
+        np.nanmedian(system.gaia.hipparcos_epoch.jyear),
         system.gaia.hip_pm[1],
         yerr=system.gaia.hip_pm_err[1],
         zorder=30,
