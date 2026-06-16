@@ -127,7 +127,7 @@ def plot_corner(results, param_list=None, downsample=None, **corner_kwargs):
         else:
             fixed_indices.append(i)
 
-    if downsample:
+    if downsample is not None:
         post, _ = results.downsample(downsample)
         weights = None
     else:
@@ -170,7 +170,7 @@ def plot_corner(results, param_list=None, downsample=None, **corner_kwargs):
 
         corner_kwargs["labels"] = reduced_labels_list
 
-    figure = corner.corner(samples, **corner_kwargs, weights=weights)
+    figure = corner.corner(samples, weights=weights, **corner_kwargs)
     return figure
 
 

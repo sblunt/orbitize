@@ -39,9 +39,7 @@ def test_nautilus_general(make_plot=False):
     mySys.sys_priors[lab["mtot"]] = mtot
         
     my_sampler = sampler.NautilusSampler(mySys)
-    my_sampler.run_sampler(n_live=800, n_update=None, verbose=True)
-    
-    print("Finished 1st Run!")
+    my_sampler.run_sampler(n_live=800, n_update=None, verbose=False)
     
     nautilus_eccentricities = my_sampler.results.post[:, lab["ecc1"]]
     assert np.mean(nautilus_eccentricities) == pytest.approx(0.1, abs=0.1)
@@ -51,14 +49,8 @@ def test_nautilus_general(make_plot=False):
 
     if make_plot:
         myResults = my_sampler.results
-        myResults.plot_corner(param_list=["ecc1","inc1"]).savefig('nautilus_test_3.png')
-        print("Made A Plot")
+        myResults.plot_corner(param_list=["ecc1","inc1"]) # No downsampling
+        myResults.plot_corner(param_list=["ecc1","inc1"], downsample = 1000) # With downsampling
 
 if __name__ ==  "__main__":
-    test_nautilus_general()
-
-
-# TO DO
-# fewer live points
-# verbose = false 
-# Test < 1min     
+    test_nautilus_general(make_plot = True)
