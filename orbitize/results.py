@@ -118,6 +118,8 @@ class Results(object):
         """
 
         indexes = np.random.choice(len(self.weighted_post), amount, duplicates, self.weights)
+        if self.weighted_lnlike is None:
+            return self.weighted_post[indexes], None
         return self.weighted_post[indexes], self.weighted_lnlike[indexes]
         
     def add_samples(self, orbital_params, lnlikes, curr_pos=None, weighted_post=None, weighted_lnlike=None, lnweight=None): 
