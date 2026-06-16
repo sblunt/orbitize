@@ -1318,11 +1318,14 @@ class BaseNestedSampler(Sampler):
         Prior transform function.
 
         Args:
-            u (array of floats): list of samples with values 0 < u < 1.
+            u (np.array of floats): RxM array of uniform
+                samples with values 0 < u < 1,
+                where R is the number of parameters
+                and M is the number of orbits
 
         Returns:
-            numpy array of floats: u samples transformed to a chosen Prior
-                Class distribution.
+            numpy RxM array of floats: u samples transformed to
+                a chosen Prior Class distribution.
         """
         utform = np.zeros(u.shape)
         for i in range(u.shape[0]):
@@ -1697,7 +1700,7 @@ class NautilusSampler(BaseNestedSampler):
             orbits we need model predictions for. It returns ``clnlikes``
             which is an array of length M, or it can be a single float if M = 1.
 
-    Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
+    Eshel Dror, Quinton Blackston, Aniruddh Chalagulla, & Niklas Naworal 2026
     """
     def __init__(self,
         system,
@@ -1738,7 +1741,7 @@ class NautilusSampler(BaseNestedSampler):
         sampler_kwargs = {},
         run_kwargs = {}
     ):
-        """Runs the nested sampler from the Dynesty package.
+        """Runs the nested sampler from the Nautilus package.
 
         Args:
             n_live (int): Number of live points. A larger numbers results
