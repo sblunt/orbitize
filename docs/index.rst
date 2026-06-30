@@ -55,9 +55,13 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.3.3 (not yet released)**
+
+- hotfix for issue plotting datapoints with different RV instruments
+
 **3.3.2 (2026-6-2)**
 
-- fix for a flaky unit test with int HIP IAD inputs (they should be str) @sblunt)
+- fix for a flaky unit test with int HIP IAD inputs (they should be str; @sblunt)
 
 **3.3.1 (2026-6-1)**
 
