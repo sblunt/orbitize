@@ -119,10 +119,10 @@ def test_8799_rebound_vs_kepler(plotname=None):
 
     assert hr8799_sys.track_planet_perturbs
 
-    rra, rde, _ = hr8799_sys.compute_all_orbits(
+    rra, rde, _, _ = hr8799_sys.compute_all_orbits(
         params_arr, epochs=epochs, comp_rebound=True
     )
-    kra, kde, _ = hr8799_sys.compute_all_orbits(
+    kra, kde, _, _ = hr8799_sys.compute_all_orbits(
         params_arr, epochs=epochs, comp_rebound=False
     )
 
@@ -224,5 +224,5 @@ def test_rebound_mcmc():
 
 
 if __name__ == "__main__":
-    # test_8799_rebound_vs_kepler(plotname="hr8799_diffs")
-    test_rebound_mcmc()
+    test_8799_rebound_vs_kepler()
+    # test_rebound_mcmc()
