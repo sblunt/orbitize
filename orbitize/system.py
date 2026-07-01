@@ -597,9 +597,10 @@ class System(object):
                 raoff[:, :, bad_orbits] = np.inf
                 deoff[:, :, bad_orbits] = np.inf
                 vz[:, :, bad_orbits] = np.inf
-                return raoff, deoff, vz
+                brightness_out[:, :, bad_orbits] = np.inf
+                return raoff, deoff, vz, brightness_out
             else:
-                return raoff, deoff, vz
+                return raoff, deoff, vz, brightness_out
         else:
             return raoff, deoff, vz, brightness_out
 
