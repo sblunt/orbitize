@@ -517,7 +517,7 @@ class System(object):
                     raoff = np.array([raoff])
                     decoff = np.array([decoff])
                     vz_i = np.array([vz_i])
-                    brightness_out = np.array([brightness])
+                    brightness = np.array([brightness])
 
                 # add Keplerian ra/deoff for this body to storage arrays
                 ra_kepler[:, body_num, :] = np.reshape(raoff, (n_epochs, n_orbits))
