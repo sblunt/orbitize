@@ -26,6 +26,42 @@ Next, install ``orbitize``:
 	
 	$ pip install orbitize
 
+MultiNest (Optional)
+++++++++++++++++++++
+
+The MultiNest sampler requires both the ``PyMultiNest`` Python package and the
+native MultiNest library.
+
+First, install ``PyMultiNest``:
+
+.. code-block:: bash
+
+    $ pip install pymultinest
+
+Next, build and install the native MultiNest library by following the official
+installation instructions:
+
+https://johannesbuchner.github.io/PyMultiNest/install.html
+
+After installation, ensure that the directory containing the MultiNest shared
+library is included in your library search path.
+
+On Linux:
+
+.. code-block:: bash
+
+    $ export LD_LIBRARY_PATH=/path/to/MultiNest/lib:$LD_LIBRARY_PATH
+
+On macOS:
+
+.. code-block:: bash
+
+    $ export DYLD_LIBRARY_PATH=/path/to/MultiNest/lib:$DYLD_LIBRARY_PATH
+
+For quick testing, approximately **200 live points** are generally sufficient.
+For publication-quality analyses, we recommend using **1000 or more live
+points**, depending on the complexity of the orbital model.
+
 We recommend installing and running ``orbitize`` in a ``conda`` virtual
 environment. Install ``anaconda`` or ``miniconda`` 
 `here <https://conda.io/miniconda.html>`_, then see instructions 
