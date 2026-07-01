@@ -506,10 +506,10 @@ class System(object):
                 
                 B = np.arctan2(-R, z)+ np.pi
         
-                Alpha = (1/np.pi)*(np.sin(B)+(np.pi-B)*np.cos(B))
+                alpha = (1/np.pi)*(np.sin(B)+(np.pi-B)*np.cos(B))
 
-                Albedo = 0.5
-                brightness = Albedo*Alpha/R**2
+                albedo = 0.5 # NOTE: we're only fitting relative changes in brightness, so the actual value of albedo doesn't matter
+                brightness = albedo*alpha/R**2
         
 
                 # raoff, decoff, vz are scalers if the length of epochs is 1
