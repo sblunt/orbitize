@@ -688,13 +688,10 @@ class System(object):
                 model[self.rv[body_num], 0] = vz[self.rv[body_num], body_num, :]
                 model[self.rv[body_num], 1] = np.nan
 
-            # TODO (farrah): add brightness to model here (use RV block above as template)
             # Brightness
             if len(self.brightness[body_num]) > 0:
                 model[self.brightness[body_num], 0] = brightness[self.brightness[body_num], body_num, :]
                 model[self.brightness[body_num], 1] = np.nan
-            # (assume self.brightness is array of indices of epochs with brightness measurements)
-
 
         # if we have abs astrometry measurements in the input file (i.e. not
         # from Hipparcos or Gaia), add the parallactic & proper motion here by
