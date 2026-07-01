@@ -24,4 +24,4 @@ Eric Nielsen -- came up with idea for OFTI algorithm; advised SB on development 
 
 Roberto Tejada -- developing RV/astrometry joint fitting code
 
-Aaditya Thokal -- wrote MultiNest tutorial, installation documentation, and example dataset integration
+Aaditya Thokal -- wrote MultiNest tutorial and installation documentation
