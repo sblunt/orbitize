@@ -230,12 +230,12 @@ class Plotter(object):
             # test gamma 3
             if rv_time_series:
                 # guess the instrument name if this is not specified
-                if primary_instrument_name == None:
-                    primary_instrument_name = self.results.data[self.results.data["object"] == 0][
+                if self.primary_instrument_name == None:
+                    self.primary_instrument_name = self.results.data[self.results.data["object"] == 0][
                         "instrument"
                     ][0]
                 gamma3 = self.standard_post[
-                    :, self.results.standard_param_idx["gamma_" + primary_instrument_name]
+                    :, self.results.standard_param_idx["gamma_" + self.primary_instrument_name]
                 ]
             else:
                 gamma3 = None
@@ -543,7 +543,7 @@ class Plotter(object):
                 plt.sca(ax3)
 
                 # scale back to primary RV semi amplitude
-                vz0 = self.vz1 * (-(mtot[i] - m0[i]) / np.median(m0[i]))
+                vz0 = self.vz1[i] * (-(mtot[i] - m0[i]) / np.median(m0[i])) # TODO: vectorize
 
                 epochs_rv = np.linspace(
                     rv_data["epoch"][0] - 3 * 365,
