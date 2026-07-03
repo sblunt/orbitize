@@ -39,10 +39,9 @@ class Plotter(object):
     def __init__(
         self,
         results,
-        system, # TODO: =None support
         object_to_plot=1, # TODO: Support multiplanet
         end_year=2030.0,
-        start_mjd=51544.0,
+        start_mjd=None,
         default_cmap=None,
         num_orbits_to_plot=100,
         num_epochs_to_plot=100,
@@ -50,12 +49,18 @@ class Plotter(object):
         primary_instrument_name=None,
     ):
         self.results = results
-        self.system = system
+        self.system = results.system
         self.object_to_plot = object_to_plot
         self.end_year = end_year
-        self.start_mjd = start_mjd
+
+        if start_mjd is None:
+            self.start_mjd = self.system.data_table['epoch'][0]
+        else:
+            self.start_mjd = start_mjd
+
         if default_cmap is not None:
             self.cmap = default_cmap
+
         self.num_orbits_to_plot = num_orbits_to_plot
         self.num_epochs_to_plot = num_epochs_to_plot
 
@@ -72,17 +77,37 @@ class Plotter(object):
             )
         self.cbar_param = cbar_param
 
-        self.standard_post = self.get_standard_post(self.num_orbits_to_plot)
-        self.raoff, self.deoff, self.vz, self.epochs = self.calc_full_orbits(
-            self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post)
-        self.raoff1, self.deoff1, self.vz1, self.epochs1 = self.calc_panel_orbits(
-            self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
-        self.cbar_param_arr, self.norm, self.norm_yr = self.create_cbar(self.cbar_param, self.epochs, self.standard_post)
+        if Time(self.start_mjd, format="mjd").decimalyear >= self.end_year:
+            raise ValueError(
+                "start_mjd keyword date must be less than end_year keyword date."
+            )
 
-        # TODO: RV stuff instruments gammas etc.
-        self.primary_instrument_name = primary_instrument_name
+        if self.object_to_plot > self.results.num_secondary_bodies:
+            raise ValueError(
+                "Only {0} secondary bodies being fit. Requested to plot body {1} which is out of range".format(
+                    self.results.num_secondary_bodies, self.object_to_plot
+                )
+            )
 
-        # TODO: calc spaced orbits for end_year
+        if self.object_to_plot == 0:
+            raise ValueError(
+                "Plotting the primary's orbit is currently unsupported. Stay tuned."
+            )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ErfaWarning)
+
+            self.standard_post = self.get_standard_post(self.num_orbits_to_plot)
+            self.raoff, self.deoff, self.vz, self.epochs = self.calc_full_orbits(
+                self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post)
+            self.raoff1, self.deoff1, self.vz1, self.epochs1 = self.calc_panel_orbits(
+                self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
+            self.cbar_param_arr, self.norm, self.norm_yr = self.create_cbar(self.cbar_param, self.epochs, self.standard_post)
+
+            # TODO: RV stuff instruments gammas etc.
+            self.primary_instrument_name = primary_instrument_name
+
+            # TODO: calc spaced orbits for end_year
         
 
     def get_standard_post(self, num_orbits_to_plot):
@@ -224,6 +249,17 @@ class Plotter(object):
         fontsize=20,
         fig=None,
     ):
+        
+        if rv_time_series and "m0" not in self.results.labels:
+            self.rv_time_series = False
+
+            warnings.warn(
+                "It seems that the stellar and companion mass "
+                "have not been fitted separately. Setting "
+                "rv_time_series=True is therefore not possible "
+                "so the argument is set to False instead."
+            )
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
 
