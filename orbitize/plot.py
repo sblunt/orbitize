@@ -96,12 +96,12 @@ class Plotter(object):
 
         standard_post = []
         # Convert the randomly chosen posteriors to standard keplerian set
+        # The original basis is still inclued and used in calculating orbits
+        # Standard kepler basis used for color bar and computing period/mass
         for i in np.arange(num_orbits_to_plot):
             orb_ind = choose[i]
             param_set = np.copy(self.results.post[orb_ind])
-            standard_post.append(param_set)
-            # standard_post.append(self.results.basis.to_standard_basis(param_set))
-        
+            standard_post.append(self.results.basis.to_standard_basis(param_set)) 
         standard_post = np.array(standard_post)
         return standard_post
     
