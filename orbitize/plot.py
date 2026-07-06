@@ -50,6 +50,27 @@ class Plotter(object):
     ):
         self.results = results
         self.system = results.system
+
+        if default_cmap is not None:
+            self.cmap = default_cmap
+        
+        self.set_params(object_to_plot, end_year, start_mjd, num_orbits_to_plot, num_epochs_to_plot, cbar_param)
+
+        # TODO: RV stuff instruments gammas etc.
+        self.primary_instrument_name = primary_instrument_name
+
+        # TODO: calc spaced orbits for end_year
+
+
+    def set_params(
+        self,
+        object_to_plot=1,
+        end_year=2030.0,
+        start_mjd=None,
+        num_orbits_to_plot=100,
+        num_epochs_to_plot=100,
+        cbar_param="Epoch [year]"
+    ):
         self.object_to_plot = object_to_plot
         self.end_year = end_year
 
@@ -57,14 +78,11 @@ class Plotter(object):
             self.start_mjd = self.system.data_table['epoch'][0]
         else:
             self.start_mjd = start_mjd
-
-        if default_cmap is not None:
-            self.cmap = default_cmap
-
+        
         self.num_orbits_to_plot = num_orbits_to_plot
         self.num_epochs_to_plot = num_epochs_to_plot
 
-        self.data = self.results.data[results.data["object"] == self.object_to_plot]
+        self.data = self.results.data[self.results.data["object"] == self.object_to_plot]
         
         # Check cbar_param
         if cbar_param in ["Epoch [year]", "Epoch (year)"]:
@@ -103,12 +121,7 @@ class Plotter(object):
             self.raoff1, self.deoff1, self.vz1, self.epochs1 = self.calc_panel_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
             self.cbar_param_arr, self.norm, self.norm_yr = self.create_cbar(self.cbar_param, self.epochs, self.standard_post)
-
-            # TODO: RV stuff instruments gammas etc.
-            self.primary_instrument_name = primary_instrument_name
-
-            # TODO: calc spaced orbits for end_year
-        
+            
 
     def get_standard_post(self, num_orbits_to_plot):
         # TODO: Replace random with results.downsample
@@ -248,6 +261,7 @@ class Plotter(object):
         # primary_instrument_name=None,
         fontsize=20,
         fig=None,
+        # TODO: non default cmap
     ):
         
         if rv_time_series and "m0" not in self.results.labels:
