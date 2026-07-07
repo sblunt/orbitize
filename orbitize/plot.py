@@ -612,39 +612,10 @@ def plot_orbits(
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            if (rv_time_series == True) or (rv_time_series2 == True):
-                raoff0, deoff0, vz = kepler.calc_orbit(
-                    epochs_seppa[i, :],
-                    sma[i],
-                    ecc[i],
-                    inc[i],
-                    aop[i],
-                    pan[i],
-                    tau[i],
-                    plx[i],
-                    mtot[i],
-                    tau_ref_epoch=results.tau_ref_epoch,
-                    mass_for_Kamp=m0[i],
-                )
+            raoff0, deoff0, vz0 = results.system.compute_all_orbits(results.post[i,:], epochs=epochs_seppa[i, :])
 
-                raoff[i, :] = raoff0
-                deoff[i, :] = deoff0
-            else:
-                raoff0, deoff0, _ = kepler.calc_orbit(
-                    epochs_seppa[i, :],
-                    sma[i],
-                    ecc[i],
-                    inc[i],
-                    aop[i],
-                    pan[i],
-                    tau[i],
-                    plx[i],
-                    mtot[i],
-                    tau_ref_epoch=results.tau_ref_epoch,
-                )
-
-                raoff[i, :] = raoff0
-                deoff[i, :] = deoff0
+            raoff[i, :] = raoff0[:,object_to_plot,0]
+            deoff[i, :] = deoff0[:,object_to_plot,0]
 
             yr_epochs = Time(epochs_seppa[i, :], format="mjd").decimalyear
 
@@ -658,12 +629,9 @@ def plot_orbits(
             plt.sca(ax2)
             plt.plot(yr_epochs, pas, color=sep_pa_color)
 
-            # plot RV orbits here
-            if rv_time_series == True:
+            # plot stellar RV orbit posterior draws here
+            if rv_time_series:
                 plt.sca(ax3)
-
-                # scale back to primary RV semi amplitude
-                vz0 = vz * (-(mtot[i] - m0[i]) / np.median(m0[i]))
 
                 epochs_rv = np.linspace(
                     rv_data["epoch"][0] - 3 * 365,
@@ -673,44 +641,27 @@ def plot_orbits(
 
                 plt.plot(
                     Time(epochs_rv, format="mjd").decimalyear,
-                    vz0 + gamma3[i],
+                    vz0[:,0,0] + gamma3[i],
                     color=sep_pa_color,
                 )
 
-            if rv_time_series2 == True:
-                if rv_time_series == True:
-                    plt.sca(ax4)
-                else:
-                    plt.sca(ax3)
+            # plot relative RV orbit posterior draws here
+            if rv_time_series2:
 
-                # scale back to primary RV semi amplitude
-                if rv_time_series:
-                    epochs_rv = np.linspace(
-                        rv_data["epoch"][0] - 3 * 365,
-                        epochs_seppa[0, -1],
-                        num_epochs_to_plot,
-                    )
+                rv_data2 = results.data[results.data["object"] == 1]
+                rv_data2 = rv_data2[rv_data2["quant_type"] == "rv"]
 
-                    plt.plot(
-                        Time(epochs_rv, format="mjd").decimalyear,
-                        vz,
-                        color=sep_pa_color,
-                    )
-                else:
-                    rv_data2 = results.data[results.data["object"] == 1]
-                    rv_data2 = rv_data2[rv_data2["quant_type"] == "rv"]
+                epochs_rv2 = np.linspace(
+                    rv_data2["epoch"][0] - 3 * 365,
+                    epochs_seppa[0, -1],
+                    num_epochs_to_plot,
+                )
 
-                    epochs_rv2 = np.linspace(
-                        rv_data2["epoch"][0] - 3 * 365,
-                        epochs_seppa[0, -1],
-                        num_epochs_to_plot,
-                    )
-
-                    plt.plot(
-                        Time(epochs_rv2, format="mjd").decimalyear,
-                        vz,
-                        color=sep_pa_color,
-                    )
+                plt.plot(
+                    Time(epochs_rv2, format="mjd").decimalyear,
+                    vz0[:,object_to_plot,0],
+                    color=sep_pa_color,
+                )
 
         # Plot sep/pa instruments
         if plot_astrometry_insts:
@@ -835,21 +786,6 @@ def plot_orbits(
                     (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
                 )[0]
 
-            # choose the orbit with the best log probability
-            best_like = np.where(results.lnlike == np.amax(results.lnlike))[0][0]
-
-            med_ga = [results.post[best_like, i] for i in gam_idx]
-
-            # Get the posteriors for this index and convert to standard basis
-            best_post = results.basis.to_standard_basis(results.post[best_like].copy())
-
-            # Get the masses for the best posteriors:
-            best_m0 = best_post[results.standard_param_idx["m0"]]
-            best_m1 = best_post[
-                results.standard_param_idx["m{}".format(object_to_plot)]
-            ]
-            best_mtot = best_m0 + best_m1
-
             # colour/shape scheme scheme for rv data points
             clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
             symbols = ("o", "^", "v", "s")
@@ -863,9 +799,7 @@ def plot_orbits(
                 rvs = inst_data["quant1"]
                 epochs = inst_data["epoch"]
                 epochs = Time(epochs, format="mjd").decimalyear
-                # don't include this so we can plot more orbits
-                # rvs -= med_ga[i]
-                # rvs -= best_post[results.param_idx[gams[i]]]
+
                 plt.scatter(
                     epochs,
                     rvs,
@@ -887,26 +821,6 @@ def plot_orbits(
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
-
-            ## calculate the predicted rv trend using the best orbit
-            # _, _, vz = kepler.calc_orbit(
-            #    epochs_seppa[0, :],
-            #    best_post[results.standard_param_idx['sma{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['ecc{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['inc{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['aop{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['pan{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['tau{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['plx']], best_mtot,
-            #    tau_ref_epoch=results.tau_ref_epoch, mass_for_Kamp=best_m0
-            # )
-            #
-            #
-            ## scale to the RV semiampltude of primary
-            # vz=vz*-(best_m1)/np.median(best_m0)
-            #
-            ## plot rv trend
-            # plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
         if rv_time_series2 == True:
             if rv_time_series == False:
@@ -932,22 +846,6 @@ def plot_orbits(
                     inds[insts[i]] = np.where(
                         (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
                     )[0]
-
-                # choose the orbit with the best log probability
-                best_like = np.where(results.lnlike == np.amax(results.lnlike))[0][0]
-                med_ga = [results.post[best_like, i] for i in gam_idx]
-
-                # Get the posteriors for this index and convert to standard basis
-                best_post = results.basis.to_standard_basis(
-                    results.post[best_like].copy()
-                )
-
-                # Get the masses for the best posteriors:
-                best_m0 = best_post[results.standard_param_idx["m0"]]
-                best_m1 = best_post[
-                    results.standard_param_idx["m{}".format(object_to_plot)]
-                ]
-                best_mtot = best_m0 + best_m1
 
                 # colour/shape scheme scheme for rv data points
                 clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
@@ -979,9 +877,7 @@ def plot_orbits(
                 rvs2 = inst_data2["quant1"]
                 epochs2 = inst_data2["epoch"]
                 epochs2 = Time(epochs2, format="mjd").decimalyear
-                # don't include this so we can plot more orbits
-                # rvs -= med_ga[i]
-                # rvs -= best_post[results.param_idx[gams[i]]]
+
                 plt.scatter(
                     epochs2,
                     rvs2,
@@ -1040,13 +936,6 @@ def plot_orbits(
                 cbar.ax.tick_params(labelsize=15)
                 cbar.set_label(label=cbar_param, size=20)
 
-        # hard code custom things
-        # ax2.set_xlim(2000, 2025)
-        # if rv_time_series:
-        #    ax3.set_xlim(1995, 2025)
-        # if rv_time_series2:
-        #    ax4.set_xlim(1995, 2025)
-
         ax1.locator_params(axis="x", nbins=6)
         ax1.locator_params(axis="y", nbins=6)
         ax2.locator_params(axis="x", nbins=6)
@@ -1061,15 +950,6 @@ def plot_orbits(
             ax2.minorticks_on()
 
     fig.tight_layout()
-
-    # if (rv_time_series == True) and (rv_time_series2 == True):
-    #    return fig, ax1, ax2, ax3, ax4
-    # elif (rv_time_series == True) and (rv_time_series2 == False):
-    #    return fig, ax1, ax2, ax3
-    # elif (rv_time_series == False) and (rv_time_series2 == True):
-    #    return fig, ax1, ax2, ax3
-    # else:
-    #    return fig, ax1, ax2
 
     return fig
 
