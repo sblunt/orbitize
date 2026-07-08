@@ -470,42 +470,7 @@ class Plotter(object):
                     ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
 
             astr_inds = np.where((~np.isnan(self.data["quant1"])) & (~np.isnan(self.data["quant2"])))
-            astr_epochs = self.data["epoch"][astr_inds]
 
-            radec_inds = np.where(self.data["quant_type"] == "radec")
-            seppa_inds = np.where(self.data["quant_type"] == "seppa")
-
-            sep_data, sep_err = self.data["quant1"][seppa_inds], self.data["quant1_err"][seppa_inds]
-            pa_data, pa_err = self.data["quant2"][seppa_inds], self.data["quant2_err"][seppa_inds]
-
-            if len(radec_inds[0] > 0):
-
-                sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
-                    self.data["quant1"][radec_inds], self.data["quant2"][radec_inds]
-                )
-
-                num_radec_pts = len(radec_inds[0])
-                sep_err_from_ra_data = np.empty(num_radec_pts)
-                pa_err_from_dec_data = np.empty(num_radec_pts)
-                for j in np.arange(num_radec_pts):
-
-                    sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = (
-                        orbitize.system.transform_errors(
-                            np.array(self.data["quant1"][radec_inds][j]),
-                            np.array(self.data["quant2"][radec_inds][j]),
-                            np.array(self.data["quant1_err"][radec_inds][j]),
-                            np.array(self.data["quant2_err"][radec_inds][j]),
-                            np.array(self.data["quant12_corr"][radec_inds][j]),
-                            orbitize.system.radec2seppa,
-                        )
-                    )
-
-                sep_data = np.append(sep_data, sep_from_ra_data)
-                sep_err = np.append(sep_err, sep_err_from_ra_data)
-
-                pa_data = np.append(pa_data, pa_from_dec_data)
-                pa_err = np.append(pa_err, pa_err_from_dec_data)
-            
             # For plotting different astrometry instruments
             if plot_astrometry_insts:
                 astr_colors = ("#FF7F11", "#11FFE3", "#14FF11", "#7A11FF", "#FF1919")
@@ -522,7 +487,7 @@ class Plotter(object):
             else:
                 astr_insts = astr_inst_inds = astr_colors = astr_symbols = None
                 
-            self.plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, sep_data, pa_data, cmap, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
+            self.plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
             
             # plot sep/PA and/or rv zoom-in panels
             if (rv_time_series == True) and (rv_time_series2 == True):
@@ -572,7 +537,7 @@ class Plotter(object):
                 ax2.set_xlabel("Epoch", fontsize=fontsize)
                 panel_axes = [ax1, ax2]
 
-            self.plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, *panel_axes)
+            self.plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, *panel_axes)
             # add colorbar
             if show_colorbar:
                 self.add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
@@ -594,7 +559,7 @@ class Plotter(object):
         
         return fig
 
-    def plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, sep_data, pa_data, cmap, plot_astrometry_insts, astr_insts=None, astr_inst_inds=None, astr_colors=None, astr_symbols=None):
+    def plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts=None, astr_inst_inds=None, astr_colors=None, astr_symbols=None):
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.raoff[i, :], self.deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -607,15 +572,13 @@ class Plotter(object):
             ax.add_collection(lc)
 
         if plot_astrometry:
-            ra_data, dec_data = orbitize.system.seppa2radec(sep_data, pa_data)
-
             # Plot astrometry along with instruments
             if plot_astrometry_insts:
                 ax_colors = itertools.cycle(astr_colors)
                 ax_symbols = itertools.cycle(astr_symbols)
                 for i in range(len(astr_insts)):
-                    ra = ra_data[astr_inst_inds[astr_insts[i]]]
-                    dec = dec_data[astr_inst_inds[astr_insts[i]]]
+                    ra = self.ra_data[astr_inst_inds[astr_insts[i]]]
+                    dec = self.dec_data[astr_inst_inds[astr_insts[i]]]
                     ax.scatter(
                         ra,
                         dec,
@@ -626,7 +589,7 @@ class Plotter(object):
                         label=astr_insts[i],
                     )
             else:
-                ax.scatter(ra_data, dec_data, marker="*", c="red", zorder=10, s=60)
+                ax.scatter(self.ra_data, self.dec_data, marker="*", c="red", zorder=10, s=60)
 
         # modify the axes
         if square_plot:
@@ -676,9 +639,9 @@ class Plotter(object):
             cbar.ax.tick_params(labelsize=15)
             cbar.set_label(label=self.cbar_param, size=20)
 
-    def plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, ax1, ax2, ax3=None, ax4=None):
+    def plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, ax1, ax2, ax3=None, ax4=None):
         self.plot_sep_pa_data(ax1, ax2, mod180, sep_pa_color)
-        self.plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, astr_colors, astr_symbols)
+        self.plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
         if ax3 is not None:
             self.plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
             self.plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2)
@@ -740,7 +703,7 @@ class Plotter(object):
                         color=sep_pa_color,
                     )
 
-    def plot_sep_pa_instruments(self, ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, astr_colors, astr_symbols):
+    def plot_sep_pa_instruments(self, ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols):
         # Plot sep/pa instruments
         if plot_astrometry_insts:
             ax1_colors = itertools.cycle(astr_colors)
@@ -749,12 +712,12 @@ class Plotter(object):
             ax2_colors = itertools.cycle(astr_colors)
             ax2_symbols = itertools.cycle(astr_symbols)
             for i in range(len(astr_insts)):
-                sep = sep_data[astr_inst_inds[astr_insts[i]]]
-                pa = pa_data[astr_inst_inds[astr_insts[i]]]
-                epochs = astr_epochs[astr_inst_inds[astr_insts[i]]]
+                sep = self.sep_data[astr_inst_inds[astr_insts[i]]]
+                pa = self.pa_data[astr_inst_inds[astr_insts[i]]]
+                epochs = self.astr_epochs[astr_inst_inds[astr_insts[i]]]
 
-                serr = sep_err[astr_inst_inds[astr_insts[i]]]
-                perr = pa_err[astr_inst_inds[astr_insts[i]]]
+                serr = self.sep_err[astr_inst_inds[astr_insts[i]]]
+                perr = self.pa_err[astr_inst_inds[astr_insts[i]]]
 
                 plt.sca(ax1)
                 plt.scatter(
@@ -801,17 +764,17 @@ class Plotter(object):
         else:
             plt.sca(ax1)
             plt.scatter(
-                Time(astr_epochs, format="mjd").decimalyear,
-                sep_data,
+                Time(self.astr_epochs, format="mjd").decimalyear,
+                self.sep_data,
                 s=60,
                 marker="*",
                 c="red",
                 zorder=10,
             )
             plt.errorbar(
-                Time(astr_epochs, format="mjd").decimalyear,
-                sep_data,
-                yerr=sep_err,
+                Time(self.astr_epochs, format="mjd").decimalyear,
+                self.sep_data,
+                yerr=self.sep_err,
                 ms=5,
                 linestyle="",
                 ecolor="red",
@@ -820,17 +783,17 @@ class Plotter(object):
             )
             plt.sca(ax2)
             plt.scatter(
-                Time(astr_epochs, format="mjd").decimalyear,
-                pa_data,
+                Time(self.astr_epochs, format="mjd").decimalyear,
+                self.pa_data,
                 s=60,
                 marker="*",
                 c="red",
                 zorder=10,
             )
             plt.errorbar(
-                Time(astr_epochs, format="mjd").decimalyear,
-                pa_data,
-                yerr=pa_err,
+                Time(self.astr_epochs, format="mjd").decimalyear,
+                self.pa_data,
+                yerr=self.pa_err,
                 ms=5,
                 linestyle="",
                 ecolor="red",
