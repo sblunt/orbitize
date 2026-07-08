@@ -54,6 +54,9 @@ class Plotter(object):
         if default_cmap is not None:
             self.cmap = default_cmap
         
+        if start_mjd is None:
+           start_mjd = self.system.data_table['epoch'][0]
+
         self.set_params(object_to_plot, end_year, start_mjd, num_orbits_to_plot, num_epochs_to_plot, cbar_param)
 
         # TODO: RV stuff instruments gammas etc.
@@ -64,36 +67,37 @@ class Plotter(object):
 
     def set_params(
         self,
-        object_to_plot=1,
-        end_year=2030.0,
+        object_to_plot=None,
+        end_year=None,
         start_mjd=None,
-        num_orbits_to_plot=100,
-        num_epochs_to_plot=100,
-        cbar_param="Epoch [year]"
+        num_orbits_to_plot=None,
+        num_epochs_to_plot=None,
+        cbar_param=None
     ):
-        self.object_to_plot = object_to_plot
-        self.end_year = end_year
-
-        if start_mjd is None:
-            self.start_mjd = self.system.data_table['epoch'][0]
-        else:
+        if object_to_plot is not None:
+            self.object_to_plot = object_to_plot
+        if end_year is not None:
+            self.end_year = end_year
+        if start_mjd is not None:
             self.start_mjd = start_mjd
-        
-        self.num_orbits_to_plot = num_orbits_to_plot
-        self.num_epochs_to_plot = num_epochs_to_plot
+        if num_epochs_to_plot is not None:
+            self.num_orbits_to_plot = num_orbits_to_plot
+        if num_epochs_to_plot is not None:
+            self.num_epochs_to_plot = num_epochs_to_plot
 
         self.data = self.results.data[self.results.data["object"] == self.object_to_plot]
-        
-        # Check cbar_param
-        if cbar_param in ["Epoch [year]", "Epoch (year)"]:
-            pass
-        elif cbar_param[0:3] in self.POSSIBLE_CBAR_PARAMS:
-            pass
-        else:
-            raise Exception(
-                "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
-            )
-        self.cbar_param = cbar_param
+
+        if cbar_param is not None:
+            # Check cbar_param
+            if cbar_param in ["Epoch [year]", "Epoch (year)"]:
+                pass
+            elif cbar_param[0:3] in self.POSSIBLE_CBAR_PARAMS:
+                pass
+            else:
+                raise Exception(
+                    "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
+                )
+            self.cbar_param = cbar_param
 
         if Time(self.start_mjd, format="mjd").decimalyear >= self.end_year:
             raise ValueError(
@@ -555,12 +559,6 @@ class Plotter(object):
             cbar.set_label(label=self.cbar_param, size=20)
 
     def plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, rv_data, gamma3, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, ax1, ax2, ax3=None, ax4=None):
-        if plot_astrometry_insts:
-            ax1_colors = itertools.cycle(astr_colors)
-            ax1_symbols = itertools.cycle(astr_symbols)
-
-            ax2_colors = itertools.cycle(astr_colors)
-            ax2_symbols = itertools.cycle(astr_symbols)
         self.plot_sep_pa_data(ax1, ax2, mod180, sep_pa_color)
         self.plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, astr_colors, astr_symbols)
         if ax3 is not None:
@@ -623,7 +621,7 @@ class Plotter(object):
 
                     plt.plot(
                         Time(epochs_rv, format="mjd").decimalyear,
-                        self.vz1,
+                        self.vz1[i],
                         color=sep_pa_color,
                     )
                 else:
@@ -638,7 +636,7 @@ class Plotter(object):
 
                     plt.plot(
                         Time(epochs_rv2, format="mjd").decimalyear,
-                        self.vz1,
+                        self.vz1[i],
                         color=sep_pa_color,
                     )
 
