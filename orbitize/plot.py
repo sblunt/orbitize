@@ -129,17 +129,17 @@ class Plotter(object):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
 
-            self.standard_post = self.get_standard_post(self.num_orbits_to_plot)
-            self.raoff, self.deoff, self.vz, self.epochs = self.calc_full_orbits(
+            self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
+            self.raoff, self.deoff, self.vz, self.epochs = self._calc_full_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post)
-            self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self.calc_panel_orbits(
+            self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self._calc_panel_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
-            self.cbar_param_arr, self.norm, self.norm_yr = self.create_cbar(self.cbar_param, self.epochs, self.standard_post)
-            self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds = self.calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
-            self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self.calc_seppa_radec(self.data)
-            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_epochs = self.calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
+            self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.epochs, self.standard_post)
+            self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds = self._calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
+            self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
+            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_epochs = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
 
-    def calc_seppa_radec(self, data):
+    def _calc_seppa_radec(self, data):
         radec_inds = np.where(data["quant_type"] == "radec")
         seppa_inds = np.where(data["quant_type"] == "seppa")
 
@@ -213,7 +213,7 @@ class Plotter(object):
         
         return sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err
 
-    def calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot):
+    def _calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot):
         astr_inds = np.where((~np.isnan(self.data["quant1"])) & (~np.isnan(self.data["quant2"])))
         astr_epochs = self.data["epoch"][astr_inds]
         num_astr_epochs = len(astr_epochs)
@@ -235,12 +235,12 @@ class Plotter(object):
         
         return raoff, deoff, vz, astr_epochs
 
-    def calc_rv(self, primary_instrument_name, rv_time_series, rv_time_series2):
+    def _calc_rv(self, primary_instrument_name, rv_time_series, rv_time_series2):
         # test gamma 3
         if rv_time_series:
             # guess the instrument name if this is not specified
             if self.primary_instrument_name == None:
-                self.primary_instrument_name = self.results.data[self.results.data["object"] == 0][
+                primary_instrument_name = self.results.data[self.results.data["object"] == 0][
                     "instrument"
                 ][0]
             gamma3 = self.standard_post[
@@ -283,7 +283,7 @@ class Plotter(object):
 
         return primary_instrument_name, gamma3, rv_data, insts, gams, labels, gam_idx, inds
 
-    def get_standard_post(self, num_orbits_to_plot):
+    def _get_standard_post(self, num_orbits_to_plot):
         # TODO: Replace random with results.downsample
         # TODO: vectorize to_standard_basis call
         num_orbits = len(self.results.post[:, 0])
@@ -303,7 +303,7 @@ class Plotter(object):
         standard_post = np.array(standard_post)
         return standard_post
     
-    def calc_full_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post):
+    def _calc_full_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post):
         # TODO: multiplanet, period?
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -345,7 +345,7 @@ class Plotter(object):
             vz[i, :] = vz0[:, object_to_plot, 0]
         return raoff, deoff, vz, epochs
 
-    def calc_panel_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, end_year):
+    def _calc_panel_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, end_year):
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         vz = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -368,7 +368,7 @@ class Plotter(object):
             vz[i, :] = vz0[:, object_to_plot, 0]
         return raoff, deoff, vz, epochs
 
-    def create_cbar(self, cbar_param, epochs, standard_post):
+    def _create_cbar(self, cbar_param, epochs, standard_post):
         # Create a linearly increasing colormap for our range of epochs
 
         if cbar_param not in ["Epoch [year]", "Epoch (year)"]:
@@ -485,7 +485,7 @@ class Plotter(object):
             else:
                 astr_insts = astr_inst_inds = astr_colors = astr_symbols = None
                 
-            self.plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
+            self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
             
             # plot sep/PA and/or rv zoom-in panels
             if (rv_time_series == True) and (rv_time_series2 == True):
@@ -535,10 +535,10 @@ class Plotter(object):
                 ax2.set_xlabel("Epoch", fontsize=fontsize)
                 panel_axes = [ax1, ax2]
 
-            self.plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, *panel_axes)
+            self._plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, *panel_axes)
             # add colorbar
             if show_colorbar:
-                self.add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
+                self._add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
             
             ax1.locator_params(axis="x", nbins=6)
             ax1.locator_params(axis="y", nbins=6)
@@ -557,7 +557,7 @@ class Plotter(object):
         
         return fig
 
-    def plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts=None, astr_inst_inds=None, astr_colors=None, astr_symbols=None):
+    def _plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts=None, astr_inst_inds=None, astr_colors=None, astr_symbols=None):
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.raoff[i, :], self.deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -602,7 +602,7 @@ class Plotter(object):
         ax.locator_params(axis="y", nbins=6)
         ax.invert_xaxis()  # To go to a left-handed coordinate system
 
-    def add_colorbar(self, ax, fig, rv_time_series, rv_time_series2, cmap):
+    def _add_colorbar(self, ax, fig, rv_time_series, rv_time_series2, cmap):
         if (rv_time_series == True) or (rv_time_series2 == True):
             # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
             # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
@@ -637,14 +637,14 @@ class Plotter(object):
             cbar.ax.tick_params(labelsize=15)
             cbar.set_label(label=self.cbar_param, size=20)
 
-    def plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, ax1, ax2, ax3=None, ax4=None):
-        self.plot_sep_pa_data(ax1, ax2, mod180, sep_pa_color)
-        self.plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
+    def _plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, ax1, ax2, ax3=None, ax4=None):
+        self._plot_sep_pa_data(ax1, ax2, mod180, sep_pa_color)
+        self._plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
         if ax3 is not None:
-            self.plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
-            self.plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2)
+            self._plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
+            self._plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2)
     
-    def plot_sep_pa_data(self, ax1, ax2, mod180, sep_pa_color):
+    def _plot_sep_pa_data(self, ax1, ax2, mod180, sep_pa_color):
         for i in np.arange(self.num_orbits_to_plot):
             yr_epochs = Time(self.seppa_epochs[i, :], format="mjd").decimalyear
 
@@ -658,7 +658,7 @@ class Plotter(object):
             plt.sca(ax2)
             plt.plot(yr_epochs, pas, color=sep_pa_color)
     
-    def plot_rv_data(self, ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color):
+    def _plot_rv_data(self, ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color):
         # plot RV orbits here
         m0 = self.standard_post[:, self.results.standard_param_idx["m0"]]
         m1 = self.standard_post[
@@ -701,7 +701,7 @@ class Plotter(object):
                         color=sep_pa_color,
                     )
 
-    def plot_sep_pa_instruments(self, ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols):
+    def _plot_sep_pa_instruments(self, ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols):
         # Plot sep/pa instruments
         if plot_astrometry_insts:
             ax1_colors = itertools.cycle(astr_colors)
@@ -799,7 +799,7 @@ class Plotter(object):
                 capsize=2,
             )
     
-    def plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2):
+    def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2):
         if rv_time_series == True:
             # switch current axis to rv panel
             plt.sca(ax3)
