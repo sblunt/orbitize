@@ -190,7 +190,6 @@ class Plotter(object):
         return raoff, deoff, vz, epochs
 
     def calc_panel_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, end_year):
-        # TODO: multiplanet, period?
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         vz = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -245,29 +244,23 @@ class Plotter(object):
 
     def plot_orbits(
         self,
-        # results,
-        # object_to_plot=1,
-        # start_mjd=51544.0,
-        # num_orbits_to_plot=100,
-        # num_epochs_to_plot=100,
         square_plot=True,
         show_colorbar=True,
-        # cmap=cmap,
+        cmap=None,
         sep_pa_color="lightgrey",
-        sep_pa_end_year=2025.0,
-        # cbar_param="Epoch [year]",
         mod180=False,
         rv_time_series=False,
         plot_astrometry=True,
         plot_astrometry_insts=False,
-        plot_errorbars=True,
+        # plot_errorbars=True,
         rv_time_series2=False,
-        # primary_instrument_name=None,
         fontsize=20,
         fig=None,
-        # TODO: non default cmap
     ):
         
+        if cmap is None:
+            cmap = self.cmap
+
         if rv_time_series and "m0" not in self.results.labels:
             self.rv_time_series = False
 
@@ -404,7 +397,7 @@ class Plotter(object):
             else:
                 astr_insts = astr_inst_inds = astr_colors = astr_symbols = None
                 
-            self.plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, sep_data, pa_data, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
+            self.plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, sep_data, pa_data, cmap, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
             
             # plot sep/PA and/or rv zoom-in panels
             if (rv_time_series == True) and (rv_time_series2 == True):
@@ -457,7 +450,7 @@ class Plotter(object):
             self.plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, rv_data, gamma3, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, *panel_axes)
             # add colorbar
             if show_colorbar:
-                self.add_colorbar(ax, fig, rv_time_series, rv_time_series2)
+                self.add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
             
             ax1.locator_params(axis="x", nbins=6)
             ax1.locator_params(axis="y", nbins=6)
@@ -476,12 +469,12 @@ class Plotter(object):
         
         return fig
 
-    def plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, sep_data, pa_data, plot_astrometry_insts, astr_insts=None, astr_inst_inds=None, astr_colors=None, astr_symbols=None):
+    def plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, sep_data, pa_data, cmap, plot_astrometry_insts, astr_insts=None, astr_inst_inds=None, astr_colors=None, astr_symbols=None):
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.raoff[i, :], self.deoff[i, :]]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
-            lc = LineCollection(segments, cmap=self.cmap, norm=self.norm, linewidth=1.0)
+            lc = LineCollection(segments, cmap=cmap, norm=self.norm, linewidth=1.0)
             if self.cbar_param not in ["Epoch [year]", "Epoch (year)"]:
                 lc.set_array(np.ones(len(self.epochs[0])) * self.cbar_param_arr[i])
             elif self.cbar_param in ["Epoch [year]", "Epoch (year)"]:
@@ -523,7 +516,7 @@ class Plotter(object):
         ax.locator_params(axis="y", nbins=6)
         ax.invert_xaxis()  # To go to a left-handed coordinate system
 
-    def add_colorbar(self, ax, fig, rv_time_series, rv_time_series2):
+    def add_colorbar(self, ax, fig, rv_time_series, rv_time_series2, cmap):
         if (rv_time_series == True) or (rv_time_series2 == True):
             # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
             # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
@@ -538,7 +531,7 @@ class Plotter(object):
             )
             cbar = mpl.colorbar.ColorbarBase(
                 cbar_ax,
-                cmap=self.cmap,
+                cmap=cmap,
                 norm=self.norm_yr,
                 orientation="vertical",
                 label=self.cbar_param,
@@ -550,7 +543,7 @@ class Plotter(object):
             cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
             cbar = mpl.colorbar.ColorbarBase(
                 cbar_ax,
-                cmap=self.cmap,
+                cmap=cmap,
                 norm=self.norm_yr,
                 orientation="vertical",
                 label=self.cbar_param,
