@@ -279,9 +279,7 @@ class Plotter(object):
                 )[0]
 
         else:
-            rv_data = None
-            insts = None
-            gams = labels = gam_idx = None
+            rv_data = insts = gams = labels = gam_idx = inds = None
 
         return primary_instrument_name, gamma3, rv_data, insts, gams, labels, gam_idx, inds
 
