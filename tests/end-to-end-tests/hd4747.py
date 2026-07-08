@@ -79,15 +79,15 @@ thin = 10
 if __name__ == '__main__':
 
     # Run Sampler
-    # m = my_driver.sampler
-    # m.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
-    # my_driver.sampler.results.save_results('hd4747_orbits.hdf5')
+    m = my_driver.sampler
+    m.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+    my_driver.sampler.results.save_results('hd4747_orbits.hdf5')
 
     my_results = results.Results()
     my_results.load_results('hd4747_orbits.hdf5')
 
-    # plot.plot_corner(my_results)
-    # plt.savefig('hd4747_corner.png')
+    plot.plot_corner(my_results)
+    plt.savefig('hd4747_corner.png')
 
     plot.plot_orbits(my_results, rv_time_series=True, start_mjd=51044.0)
     plt.savefig('hd4747_orbit.png')
