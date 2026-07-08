@@ -36,6 +36,8 @@ class Plotter(object):
     )
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx"]
 
+    primary_instrument_name = None
+
     def __init__(
         self,
         results,
@@ -47,6 +49,8 @@ class Plotter(object):
         num_epochs_to_plot=100,
         cbar_param="Epoch [year]",
         primary_instrument_name=None,
+        rv_time_series=False,
+        rv_time_series2=False
     ):
         self.results = results
         self.system = results.system
@@ -55,12 +59,9 @@ class Plotter(object):
             self.cmap = default_cmap
         
         if start_mjd is None:
-           start_mjd = self.system.data_table['epoch'][0]
+           start_mjd = np.min(self.system.data_table['epoch'])
 
-        self.set_params(object_to_plot, end_year, start_mjd, num_orbits_to_plot, num_epochs_to_plot, cbar_param)
-
-        # TODO: RV stuff instruments gammas etc.
-        self.primary_instrument_name = primary_instrument_name
+        self.set_params(object_to_plot, end_year, start_mjd, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2, primary_instrument_name)
 
         # TODO: calc spaced orbits for end_year
 
@@ -72,7 +73,10 @@ class Plotter(object):
         start_mjd=None,
         num_orbits_to_plot=None,
         num_epochs_to_plot=None,
-        cbar_param=None
+        cbar_param=None,
+        rv_time_series=None,
+        rv_time_series2=None,
+        primary_instrument_name=None
     ):
         if object_to_plot is not None:
             self.object_to_plot = object_to_plot
@@ -84,6 +88,12 @@ class Plotter(object):
             self.num_orbits_to_plot = num_orbits_to_plot
         if num_epochs_to_plot is not None:
             self.num_epochs_to_plot = num_epochs_to_plot
+        if rv_time_series is not None:
+            self.rv_time_series = rv_time_series
+        if rv_time_series2 is not None:
+            self.rv_time_series2 = rv_time_series2
+        if primary_instrument_name is not None:
+            self.primary_instrument_name = primary_instrument_name
 
         self.data = self.results.data[self.results.data["object"] == self.object_to_plot]
 
@@ -125,7 +135,57 @@ class Plotter(object):
             self.raoff1, self.deoff1, self.vz1, self.epochs1 = self.calc_panel_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
             self.cbar_param_arr, self.norm, self.norm_yr = self.create_cbar(self.cbar_param, self.epochs, self.standard_post)
-            
+            self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds = self.calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
+
+    def calc_rv(self, primary_instrument_name, rv_time_series, rv_time_series2):
+        # test gamma 3
+        if rv_time_series:
+            # guess the instrument name if this is not specified
+            if self.primary_instrument_name == None:
+                self.primary_instrument_name = self.results.data[self.results.data["object"] == 0][
+                    "instrument"
+                ][0]
+            gamma3 = self.standard_post[
+                :, self.results.standard_param_idx["gamma_" + self.primary_instrument_name]
+            ]
+        else:
+            gamma3 = None
+
+        if (rv_time_series == True) or (rv_time_series2 == True):
+            rv_data = self.results.data[self.results.data["object"] == 0]
+            rv_data = rv_data[rv_data["quant_type"] == "rv"]
+
+            # get list of rv instruments
+            insts = np.unique(rv_data["instrument"])
+            if len(insts) == 0:
+                insts = ["defrv"]
+
+            # get gamma/sigma labels and corresponding positions in the posterior
+            gams = ["gamma_" + inst for inst in insts]
+
+            if isinstance(self.results.labels, list):
+                labels = np.array(self.results.labels)
+            else:
+                labels = self.results.labels
+
+            # get the indices corresponding to each gamma within results.labels
+            gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
+
+            gamma = self.standard_post[:, gam_idx]
+
+            # indices corresponding to each instrument in the datafile
+            inds = {}
+            for i in range(len(insts)):
+                inds[insts[i]] = np.where( # include encode for backwards compatibility
+                    (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
+                )[0]
+
+        else:
+            rv_data = None
+            insts = None
+            gams = labels = gam_idx = None
+
+        return primary_instrument_name, gamma3, rv_data, insts, gams, labels, gam_idx, inds
 
     def get_standard_post(self, num_orbits_to_plot):
         # TODO: Replace random with results.downsample
@@ -271,44 +331,11 @@ class Plotter(object):
                 "so the argument is set to False instead."
             )
 
+        if (rv_time_series and not self.rv_time_series) or (rv_time_series2 and not self.rv_time_series2):
+            self.set_params(rv_time_series=rv_time_series, rv_time_series2=rv_time_series2)
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
-
-            # test gamma 3
-            if rv_time_series:
-                # guess the instrument name if this is not specified
-                if self.primary_instrument_name == None:
-                    self.primary_instrument_name = self.results.data[self.results.data["object"] == 0][
-                        "instrument"
-                    ][0]
-                gamma3 = self.standard_post[
-                    :, self.results.standard_param_idx["gamma_" + self.primary_instrument_name]
-                ]
-            else:
-                gamma3 = None
-            if (rv_time_series == True) or (rv_time_series2 == True):
-                rv_data = self.results.data[self.results.data["object"] == 0]
-                rv_data = rv_data[rv_data["quant_type"] == "rv"]
-
-                # get list of rv instruments
-                insts = np.unique(rv_data["instrument"])
-                if len(insts) == 0:
-                    insts = ["defrv"]
-
-                # get gamma/sigma labels and corresponding positions in the posterior
-                gams = ["gamma_" + inst for inst in insts]
-
-                if isinstance(self.results.labels, list):
-                    labels = np.array(self.results.labels)
-                else:
-                    labels = self.results.labels
-
-                # get the indices corresponding to each gamma within results.labels
-                gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
-
-                gamma = self.standard_post[:, gam_idx]
-            else:
-                rv_data = None
 
             # Before starting to plot rv data, make sure rv data exists:
             rv_indices = np.where(self.data["quant_type"] == "rv")
@@ -447,7 +474,7 @@ class Plotter(object):
                 ax2.set_xlabel("Epoch", fontsize=fontsize)
                 panel_axes = [ax1, ax2]
 
-            self.plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, rv_data, gamma3, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, *panel_axes)
+            self.plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, *panel_axes)
             # add colorbar
             if show_colorbar:
                 self.add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
@@ -551,11 +578,11 @@ class Plotter(object):
             cbar.ax.tick_params(labelsize=15)
             cbar.set_label(label=self.cbar_param, size=20)
 
-    def plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, rv_data, gamma3, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, ax1, ax2, ax3=None, ax4=None):
+    def plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, ax1, ax2, ax3=None, ax4=None):
         self.plot_sep_pa_data(ax1, ax2, mod180, sep_pa_color)
         self.plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, sep_data, pa_data, sep_err, pa_err, astr_epochs, astr_colors, astr_symbols)
         if ax3 is not None:
-            self.plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, rv_data, gamma3, sep_pa_color)
+            self.plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
             self.plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2)
     
     def plot_sep_pa_data(self, ax1, ax2, mod180, sep_pa_color):
@@ -572,7 +599,7 @@ class Plotter(object):
             plt.sca(ax2)
             plt.plot(yr_epochs, pas, color=sep_pa_color)
     
-    def plot_rv_data(self, ax3, ax4, rv_time_series, rv_time_series2, rv_data, gamma3, sep_pa_color):
+    def plot_rv_data(self, ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color):
         # plot RV orbits here
         m0 = self.standard_post[:, self.results.standard_param_idx["m0"]]
         m1 = self.standard_post[
@@ -586,15 +613,9 @@ class Plotter(object):
                 # scale back to primary RV semi amplitude
                 vz0 = self.vz1[i] * (-(mtot[i] - m0[i]) / np.median(m0[i])) # TODO: vectorize
 
-                epochs_rv = np.linspace(
-                    rv_data["epoch"][0] - 3 * 365,
-                    self.epochs1[0, -1],
-                    self.num_epochs_to_plot,
-                )
-
                 plt.plot(
-                    Time(epochs_rv, format="mjd").decimalyear,
-                    vz0 + gamma3[i],
+                    Time(self.epochs1[i, :], format="mjd").decimalyear,
+                    vz0 + self.gamma3[i],
                     color=sep_pa_color,
                 )
 
@@ -606,14 +627,8 @@ class Plotter(object):
 
                 # scale back to primary RV semi amplitude
                 if rv_time_series:
-                    epochs_rv = np.linspace(
-                        rv_data["epoch"][0] - 3 * 365,
-                        self.epochs1[0, -1],
-                        self.num_epochs_to_plot,
-                    )
-
                     plt.plot(
-                        Time(epochs_rv, format="mjd").decimalyear,
+                        Time(self.epochs1[i, :], format="mjd").decimalyear,
                         self.vz1[i],
                         color=sep_pa_color,
                     )
@@ -621,14 +636,8 @@ class Plotter(object):
                     rv_data2 = self.results.data[self.results.data["object"] == 1]
                     rv_data2 = rv_data2[rv_data2["quant_type"] == "rv"]
 
-                    epochs_rv2 = np.linspace(
-                        rv_data2["epoch"][0] - 3 * 365,
-                        self.epochs1[0, -1],
-                        self.num_epochs_to_plot,
-                    )
-
                     plt.plot(
-                        Time(epochs_rv2, format="mjd").decimalyear,
+                        Time(self.epochs1[i, :], format="mjd").decimalyear,
                         self.vz1[i],
                         color=sep_pa_color,
                     )
@@ -733,40 +742,13 @@ class Plotter(object):
     
     def plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2):
         if rv_time_series == True:
-
-            rv_data = self.results.data[self.results.data["object"] == 0]
-            rv_data = rv_data[rv_data["quant_type"] == "rv"]
-
             # switch current axis to rv panel
             plt.sca(ax3)
-
-            # get list of rv instruments
-            insts = np.unique(rv_data["instrument"])
-            if len(insts) == 0:
-                insts = ["defrv"]
-
-            # get gamma/sigma labels and corresponding positions in the posterior
-            gams = ["gamma_" + inst for inst in insts]
-
-            if isinstance(self.results.labels, list):
-                labels = np.array(self.results.labels)
-            else:
-                labels = self.results.labels
-
-            # get the indices corresponding to each gamma within results.labels
-            gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
-
-            # indices corresponding to each instrument in the datafile
-            inds = {}
-            for i in range(len(insts)):
-                inds[insts[i]] = np.where( # include encode for backwards compatibility
-                    (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
-                )[0]
 
             # choose the orbit with the best log probability
             best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
 
-            med_ga = [self.results.post[best_like, i] for i in gam_idx]
+            med_ga = [self.results.post[best_like, i] for i in self.gam_idx]
 
             # Get the posteriors for this index and convert to standard basis
             best_post = self.results.basis.to_standard_basis(self.results.post[best_like].copy())
@@ -786,8 +768,8 @@ class Plotter(object):
             ax3_symbols = itertools.cycle(symbols)
 
             # get rvs and plot them
-            for i, name in enumerate(inds.keys()):
-                inst_data = rv_data[inds[name]]
+            for i, name in enumerate(self.rv_inst_inds.keys()):
+                inst_data = self.rv_data[self.rv_inst_inds[name]]
                 rvs = inst_data["quant1"]
                 epochs = inst_data["epoch"]
                 epochs = Time(epochs, format="mjd").decimalyear
@@ -811,7 +793,7 @@ class Plotter(object):
                     zorder=5,
                     ls="none",
                 )
-            if len(inds.keys()) == 1 and "defrv" in inds.keys():
+            if len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
@@ -839,7 +821,7 @@ class Plotter(object):
         if rv_time_series2 == True:
             if rv_time_series == False:
                 # get list of rv instruments
-                insts = np.unique(rv_data["instrument"])
+                insts = np.unique(self.rv_data["instrument"])
                 if len(insts) == 0:
                     insts = ["defrv"]
 
@@ -858,7 +840,7 @@ class Plotter(object):
                 inds = {}
                 for i in range(len(insts)):
                     inds[insts[i]] = np.where(
-                        (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
+                        (self.rv_data["instrument"] == insts[i].encode()) | (self.rv_data["instrument"] == insts[i])
                     )[0]
 
                 # choose the orbit with the best log probability
@@ -927,7 +909,7 @@ class Plotter(object):
                     zorder=5,
                     ls="none",
                 )
-            if len(inds.keys()) == 1 and "defrv" in inds.keys():
+            if len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
