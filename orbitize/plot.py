@@ -132,10 +132,108 @@ class Plotter(object):
             self.standard_post = self.get_standard_post(self.num_orbits_to_plot)
             self.raoff, self.deoff, self.vz, self.epochs = self.calc_full_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post)
-            self.raoff1, self.deoff1, self.vz1, self.epochs1 = self.calc_panel_orbits(
+            self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self.calc_panel_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
             self.cbar_param_arr, self.norm, self.norm_yr = self.create_cbar(self.cbar_param, self.epochs, self.standard_post)
             self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds = self.calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
+            self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self.calc_seppa_radec(self.data)
+            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_epochs = self.calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
+
+    def calc_seppa_radec(self, data):
+        radec_inds = np.where(data["quant_type"] == "radec")
+        seppa_inds = np.where(data["quant_type"] == "seppa")
+
+        # transform RA/Dec points to Sep/PA
+        sep_data = np.copy(data["quant1"])
+        sep_err = np.copy(data["quant1_err"])
+        pa_data = np.copy(data["quant2"])
+        pa_err = np.copy(data["quant2_err"])
+
+        if len(radec_inds[0] > 0):
+
+            sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
+                data["quant1"][radec_inds], data["quant2"][radec_inds]
+            )
+
+            num_radec_pts = len(radec_inds[0])
+            sep_err_from_ra_data = np.empty(num_radec_pts)
+            pa_err_from_dec_data = np.empty(num_radec_pts)
+            for j in np.arange(num_radec_pts):
+
+                sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = (
+                    orbitize.system.transform_errors(
+                        np.array(data["quant1"][radec_inds][j]),
+                        np.array(data["quant2"][radec_inds][j]),
+                        np.array(data["quant1_err"][radec_inds][j]),
+                        np.array(data["quant2_err"][radec_inds][j]),
+                        np.array(data["quant12_corr"][radec_inds][j]),
+                        orbitize.system.radec2seppa,
+                    )
+                )
+
+            sep_data[radec_inds] = sep_from_ra_data
+            sep_err[radec_inds] = sep_err_from_ra_data
+
+            pa_data[radec_inds] = pa_from_dec_data
+            pa_err[radec_inds] = pa_err_from_dec_data
+
+        # Transform Sep/PA points to RA/Dec
+        ra_data = np.copy(data["quant1"])
+        ra_err = np.copy(data["quant1_err"])
+        dec_data = np.copy(data["quant2"])
+        dec_err = np.copy(data["quant2_err"])
+
+        if len(seppa_inds[0] > 0):
+
+            ra_from_seppa_data, dec_from_seppa_data = orbitize.system.seppa2radec(
+                data["quant1"][seppa_inds], data["quant2"][seppa_inds]
+            )
+
+            num_seppa_pts = len(seppa_inds[0])
+            ra_err_from_seppa_data = np.empty(num_seppa_pts)
+            dec_err_from_seppa_data = np.empty(num_seppa_pts)
+            for j in np.arange(num_seppa_pts):
+
+                ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], _ = (
+                    orbitize.system.transform_errors(
+                        np.array(data["quant1"][seppa_inds][j]),
+                        np.array(data["quant2"][seppa_inds][j]),
+                        np.array(data["quant1_err"][seppa_inds][j]),
+                        np.array(data["quant2_err"][seppa_inds][j]),
+                        np.array(data["quant12_corr"][seppa_inds][j]),
+                        orbitize.system.seppa2radec,
+                    )
+                )
+
+            ra_data[seppa_inds] = ra_from_seppa_data
+            ra_err[seppa_inds] = ra_err_from_seppa_data
+
+            dec_data[seppa_inds] = dec_from_seppa_data
+            dec_err[seppa_inds] = dec_err_from_seppa_data
+        
+        return sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err
+
+    def calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot):
+        astr_inds = np.where((~np.isnan(self.data["quant1"])) & (~np.isnan(self.data["quant2"])))
+        astr_epochs = self.data["epoch"][astr_inds]
+        num_astr_epochs = len(astr_epochs)
+
+        raoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
+        deoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
+        vz = np.zeros((num_orbits_to_plot, num_astr_epochs))
+        # TODO: vectorize
+        for i in np.arange(num_orbits_to_plot):
+            # Calculate ra/dec offsets for all epochs of this orbit
+            raoff0, deoff0, vz0 = self.system.compute_all_orbits(
+                standard_post[i],
+                astr_epochs
+            )
+
+            raoff[i, :] = raoff0[:, object_to_plot, 0]
+            deoff[i, :] = deoff0[:, object_to_plot, 0]
+            vz[i, :] = vz0[:, object_to_plot, 0]
+        
+        return raoff, deoff, vz, astr_epochs
 
     def calc_rv(self, primary_instrument_name, rv_time_series, rv_time_series2):
         # test gamma 3
@@ -587,7 +685,7 @@ class Plotter(object):
     
     def plot_sep_pa_data(self, ax1, ax2, mod180, sep_pa_color):
         for i in np.arange(self.num_orbits_to_plot):
-            yr_epochs = Time(self.epochs1[i, :], format="mjd").decimalyear
+            yr_epochs = Time(self.seppa_epochs[i, :], format="mjd").decimalyear
 
             seps, pas = orbitize.system.radec2seppa(
                 self.raoff1[i, :], self.deoff1[i, :], mod180=mod180
@@ -614,7 +712,7 @@ class Plotter(object):
                 vz0 = self.vz1[i] * (-(mtot[i] - m0[i]) / np.median(m0[i])) # TODO: vectorize
 
                 plt.plot(
-                    Time(self.epochs1[i, :], format="mjd").decimalyear,
+                    Time(self.seppa_epochs[i, :], format="mjd").decimalyear,
                     vz0 + self.gamma3[i],
                     color=sep_pa_color,
                 )
@@ -628,7 +726,7 @@ class Plotter(object):
                 # scale back to primary RV semi amplitude
                 if rv_time_series:
                     plt.plot(
-                        Time(self.epochs1[i, :], format="mjd").decimalyear,
+                        Time(self.seppa_epochs[i, :], format="mjd").decimalyear,
                         self.vz1[i],
                         color=sep_pa_color,
                     )
@@ -637,7 +735,7 @@ class Plotter(object):
                     rv_data2 = rv_data2[rv_data2["quant_type"] == "rv"]
 
                     plt.plot(
-                        Time(self.epochs1[i, :], format="mjd").decimalyear,
+                        Time(self.seppa_epochs[i, :], format="mjd").decimalyear,
                         self.vz1[i],
                         color=sep_pa_color,
                     )
@@ -914,7 +1012,156 @@ class Plotter(object):
             else:
                 plt.legend(fontsize=20, loc=1)
 
+    def plot_residuals(
+            self,
+            sep_pa_color="lightgrey",
+            mod180=False,
+        ):
+        """
+        Plots sep/PA residuals for a set of orbits
 
+        Args:
+            my_results (orbitiez.results.Results): results to plot
+            object_to_plot (int): which object to plot (default: 1)
+            start_mjd (float): MJD in which to start plotting orbits (default: 51544,
+                the year 2000)
+            num_orbits_to_plot (int): number of orbits to plot (default: 100)
+            num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
+            sep_pa_color (string): any valid matplotlib color string, used to set the
+                color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
+            sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
+                tracks in the Sep/PA panels (default: 2025.0).
+            cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
+                'pan1', 'tau1', 'plx. Number can be switched out. Default is Epoch [year].
+            mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
+                arcs with PAs that cross 360 deg during observations (default: False)
+
+        Return:
+            ``matplotlib.pyplot.Figure``: the residual plots
+
+        """
+        raoff = self.astr_raoff
+        deoff = self.astr_deoff
+        seps = []
+        pas = []
+        raoff_100 = self.raoff1
+        deoff_100 = self.deoff1
+        seps_100 = []
+        pas_100 = []
+        for i in np.arange(self.num_orbits_to_plot):
+
+            raoff0, deoff0 = raoff[i], deoff[i]
+
+            raoff2, deoff2 = raoff_100[i], deoff_100[i]
+
+            seps1, pas1 = orbitize.system.radec2seppa(raoff0, deoff0, mod180=mod180)
+            # seps1 = []
+            # pas1 = []
+
+            # for j in range(len(astr_epochs)):
+
+            #     seps0, pas0 = orbitize.system.radec2seppa(raoff[i][j], deoff[i][j], mod180=mod180)
+
+            #     seps1.append(seps0)
+            #     pas1.append(pas0)
+
+            seps.append(seps1)
+            pas.append(pas1)
+
+            seps2, pas2 = orbitize.system.radec2seppa(raoff2, deoff2, mod180=mod180)
+            # seps2 = []
+            # pas2 = []
+
+            # for j in range(len(epochs_seppa[0])):
+
+            #     seps0_100, pas0_100 = orbitize.system.radec2seppa(raoff_100[i][j], deoff_100[i][j], mod180=mod180)
+
+            #     seps2.append(seps0_100)
+            #     pas2.append(pas0_100)
+
+            seps_100.append(seps2)
+            pas_100.append(pas2)
+
+        yr_epochs = Time(self.astr_epochs, format="mjd").decimalyear
+        yr_epochs2 = Time(self.seppa_epochs[i, :], format="mjd").decimalyear
+
+        seps = np.array(seps)
+        pas = np.array(pas)
+        seps_100 = np.array(seps_100)
+        pas_100 = np.array(pas_100)
+
+        median_seps = []
+        median_pas = []
+        median_seps_100 = []
+        median_pas_100 = []
+
+        seps_T = np.transpose(seps)
+        pas_T = np.transpose(pas)
+        seps_100_T = np.transpose(seps_100)
+        pas_100_T = np.transpose(pas_100)
+
+        for j in range(len(self.seppa_epochs[0])):
+            median_seps2 = np.median(seps_100_T[j])
+            median_pas2 = np.median(pas_100_T[j])
+
+            median_seps_100.append(median_seps2)
+            median_pas_100.append(median_pas2)
+
+        for j in range(len(self.astr_epochs)):
+            median_seps1 = np.median(seps_T[j])
+            median_pas1 = np.median(pas_T[j])
+
+            median_seps.append(median_seps1)
+            median_pas.append(median_pas1)
+
+        orbits_to_plot = np.linspace(0, self.num_orbits_to_plot - 1, 100)
+
+        residual_seps = median_seps - self.sep_data
+        residual_pas = median_pas - self.pa_data
+
+        fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+
+        axes[0].errorbar(
+            yr_epochs,
+            residual_seps,
+            yerr=self.sep_err,
+            xerr=None,
+            fmt="o",
+            ms=5,
+            linestyle="",
+            c="purple",
+            zorder=10,
+            capsize=2,
+        )
+        for i in range(len(orbits_to_plot)):
+            residual_seps_100 = median_seps_100 - seps_100[int(orbits_to_plot[i])]
+            axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
+        axes[0].axhline(y=0, color="black", linestyle="-")
+        axes[0].set_ylabel("Residual $\\rho$ [mas]")
+        axes[0].set_xlabel("Epoch")
+        axes[0].set_xlim(yr_epochs2[0], yr_epochs2[-1])
+
+        axes[1].errorbar(
+            yr_epochs,
+            residual_pas,
+            yerr=self.pa_err,
+            xerr=None,
+            fmt="o",
+            ms=5,
+            linestyle="",
+            c="purple",
+            zorder=10,
+            capsize=2,
+        )
+        for i in range(len(orbits_to_plot)):
+            residual_pas_100 = median_pas_100 - pas_100[int(orbits_to_plot[i])]
+            axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
+        axes[1].axhline(y=0, color="black", linestyle="-")
+        axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
+        axes[1].set_xlabel("Epoch")
+        axes[1].set_xlim(yr_epochs2[0], yr_epochs2[-1])
+
+        plt.tight_layout()
 
 
 def plot_corner(results, param_list=None, **corner_kwargs):
