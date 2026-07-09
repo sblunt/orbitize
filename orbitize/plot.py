@@ -672,7 +672,7 @@ def plot_orbits(
                 )
 
                 plt.plot(
-                    Time(epochs_rv, format="mjd").decimalyear,
+                    Time(epochs_seppa[i, :], format="mjd").decimalyear,
                     vz0 + gamma3[i],
                     color=sep_pa_color,
                 )
@@ -692,7 +692,7 @@ def plot_orbits(
                     )
 
                     plt.plot(
-                        Time(epochs_rv, format="mjd").decimalyear,
+                        Time(epochs_seppa[i, :], format="mjd").decimalyear,
                         vz,
                         color=sep_pa_color,
                     )
@@ -707,7 +707,7 @@ def plot_orbits(
                     )
 
                     plt.plot(
-                        Time(epochs_rv2, format="mjd").decimalyear,
+                        Time(epochs_seppa[i, :], format="mjd").decimalyear,
                         vz,
                         color=sep_pa_color,
                     )
