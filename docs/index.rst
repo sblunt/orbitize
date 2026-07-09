@@ -55,9 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
-**3.3.3 (not yet released)**
+**3.3.3 (2026-7-8)**
 
-- hotfix for issue plotting datapoints with different RV instruments
+- hotfix for issue plotting datapoints with different RV instruments (@sblunt)
+- fix for plots with RVs that makes perfectly fine fits look incorrect, introduced in v3.0.0 (@sblunt)
 
 **3.3.2 (2026-6-2)**
 
