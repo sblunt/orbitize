@@ -239,12 +239,12 @@ class Plotter(object):
         # test gamma 3
         if rv_time_series:
             # guess the instrument name if this is not specified
-            if self.primary_instrument_name == None:
+            if primary_instrument_name == None:
                 primary_instrument_name = self.results.data[self.results.data["object"] == 0][
                     "instrument"
                 ][0]
             gamma3 = self.standard_post[
-                :, self.results.standard_param_idx["gamma_" + self.primary_instrument_name]
+                :, self.results.standard_param_idx["gamma_" + primary_instrument_name]
             ]
         else:
             gamma3 = None
