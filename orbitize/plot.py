@@ -135,7 +135,7 @@ class Plotter(object):
             self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self._calc_panel_orbits(
                 self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
             self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.epochs, self.standard_post)
-            self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds = self._calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
+            self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
             self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
             self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_epochs = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
 
@@ -260,6 +260,7 @@ class Plotter(object):
 
             # get gamma/sigma labels and corresponding positions in the posterior
             gams = ["gamma_" + inst for inst in insts]
+            sigs = ["sigma_" + inst for inst in insts]
 
             if isinstance(self.results.labels, list):
                 labels = np.array(self.results.labels)
@@ -268,8 +269,7 @@ class Plotter(object):
 
             # get the indices corresponding to each gamma within results.labels
             gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
-
-            gamma = self.standard_post[:, gam_idx]
+            sig_idx = [np.where(labels == inst_sigma)[0] for inst_sigma in sigs]
 
             # indices corresponding to each instrument in the datafile
             inds = {}
@@ -279,9 +279,9 @@ class Plotter(object):
                 )[0]
 
         else:
-            rv_data = insts = gams = labels = gam_idx = inds = None
+            rv_data = insts = gams = labels = gam_idx = inds = sig_idx = None
 
-        return primary_instrument_name, gamma3, rv_data, insts, gams, labels, gam_idx, inds
+        return primary_instrument_name, gamma3, rv_data, insts, gams, labels, gam_idx, inds, sig_idx
 
     def _get_standard_post(self, num_orbits_to_plot):
         # TODO: Replace random with results.downsample
@@ -410,6 +410,7 @@ class Plotter(object):
         plot_astrometry_insts=False,
         # plot_errorbars=True,
         rv_time_series2=False,
+        separate_gamma_err=False,
         fontsize=20,
         fig=None,
     ):
@@ -535,7 +536,7 @@ class Plotter(object):
                 ax2.set_xlabel("Epoch", fontsize=fontsize)
                 panel_axes = [ax1, ax2]
 
-            self._plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, *panel_axes)
+            self._plot_panels(plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, separate_gamma_err, *panel_axes)
             # add colorbar
             if show_colorbar:
                 self._add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
@@ -637,12 +638,12 @@ class Plotter(object):
             cbar.ax.tick_params(labelsize=15)
             cbar.set_label(label=self.cbar_param, size=20)
 
-    def _plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, ax1, ax2, ax3=None, ax4=None):
+    def _plot_panels(self, plot_astrometry_insts, astr_colors, astr_symbols, mod180, rv_time_series, rv_time_series2, sep_pa_color, astr_insts, astr_inst_inds, separate_gamma_err, ax1, ax2, ax3=None, ax4=None):
         self._plot_sep_pa_data(ax1, ax2, mod180, sep_pa_color)
         self._plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
         if ax3 is not None:
             self._plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
-            self._plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2)
+            self._plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2, separate_gamma_err)
     
     def _plot_sep_pa_data(self, ax1, ax2, mod180, sep_pa_color):
         for i in np.arange(self.num_orbits_to_plot):
@@ -799,27 +800,14 @@ class Plotter(object):
                 capsize=2,
             )
     
-    def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2):
+    def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2, separate_gamma_err):
         if rv_time_series:
             # switch current axis to rv panel
             plt.sca(ax3)
 
-            # # choose the orbit with the best log probability
-            # best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
-
-            # med_ga = [self.results.post[best_like, i] for i in self.gam_idx]
-
-            # # Get the posteriors for this index and convert to standard basis
-            # best_post = self.results.basis.to_standard_basis(self.results.post[best_like].copy())
-
-            # # Get the masses for the best posteriors:
-            # best_m0 = best_post[self.results.standard_param_idx["m0"]]
-            # best_m1 = best_post[
-            #     self.results.standard_param_idx["m{}".format(self.object_to_plot)]
-            # ]
-            # best_mtot = best_m0 + best_m1
-
             med_ga = [np.median(self.results.post[:,i]) for i in self.gam_idx]
+            stddev_ga = [np.std(self.results.post[:,i]) for i in self.gam_idx]
+            med_sigma = [np.median(self.results.post[:,i]) for i in self.sig_idx]
 
             # colour/shape scheme scheme for rv data points
             clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
@@ -834,92 +822,60 @@ class Plotter(object):
                 rvs = inst_data["quant1"]
                 epochs = inst_data["epoch"]
                 epochs = Time(epochs, format="mjd").decimalyear
-                # don't include this so we can plot more orbits
-                # rvs -= med_ga[i]
-                # rvs -= best_post[results.param_idx[gams[i]]]
+                inst_err = inst_data["quant1_err"]
+                gam_err2 = np.sqrt(np.square(inst_err)+np.square(med_sigma[i]))
+                gam_err_1 = np.sqrt(gam_err2)
+                gam_err_2 = np.sqrt(gam_err2 + np.square(stddev_ga[i]))
+                c = next(ax3_colors)
                 plt.scatter(
                     epochs,
                     rvs-med_ga[i],
                     s=30,
                     marker=next(ax3_symbols),
-                    c="blue",
+                    c=c,
                     label=name,
                     zorder=5,
                 )
-                plt.errorbar(
-                    x=epochs,
-                    y=rvs-med_ga[i],
-                    yerr=inst_data["quant1_err"],
-                    ecolor="blue",
-                    zorder=5,
-                    ls="none",
-                )
-            if len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
+                if separate_gamma_err:
+                    plt.errorbar(
+                        x=epochs,
+                        y=rvs-med_ga[i],
+                        yerr=stddev_ga[i],
+                        ecolor=c,
+                        zorder=5,
+                        ls="none",
+                        label="{} gamma err".format(name)
+                    )
+                    plt.errorbar(
+                        x=epochs,
+                        y=rvs-med_ga[i],
+                        yerr=gam_err_1,
+                        ecolor=next(ax3_colors),
+                        elinewidth=3,
+                        zorder=6,
+                        ls="none",
+                        label="{} inst err + jitter".format(name)
+                    )
+                else:
+                    plt.errorbar(
+                        x=epochs,
+                        y=rvs-med_ga[i],
+                        yerr=gam_err_2,
+                        ecolor=c,
+                        zorder=5,
+                        ls="none",
+                    )
+
+            if not separate_gamma_err and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
 
-            ## calculate the predicted rv trend using the best orbit
-            # _, _, vz = kepler.calc_orbit(
-            #    epochs_seppa[0, :],
-            #    best_post[results.standard_param_idx['sma{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['ecc{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['inc{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['aop{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['pan{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['tau{}'.format(object_to_plot)]],
-            #    best_post[results.standard_param_idx['plx']], best_mtot,
-            #    tau_ref_epoch=results.tau_ref_epoch, mass_for_Kamp=best_m0
-            # )
-            #
-            #
-            ## scale to the RV semiampltude of primary
-            # vz=vz*-(best_m1)/np.median(best_m0)
-            #
-            ## plot rv trend
-            # plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
-
         if rv_time_series2:
             if not rv_time_series:
-                # get list of rv instruments
-                insts = np.unique(self.rv_data["instrument"])
-                if len(insts) == 0:
-                    insts = ["defrv"]
-
-                # get gamma/sigma labels and corresponding positions in the posterior
-                gams = ["gamma_" + inst for inst in insts]
-
-                if isinstance(self.results.labels, list):
-                    labels = np.array(self.results.labels)
-                else:
-                    labels = self.results.labels
-
-                # get the indices corresponding to each gamma within results.labels
-                gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
-
-                # indices corresponding to each instrument in the datafile
-                inds = {}
-                for i in range(len(insts)):
-                    inds[insts[i]] = np.where(
-                        (self.rv_data["instrument"] == insts[i].encode()) | (self.rv_data["instrument"] == insts[i])
-                    )[0]
-
-                # # choose the orbit with the best log probability
-                # best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
-                # med_ga = [self.results.post[best_like, i] for i in gam_idx]
-
-                # # Get the posteriors for this index and convert to standard basis
-                # best_post = self.results.basis.to_standard_basis(
-                #     self.results.post[best_like].copy()
-                # )
-
-                # # Get the masses for the best posteriors:
-                # best_m0 = best_post[self.results.standard_param_idx["m0"]]
-                # best_m1 = best_post[
-                #     self.results.standard_param_idx["m{}".format(self.object_to_plot)]
-                # ]
-                # best_mtot = best_m0 + best_m1
                 med_ga = [np.median(self.results.post[:,i]) for i in self.gam_idx]
+                stddev_ga = [np.std(self.results.post[:,i]) for i in self.gam_idx]
+                med_sigma = [np.median(self.results.post[:,i]) for i in self.sig_idx]
 
                 # colour/shape scheme scheme for rv data points
                 clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
@@ -947,31 +903,56 @@ class Plotter(object):
 
             # get rvs and plot them
             for i, name in enumerate(inds2.keys()):
+                name2 = name.replace("_", " ")
                 inst_data2 = rv_data2[inds2[name]]
                 rvs2 = inst_data2["quant1"]
                 epochs2 = inst_data2["epoch"]
                 epochs2 = Time(epochs2, format="mjd").decimalyear
-                # don't include this so we can plot more orbits
-                # rvs -= med_ga[i]
-                # rvs -= best_post[results.param_idx[gams[i]]]
+                inst2_err = inst_data2["quant1_err"]
+                gam2_err2 = np.sqrt(np.square(inst2_err)+np.square(med_sigma[i]))
+                gam2_err_1 = np.sqrt(gam2_err2)
+                gam2_err_2 = np.sqrt(gam2_err2 + np.square(stddev_ga[i]))
+                c = next(ax3_colors)
                 plt.scatter(
                     epochs2,
                     rvs2-med_ga[i],
                     s=30,
                     marker=next(ax3_symbols),
-                    c="blue",
-                    label=name.replace("_", " "),
+                    c=c,
+                    label=name2,
                     zorder=5,
                 )
-                plt.errorbar(
-                    x=epochs2,
-                    y=rvs2-med_ga[i],
-                    yerr=inst_data2["quant1_err"],
-                    ecolor="blue",
-                    zorder=5,
-                    ls="none",
-                )
-            if len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
+                if separate_gamma_err:
+                    plt.errorbar(
+                        x=epochs,
+                        y=rvs-med_ga[i],
+                        yerr=stddev_ga[i],
+                        ecolor=c,
+                        zorder=5,
+                        ls="none",
+                        label="{} gamma err".format(name2)
+                    )
+                    plt.errorbar(
+                        x=epochs,
+                        y=rvs-med_ga[i],
+                        yerr=gam2_err_1,
+                        ecolor=next(ax3_colors),
+                        elinewidth=3,
+                        zorder=6,
+                        ls="none",
+                        label="{} inst err + jitter".format(name2)
+                    )
+                else:
+                    plt.errorbar(
+                        x=epochs,
+                        y=rvs-med_ga[i],
+                        yerr=gam2_err_2,
+                        ecolor=c,
+                        zorder=5,
+                        ls="none",
+                    )
+
+            if not separate_gamma_err and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
