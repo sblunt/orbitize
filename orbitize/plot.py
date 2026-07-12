@@ -674,7 +674,7 @@ class Plotter(object):
 
                 plt.plot(
                     Time(self.seppa_epochs[i, :], format="mjd").decimalyear,
-                    vz0 + self.gamma3[i],
+                    vz0,
                     color=sep_pa_color,
                 )
 
@@ -804,20 +804,22 @@ class Plotter(object):
             # switch current axis to rv panel
             plt.sca(ax3)
 
-            # choose the orbit with the best log probability
-            best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
+            # # choose the orbit with the best log probability
+            # best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
 
-            med_ga = [self.results.post[best_like, i] for i in self.gam_idx]
+            # med_ga = [self.results.post[best_like, i] for i in self.gam_idx]
 
-            # Get the posteriors for this index and convert to standard basis
-            best_post = self.results.basis.to_standard_basis(self.results.post[best_like].copy())
+            # # Get the posteriors for this index and convert to standard basis
+            # best_post = self.results.basis.to_standard_basis(self.results.post[best_like].copy())
 
-            # Get the masses for the best posteriors:
-            best_m0 = best_post[self.results.standard_param_idx["m0"]]
-            best_m1 = best_post[
-                self.results.standard_param_idx["m{}".format(self.object_to_plot)]
-            ]
-            best_mtot = best_m0 + best_m1
+            # # Get the masses for the best posteriors:
+            # best_m0 = best_post[self.results.standard_param_idx["m0"]]
+            # best_m1 = best_post[
+            #     self.results.standard_param_idx["m{}".format(self.object_to_plot)]
+            # ]
+            # best_mtot = best_m0 + best_m1
+
+            med_ga = [np.median(self.results.post[:,i]) for i in self.gam_idx]
 
             # colour/shape scheme scheme for rv data points
             clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
@@ -837,7 +839,7 @@ class Plotter(object):
                 # rvs -= best_post[results.param_idx[gams[i]]]
                 plt.scatter(
                     epochs,
-                    rvs,
+                    rvs-med_ga[i],
                     s=30,
                     marker=next(ax3_symbols),
                     c="blue",
@@ -846,7 +848,7 @@ class Plotter(object):
                 )
                 plt.errorbar(
                     x=epochs,
-                    y=rvs,
+                    y=rvs-med_ga[i],
                     yerr=inst_data["quant1_err"],
                     ecolor="blue",
                     zorder=5,
@@ -902,21 +904,22 @@ class Plotter(object):
                         (self.rv_data["instrument"] == insts[i].encode()) | (self.rv_data["instrument"] == insts[i])
                     )[0]
 
-                # choose the orbit with the best log probability
-                best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
-                med_ga = [self.results.post[best_like, i] for i in gam_idx]
+                # # choose the orbit with the best log probability
+                # best_like = np.where(self.results.lnlike == np.amax(self.results.lnlike))[0][0]
+                # med_ga = [self.results.post[best_like, i] for i in gam_idx]
 
-                # Get the posteriors for this index and convert to standard basis
-                best_post = self.results.basis.to_standard_basis(
-                    self.results.post[best_like].copy()
-                )
+                # # Get the posteriors for this index and convert to standard basis
+                # best_post = self.results.basis.to_standard_basis(
+                #     self.results.post[best_like].copy()
+                # )
 
-                # Get the masses for the best posteriors:
-                best_m0 = best_post[self.results.standard_param_idx["m0"]]
-                best_m1 = best_post[
-                    self.results.standard_param_idx["m{}".format(self.object_to_plot)]
-                ]
-                best_mtot = best_m0 + best_m1
+                # # Get the masses for the best posteriors:
+                # best_m0 = best_post[self.results.standard_param_idx["m0"]]
+                # best_m1 = best_post[
+                #     self.results.standard_param_idx["m{}".format(self.object_to_plot)]
+                # ]
+                # best_mtot = best_m0 + best_m1
+                med_ga = [np.median(self.results.post[:,i]) for i in self.gam_idx]
 
                 # colour/shape scheme scheme for rv data points
                 clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
@@ -953,7 +956,7 @@ class Plotter(object):
                 # rvs -= best_post[results.param_idx[gams[i]]]
                 plt.scatter(
                     epochs2,
-                    rvs2,
+                    rvs2-med_ga[i],
                     s=30,
                     marker=next(ax3_symbols),
                     c="blue",
@@ -962,7 +965,7 @@ class Plotter(object):
                 )
                 plt.errorbar(
                     x=epochs2,
-                    y=rvs2,
+                    y=rvs2-med_ga[i],
                     yerr=inst_data2["quant1_err"],
                     ecolor="blue",
                     zorder=5,
