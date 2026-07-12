@@ -249,7 +249,7 @@ class Plotter(object):
         else:
             gamma3 = None
 
-        if (rv_time_series == True) or (rv_time_series2 == True):
+        if (rv_time_series) or (rv_time_series2):
             rv_data = self.results.data[self.results.data["object"] == 0]
             rv_data = rv_data[rv_data["quant_type"] == "rv"]
 
@@ -435,7 +435,7 @@ class Plotter(object):
 
             # Before starting to plot rv data, make sure rv data exists:
             rv_indices = np.where(self.data["quant_type"] == "rv")
-            if (rv_time_series == True) or (rv_time_series2 == True):
+            if (rv_time_series) or (rv_time_series2):
                 if len(rv_indices) == 0:
                     warnings.warn("Unable to plot radial velocity data.")
                     rv_time_series = False
@@ -444,13 +444,13 @@ class Plotter(object):
             # Create figure for orbit plots
             if fig is None:
                 fig = plt.figure(figsize=(14, 6))
-                if (rv_time_series == True) and (rv_time_series2 == True):
+                if (rv_time_series) and (rv_time_series2):
                     fig = plt.figure(figsize=(18, 16))
                     ax = plt.subplot2grid((4, 18), (0, 0), rowspan=2, colspan=6)
-                elif (rv_time_series == False) and (rv_time_series2 == True):
+                elif (not rv_time_series) and (rv_time_series2):
                     fig = plt.figure(figsize=(16, 12))
                     ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
-                elif (rv_time_series == True) and (rv_time_series2 == False):
+                elif (rv_time_series) and (not rv_time_series2):
                     fig = plt.figure(figsize=(16, 12))
                     ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
                 else:
@@ -488,7 +488,7 @@ class Plotter(object):
             self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, astr_insts, astr_inst_inds, astr_colors, astr_symbols)
             
             # plot sep/PA and/or rv zoom-in panels
-            if (rv_time_series == True) and (rv_time_series2 == True):
+            if (rv_time_series) and (rv_time_series2):
                 ax1 = plt.subplot2grid((4, 16), (0, 8), colspan=8)
                 ax2 = plt.subplot2grid((4, 16), (1, 8), colspan=8)
                 ax3 = plt.subplot2grid((4, 16), (2, 0), colspan=16, rowspan=1)
@@ -504,7 +504,7 @@ class Plotter(object):
                 plt.subplots_adjust(hspace=0.3)
                 panel_axes = [ax1, ax2, ax3, ax4]
 
-            elif (rv_time_series == True) and (rv_time_series2 == False):
+            elif (rv_time_series) and (not rv_time_series2):
                 ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
                 ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
                 ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
@@ -516,7 +516,7 @@ class Plotter(object):
                 plt.subplots_adjust(hspace=0.3)
                 panel_axes = [ax1, ax2, ax3]
 
-            elif (rv_time_series == False) and (rv_time_series2 == True):
+            elif (not rv_time_series) and (rv_time_series2):
                 ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
                 ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
                 ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
@@ -603,7 +603,7 @@ class Plotter(object):
         ax.invert_xaxis()  # To go to a left-handed coordinate system
 
     def _add_colorbar(self, ax, fig, rv_time_series, rv_time_series2, cmap):
-        if (rv_time_series == True) or (rv_time_series2 == True):
+        if (rv_time_series) or (rv_time_series2):
             # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
             # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
             # You can change 0.02 to adjust the width of the colorbar.
@@ -666,7 +666,7 @@ class Plotter(object):
         ]
         mtot = m0 + m1
         for i in np.arange(self.num_orbits_to_plot):
-            if rv_time_series == True:
+            if rv_time_series:
                 plt.sca(ax3)
 
                 # scale back to primary RV semi amplitude
@@ -678,8 +678,8 @@ class Plotter(object):
                     color=sep_pa_color,
                 )
 
-            if rv_time_series2 == True:
-                if rv_time_series == True:
+            if rv_time_series2:
+                if rv_time_series:
                     plt.sca(ax4)
                 else:
                     plt.sca(ax3)
@@ -800,7 +800,7 @@ class Plotter(object):
             )
     
     def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2):
-        if rv_time_series == True:
+        if rv_time_series:
             # switch current axis to rv panel
             plt.sca(ax3)
 
@@ -877,8 +877,8 @@ class Plotter(object):
             ## plot rv trend
             # plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
-        if rv_time_series2 == True:
-            if rv_time_series == False:
+        if rv_time_series2:
+            if not rv_time_series:
                 # get list of rv instruments
                 insts = np.unique(self.rv_data["instrument"])
                 if len(insts) == 0:
@@ -937,7 +937,7 @@ class Plotter(object):
                     (rv_data2["instrument"] == insts2[i].encode()) | (rv_data2["instrument"] == insts2[i])
                 )[0]
 
-            if rv_time_series == True:
+            if rv_time_series:
                 plt.sca(ax4)
             else:
                 plt.sca(ax3)
@@ -1149,7 +1149,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
                 delta0: primary offset from reported Hipparcos Dec @ alphadec0_epoch (generally 1991.25)
                 gamma: rv offset
                 sigma: rv jitter
-                mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass == True)
+                mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass)
                 mtot: total mass (only if fit_secondary_mass == False)
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
@@ -1423,7 +1423,7 @@ def plot_orbits(
                 :, results.standard_param_idx["gamma_" + primary_instrument_name]
             ]
 
-        if (rv_time_series == True) or (rv_time_series2 == True):
+        if (rv_time_series) or (rv_time_series2):
             rv_data = results.data[results.data["object"] == 0]
             rv_data = rv_data[rv_data["quant_type"] == "rv"]
 
@@ -1445,7 +1445,7 @@ def plot_orbits(
 
             gamma = standard_post[:, gam_idx]
 
-            if (rv_time_series == True) and (rv_time_series2 == True):
+            if (rv_time_series) and (rv_time_series2):
                 gamma2 = gamma.reshape(sma.shape)
 
         # Then, get the other parameters
@@ -1522,7 +1522,7 @@ def plot_orbits(
 
         # Before starting to plot rv data, make sure rv data exists:
         rv_indices = np.where(data["quant_type"] == "rv")
-        if (rv_time_series == True) or (rv_time_series2 == True):
+        if (rv_time_series) or (rv_time_series2):
             if len(rv_indices) == 0:
                 warnings.warn("Unable to plot radial velocity data.")
                 rv_time_series = False
@@ -1530,13 +1530,13 @@ def plot_orbits(
         # Create figure for orbit plots
         if fig is None:
             fig = plt.figure(figsize=(14, 6))
-            if (rv_time_series == True) and (rv_time_series2 == True):
+            if (rv_time_series) and (rv_time_series2):
                 fig = plt.figure(figsize=(18, 16))
                 ax = plt.subplot2grid((4, 18), (0, 0), rowspan=2, colspan=6)
-            elif (rv_time_series == False) and (rv_time_series2 == True):
+            elif (rv_time_series == False) and (rv_time_series2):
                 fig = plt.figure(figsize=(16, 12))
                 ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
-            elif (rv_time_series == True) and (rv_time_series2 == False):
+            elif (rv_time_series) and (rv_time_series2 == False):
                 fig = plt.figure(figsize=(16, 12))
                 ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
             else:
@@ -1653,7 +1653,7 @@ def plot_orbits(
         ax.invert_xaxis()  # To go to a left-handed coordinate system
 
         # plot sep/PA and/or rv zoom-in panels
-        if (rv_time_series == True) and (rv_time_series2 == True):
+        if (rv_time_series) and (rv_time_series2):
             ax1 = plt.subplot2grid((4, 16), (0, 8), colspan=8)
             ax2 = plt.subplot2grid((4, 16), (1, 8), colspan=8)
             ax3 = plt.subplot2grid((4, 16), (2, 0), colspan=16, rowspan=1)
@@ -1668,7 +1668,7 @@ def plot_orbits(
             ax4.set_xlabel("Epoch", fontsize=fontsize)
             plt.subplots_adjust(hspace=0.3)
 
-        elif (rv_time_series == True) and (rv_time_series2 == False):
+        elif (rv_time_series) and (rv_time_series2 == False):
             ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
             ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
             ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
@@ -1679,7 +1679,7 @@ def plot_orbits(
             ax2.set_xlabel("Epoch", fontsize=fontsize)
             plt.subplots_adjust(hspace=0.3)
 
-        elif (rv_time_series == False) and (rv_time_series2 == True):
+        elif (rv_time_series == False) and (rv_time_series2):
             ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
             ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
             ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
@@ -1714,7 +1714,7 @@ def plot_orbits(
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            if (rv_time_series == True) or (rv_time_series2 == True):
+            if (rv_time_series) or (rv_time_series2):
                 raoff0, deoff0, vz = kepler.calc_orbit(
                     epochs_seppa[i, :],
                     sma[i],
@@ -1761,7 +1761,7 @@ def plot_orbits(
             plt.plot(yr_epochs, pas, color=sep_pa_color)
 
             # plot RV orbits here
-            if rv_time_series == True:
+            if rv_time_series:
                 plt.sca(ax3)
 
                 # scale back to primary RV semi amplitude
@@ -1779,8 +1779,8 @@ def plot_orbits(
                     color=sep_pa_color,
                 )
 
-            if rv_time_series2 == True:
-                if rv_time_series == True:
+            if rv_time_series2:
+                if rv_time_series:
                     plt.sca(ax4)
                 else:
                     plt.sca(ax3)
@@ -1906,7 +1906,7 @@ def plot_orbits(
                 capsize=2,
             )
 
-        if rv_time_series == True:
+        if rv_time_series:
 
             rv_data = results.data[results.data["object"] == 0]
             rv_data = rv_data[rv_data["quant_type"] == "rv"]
@@ -2010,7 +2010,7 @@ def plot_orbits(
             ## plot rv trend
             # plt.plot(Time(epochs_seppa[0, :],format='mjd').decimalyear, vz, color=sep_pa_color)
 
-        if rv_time_series2 == True:
+        if rv_time_series2:
             if rv_time_series == False:
                 # get list of rv instruments
                 insts = np.unique(rv_data["instrument"])
@@ -2070,7 +2070,7 @@ def plot_orbits(
                     (rv_data2["instrument"] == insts2[i].encode()) | (rv_data2["instrument"] == insts2[i])
                 )[0]
 
-            if rv_time_series == True:
+            if rv_time_series:
                 plt.sca(ax4)
             else:
                 plt.sca(ax3)
@@ -2108,7 +2108,7 @@ def plot_orbits(
 
         # add colorbar
         if show_colorbar:
-            if (rv_time_series == True) or (rv_time_series2 == True):
+            if (rv_time_series) or (rv_time_series2):
                 # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
                 # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
                 # You can change 0.02 to adjust the width of the colorbar.
@@ -2164,11 +2164,11 @@ def plot_orbits(
 
     fig.tight_layout()
 
-    # if (rv_time_series == True) and (rv_time_series2 == True):
+    # if (rv_time_series) and (rv_time_series2):
     #    return fig, ax1, ax2, ax3, ax4
-    # elif (rv_time_series == True) and (rv_time_series2 == False):
+    # elif (rv_time_series) and (rv_time_series2 == False):
     #    return fig, ax1, ax2, ax3
-    # elif (rv_time_series == False) and (rv_time_series2 == True):
+    # elif (rv_time_series == False) and (rv_time_series2):
     #    return fig, ax1, ax2, ax3
     # else:
     #    return fig, ax1, ax2
