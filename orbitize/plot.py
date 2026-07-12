@@ -457,7 +457,7 @@ class Plotter(object):
                     fig = plt.figure(figsize=(14, 8))
                     ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
             else:
-                plt.set_current_figure(fig)
+                plt.figure(fig)
                 if (rv_time_series) and (rv_time_series2):
                     ax = plt.subplot2grid((4, 16), (0, 0), rowspan=2, colspan=6)
                 elif (rv_time_series) and (not rv_time_series2):
