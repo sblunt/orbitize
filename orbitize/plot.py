@@ -34,7 +34,7 @@ class Plotter(object):
         "trunc({n},{a:.2f},{b:.2f})".format(n=cmap.name, a=0.0, b=0.7),
         cmap(np.linspace(0.0, 0.7, 1000)),
     )
-    POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx"]
+    POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
 
     primary_instrument_name = None
 
@@ -303,7 +303,7 @@ class Plotter(object):
         standard_post = np.array(standard_post)
         return standard_post
     
-    def _calc_full_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post):
+    def _calc_full_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, periods_to_plot=1):
         # TODO: multiplanet, period?
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -331,7 +331,7 @@ class Plotter(object):
         for i in np.arange(num_orbits_to_plot):
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i, :] = np.linspace(
-                start_mjd, float(start_mjd + period[i]), num_epochs_to_plot
+                start_mjd, float(start_mjd + period[i]*periods_to_plot), num_epochs_to_plot
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
@@ -1107,6 +1107,220 @@ class Plotter(object):
         axes[1].set_xlim(yr_epochs2[0], yr_epochs2[-1])
 
         plt.tight_layout()
+
+    def plot_propermotion(
+        self,
+        periods_to_plot=1,
+        alpha=0.05,
+        cmap=None,
+        tight_layout=False,
+        # fig=None
+    ):
+        """
+        Plots the proper motion of a host star as induced by a companion for
+        one orbital period for a select number of fitted orbits
+        for a given object, with line segments colored according to a given
+        parameter (most informative is usually mass of companion)
+
+        Important Note: These plotted trajectories aren't what are fitting in the
+        likelihood evaluation for the HGCA runs. The implementation forward models
+        the Hip/Gaia measurements per epoch and infers the differential proper motions.
+        This plot is given only for the purposes of an approximate visualization.
+
+        Args:
+            system (object): orbitize.system object with a HGCALogProb passed to system.gaia
+            object_to_plot (int): which object to plot (default: 1)
+            start_mjd (float): MJD in which to start plotting orbits (default: 51544,
+                the year 2000)
+            periods_to_plot (int): number of periods to plot (default: 1)
+            end_year (float): decimal year specifying when to stop plotting orbit
+                tracks in the Sep/PA panels (default: 2025.0).
+            alpha (float): transparency of lines (default: 0.05)
+            num_orbits_to_plot (int): number of orbits to plot (default: 100)
+            num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
+            show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
+            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
+                (default: modified Purples_r)
+            cbar_param (string): options are the following: 'sma1', 'ecc1', 'inc1', 'aop1',
+                'pan1', 'tau1', 'plx', 'm0', 'm1', etc. Number can be switched out. Default is None.
+            tight_layout (bool): apply plt.tight_layout function?
+            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+                Most users will not need this keyword.
+
+        Return:
+            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
+
+
+        (written): William Balmer (2023), based on plot_orbits by Sarah Blunt and Henry Ngo
+
+        """
+        if cmap is None:
+            cmap = self.cmap
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ErfaWarning)
+
+            if periods_to_plot == 1:
+                raoff = self.raoff
+                deoff = self.deoff
+                epochs = self.epochs
+            else:
+                raoff, deoff, _, epochs = self._calc_full_orbits(
+                self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, periods_to_plot)
+
+
+            # Create figure for orbit plots
+            fig, axs = plt.subplots(1, 2, figsize=(8, 4), facecolor="white")
+
+            # Plot each orbit (each segment between two points coloured using colormap)
+            for i in np.arange(self.num_orbits_to_plot):
+                epoch_in_yr = Time(epochs[i, :], format="mjd").decimalyear
+                # masses (in same units, solar)
+                m_b = self.standard_post[:, self.results.param_idx["m1"]][i]
+                m_a = self.standard_post[:, self.results.param_idx["m0"]][i]
+                # dt
+                timestep = epoch_in_yr[1] - epoch_in_yr[0]
+                # dra/dt and ddec/dt
+                ddec_b = np.gradient(deoff[i, :], timestep)  # in mas/yr
+                dec_b_radian = (
+                    deoff[i, :] * (2.7777778e-7) * (0.017453293)
+                )  # mas -> deg -> radian
+                ra_b = raoff[i, :]
+                rastar_b = ra_b * np.cos(dec_b_radian)  # in mas
+                drastar_b = np.gradient(rastar_b, timestep)  # in mas/yr
+
+                # convert to dRA^star_star (lol) and dDec_star
+                mass_ratio_ = -1 * m_b / (m_a + m_b)
+                ddec_a = ddec_b * mass_ratio_
+                drastar_a = drastar_b * mass_ratio_
+
+                if self.cbar_param is not None:
+                    color = cmap(self.norm(self.standard_post[:, self.results.param_idx[self.cbar_param]][i]))
+                else:
+                    color = "k"
+
+                axs[0].plot(
+                    epoch_in_yr,
+                    drastar_a + self.system.gaia.hg_pm[0],
+                    color=color,
+                    alpha=alpha,
+                    zorder=0,
+                )
+                axs[1].plot(
+                    epoch_in_yr,
+                    ddec_a + self.system.gaia.hg_pm[1],
+                    color=color,
+                    alpha=alpha,
+                    zorder=0,
+                )
+
+        axs[0].set_xlim(1980, 2030)
+        axs[0].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+        axs[1].set_xlabel("Epoch")
+
+        axs[0].set_ylabel(r"$\mu_\alpha^*$ [mas/yr]")
+
+        axs[0].errorbar(
+            np.nanmedian(self.system.gaia.hipparcos_epoch),
+            self.system.gaia.hip_pm[0],
+            yerr=self.system.gaia.hip_pm_err[0],
+            zorder=30,
+            mec="k",
+            fmt="s",
+            color="cornflowerblue",
+        )
+
+        hgca_epoch = (
+            self.system.gaia.gaia_epoch_ra + np.nanmedian(self.system.gaia.hipparcos_epoch)
+        ) / 2
+        hgca_epoch_err = (
+            self.system.gaia.gaia_epoch_ra - np.nanmedian(self.system.gaia.hipparcos_epoch)
+        ) / 2
+
+        axs[0].errorbar(
+            hgca_epoch,
+            self.system.gaia.hg_pm[0],
+            xerr=hgca_epoch_err,
+            yerr=self.system.gaia.hg_pm_err[0],
+            zorder=30,
+            mec="k",
+            fmt="^",
+            color="#6280D6",
+        )
+
+        axs[0].errorbar(
+            self.system.gaia.gaia_epoch_ra,
+            self.system.gaia.gaia_pm[0],
+            yerr=self.system.gaia.gaia_pm_err[0],
+            zorder=30,
+            mec="k",
+            fmt="o",
+            color="#5f61b4",
+        )
+
+        axs[1].set_xlim(1980, 2030)
+        axs[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+
+        axs[1].errorbar(
+            np.nanmedian(self.system.gaia.hipparcos_epoch),
+            self.system.gaia.hip_pm[1],
+            yerr=self.system.gaia.hip_pm_err[1],
+            zorder=30,
+            mec="k",
+            fmt="s",
+            color="cornflowerblue",
+            label="Hip.",
+        )
+
+        axs[1].errorbar(
+            hgca_epoch,
+            self.system.gaia.hg_pm[1],
+            xerr=hgca_epoch_err,
+            yerr=self.system.gaia.hg_pm_err[1],
+            zorder=30,
+            mec="k",
+            fmt="^",
+            color="#6280D6",
+            label="H-G",
+        )
+
+        axs[1].errorbar(
+            self.system.gaia.gaia_epoch_ra,
+            self.system.gaia.gaia_pm[1],
+            yerr=self.system.gaia.gaia_pm_err[1],
+            zorder=30,
+            mec="k",
+            fmt="o",
+            color="#5f61b4",
+            label="Gaia",
+        )
+
+        axs[1].set_ylabel(r"$\mu_\delta$ [mas/yr]")
+        axs[1].set_xlabel("Epoch")
+        axs[0].set_xlabel("Epoch")
+
+        cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
+
+        cbar = mpl.colorbar.ColorbarBase(
+            cbar_ax, cmap=cmap, norm=self.norm, orientation="vertical", label=self.cbar_param
+        )
+
+        axs[0].set_rasterization_zorder(1)
+        axs[1].set_rasterization_zorder(1)
+
+        axs[1].legend()
+
+        print(
+            "Important Note of Caution: the orbitize! implementation of the HGCA \n",
+            "fits for the time-averaged proper motions, and not the instantaneous proper \n",
+            "motions that are being plotted here. This plot is provided only for the \n",
+            "purpose of an approximate check on the fit.",
+        )
+
+        if tight_layout:
+            plt.tight_layout()
+
+        return fig
 
 
 def plot_corner(results, param_list=None, **corner_kwargs):
