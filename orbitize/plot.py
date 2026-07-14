@@ -28,6 +28,35 @@ cmap = colors.LinearSegmentedColormap.from_list(
 )
 
 class Plotter(object):
+    """
+    A class to plot results
+
+    Args:
+        results (orbitize.results.Results): results of a fit to be plotted
+        object_to_plot (int): which object to plot (default: 1)
+        start (float): time at which to start plotting orbits, in `time_format` (default: None,
+            three years before the first data point)
+        end (float): time at which to stop plotting orbits in `time_format` (default: None,
+            three years after the last data point)
+        time_format (str): time format for `start` and `end` such as "mjd" or others
+            from astropy.time.Time.FORMATS (default: 'decimalyear')
+        default_cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
+            (default: modified Purples_r)
+        num_orbits_to_plot (int): number of orbits to plot (default: 100)
+        num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
+        cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
+            'pan1', 'tau1', 'plx', 'm0', 'm1'. Number can be switched out. (default: 'Epoch [year]').
+        rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting,
+            display rv_time_series of the primary (object 0) (default: False)
+        rv_time_series2 (Boolean): if fitting for secondary mass using MCMC for rv fitting,
+            display rv_time_series of the companion (object 1) (default: False)
+
+    (written): Henry Ngo, Sarah Blunt, 2018
+    Additions by Malena Rice, 2019
+    Additions by Dino Hsu, 2023
+    Refactored to class by Eshel Dror, 2026
+
+    """
     # define modified color map for default use in orbit plots
     cmap = mpl.cm.Purples_r
     cmap = colors.LinearSegmentedColormap.from_list(
@@ -35,8 +64,6 @@ class Plotter(object):
         cmap(np.linspace(0.0, 0.7, 1000)),
     )
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
-
-    primary_instrument_name = None
 
     def __init__(
         self,
@@ -49,7 +76,6 @@ class Plotter(object):
         num_orbits_to_plot=100,
         num_epochs_to_plot=100,
         cbar_param="Epoch [year]",
-        primary_instrument_name=None,
         rv_time_series=False,
         rv_time_series2=False
     ):
@@ -64,10 +90,7 @@ class Plotter(object):
         if end is None:
            end = getattr(Time(np.max(self.system.data_table['epoch'])+365*3, format="mjd"), time_format)
 
-        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2, primary_instrument_name)
-
-        # TODO: calc spaced orbits for end_year
-
+        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2)
 
     def set_params(
         self,
@@ -80,8 +103,10 @@ class Plotter(object):
         cbar_param=None,
         rv_time_series=None,
         rv_time_series2=None,
-        primary_instrument_name=None
     ):
+        """
+        Change parameters set when initializing `Plotter` and perform plotting precalculations
+        """
         if object_to_plot is not None:
             self.object_to_plot = object_to_plot
         if time_format is not None:
@@ -98,8 +123,6 @@ class Plotter(object):
             self.rv_time_series = rv_time_series
         if rv_time_series2 is not None:
             self.rv_time_series2 = rv_time_series2
-        if primary_instrument_name is not None:
-            self.primary_instrument_name = primary_instrument_name
 
         self.data = self.results.data[self.results.data["object"] == self.object_to_plot]
 
@@ -141,11 +164,12 @@ class Plotter(object):
             self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self._calc_panel_orbits(
                 self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end)
             self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.epochs, self.standard_post)
-            self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
+            self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(self.rv_time_series, self.rv_time_series2)
             self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
             self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_epochs = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
 
-    def _calc_seppa_radec(self, data):
+    def _calc_seppa_radec(self, all_data):
+        data = all_data[all_data["quant_type"]!="rv"]
         radec_inds = np.where(data["quant_type"] == "radec")
         seppa_inds = np.where(data["quant_type"] == "seppa")
 
@@ -241,20 +265,7 @@ class Plotter(object):
         
         return raoff, deoff, vz, astr_epochs
 
-    def _calc_rv(self, primary_instrument_name, rv_time_series, rv_time_series2):
-        # test gamma 3
-        if rv_time_series:
-            # guess the instrument name if this is not specified
-            if primary_instrument_name == None:
-                primary_instrument_name = self.results.data[self.results.data["object"] == 0][
-                    "instrument"
-                ][0]
-            gamma3 = self.standard_post[
-                :, self.results.standard_param_idx["gamma_" + primary_instrument_name]
-            ]
-        else:
-            gamma3 = None
-
+    def _calc_rv(self, rv_time_series, rv_time_series2):
         if (rv_time_series) or (rv_time_series2):
             rv_data = self.results.data[self.results.data["object"] == 0]
             rv_data = rv_data[rv_data["quant_type"] == "rv"]
@@ -287,7 +298,7 @@ class Plotter(object):
         else:
             rv_data = insts = gams = labels = gam_idx = inds = sig_idx = None
 
-        return primary_instrument_name, gamma3, rv_data, insts, gams, labels, gam_idx, inds, sig_idx
+        return rv_data, insts, gams, labels, gam_idx, inds, sig_idx
 
     def _get_standard_post(self, num_orbits_to_plot):
         # TODO: Replace random with results.downsample
@@ -411,15 +422,53 @@ class Plotter(object):
         cmap=None,
         sep_pa_color="lightgrey",
         mod180=False,
-        rv_time_series=False,
         plot_astrometry=True,
         plot_astrometry_insts=False,
-        # plot_errorbars=True,
+        rv_time_series=False,
         rv_time_series2=False,
+        # plot_errorbars=True,
         separate_gamma_err=False,
         fontsize=20,
         fig=None,
     ):
+        """
+        Plots one orbital period for a select number of fitted orbits
+        for a given object, with line segments colored according to time.
+        Also plot orbit tracks in Sep/PA panels from `self.start` to `self.end`.
+
+        Args:
+            square_plot (Boolean): Aspect ratio is always equal, but if
+                square_plot is True, then the axes will be square,
+                otherwise, white space padding is used (deafult: True)
+            show_colorbar (Boolean): Displays colorbar to the right of the plot (default: True).
+            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
+                (default: `self.default_cmap`)
+            sep_pa_color (string): any valid matplotlib color string, used to set the
+                color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
+            mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
+                arcs with PAs that cross 360 deg during observations (default: False)
+            plot_astrometry (Boolean): Plots the astrometric data (default: True)
+            plot_astrometry_insts (Boolean): Plots the astrometric data by instruments (default: False)
+            rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting,
+                display rv time series of the primary (object 0) (default: False)
+            rv_time_series2 (Boolean): if fitting for secondary mass using MCMC for rv fitting,
+                display rv time series of the companion (object 1) (default: False)
+            separate_gamma_err (Boolean): display seperate error bars in rv time series
+                for instrument error + jitter and gamma error (default: False)
+            fontsize (int): font size of labels (default: 20)
+            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+                Most users will not need this keyword.
+
+        Return:
+            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
+
+
+        (written): Henry Ngo, Sarah Blunt, 2018
+        Additions by Malena Rice, 2019
+        Additions by Dino Hsu, 2023
+        Refactoring and additions by Eshel Dror, 2026 
+
+        """
         
         if cmap is None:
             cmap = self.cmap
@@ -972,24 +1021,16 @@ class Plotter(object):
         Plots sep/PA residuals for a set of orbits
 
         Args:
-            my_results (orbitiez.results.Results): results to plot
-            object_to_plot (int): which object to plot (default: 1)
-            start_mjd (float): MJD in which to start plotting orbits (default: 51544,
-                the year 2000)
-            num_orbits_to_plot (int): number of orbits to plot (default: 100)
-            num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
             sep_pa_color (string): any valid matplotlib color string, used to set the
                 color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
-            sep_pa_end_year (float): decimal year specifying when to stop plotting orbit
-                tracks in the Sep/PA panels (default: 2025.0).
-            cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
-                'pan1', 'tau1', 'plx. Number can be switched out. Default is Epoch [year].
             mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
                 arcs with PAs that cross 360 deg during observations (default: False)
 
         Return:
             ``matplotlib.pyplot.Figure``: the residual plots
 
+        Refactored by Eshel Dror, 2026        
+    
         """
         raoff = self.astr_raoff
         deoff = self.astr_deoff
@@ -1118,13 +1159,13 @@ class Plotter(object):
         self,
         periods_to_plot=1,
         alpha=0.05,
+        show_colorbar=True,
         cmap=None,
         tight_layout=False,
-        # fig=None
     ):
         """
         Plots the proper motion of a host star as induced by a companion for
-        one orbital period for a select number of fitted orbits
+        a number of orbital periods for a select number of fitted orbits
         for a given object, with line segments colored according to a given
         parameter (most informative is usually mass of companion)
 
@@ -1133,31 +1174,23 @@ class Plotter(object):
         the Hip/Gaia measurements per epoch and infers the differential proper motions.
         This plot is given only for the purposes of an approximate visualization.
 
+        Note: The `orbitize.results.Results` object used when initializing the `Plotter` must have
+            an orbitize.system object with a HGCALogProb passed to system.gaia
+
         Args:
-            system (object): orbitize.system object with a HGCALogProb passed to system.gaia
-            object_to_plot (int): which object to plot (default: 1)
-            start_mjd (float): MJD in which to start plotting orbits (default: 51544,
-                the year 2000)
             periods_to_plot (int): number of periods to plot (default: 1)
-            end_year (float): decimal year specifying when to stop plotting orbit
-                tracks in the Sep/PA panels (default: 2025.0).
             alpha (float): transparency of lines (default: 0.05)
-            num_orbits_to_plot (int): number of orbits to plot (default: 100)
-            num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
-            show_colorbar (Boolean): Displays colorbar to the right of the plot [True]
+            show_colorbar (Boolean): Displays colorbar to the right of the plot (default: True)
             cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
-                (default: modified Purples_r)
-            cbar_param (string): options are the following: 'sma1', 'ecc1', 'inc1', 'aop1',
-                'pan1', 'tau1', 'plx', 'm0', 'm1', etc. Number can be switched out. Default is None.
-            tight_layout (bool): apply plt.tight_layout function?
-            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
-                Most users will not need this keyword.
+                (default: `self.default_cmap`)
+            tight_layout (bool): apply plt.tight_layout function (default: False)
 
         Return:
             ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
 
 
         (written): William Balmer (2023), based on plot_orbits by Sarah Blunt and Henry Ngo
+        Refactored by Eshel Dror, 2026
 
         """
         if cmap is None:
@@ -1200,7 +1233,7 @@ class Plotter(object):
                 ddec_a = ddec_b * mass_ratio_
                 drastar_a = drastar_b * mass_ratio_
 
-                if self.cbar_param is not None:
+                if self.cbar_param is not None and self.cbar_param not in ["Epoch [year]", "Epoch (year)"]:
                     color = cmap(self.norm(self.standard_post[:, self.results.param_idx[self.cbar_param]][i]))
                 else:
                     color = "k"
@@ -1305,11 +1338,12 @@ class Plotter(object):
         axs[1].set_xlabel("Epoch")
         axs[0].set_xlabel("Epoch")
 
-        cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
+        if show_colorbar:
+            cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
 
-        cbar = mpl.colorbar.ColorbarBase(
-            cbar_ax, cmap=cmap, norm=self.norm, orientation="vertical", label=self.cbar_param
-        )
+            cbar = mpl.colorbar.ColorbarBase(
+                cbar_ax, cmap=cmap, norm=self.norm, orientation="vertical", label=self.cbar_param
+            )
 
         axs[0].set_rasterization_zorder(1)
         axs[1].set_rasterization_zorder(1)
