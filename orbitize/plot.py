@@ -42,8 +42,9 @@ class Plotter(object):
         self,
         results,
         object_to_plot=1, # TODO: Support multiplanet
-        end_year=2030.0,
-        start_mjd=None,
+        start=None,
+        end=None,
+        time_format="decimalyear",
         default_cmap=None,
         num_orbits_to_plot=100,
         num_epochs_to_plot=100,
@@ -58,10 +59,12 @@ class Plotter(object):
         if default_cmap is not None:
             self.cmap = default_cmap
         
-        if start_mjd is None:
-           start_mjd = np.min(self.system.data_table['epoch'])
+        if start is None:
+           start = getattr(Time(np.min(self.system.data_table['epoch'])-365*3, format="mjd"), time_format)
+        if end is None:
+           end = getattr(Time(np.max(self.system.data_table['epoch'])+365*3, format="mjd"), time_format)
 
-        self.set_params(object_to_plot, end_year, start_mjd, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2, primary_instrument_name)
+        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2, primary_instrument_name)
 
         # TODO: calc spaced orbits for end_year
 
@@ -69,8 +72,9 @@ class Plotter(object):
     def set_params(
         self,
         object_to_plot=None,
-        end_year=None,
-        start_mjd=None,
+        start=None,
+        end=None,
+        time_format=None, 
         num_orbits_to_plot=None,
         num_epochs_to_plot=None,
         cbar_param=None,
@@ -80,10 +84,12 @@ class Plotter(object):
     ):
         if object_to_plot is not None:
             self.object_to_plot = object_to_plot
-        if end_year is not None:
-            self.end_year = end_year
-        if start_mjd is not None:
-            self.start_mjd = start_mjd
+        if time_format is not None:
+            self.time_format = time_format
+        if start is not None:
+            self.start = Time(start, format=self.time_format)
+        if end is not None:
+            self.end = Time(end, format=self.time_format)
         if num_epochs_to_plot is not None:
             self.num_orbits_to_plot = num_orbits_to_plot
         if num_epochs_to_plot is not None:
@@ -109,9 +115,9 @@ class Plotter(object):
                 )
             self.cbar_param = cbar_param
 
-        if Time(self.start_mjd, format="mjd").decimalyear >= self.end_year:
+        if self.start >= self.end:
             raise ValueError(
-                "start_mjd keyword date must be less than end_year keyword date."
+                "start keyword date must be less than end keyword date."
             )
 
         if self.object_to_plot > self.results.num_secondary_bodies:
@@ -131,9 +137,9 @@ class Plotter(object):
 
             self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
             self.raoff, self.deoff, self.vz, self.epochs = self._calc_full_orbits(
-                self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post)
+                self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post)
             self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self._calc_panel_orbits(
-                self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end_year)
+                self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end)
             self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.epochs, self.standard_post)
             self.primary_instrument_name, self.gamma3, self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(self.primary_instrument_name, self.rv_time_series, self.rv_time_series2)
             self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
@@ -303,7 +309,7 @@ class Plotter(object):
         standard_post = np.array(standard_post)
         return standard_post
     
-    def _calc_full_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, periods_to_plot=1):
+    def _calc_full_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, periods_to_plot=1):
         # TODO: multiplanet, period?
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -331,7 +337,7 @@ class Plotter(object):
         for i in np.arange(num_orbits_to_plot):
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i, :] = np.linspace(
-                start_mjd, float(start_mjd + period[i]*periods_to_plot), num_epochs_to_plot
+                start.mjd, float(start.mjd + period[i]*periods_to_plot), num_epochs_to_plot
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
@@ -345,7 +351,7 @@ class Plotter(object):
             vz[i, :] = vz0[:, object_to_plot, 0]
         return raoff, deoff, vz, epochs
 
-    def _calc_panel_orbits(self, start_mjd, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, end_year):
+    def _calc_panel_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, end):
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         vz = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -354,7 +360,7 @@ class Plotter(object):
         for i in np.arange(num_orbits_to_plot):
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i, :] = np.linspace(
-                start_mjd, Time(end_year, format="decimalyear").mjd, num_epochs_to_plot
+                start.mjd, end.mjd, num_epochs_to_plot
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
@@ -1166,7 +1172,7 @@ class Plotter(object):
                 epochs = self.epochs
             else:
                 raoff, deoff, _, epochs = self._calc_full_orbits(
-                self.start_mjd, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, periods_to_plot)
+                self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, periods_to_plot)
 
 
             # Create figure for orbit plots
