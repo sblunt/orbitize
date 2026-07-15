@@ -19,8 +19,6 @@ import orbitize
 import orbitize.kepler as kepler
 
 
-# TODO: deprecatation warning for plots in results
-
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
     "trunc({n},{a:.2f},{b:.2f})".format(n=cmap.name, a=0.0, b=0.7),
@@ -1498,8 +1496,119 @@ def plot_corner(results, param_list=None, **corner_kwargs):
     figure = corner.corner(samples, **corner_kwargs)
     return figure
 
-
 def plot_orbits(
+    results,
+    object_to_plot=1,
+    start_mjd=51544.0,
+    num_orbits_to_plot=100,
+    num_epochs_to_plot=100,
+    square_plot=True,
+    show_colorbar=True,
+    cmap=cmap,
+    sep_pa_color="lightgrey",
+    sep_pa_end_year=2025.0,
+    cbar_param="Epoch [year]",
+    mod180=False,
+    rv_time_series=False,
+    plot_astrometry=True,
+    plot_astrometry_insts=False,
+    plot_errorbars=True,
+    rv_time_series2=False,
+    primary_instrument_name=None,
+    fontsize=20,
+    fig=None,
+):
+    print("The orbitize.plot.plot_orbits function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_orbits method.")
+    plotter = Plotter(
+        results=results,
+        object_to_plot=object_to_plot,
+        start=Time(start_mjd, format="mjd").decimalyear,
+        end=sep_pa_end_year,
+        time_format="decimalyear",
+        default_cmap=cmap,
+        num_orbits_to_plot=num_orbits_to_plot,
+        num_epochs_to_plot=num_epochs_to_plot,
+        cbar_param=cbar_param,
+        rv_time_series=rv_time_series,
+        rv_time_series2=rv_time_series2
+        )
+    return plotter.plot_orbits(
+        square_plot=square_plot,
+        show_colorbar=show_colorbar,
+        sep_pa_color=sep_pa_color,
+        mod180=mod180,
+        plot_astrometry=plot_astrometry,
+        plot_astrometry_insts=plot_astrometry_insts,
+        rv_time_series=rv_time_series,
+        rv_time_series2=rv_time_series2,
+        fontsize=fontsize,
+        fig=fig
+    )
+
+def plot_residuals(
+    my_results,
+    object_to_plot=1,
+    start_mjd=51544,
+    num_orbits_to_plot=100,
+    num_epochs_to_plot=100,
+    sep_pa_color="lightgrey",
+    sep_pa_end_year=2025.0,
+    cbar_param="Epoch [year]",
+    mod180=False,
+):
+    print("The orbitize.plot.plot_residuals function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_residuals method.")
+    plotter = Plotter(
+        results=my_results,
+        object_to_plot=object_to_plot,
+        start=Time(start_mjd, format="mjd").decimalyear,
+        end=sep_pa_end_year,
+        time_format="decimalyear",
+        default_cmap=cmap,
+        num_orbits_to_plot=num_orbits_to_plot,
+        num_epochs_to_plot=num_epochs_to_plot,
+        cbar_param=cbar_param
+    )
+    return plotter.plot_residuals(
+        sep_pa_color=sep_pa_color,
+        mod180=mod180
+    )
+
+def plot_propermotion(
+    results,
+    system,
+    object_to_plot=1,
+    start_mjd=44239.0,
+    periods_to_plot=1,
+    end_year=2030.0,
+    alpha=0.05,
+    num_orbits_to_plot=100,
+    num_epochs_to_plot=100,
+    show_colorbar=True,
+    cmap=cmap,
+    cbar_param="m0",
+    tight_layout=False,
+):
+    print("The orbitize.plot.plot_propermotion function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_propermotion method.")
+    plotter = Plotter(
+        results=results,
+        object_to_plot=object_to_plot,
+        start=Time(start_mjd, format="mjd").decimalyear,
+        end=end_year,
+        time_format="decimalyear",
+        default_cmap=cmap,
+        num_orbits_to_plot=num_orbits_to_plot,
+        num_epochs_to_plot=num_epochs_to_plot,
+        cbar_param=cbar_param
+    )
+    return plotter.plot_propermotion(
+        periods_to_plot=periods_to_plot,
+        alpha=alpha,
+        show_colorbar=show_colorbar,
+        tight_layout=tight_layout
+    )
+
+
+def legacy_plot_orbits(
     results,
     object_to_plot=1,
     start_mjd=51544.0,
@@ -2414,7 +2523,7 @@ def plot_orbits(
     return fig
 
 
-def plot_residuals(
+def legacy_plot_residuals(
     my_results,
     object_to_plot=1,
     start_mjd=51544,
@@ -2768,7 +2877,7 @@ def plot_residuals(
     plt.tight_layout()
 
 
-def plot_propermotion(
+def legacy_plot_propermotion(
     results,
     system,
     object_to_plot=1,
