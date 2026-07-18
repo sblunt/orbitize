@@ -1360,8 +1360,10 @@ class Plotter(object):
 
         return fig
 
+    def plot_corner(self, param_list=None, plot_priors=True, **corner_kwargs):
+        return plot_corner(self.results, param_list, plot_priors, **corner_kwargs)
 
-def plot_corner(results, param_list=None, **corner_kwargs):
+def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
     """
     Make a corner plot of posterior on orbit fit from any sampler
 
@@ -1388,6 +1390,8 @@ def plot_corner(results, param_list=None, **corner_kwargs):
                 mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass)
                 mtot: total mass (only if fit_secondary_mass == False)
 
+        plot priors (Boolean): overplot prior probabilites on the 1d histograms (default: True)
+
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
                             Note: default axis labels used unless overwritten by user input.
@@ -1400,6 +1404,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         of the first two companions
 
     Written: Henry Ngo, 2018
+    Additions: Eshel Dror, 2026
     """
 
     # Define array of default axis labels (overwritten if user specifies list)
@@ -1494,6 +1499,32 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         corner_kwargs["labels"] = reduced_labels_list
 
     figure = corner.corner(samples, **corner_kwargs)
+
+    if plot_priors:
+        axes = figure.axes
+        num_params = len(param_indices)
+        sample_size = samples.shape[0]
+        for i, param_i in enumerate(param_indices):
+            prior = results.system.sys_priors[param_i]
+            ax = axes[i * (num_params+1)]
+            if param_i in angle_indices:
+                dmin, dmax = np.radians(ax.dataLim.intervalx)
+                x = np.linspace(dmin, dmax, 10000)
+                x_plot = np.degrees(x)
+            elif param_i in secondary_mass_indices:
+                dmin, dmax = ax.dataLim.intervalx / u.solMass.to(u.jupiterMass)
+                x = np.linspace(dmin, dmax, 10000)
+                x_plot = x * u.solMass.to(u.jupiterMass)
+            else:
+                dmin, dmax = ax.dataLim.intervalx
+                x_plot = x = np.linspace(dmin, dmax, 10000)
+            y = np.exp(prior.compute_lnprob(x))
+            bin_count = corner_kwargs.get("bins", 20)
+            data_width = dmax - dmin
+            bin_size = data_width / bin_count
+            y_plot = y * sample_size * bin_size
+            ax.plot(x_plot, y_plot)
+
     return figure
 
 def plot_orbits(
