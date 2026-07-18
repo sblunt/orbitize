@@ -1483,6 +1483,8 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
         sample_size = samples.shape[0]
         for i, param_i in enumerate(param_indices):
             prior = results.system.sys_priors[param_i]
+            if not hasattr(prior, "compute_lnprob"):
+                continue
             ax = axes[i * (num_params+1)]
             if param_i in angle_indices:
                 dmin, dmax = np.radians(ax.dataLim.intervalx)
