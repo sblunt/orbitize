@@ -62,6 +62,9 @@ class Plotter(object):
         cmap(np.linspace(0.0, 0.7, 1000)),
     )
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
+    # colour/shape scheme scheme for rv data points
+    RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
+    RV_SYMBOLS = ("o", "^", "v", "s")
 
     def __init__(
         self,
@@ -162,7 +165,10 @@ class Plotter(object):
             self.raoff1, self.deoff1, self.vz1, self.seppa_epochs = self._calc_panel_orbits(
                 self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.object_to_plot, self.standard_post, self.end)
             self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.epochs, self.standard_post)
-            self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(self.rv_time_series, self.rv_time_series2)
+            if self.rv_time_series:
+                self.rv_data, self.insts, self.gams, self.labels, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(object=0)
+            if self.rv_time_series2:
+                self.rv_data2, self.insts2, self.gams2, self.labels2, self.gam_idx2, self.rv_inst_inds2, self.sig_idx2 = self._calc_rv(object=1)
             self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
             self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_epochs = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
 
@@ -263,39 +269,34 @@ class Plotter(object):
         
         return raoff, deoff, vz, astr_epochs
 
-    def _calc_rv(self, rv_time_series, rv_time_series2):
-        if (rv_time_series) or (rv_time_series2):
-            rv_data = self.results.data[self.results.data["object"] == 0]
-            rv_data = rv_data[rv_data["quant_type"] == "rv"]
+    def _calc_rv(self, object):
+        rv_data = self.results.data[self.results.data["object"] == object]
+        rv_data = rv_data[rv_data["quant_type"] == "rv"]
 
-            # get list of rv instruments
-            insts = np.unique(rv_data["instrument"])
-            if len(insts) == 0:
-                insts = ["defrv"]
+        # get list of rv instruments
+        insts = np.unique(rv_data["instrument"])
+        if len(insts) == 0:
+            insts = ["defrv"]
 
-            # get gamma/sigma labels and corresponding positions in the posterior
-            gams = ["gamma_" + inst for inst in insts]
-            sigs = ["sigma_" + inst for inst in insts]
+        # get gamma/sigma labels and corresponding positions in the posterior
+        gams = ["gamma_" + inst for inst in insts]
+        sigs = ["sigma_" + inst for inst in insts]
 
-            if isinstance(self.results.labels, list):
-                labels = np.array(self.results.labels)
-            else:
-                labels = self.results.labels
-
-            # get the indices corresponding to each gamma within results.labels
-            gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
-            sig_idx = [np.where(labels == inst_sigma)[0] for inst_sigma in sigs]
-
-            # indices corresponding to each instrument in the datafile
-            inds = {}
-            for i in range(len(insts)):
-                inds[insts[i]] = np.where( # include encode for backwards compatibility
-                    (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
-                )[0]
-
+        if isinstance(self.results.labels, list):
+            labels = np.array(self.results.labels)
         else:
-            rv_data = insts = gams = labels = gam_idx = inds = sig_idx = None
+            labels = self.results.labels
 
+        # get the indices corresponding to each gamma within results.labels
+        gam_idx = [np.where(labels == inst_gamma)[0] for inst_gamma in gams]
+        sig_idx = [np.where(labels == inst_sigma)[0] for inst_sigma in sigs]
+
+        # indices corresponding to each instrument in the datafile
+        inds = {}
+        for i in range(len(insts)):
+            inds[insts[i]] = np.where( # include encode for backwards compatibility
+                (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
+            )[0]
         return rv_data, insts, gams, labels, gam_idx, inds, sig_idx
 
     def _get_standard_post(self, num_orbits_to_plot):
@@ -854,6 +855,8 @@ class Plotter(object):
             )
     
     def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2, separate_gamma_err):
+        ax3_colors = itertools.cycle(self.RV_COLORS)
+        ax3_symbols = itertools.cycle(self.RV_SYMBOLS)
         if rv_time_series:
             # switch current axis to rv panel
             plt.sca(ax3)
@@ -862,12 +865,6 @@ class Plotter(object):
             stddev_ga = [np.std(self.results.post[:,i]) for i in self.gam_idx]
             med_sigma = [np.median(self.results.post[:,i]) for i in self.sig_idx]
 
-            # colour/shape scheme scheme for rv data points
-            clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
-            symbols = ("o", "^", "v", "s")
-
-            ax3_colors = itertools.cycle(clrs)
-            ax3_symbols = itertools.cycle(symbols)
 
             # get rvs and plot them
             for i, name in enumerate(self.rv_inst_inds.keys()):
@@ -925,29 +922,9 @@ class Plotter(object):
                 plt.legend(fontsize=20, loc=1)
 
         if rv_time_series2:
-            if not rv_time_series:
-                med_ga = [np.median(self.results.post[:,i]) for i in self.gam_idx]
-                stddev_ga = [np.std(self.results.post[:,i]) for i in self.gam_idx]
-                med_sigma = [np.median(self.results.post[:,i]) for i in self.sig_idx]
-
-                # colour/shape scheme scheme for rv data points
-                clrs = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
-                symbols = ("o", "^", "v", "s")
-
-                ax3_colors = itertools.cycle(clrs)
-                ax3_symbols = itertools.cycle(symbols)
-
-            rv_data2 = self.results.data[self.results.data["object"] == 1]
-            rv_data2 = rv_data2[rv_data2["quant_type"] == "rv"]
-
-            # get list of rv2 instruments
-            insts2 = np.unique(rv_data2["instrument"])
-
-            inds2 = {}
-            for i in range(len(insts2)):
-                inds2[insts2[i]] = np.where(
-                    (rv_data2["instrument"] == insts2[i].encode()) | (rv_data2["instrument"] == insts2[i])
-                )[0]
+            med_ga2 = [np.median(self.results.post[:,i]) for i in self.gam_idx2]
+            stddev_ga2 = [np.std(self.results.post[:,i]) for i in self.gam_idx2]
+            med_sigma2 = [np.median(self.results.post[:,i]) for i in self.sig_idx2]
 
             if rv_time_series:
                 plt.sca(ax4)
@@ -955,20 +932,20 @@ class Plotter(object):
                 plt.sca(ax3)
 
             # get rvs and plot them
-            for i, name in enumerate(inds2.keys()):
+            for i, name in enumerate(self.rv_inst_inds2.keys()):
                 name2 = name.replace("_", " ")
-                inst_data2 = rv_data2[inds2[name]]
+                inst_data2 = self.rv_data2[self.rv_inst_inds2[name]]
                 rvs2 = inst_data2["quant1"]
                 epochs2 = inst_data2["epoch"]
                 epochs2 = Time(epochs2, format="mjd").decimalyear
                 inst2_err = inst_data2["quant1_err"]
-                gam2_err2 = np.sqrt(np.square(inst2_err)+np.square(med_sigma[i]))
+                gam2_err2 = np.sqrt(np.square(inst2_err)+np.square(med_sigma2[i]))
                 gam2_err_1 = np.sqrt(gam2_err2)
-                gam2_err_2 = np.sqrt(gam2_err2 + np.square(stddev_ga[i]))
+                gam2_err_2 = np.sqrt(gam2_err2 + np.square(stddev_ga2[i]))
                 c = next(ax3_colors)
                 plt.scatter(
                     epochs2,
-                    rvs2-med_ga[i],
+                    rvs2-med_ga2[i],
                     s=30,
                     marker=next(ax3_symbols),
                     c=c,
@@ -977,17 +954,17 @@ class Plotter(object):
                 )
                 if separate_gamma_err:
                     plt.errorbar(
-                        x=epochs,
-                        y=rvs-med_ga[i],
-                        yerr=stddev_ga[i],
+                        x=epochs2,
+                        y=rvs2-med_ga2[i],
+                        yerr=stddev_ga2[i],
                         ecolor=c,
                         zorder=5,
                         ls="none",
                         label="{} gamma err".format(name2)
                     )
                     plt.errorbar(
-                        x=epochs,
-                        y=rvs-med_ga[i],
+                        x=epochs2,
+                        y=rvs2-med_ga2[i],
                         yerr=gam2_err_1,
                         ecolor=next(ax3_colors),
                         elinewidth=3,
@@ -997,15 +974,15 @@ class Plotter(object):
                     )
                 else:
                     plt.errorbar(
-                        x=epochs,
-                        y=rvs-med_ga[i],
+                        x=epochs2,
+                        y=rvs2-med_ga2[i],
                         yerr=gam2_err_2,
                         ecolor=c,
                         zorder=5,
                         ls="none",
                     )
 
-            if not separate_gamma_err and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
+            if not separate_gamma_err and len(self.rv_inst_inds2.keys()) == 1 and "defrv" in self.rv_inst_inds2.keys():
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
