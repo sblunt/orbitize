@@ -45,9 +45,9 @@ class Plotter(object):
         cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
             'pan1', 'tau1', 'plx', 'm0', 'm1'. Number can be switched out. (default: 'Epoch [year]').
         rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting,
-            display rv_time_series of the primary (object 0) (default: False)
+            calculate rv_time_series of the primary (object 0) (default: False)
         rv_time_series2 (Boolean): if fitting for secondary mass using MCMC for rv fitting,
-            display rv_time_series of the companion (object 1) (default: False)
+            calculate rv_time_series of the companion (object 1) (default: False)
 
     (written): Henry Ngo, Sarah Blunt, 2018
     Additions by Malena Rice, 2019
@@ -116,7 +116,7 @@ class Plotter(object):
             self.start = Time(start, format=self.time_format)
         if end is not None:
             self.end = Time(end, format=self.time_format)
-        if num_epochs_to_plot is not None:
+        if num_orbits_to_plot is not None:
             self.num_orbits_to_plot = num_orbits_to_plot
         if num_epochs_to_plot is not None:
             self.num_epochs_to_plot = num_epochs_to_plot
@@ -1502,7 +1502,7 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
             data_width = dmax - dmin
             bin_size = data_width / bin_count
             y_plot = y * sample_size * bin_size
-            ax.plot(x_plot, y_plot)
+            ax.plot(x_plot, y_plot, color="orange")
 
     return figure
 
@@ -1528,6 +1528,7 @@ def plot_orbits(
     fontsize=20,
     fig=None,
 ):
+    # TODO: Improve message
     print("The orbitize.plot.plot_orbits function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_orbits method.")
     plotter = Plotter(
         results=results,
