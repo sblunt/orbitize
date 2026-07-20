@@ -67,9 +67,11 @@ def test_read_input_with_brightness():
     assert np.all(np.isnan(brightness_data['quant2_err'].value))
 
 
-def test_compute_posteriors():
+def test_compute_posterior():
     """
-    Test that a short mcmc runs to completion 
+    Test that a short mcmc runs to completion when we include photometric
+    data in the csv. orbitize should automatically detect that we are
+    including photometry in the fit and incorporate it into the likelihood.
     """
 
     num_secondary_bodies = 1
@@ -89,4 +91,4 @@ def test_compute_posteriors():
 if __name__ == "__main__":
     test_brightness_calculation()
     # test_read_input_with_brightness()
-    # test_compute_posteriors()
+    # test_compute_posterior()
