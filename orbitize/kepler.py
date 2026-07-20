@@ -56,8 +56,28 @@ def times2trueanom_and_eccanom(
     use_c=True,
     use_gpu=False,
 ):
+    """ 
+    Convert times to true anomaly and eccentric anomaly by solving Kepler's Equation.
 
-    
+    Args:
+        sma (np.array): semi-major axis of orbit [au]
+        epochs (np.array): MJD times for which we want the positions of the planet
+        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
+        ecc (np.array): eccentricity of the orbit [0,1]
+        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (default: 58849)
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
+
+    Returns:
+        2-tuple:
+
+            np.array: true anomalies (shape n_epochs)
+
+            np.array: eccentric anomalies (shape n_epochs)
+    """
 
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
@@ -106,7 +126,7 @@ def calc_orbit(
             For example, if you want to return the stellar RV, this is the planet mass.
             If you want to return the planetary RV, this is the stellar mass. [Solar masses].
             For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
-        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
+        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (default: 58849)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
         use_c (bool, optional): Use the C solver if configured. Defaults to True
