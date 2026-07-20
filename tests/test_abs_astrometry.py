@@ -58,7 +58,7 @@ def test_1planet():
     sys.track_planet_perturbs = True
 
     params = np.array([sma, ecc, inc, aop, pan, tau, plx, mass_b, m0])
-    ra, dec, _ = sys.compute_all_orbits(params)
+    ra, dec, _, _ = sys.compute_all_orbits(params)
 
     # the planet and stellar orbit should just be scaled versions of one another
     planet_ra = ra[:, 1, :]
@@ -143,7 +143,7 @@ def test_arbitrary_abs_astrom():
         ]
     )
 
-    plxonly_fullorbit_ra, plxonly_fullorbit_dec, _ = mySystem.compute_all_orbits(
+    plxonly_fullorbit_ra, plxonly_fullorbit_dec, _, _ = mySystem.compute_all_orbits(
         plx_only_params, epochs=np.linspace(epochs[0], epochs[0] + 365.25 / 2, int(1e6))
     )
 
