@@ -17,6 +17,7 @@ import orbitize.kepler
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.results
+import orbitize.basis
 
 
 class Sampler(abc.ABC):
@@ -315,6 +316,9 @@ class OFTI(
             sma = samples[
                 self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
             ]
+            ### TESTING
+            # sma = 1
+            ###
             ecc = samples[
                 self.system.basis.standard_basis_idx["ecc{}".format(body_num)], :
             ]
@@ -376,6 +380,10 @@ class OFTI(
             sma_corr = (sep_offset + self.sep_observed[min_epoch]) / sep
             lan_corr = pa_offset + self.pa_observed[min_epoch] - pa
 
+            # compute MAP sma and pan
+            sma_map = sma * self.sep_observed[min_epoch] / sep
+            pan_map = (lan + np.radians(self.pa_observed[min_epoch] - pa) + 2 * np.pi) % (2*np.pi)
+
             # perform scale-and-rotate
             sma *= sma_corr  # [AU]
             lan += np.radians(lan_corr)  # [rad]
@@ -386,12 +394,34 @@ class OFTI(
                 argp = argp % (2 * np.pi)
                 lan[lan >= np.pi] -= np.pi
 
+            ### TESTING
+            # sma = np.random.uniform(0, 1000, num_samples)
+            ###
+
             period_new = np.sqrt(
                 4 * np.pi**2 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
             )
             period_new = period_new.to(u.day).value
 
             tau = (self.epochs[min_epoch] / period_new - meananno) % 1
+
+            plt.figure()
+            plt.hist(meananno % (2*np.pi), bins=100)
+            plt.savefig('meananno_samples.png', dpi=250)
+
+            plt.figure()
+            tp = orbitize.basis.tau_to_tp(tau, 0, period_new, after_date=58849)% np.max(period_new)
+            plt.hist(tp, bins=100) 
+            plt.savefig('timeperi_samples.png', dpi=250)
+
+            plt.figure()
+            plt.hist(sma, bins=100, range=(0,1000))
+            plt.savefig('sma_samples.png', dpi=250)
+
+            plt.figure()
+            plt.hist(lan, bins=100)
+            plt.savefig('pan_samples.png', dpi=250)
+            import pdb; pdb.set_trace()
 
             # updates samples with new values of sma, pan, tau
             samples[
