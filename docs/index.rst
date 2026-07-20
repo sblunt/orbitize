@@ -57,6 +57,8 @@ Changelog:
 
 **3.4.0 (2026-7-20)**
 
+This is a breaking change for System.compute_all_orbits.
+
 - joint fitting for reflected-light photometry with Lambertian disk approx! (@farrmol)
 
 **3.3.3 (2026-7-8)**
