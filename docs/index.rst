@@ -55,6 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.4.0 (2026-7-20)**
+
+- joint fitting for reflected-light photometry with Lambertian disk approx! (@farrmol)
+
 **3.3.3 (2026-7-8)**
 
 - hotfix for issue plotting datapoints with different RV instruments (@sblunt)
