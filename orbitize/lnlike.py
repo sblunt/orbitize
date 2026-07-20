@@ -208,3 +208,38 @@ def chi2_norm_term(errors, corrs):
         )  # extra factor of 2 since quant1 and quant2 in each element of chi2.
 
     return np.sum(norm)
+
+
+def chi2(data, errors, corrs, model, jitter, seppa_indices, chi2_type="standard"):
+    '''
+    Compute Log of the chi2
+
+    Args:
+        data (np.array): Nobsx2 array of data, where data[:,0] = sep/RA/RV
+            for every epoch, and data[:,1] = corresponding pa/DEC/np.nan.
+        errors (np.array): Nobsx2 array of errors for each data point. Same
+                format as ``data``.
+        corrs (np.array): Nobs array of Pearson correlation coeffs
+                between the two quantities. If there is none, can be None.
+        model (np.array): Nobsx2xM array of model predictions, where M is the \
+                number of orbits being compared against the data. If M is 1, \
+            ``model`` can be 2 dimensional.
+        jitter (np.array): Nobsx2xM array of jitter values to add to errors.
+            Elements of array should be 0 for for all data other than stellar \
+            rvs.
+        seppa_indices (list): list of epoch numbers whose observations are
+            given in sep/PA. This list is located in System.seppa.
+        chi2_type (string): the format of chi2 to use is either 'standard' or \
+            'log'
+
+    Returns:
+        np.array: Nobsx2xM array of chi-squared values. 
+    '''
+
+    chi2_lnlike_ = chi2_lnlike(data, errors, corrs, model, jitter, seppa_indices, chi2_type=chi2_type)
+
+    norm_term = chi2_norm_term(errors=errors, corrs=corrs)
+
+    chi2_ = (chi2_lnlike_ + norm_term) / (-0.5)
+
+    return chi2_
