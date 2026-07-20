@@ -9,6 +9,7 @@ from orbitize import cuda_ext, cext
 
 if cext:
     from . import _kepler
+    from . import _kepler2
 
 if cuda_ext:
     # Configure GPU context for CUDA accelerated compute
@@ -44,11 +45,37 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
 
     return mean_anom
 
+def make_array(obj):
+    if np.isscalar(obj):
+        return np.array([obj], dtype=np.float64)
+    return obj.astype(np.float64, copy=False)
+
+K2 = True
 
 def calc_orbit(
   epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
   max_iter=100, use_c=True, use_gpu=False
 ):
+    if K2:
+        epochs = make_array(epochs)
+        sma = make_array(sma)
+        ecc = make_array(ecc)
+        inc = make_array(inc)
+        aop = make_array(aop)
+        pan = make_array(pan)
+        tau = make_array(tau)
+        plx = make_array(plx)
+        mtot = make_array(mtot)
+        if mass_for_Kamp is None:
+            mass_for_Kamp = mtot
+        mass_for_Kamp = make_array(mass_for_Kamp)
+        raoff, deoff, vz = _kepler2.calc_orbit(
+            epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter,
+        )
+        raoff = np.squeeze(raoff)[()]
+        deoff = np.squeeze(deoff)[()]
+        vz = np.squeeze(vz)[()]
+        return raoff, deoff, vz
 
     """
     Returns the separation and radial velocity of the body given array of
