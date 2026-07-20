@@ -372,6 +372,11 @@ class System(object):
                 vz (np.array of float): N_epochs x N_bodies x N_orbits array of
                     radial velocities at each epoch.
 
+                brightness (np.array of float): N_epochs x N_bodies x N_orbits of 
+                    photometric brightness predictions, assuming a Lambertian disk
+                    reflection law, at each epoch. Normalized so that brightness=1
+                    at maximum.
+
         """
 
         if epochs is None:
