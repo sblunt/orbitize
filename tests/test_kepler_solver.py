@@ -254,6 +254,35 @@ def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = Fal
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, use_c = use_c, use_gpu = use_gpu)
 
+def profile_solver(n_params, n_epochs):
+    sma = np.array([10,10,10]).repeat(n_params)
+    ecc = np.array([0.3,0.3,0.99]).repeat(n_params)
+    inc = np.array([3,3,3]).repeat(n_params)
+    argp = np.array([0.5,0.5,0.5]).repeat(n_params)
+    lan = np.array([1.5,1.5,1.5]).repeat(n_params)
+    tau = np.array([0.3,0.3,0.3]).repeat(n_params)
+    plx = np.array([50,50,50]).repeat(n_params)
+    mtot = np.array([1.5,1.5,1.5]).repeat(n_params)
+    epochs = np.array([1000, 1101.4]).repeat(n_epochs)
+    mass = mtot/2
+    kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass, 0)
+
+def profile_solve(n_params=20, n_epochs=3):
+    reps = n_params // 100000
+    n_params %= 100000
+    n_params += 100000
+    profile_name = "Profile.prof"
+    d = dict()
+    cProfile.runctx("for i in range(reps): profile_solver(n_params = n_params, n_epochs = n_epochs)", globals(), locals(), profile_name)
+    s = pstats.Stats(profile_name)
+    d[f"{reps} {n_params} {n_epochs}"] = s.__dict__["total_tt"]
+    
+    for i in d.keys():
+        print(f"{i}: {d[i]:.2f} seconds")
+
+    os.remove(profile_name)
+
+
 def profile_all(n_orbits, print_profiles = False):
         profile_name = "Profile.prof"
         n_print_lines = 15
@@ -323,6 +352,14 @@ if __name__ == "__main__":
         
         profile_all(n_orbits)
         print("Done!")
+    elif len(sys.argv) > 1 and sys.argv[1] == '-profile2':
+        try:
+            n_params = int(sys.argv[2])
+            n_epochs = int(sys.argv[3])
+        except:
+            n_params = 3
+            n_epochs = 2
+        profile_solve(n_params, n_epochs)
     else:
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()

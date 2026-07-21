@@ -38,7 +38,7 @@ cdef _c_newton_solver(np.ndarray[DTYPE_t,ndim=1] manom,
     """
 
     # Initialize at E=M, E=pi is better at very high eccentricities
-    cdef np.ndarray eanom
+    cdef np.ndarray[DTYPE_t, ndim=1] eanom
     # if eanom0 is None:
     eanom = np.copy(manom)
     # else:
@@ -63,7 +63,7 @@ cdef _c_mikkola_solver(np.ndarray[DTYPE_t,ndim=1] manom,
     """
 
     # Initialize at E=M, E=pi is better at very high eccentricities
-    cdef np.ndarray eanom
+    cdef np.ndarray[DTYPE_t, ndim=1] eanom
     eanom = np.zeros(manom.shape[0])
 
     mikkola_array(manom.shape[0], <double*> manom.data, <double*> ecc.data, <double*> eanom.data)
@@ -76,7 +76,23 @@ This module solves for the orbit of the planet given Keplerian parameters.
 import astropy.units as u
 import astropy.constants as consts
 
-def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
+PERIOD = np.sqrt(
+        4 * np.pi**2.0 * (1.0 * u.AU)**3 /
+        (consts.G * (1.0 * u.Msun))
+    )
+cdef double PERIOD_CONVERSION_FACTOR = PERIOD.value / PERIOD.to(u.day).value
+cdef double G = consts.G.value
+
+KV = np.sqrt(consts.G) * (1.0 * u.Msun) / np.sqrt(1.0 * u.Msun) / np.sqrt(1.0 * u.au)
+cdef double KV_CONVERSION_FACTOR = KV.value / KV.to(u.km/u.s).value
+
+
+def tau_to_manom(
+    np.ndarray[DTYPE_t, ndim=2] date,
+    np.ndarray[DTYPE_t, ndim=1] sma,
+    np.ndarray[DTYPE_t, ndim=1] mtot,
+    np.ndarray[DTYPE_t, ndim=1] tau,
+    float tau_ref_epoch):
     """
     Gets the mean anomlay
     
@@ -91,16 +107,16 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         float or np.array: mean anomaly on that date [0, 2pi)
     """
 
-    period = np.sqrt(
-        4 * np.pi**2.0 * (sma * u.AU)**3 /
-        (consts.G * (mtot * u.Msun))
+    cdef np.ndarray[DTYPE_t, ndim=1] period = np.sqrt(
+        4 * np.pi**2.0 * (sma**3 )/
+        (G * mtot)
     )
-    period = period.to(u.day).value
+    period = period / PERIOD_CONVERSION_FACTOR
 
-    frac_date = (date - tau_ref_epoch)/period
+    cdef np.ndarray[DTYPE_t, ndim=2] frac_date = (date - tau_ref_epoch)/period
     frac_date %= 1
 
-    mean_anom = (frac_date - tau) * 2 * np.pi
+    cdef np.ndarray[DTYPE_t, ndim=2] mean_anom = (frac_date - tau) * 2 * np.pi
     mean_anom %= 2 * np.pi
 
     return mean_anom
@@ -201,13 +217,13 @@ def calc_orbit(
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
-    cdef np.ndarray[DTYPE_t,ndim=1] Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun *
-                                               np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+    cdef np.ndarray[DTYPE_t,ndim=1] Kv = np.sqrt(G / (1.0 - ecc**2)) * (mass_for_Kamp *
+                                               np.sin(inc)) / np.sqrt(mtot) / np.sqrt(sma)
     # Convert to km/s
-    Kv = Kv.to(u.km/u.s)
+    Kv = Kv / KV_CONVERSION_FACTOR
 
     # compute the vz
-    cdef np.ndarray[DTYPE_t,ndim=2] vz = Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
+    cdef np.ndarray[DTYPE_t,ndim=2] vz = Kv * (ecc*np.cos(aop) + np.cos(aop + tanom))
     return raoff, deoff, vz
 
 cdef _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100):
