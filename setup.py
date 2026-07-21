@@ -18,6 +18,11 @@ def get_extensions():
                 "orbitize._kepler2",
                 ["orbitize/_kepler2.pyx"],
                 include_dirs=[numpy.get_include()],
+        ),
+            Extension(
+                "orbitize._kepler3",
+                ["orbitize/_kepler3.pyx"],
+                include_dirs=[numpy.get_include()],
             )
         ],
         annotate=True

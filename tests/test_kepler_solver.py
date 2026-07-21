@@ -267,7 +267,7 @@ def profile_solver(n_params, n_epochs):
     mass = mtot/2
     kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass, 0)
 
-def profile_solve(n_params=20, n_epochs=3):
+def profile_solve(n_params=1000000, n_epochs=5):
     reps = n_params // 100000
     n_params %= 100000
     n_params += 100000
@@ -357,8 +357,8 @@ if __name__ == "__main__":
             n_params = int(sys.argv[2])
             n_epochs = int(sys.argv[3])
         except:
-            n_params = 3
-            n_epochs = 2
+            n_params = 1000000
+            n_epochs = 5
         profile_solve(n_params, n_epochs)
     else:
         test_analytical_ecc_anom_solver()
