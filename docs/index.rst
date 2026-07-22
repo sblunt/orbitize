@@ -92,6 +92,7 @@ This is a breaking change for System.compute_all_orbits.
 **3.2.0 (2025-7-18)**
 
 - modernize install: setup.py -> pyproject.toml (@sblunt)
+- proper motion anomaly visualization (@wbalmer)
 
 **3.1.0 (2024-9-09)**
 
