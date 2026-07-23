@@ -57,6 +57,7 @@ us if you are still confused).
    tutorials/Hipparcos_IAD.ipynb
    tutorials/HGCA_tutorial.ipynb
    tutorials/abs_astrometry.ipynb
+   tutorials/multinest_tutorial.ipynb
 
 
 

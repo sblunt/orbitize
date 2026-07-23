@@ -23,3 +23,5 @@ Lea Hirsch -- advising RT on development of RV/astrometry joint fitting code
 Eric Nielsen -- came up with idea for OFTI algorithm; advised SB on development of OFTI code that sampler.py inherits from
 
 Roberto Tejada -- developing RV/astrometry joint fitting code
+
+Aaditya Thokal -- wrote MultiNest tutorial and installation documentation
