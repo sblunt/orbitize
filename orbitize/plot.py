@@ -1475,22 +1475,26 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
 
         corner_kwargs["labels"] = reduced_labels_list
 
+    if plot_priors:
+        hist_kwargs = corner_kwargs.get("hist_kwargs", {})
+        hist_kwargs["density"] = True
+        corner_kwargs["hist_kwargs"] = hist_kwargs
+
     figure = corner.corner(samples, **corner_kwargs)
 
     if plot_priors:
         axes = figure.axes
         num_params = len(param_indices)
-        sample_size = samples.shape[0]
         for i, param_i in enumerate(param_indices):
             prior = results.system.sys_priors[param_i]
             if not hasattr(prior, "compute_lnprob"):
                 continue
             ax = axes[i * (num_params+1)]
-            if param_i in angle_indices:
+            if i in angle_indices:
                 dmin, dmax = np.radians(ax.dataLim.intervalx)
                 x = np.linspace(dmin, dmax, 10000)
                 x_plot = np.degrees(x)
-            elif param_i in secondary_mass_indices:
+            elif i in secondary_mass_indices:
                 dmin, dmax = ax.dataLim.intervalx / u.solMass.to(u.jupiterMass)
                 x = np.linspace(dmin, dmax, 10000)
                 x_plot = x * u.solMass.to(u.jupiterMass)
@@ -1498,10 +1502,15 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
                 dmin, dmax = ax.dataLim.intervalx
                 x_plot = x = np.linspace(dmin, dmax, 10000)
             y = np.exp(prior.compute_lnprob(x))
-            bin_count = corner_kwargs.get("bins", 20)
-            data_width = dmax - dmin
-            bin_size = data_width / bin_count
-            y_plot = y * sample_size * bin_size
+            if y.shape != x.shape: # Some priors may require specific input procedures (ObsPrior)
+                print("Could not compute prior probability for {0}".format(prior))
+                continue
+            if i in angle_indices:
+                y_plot = y / 180 * np.pi
+            elif i in secondary_mass_indices:
+                y_plot = y / u.solMass.to(u.jupiterMass)
+            else:
+                y_plot = y
             ax.plot(x_plot, y_plot, color="orange")
 
     return figure
