@@ -20,7 +20,7 @@ class PMPlx_Motion(object):
             measurements
         alpha0 (float): measured RA position (in degrees) of the object at alphadec0_epoch (see below).
         delta0 (float): measured Dec position (in degrees) of the object at alphadec0_epoch (see below).
-        alphadec0_epoch (float): a (fixed) reference time. For stars with Hipparcos data, this
+        alphadec0_epoch (float): a (fixed) reference time (in jyear). For stars with Hipparcos data, this
             should generally be J1991.25, but you can define it however you want. Absolute
             astrometric data (passed in via an orbitize! data table) should be defined
             as offsets from the reported position of the object at this epoch (with propagated
@@ -31,7 +31,7 @@ class PMPlx_Motion(object):
             errors of your measurement and the Hipparcos measurement.
     """
 
-    def __init__(self, epochs_mjd, alpha0, delta0, alphadec0_epoch=Time("J1991.25", format="jyear_str").jyear):
+    def __init__(self, epochs_mjd, alpha0, delta0, alphadec0_epoch=1991.25):
         self.epochs_mjd = epochs_mjd
         self.alphadec0_epoch = alphadec0_epoch
         self.alpha0 = alpha0
