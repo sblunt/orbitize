@@ -872,15 +872,13 @@ class Plotter(object):
                 primary_offset_err = stddev_ga[i]
                 primary_jitter = med_sigma[i]
                 primary_errors = {'observation': primary_obs_err, 'offset': primary_offset_err, 'jitter': primary_jitter}
-                c = next(ax3_colors)
-                if name == "defrv":
-                    name = "RV data"
+                name2 = "RV data" if name == "defrv" else name
                 plt.scatter(
                     epochs,
                     rvs-med_ga[i],
                     s=30,
                     marker=next(ax3_symbols),
-                    c=c,
+                    c=next(ax3_colors),
                     label=name,
                     zorder=5,
                 )
@@ -902,13 +900,12 @@ class Plotter(object):
                             x=epochs,
                             y=rvs-med_ga[i],
                             yerr=primary_rv_err,
-                            ecolor=c,
+                            ecolor=next(ax3_colors),
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
                             label=primary_rv_err_label.format(name)
                         )
-                        c = next(ax3_colors)
                         bar_width += 1
 
             if (rv_err_grouping == [("observation", "offset", "jitter")] or (not plot_errorbars)) and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
@@ -939,13 +936,12 @@ class Plotter(object):
                 secondary_offset_err = stddev_ga2[i]
                 secondary_jitter = med_sigma2[i]
                 secondary_errors = {'observation': secondary_obs_err, 'offset': secondary_offset_err, 'jitter': secondary_jitter}
-                c = next(ax3_colors)
                 plt.scatter(
                     epochs2,
                     rvs2-med_ga2[i],
                     s=30,
                     marker=next(ax3_symbols),
-                    c=c,
+                    c=next(ax3_colors),
                     label=name2,
                     zorder=5,
                 )
@@ -967,13 +963,12 @@ class Plotter(object):
                             x=epochs2,
                             y=rvs2-med_ga2[i],
                             yerr=secondary_rv_err,
-                            ecolor=c,
+                            ecolor=next(ax3_colors),
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
                             label=secondary_rv_err_label.format(name)
                         )
-                        c = next(ax3_colors)
                         bar_width += 1
 
             if rv_err_grouping == [("observation", "offset", "jitter")] and len(self.rv_inst_inds2.keys()) == 1 and "defrv" in self.rv_inst_inds2.keys():
