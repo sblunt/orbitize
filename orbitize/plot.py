@@ -512,7 +512,7 @@ def plot_orbits(
             astr_inst_inds = {}
             for i in range(len(astr_insts)):
                 astr_inst_inds[astr_insts[i]] = np.where(
-                    astr_data["instrument"] == astr_insts[i].encode()
+                    (astr_data["instrument"] == astr_insts[i].encode()) | (astr_data["instrument"] ==  astr_insts[i])
                 )[0]
 
         # Plot each orbit (each segment between two points coloured using colormap)
@@ -681,7 +681,7 @@ def plot_orbits(
                 )
 
                 plt.plot(
-                    Time(epochs_rv, format="mjd").decimalyear,
+                    Time(epochs_seppa[i, :], format="mjd").decimalyear,
                     vz0 + gamma3[i],
                     color=sep_pa_color,
                 )
@@ -701,7 +701,7 @@ def plot_orbits(
                     )
 
                     plt.plot(
-                        Time(epochs_rv, format="mjd").decimalyear,
+                        Time(epochs_seppa[i, :], format="mjd").decimalyear,
                         vz,
                         color=sep_pa_color,
                     )
@@ -716,7 +716,7 @@ def plot_orbits(
                     )
 
                     plt.plot(
-                        Time(epochs_rv2, format="mjd").decimalyear,
+                        Time(epochs_seppa[i, :], format="mjd").decimalyear,
                         vz,
                         color=sep_pa_color,
                     )
@@ -840,7 +840,9 @@ def plot_orbits(
             # indices corresponding to each instrument in the datafile
             inds = {}
             for i in range(len(insts)):
-                inds[insts[i]] = np.where(rv_data["instrument"] == insts[i].encode())[0]
+                inds[insts[i]] = np.where( # include encode for backwards compatibility
+                    (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
+                )[0]
 
             # choose the orbit with the best log probability
             best_like = np.where(results.lnlike == np.amax(results.lnlike))[0][0]
@@ -937,7 +939,7 @@ def plot_orbits(
                 inds = {}
                 for i in range(len(insts)):
                     inds[insts[i]] = np.where(
-                        rv_data["instrument"] == insts[i].encode()
+                        (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
                     )[0]
 
                 # choose the orbit with the best log probability
@@ -972,7 +974,7 @@ def plot_orbits(
             inds2 = {}
             for i in range(len(insts2)):
                 inds2[insts2[i]] = np.where(
-                    rv_data2["instrument"] == insts2[i].encode()
+                    (rv_data2["instrument"] == insts2[i].encode()) | (rv_data2["instrument"] == insts2[i])
                 )[0]
 
             if rv_time_series == True:
