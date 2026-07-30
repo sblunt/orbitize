@@ -1312,7 +1312,9 @@ class Plotter(object):
         axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
         axes[1].set_xlabel("Epoch")
         axes[1].set_xlim(yr_epochs2[0], yr_epochs2[-1])
-
+        for ax in axes:
+            ax.tick_params(axis="both", which="both", top=True, right=True)
+            ax.minorticks_on()
         plt.tight_layout()
 
     def plot_propermotion(
@@ -1369,7 +1371,7 @@ class Plotter(object):
 
 
             # Create figure for orbit plots
-            fig, axs = plt.subplots(1, 2, figsize=(8, 4), facecolor="white")
+            fig, axes = plt.subplots(1, 2, figsize=(8, 4), facecolor="white")
 
             # Plot each orbit (each segment between two points coloured using colormap)
             for i in np.arange(self.num_orbits_to_plot):
@@ -1398,14 +1400,14 @@ class Plotter(object):
                 else:
                     color = "k"
 
-                axs[0].plot(
+                axes[0].plot(
                     epoch_in_yr,
                     drastar_a + self.system.gaia.hg_pm[0],
                     color=color,
                     alpha=alpha,
                     zorder=0,
                 )
-                axs[1].plot(
+                axes[1].plot(
                     epoch_in_yr,
                     ddec_a + self.system.gaia.hg_pm[1],
                     color=color,
@@ -1413,13 +1415,13 @@ class Plotter(object):
                     zorder=0,
                 )
 
-        axs[0].set_xlim(1980, 2030)
-        axs[0].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
-        axs[1].set_xlabel("Epoch")
+        axes[0].set_xlim(1980, 2030)
+        axes[0].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+        axes[1].set_xlabel("Epoch")
 
-        axs[0].set_ylabel(r"$\mu_\alpha^*$ [mas/yr]")
+        axes[0].set_ylabel(r"$\mu_\alpha^*$ [mas/yr]")
 
-        axs[0].errorbar(
+        axes[0].errorbar(
             np.nanmedian(self.system.gaia.hipparcos_epoch),
             self.system.gaia.hip_pm[0],
             yerr=self.system.gaia.hip_pm_err[0],
@@ -1436,7 +1438,7 @@ class Plotter(object):
             self.system.gaia.gaia_epoch_ra - np.nanmedian(self.system.gaia.hipparcos_epoch)
         ) / 2
 
-        axs[0].errorbar(
+        axes[0].errorbar(
             hgca_epoch,
             self.system.gaia.hg_pm[0],
             xerr=hgca_epoch_err,
@@ -1447,7 +1449,7 @@ class Plotter(object):
             color="#6280D6",
         )
 
-        axs[0].errorbar(
+        axes[0].errorbar(
             self.system.gaia.gaia_epoch_ra,
             self.system.gaia.gaia_pm[0],
             yerr=self.system.gaia.gaia_pm_err[0],
@@ -1457,10 +1459,10 @@ class Plotter(object):
             color="#5f61b4",
         )
 
-        axs[1].set_xlim(1980, 2030)
-        axs[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+        axes[1].set_xlim(1980, 2030)
+        axes[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
-        axs[1].errorbar(
+        axes[1].errorbar(
             np.nanmedian(self.system.gaia.hipparcos_epoch),
             self.system.gaia.hip_pm[1],
             yerr=self.system.gaia.hip_pm_err[1],
@@ -1471,7 +1473,7 @@ class Plotter(object):
             label="Hip.",
         )
 
-        axs[1].errorbar(
+        axes[1].errorbar(
             hgca_epoch,
             self.system.gaia.hg_pm[1],
             xerr=hgca_epoch_err,
@@ -1483,7 +1485,7 @@ class Plotter(object):
             label="H-G",
         )
 
-        axs[1].errorbar(
+        axes[1].errorbar(
             self.system.gaia.gaia_epoch_ra,
             self.system.gaia.gaia_pm[1],
             yerr=self.system.gaia.gaia_pm_err[1],
@@ -1494,9 +1496,9 @@ class Plotter(object):
             label="Gaia",
         )
 
-        axs[1].set_ylabel(r"$\mu_\delta$ [mas/yr]")
-        axs[1].set_xlabel("Epoch")
-        axs[0].set_xlabel("Epoch")
+        axes[1].set_ylabel(r"$\mu_\delta$ [mas/yr]")
+        axes[1].set_xlabel("Epoch")
+        axes[0].set_xlabel("Epoch")
 
         if show_colorbar:
             cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
@@ -1505,10 +1507,14 @@ class Plotter(object):
                 cbar_ax, cmap=cmap, norm=self.norm, orientation="vertical", label=self.cbar_param
             )
 
-        axs[0].set_rasterization_zorder(1)
-        axs[1].set_rasterization_zorder(1)
+        axes[0].set_rasterization_zorder(1)
+        axes[1].set_rasterization_zorder(1)
 
-        axs[1].legend()
+        axes[1].legend()
+
+        for ax in axes:
+            ax.tick_params(axis="both", which="both", top=True, right=True)
+            ax.minorticks_on()
 
         print(
             "Important Note of Caution: the orbitize! implementation of the HGCA \n",
