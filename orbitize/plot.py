@@ -178,7 +178,7 @@ class Plotter(object):
                     warnings.warn("Unable to calculate secondary radial velocity data.")
                     self.rv_time_series2=False
             self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
-            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_inds, self.astr_epochs, self.astr_insts, self.astr_inst_inds = self._calc_astr_orbits(self.standard_post, self.object_to_plot)
+            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_inds, self.astr_epochs, self.astr_insts, self.astr_inst_inds = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
 
     def _calc_seppa_radec(self, all_data):
         """
@@ -271,12 +271,13 @@ class Plotter(object):
         
         return sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err
 
-    def _calc_astr_orbits(self, standard_post, object_to_plot):
+    def _calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot):
         """
         Calculate position in orbit at epochs of astrometry data
 
         Args:
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
+            num_orbits_to_plot (int): number of orbits for which to calculate, no more than num_orbits in standard_post
             object_to_plot (int): Index of object to plot
         
         Return:
@@ -304,12 +305,11 @@ class Plotter(object):
                 (astr_data["instrument"] == astr_insts[i].encode()) | (astr_data["instrument"] ==  astr_insts[i])
             )[0]
 
-        num_orbits = standard_post.shape[0]
-        raoff = np.zeros((num_orbits, num_astr_epochs))
-        deoff = np.zeros((num_orbits, num_astr_epochs))
-        vz = np.zeros((num_orbits, num_astr_epochs))
+        deoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
+        raoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
+        vz = np.zeros((num_orbits_to_plot, num_astr_epochs))
         # TODO: vectorize
-        for i in np.arange(num_orbits):
+        for i in np.arange(num_orbits_to_plot):
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, vz0 = self.system.compute_all_orbits(
                 standard_post[i],
@@ -368,6 +368,14 @@ class Plotter(object):
         return rv_data, insts, gams, labels, gam_idx, inds, sig_idx
 
     def _get_standard_post(self, num_orbits_to_plot):
+        """
+        Downsamples a posterior and calculates standard basis values
+
+        Args:
+            num_orbits_to_plot (int): Number of orbits to sample from `self.results`
+        Return:
+            ``np.array``: min(num_orbits_to_plot, post.shape[0]) x (num params + standard basis params) posterior including standard basis values
+        """
         # TODO: Replace random with results.downsample
         # TODO: vectorize to_standard_basis call
         num_orbits = len(self.results.post[:, 0])
@@ -388,6 +396,24 @@ class Plotter(object):
         return standard_post
     
     def _calc_full_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, periods_to_plot=1):
+        """
+        Calculate position in orbit at equally spaced epochs over a number of orbital periods
+
+        Args:
+            start (astropy.time.Time): Epoch at which to start calculating the orbits
+            num_orbits_to_plot (int): number of orbits for which to calculate, no more than num_orbits in standard_post
+            num_epochs_to_plot (int): number of equally spaced epochs at which to calculate positions
+            object_to_plot (int): Index of object to plot
+            standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
+            periods_to_plot (float): number of periods to calculate for each set of orbital parameters (default: 1)
+        
+        Return:
+            4-tuple:
+                raoff (np.array of float): num_orbits_to_plot x num_epochs_to_plot Right Ascension offset at epochs
+                deoff (np.array of float): num_orbits_to_plot x num_epochs_to_plot Declination offset at epochs
+                vz (np.array of float): num_orbits_to_plot x num_epochs_to_plot Radial velocities at epochs
+                epochs (np.array of float): num_orbits_to_plot x num_epochs_to_plot epochs for each orbit 
+            """
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         vz = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -429,6 +455,24 @@ class Plotter(object):
         return raoff, deoff, vz, epochs
 
     def _calc_panel_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, end):
+        """
+        Calculate position in orbit at equally spaced epochs from a start to end epochs
+            
+        Args:
+            start (astropy.time.Time): Epoch at which to start calculating the orbits
+            num_orbits_to_plot (int): number of orbits for which to calculate, no more than num_orbits in standard_post
+            num_epochs_to_plot (int): number of equally spaced epochs at which to calculate positions
+            object_to_plot (int): Index of object to plot
+            standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
+            end (astropy.time.Time): Epoch at which to end calculating the orbits
+        
+        Return:
+            4-tuple:
+                raoff (np.array of float): num_orbits_to_plot x num_epochs_to_plot Right Ascension offset at epochs
+                deoff (np.array of float): num_orbits_to_plot x num_epochs_to_plot Declination offset at epochs
+                vz (np.array of float): num_orbits_to_plot x num_epochs_to_plot Radial velocities at epochs
+                epochs (np.array of float): num_orbits_to_plot x num_epochs_to_plot epochs for each orbit 
+        """
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         vz = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
@@ -452,7 +496,22 @@ class Plotter(object):
         return raoff, deoff, vz, epochs
 
     def _create_cbar(self, cbar_param, epochs, standard_post):
-        # Create a linearly increasing colormap for our range of epochs
+        """
+        Create a linearly increasing colormap for the range of epochs
+
+        Args:
+            cbar_param (String): name of parameter ('Epoch [year]', 'Epoch (year)' or a parameter label followed by object index)
+            epochs (np.array of float): num_orbits x num_epochs epochs for each orbit in standard_post
+            standard_post (np.array of float): num_orbits x num_params posterior
+        
+        Return:
+            3-tuple:
+                cbar_param_arr (np.array of float): (num_orbits) if ``cbar_param`` is not "Epoch [year]", otherwise (num_orbits x num_epochs) ``epochs``.
+                    The value of the cbar parameter for each orbit.
+                norm (``matploblib.colors.Normalize``): linear normalization from the minimum to maximum values of the cbar param.
+                    Maximum epoch is a maximum of 1000 years after the minimum epoch if cbar_param is epoch. 
+                norm_yr (``matplotlib.colors.Normalize``): same as ``norm`` except in decimal year if cbar_param is epoch
+        """
 
         if cbar_param not in ["Epoch [year]", "Epoch (year)"]:
             index = self.results.param_idx[cbar_param]
@@ -482,6 +541,17 @@ class Plotter(object):
         return cbar_param_arr, norm, norm_yr
 
     def _plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts):
+        """
+        Plot raoff/deoff orbits and astrometry
+
+        Args:
+            ax (matploblib.axes.Axes): Axes on which to plot
+            plot_astrometry (boolean): plot astrometry data
+            square_plot (boolean): make plot square
+            fontsize (float)
+            cmap (matplotlib.cm.ColorMap): color map to use on orbits with ``self.norm, self.norm_yr, self.cbar_param_arr``
+            plot_astrometry_insts (boolean): plot each astrometry instrument separately
+        """
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.raoff[i, :], self.deoff[i, :]]).T.reshape(-1, 1, 2)
@@ -527,6 +597,16 @@ class Plotter(object):
         ax.invert_xaxis()  # To go to a left-handed coordinate system
 
     def _add_colorbar(self, ax, fig, rv_time_series, rv_time_series2, cmap):
+        """
+        Adds a colorcbar
+
+        Args:
+            ax (matploblib.axes.Axes): Axes on which to plot
+            fig (matplotlib.figure.Figure): Figure which contains ``ax``
+            rv_time_series (boolean): whether the primary rv time series is being plotted
+            rv_time_series2 (boolean): whether the secondary rv time series is being plotted
+            cmap (matplotlib.cm.ColorMap): color map to use on orbits with ``self.norm, self.norm_yr, self.cbar_param_arr``
+        """
         if (rv_time_series) or (rv_time_series2):
             # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
             # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
@@ -562,6 +642,28 @@ class Plotter(object):
             cbar.set_label(label=self.cbar_param, size=20)
 
     def _plot_panels(self, plot_astrometry_insts, mod180, rv_time_series, rv_time_series2, sep_pa_color, rv_err_grouping, plot_errorbars, ax1, ax2, ax3=None, ax4=None):
+        """
+        Plot panels of time vs sep/pa/primary rv/secondary rv
+
+        Args:
+            plot_astrometry_insts (boolean): Plot astrometry instruments separately
+            mod180 (boolean): output PA values will be given in range [180, 540)
+                (useful for plotting short arcs with PAs that cross 360 during observations)
+            rv_time_series (boolean): primary rv time series is being plotted
+            rv_time_series2 (boolean): secondary rv time series is being plotted
+            sep_pa_color (string): matploblib color string of orbit tracks
+            rv_err_grouping (list of tuples of string literals ["observation", "offset", "jitter"]):
+                determines how errors for rv time series are grouped. The strings within each tuple determine
+                what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
+                would create one errorbar for the rv offset (gamma) and another for the combined observation (epsilon)
+                and jitter (sigma) errors.
+            plot_errorbars (Boolean): plot errorbars on data
+            ax1 (``matploblib.axes.Axes``): sep axes
+            ax2 (``matploblib.axes.Axes``): pa axes
+            ax3 (``matploblib.axes.Axes``): axes of primary rv time series if ``rv_time_series``,
+                axes of secondary rv time series if ``rv_time_series2 and not rv_time_series`` (default: None) 
+            ax4 (``matploblib.axes.Axes``): axes of secondary rv time series if ``rv_time_series2 and rv_time_series`` (default: None) 
+        """
         self._plot_sep_pa_model(ax1, ax2, mod180, sep_pa_color)
         self._plot_sep_pa_instruments(ax1, ax2, plot_astrometry_insts, plot_errorbars)
         if ax3 is not None:
@@ -569,6 +671,16 @@ class Plotter(object):
             self._plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars)
     
     def _plot_sep_pa_model(self, ax1, ax2, mod180, sep_pa_color):
+        """
+        Plot sep/pa vs time from model
+        
+        Args:
+            ax1 (``matploblib.axes.Axes``): sep axes
+            ax2 (``matploblib.axes.Axes``): pa axes
+            mod180 (boolean): output PA values will be given in range [180, 540)
+                (useful for plotting short arcs with PAs that cross 360 during observations)
+            sep_pa_color (string): matploblib color string of orbit tracks
+        """
         for i in np.arange(self.num_orbits_to_plot):
             yr_epochs = Time(self.seppa_epochs[i, :], format="mjd").decimalyear
 
@@ -583,6 +695,17 @@ class Plotter(object):
             plt.plot(yr_epochs, pas, color=sep_pa_color)
     
     def _plot_rv_model(self, ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color):
+        """
+        Plot primary/secondary rv vs time from model
+
+        Args:
+            ax3 (``matploblib.axes.Axes``): axes of primary rv time series if ``rv_time_series``,
+                axes of secondary rv time series if ``rv_time_series2 and not rv_time_series``
+            ax4 (``matploblib.axes.Axes``): axes of secondary rv time series if ``rv_time_series2 and rv_time_series``
+            rv_time_series (boolean): primary rv time series is being plotted
+            rv_time_series2 (boolean): secondary rv time series is being plotted
+            sep_pa_color (string): matploblib color string of orbit tracks
+        """
         # plot RV orbits here
         m0 = self.standard_post[:, self.results.standard_param_idx["m0"]]
         m1 = self.standard_post[
@@ -625,6 +748,15 @@ class Plotter(object):
                     )
 
     def _plot_sep_pa_instruments(self, ax1, ax2, plot_astrometry_insts, plot_errorbars):
+        """
+        Plot sep/pa vs time of instrument data
+        
+        Args:
+            ax1 (``matploblib.axes.Axes``): sep axes
+            ax2 (``matploblib.axes.Axes``): pa axes
+            plot_astrometry_insts (boolean): Plot astrometry instruments separately
+            plot_errorbars (Boolean): plot errorbars on data
+        """
         # Plot sep/pa instruments
         if plot_astrometry_insts:
             ax1_colors = itertools.cycle(self.ASTR_COLORS)
@@ -727,6 +859,23 @@ class Plotter(object):
                 )
     
     def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars):
+        """
+        Plot primary/secondary rv vs time of instrument data. The median rv offset (gamma) is subtracted from each instrument.
+
+        Args:
+            ax3 (``matploblib.axes.Axes``): axes of primary rv time series if ``rv_time_series``,
+                axes of secondary rv time series if ``rv_time_series2 and not rv_time_series``
+            ax4 (``matploblib.axes.Axes``): axes of secondary rv time series if ``rv_time_series2 and rv_time_series``
+            rv_time_series (boolean): primary rv time series is being plotted
+            rv_time_series2 (boolean): secondary rv time series is being plotted
+            sep_pa_color (string): matploblib color string of orbit tracks
+            rv_err_grouping (list of tuples of string literals ["observation", "offset", "jitter"]):
+                determines how errors for rv time series are grouped. The strings within each tuple determine
+                what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
+                would create one errorbar for the rv offset (gamma) and another for the combined observation (epsilon)
+                and jitter (sigma) errors.
+            plot_errorbars (Boolean): plot errorbars on data
+        """
         ax3_colors = itertools.cycle(self.RV_COLORS)
         ax3_symbols = itertools.cycle(self.RV_SYMBOLS)
         if rv_time_series and len(self.rv_data) > 0:
@@ -890,6 +1039,7 @@ class Plotter(object):
                 display rv time series of the primary (object 0) (default: False)
             rv_time_series2 (Boolean): if fitting for secondary mass using MCMC for rv fitting,
                 display rv time series of the companion (object 1) (default: False)
+            plot_errorbars (Boolean): plot errorbars on data (default: True)
             rv_err_grouping (list of tuples of string literals ["observation", "offset", "jitter"]):
                 determines how errors for rv time series are grouped. The strings within each tuple determine
                 what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
