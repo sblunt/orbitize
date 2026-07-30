@@ -60,7 +60,7 @@ class Plotter(object):
     
     # colour/shape scheme scheme for data points
     ASTR_COLORS = ("#FF7F11", "#11FFE3", "#14FF11", "#7A11FF", "#FF1919")
-    ASTR_SYMBOLS = ("*", "o", "p", "s")
+    ASTR_SYMBOLS = (".", "*", "p", "s")
     RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
     RV_SYMBOLS = ("o", "^", "v", "s")
 
@@ -178,9 +178,25 @@ class Plotter(object):
                     warnings.warn("Unable to calculate secondary radial velocity data.")
                     self.rv_time_series2=False
             self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
-            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_inds, self.astr_epochs, self.astr_insts, self.astr_inst_inds = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
+            self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_inds, self.astr_epochs, self.astr_insts, self.astr_inst_inds = self._calc_astr_orbits(self.standard_post, self.object_to_plot)
 
     def _calc_seppa_radec(self, all_data):
+        """
+        Calculate both Sepparation/PA and Right Ascension/Declination from the data of an object
+
+        Arg:
+            all_data (astropy.table.Table): Data on an object
+        Return:
+            8-tuple:
+                sep_data (np.array): Separation data for any data point where seppa/radec was available
+                sep_err (np.array): Separation data error for any data point where seppa/radec was available
+                pa_data (np.array)
+                pa_err (np.array)
+                ra_data (np.array)
+                ra_err (np.array)
+                dec_data (np.array)
+                dec_err (np.array)
+        """
         data = all_data[all_data["quant_type"]!="rv"]
         radec_inds = np.where(data["quant_type"] == "radec")
         seppa_inds = np.where(data["quant_type"] == "seppa")
@@ -255,7 +271,25 @@ class Plotter(object):
         
         return sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err
 
-    def _calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot):
+    def _calc_astr_orbits(self, standard_post, object_to_plot):
+        """
+        Calculate position in orbit at epochs of astrometry data
+
+        Args:
+            standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
+            object_to_plot (int): Index of object to plot
+        
+        Return:
+            7-tuple:
+                raoff (np.array of float): num_orbits x num_astr_epochs Right Ascension offset at astrometry epochs
+                deoff (np.array of float): num_orbits x num_astr_epochs Declination offset at astrometry epochs
+                vz (np.array of float): num_orbits x num_astr_epochs Radial velocities at astrometry epochs
+                astr_inds (np.array of int): indices of astrometry in data
+                astr_epochs (np.array of float)
+                astr_insts (np.array of String): names of astrometry instruments
+                astr_inst_inds (dictionary of String to np.array of int): Indices of data points of each astrometry instrument
+
+        """
         astr_inds = np.where((~np.isnan(self.data["quant1"])) & (~np.isnan(self.data["quant2"])))
         astr_epochs = self.data["epoch"][astr_inds]
         num_astr_epochs = len(astr_epochs)
@@ -270,11 +304,12 @@ class Plotter(object):
                 (astr_data["instrument"] == astr_insts[i].encode()) | (astr_data["instrument"] ==  astr_insts[i])
             )[0]
 
-        raoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
-        deoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
-        vz = np.zeros((num_orbits_to_plot, num_astr_epochs))
+        num_orbits = standard_post.shape[0]
+        raoff = np.zeros((num_orbits, num_astr_epochs))
+        deoff = np.zeros((num_orbits, num_astr_epochs))
+        vz = np.zeros((num_orbits, num_astr_epochs))
         # TODO: vectorize
-        for i in np.arange(num_orbits_to_plot):
+        for i in np.arange(num_orbits):
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, vz0 = self.system.compute_all_orbits(
                 standard_post[i],
@@ -288,6 +323,21 @@ class Plotter(object):
         return raoff, deoff, vz, astr_inds, astr_epochs, astr_insts, astr_inst_inds
 
     def _calc_rv(self, object_index):
+        """
+        Calculate information relevant to RV data
+
+        Args:
+            object_index: index of object for which to calculate RV information
+        Return:
+            7-tuple:
+                rv_data (astropy.table.Table): RV data of object
+                insts (np.array of String): Names of RV instruments
+                gams (list of String): gamma (rv offset) label for each instrument
+                sigs (list of String): sigma (jitter) label for each instrument
+                gam_idx (list of int): indices corresponding to each gamma within results.labels
+                inds (list of int): indexes of each instrument in the datafile
+                sig_idx (list of int): indices corresponding to each sigma within results.labels
+        """
         rv_data = self.results.data[self.results.data["object"] == object_index]
         rv_data = rv_data[rv_data["quant_type"] == "rv"]
 
@@ -431,180 +481,6 @@ class Plotter(object):
             )
         return cbar_param_arr, norm, norm_yr
 
-    def plot_orbits(
-        self,
-        square_plot=True,
-        show_colorbar=True,
-        cmap=None,
-        sep_pa_color="lightgrey",
-        mod180=False,
-        plot_astrometry=True,
-        plot_astrometry_insts=False,
-        rv_time_series=False,
-        rv_time_series2=False,
-        plot_errorbars=True,
-        rv_err_grouping=[("observation", "offset", "jitter")],
-        fontsize=20,
-        fig=None,
-    ):
-        """
-        Plots one orbital period for a select number of fitted orbits
-        for a given object, with line segments colored according to time.
-        Also plot orbit tracks in Sep/PA panels from `self.start` to `self.end`.
-
-        Args:
-            square_plot (Boolean): Aspect ratio is always equal, but if
-                square_plot is True, then the axes will be square,
-                otherwise, white space padding is used (deafult: True)
-            show_colorbar (Boolean): Displays colorbar to the right of the plot (default: True).
-            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
-                (default: `self.default_cmap`)
-            sep_pa_color (string): any valid matplotlib color string, used to set the
-                color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
-            mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
-                arcs with PAs that cross 360 deg during observations (default: False)
-            plot_astrometry (Boolean): Plots the astrometric data (default: True)
-            plot_astrometry_insts (Boolean): Plots the astrometric data by instruments (default: False)
-            rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting,
-                display rv time series of the primary (object 0) (default: False)
-            rv_time_series2 (Boolean): if fitting for secondary mass using MCMC for rv fitting,
-                display rv time series of the companion (object 1) (default: False)
-            rv_err_grouping (list of tuples of string literals ["observation", "offset", "jitter"]):
-                determines how errors for rv time series are grouped. The strings within each tuple determine
-                what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
-                would create one errorbar for the rv offset (gamma) and another for the combined observation (epsilon)
-                and jitter (sigma) errors. (default: [('observation', 'offset', 'jitter)]) 
-            fontsize (int): font size of labels (default: 20)
-            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
-                Most users will not need this keyword.
-
-        Return:
-            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
-
-
-        (written): Henry Ngo, Sarah Blunt, 2018
-        Additions by Malena Rice, 2019
-        Additions by Dino Hsu, 2023
-        Refactoring and additions by Eshel Dror, 2026 
-
-        """
-        
-        if cmap is None:
-            cmap = self.cmap
-
-        if rv_time_series and "m0" not in self.results.labels:
-            self.rv_time_series = False
-
-            warnings.warn(
-                "It seems that the stellar and companion mass "
-                "have not been fitted separately. Setting "
-                "rv_time_series=True is therefore not possible "
-                "so the argument is set to False instead."
-            )
-
-        if (rv_time_series and not self.rv_time_series) or (rv_time_series2 and not self.rv_time_series2):
-            self.set_params(rv_time_series=rv_time_series, rv_time_series2=rv_time_series2)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", ErfaWarning)
-            # Create figure for orbit plots
-            if fig is None:
-                fig = plt.figure(figsize=(14, 6))
-                if (rv_time_series) and (rv_time_series2):
-                    fig = plt.figure(figsize=(18, 16))
-                    ax = plt.subplot2grid((4, 18), (0, 0), rowspan=2, colspan=6)
-                elif (not rv_time_series) and (rv_time_series2):
-                    fig = plt.figure(figsize=(16, 12))
-                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
-                elif (rv_time_series) and (not rv_time_series2):
-                    fig = plt.figure(figsize=(16, 12))
-                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
-                else:
-                    fig = plt.figure(figsize=(14, 8))
-                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-            else:
-                plt.figure(fig)
-                if (rv_time_series) and (rv_time_series2):
-                    ax = plt.subplot2grid((4, 16), (0, 0), rowspan=2, colspan=6)
-                elif (rv_time_series) and (not rv_time_series2):
-                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
-                elif (not rv_time_series) and (rv_time_series):
-                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
-                else:
-                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-
-            self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts)
-            
-            # plot sep/PA and/or rv zoom-in panels
-            if (rv_time_series) and (rv_time_series2):
-                ax1 = plt.subplot2grid((4, 16), (0, 8), colspan=8)
-                ax2 = plt.subplot2grid((4, 16), (1, 8), colspan=8)
-                ax3 = plt.subplot2grid((4, 16), (2, 0), colspan=16, rowspan=1)
-                ax4 = plt.subplot2grid((4, 16), (3, 0), colspan=16, rowspan=1)
-                ax2.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
-                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
-                ax3.set_ylabel("Primary RV (km/s)", fontsize=fontsize)
-                ax3.set_xlabel("Epoch", fontsize=fontsize)
-                ax2.set_xlabel("Epoch", fontsize=fontsize)
-
-                ax4.set_ylabel("Companion RV (km/s)", fontsize=fontsize)
-                ax4.set_xlabel("Epoch", fontsize=fontsize)
-                plt.subplots_adjust(hspace=0.3)
-                panel_axes = [ax1, ax2, ax3, ax4]
-
-            elif (rv_time_series) and (not rv_time_series2):
-                ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
-                ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
-                ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
-                ax2.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
-                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
-                ax3.set_ylabel("Primary RV (km/s)", fontsize=fontsize)
-                ax3.set_xlabel("Epoch", fontsize=fontsize)
-                ax2.set_xlabel("Epoch", fontsize=fontsize)
-                plt.subplots_adjust(hspace=0.3)
-                panel_axes = [ax1, ax2, ax3]
-
-            elif (not rv_time_series) and (rv_time_series2):
-                ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
-                ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
-                ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
-                ax2.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
-                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
-                ax3.set_ylabel("Companion RV (km/s)", fontsize=fontsize)
-                ax3.set_xlabel("Epoch", fontsize=fontsize)
-                ax2.set_xlabel("Epoch", fontsize=fontsize)
-                plt.subplots_adjust(hspace=0.3)
-                panel_axes = [ax1, ax2, ax3]
-            else:
-                ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
-                ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
-                ax2.set_ylabel("PA [$^{{\\circ}}$]", fontsize=fontsize)
-                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
-                ax2.set_xlabel("Epoch", fontsize=fontsize)
-                panel_axes = [ax1, ax2]
-
-            self._plot_panels(plot_astrometry_insts, mod180, rv_time_series, rv_time_series2, sep_pa_color, rv_err_grouping, plot_errorbars, *panel_axes)
-            # add colorbar
-            if show_colorbar:
-                self._add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
-            
-            ax1.locator_params(axis="x", nbins=6)
-            ax1.locator_params(axis="y", nbins=6)
-            ax2.locator_params(axis="x", nbins=6)
-            ax2.locator_params(axis="y", nbins=6)
-
-            for ax1 in fig.get_axes():
-                ax1.tick_params(axis="both", labelsize=15)
-                ax1.minorticks_on()
-
-            for ax2 in fig.get_axes():
-                ax2.tick_params(axis="both", labelsize=15)
-                ax2.minorticks_on()
-
-        fig.tight_layout()
-        
-        return fig
-
     def _plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts):
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
@@ -635,7 +511,7 @@ class Plotter(object):
                         label=self.astr_insts[i],
                     )
             else:
-                ax.scatter(self.ra_data, self.dec_data, marker="*", c="red", zorder=10, s=60)
+                ax.scatter(self.ra_data, self.dec_data, marker=self.ASTR_SYMBOLS[0], c=self.ASTR_COLORS[0], zorder=10, s=60)
 
         # modify the axes
         if square_plot:
@@ -814,8 +690,8 @@ class Plotter(object):
                 Time(self.astr_epochs, format="mjd").decimalyear,
                 self.sep_data,
                 s=60,
-                marker="*",
-                c="red",
+                marker=self.ASTR_SYMBOLS[0],
+                c=self.ASTR_COLORS[0],
                 zorder=10,
             )
             if plot_errorbars:
@@ -825,7 +701,7 @@ class Plotter(object):
                     yerr=self.sep_err,
                     ms=5,
                     linestyle="",
-                    ecolor="red",
+                    ecolor=self.ASTR_COLORS[0],
                     zorder=10,
                     capsize=2,
                 )
@@ -834,8 +710,8 @@ class Plotter(object):
                 Time(self.astr_epochs, format="mjd").decimalyear,
                 self.pa_data,
                 s=60,
-                marker="*",
-                c="red",
+                marker=self.ASTR_SYMBOLS[0],
+                c=self.ASTR_COLORS[0],
                 zorder=10,
             )
             if plot_errorbars:
@@ -845,7 +721,7 @@ class Plotter(object):
                     yerr=self.pa_err,
                     ms=5,
                     linestyle="",
-                    ecolor="red",
+                    ecolor=self.ASTR_COLORS[0],
                     zorder=10,
                     capsize=2,
                 )
@@ -975,6 +851,176 @@ class Plotter(object):
                 pass
             else:
                 plt.legend(fontsize=20, loc=1)
+
+    def plot_orbits(
+        self,
+        square_plot=True,
+        show_colorbar=True,
+        cmap=None,
+        sep_pa_color="lightgrey",
+        mod180=False,
+        plot_astrometry=True,
+        plot_astrometry_insts=False,
+        rv_time_series=False,
+        rv_time_series2=False,
+        plot_errorbars=True,
+        rv_err_grouping=[("observation", "offset", "jitter")],
+        fontsize=20,
+        fig=None,
+    ):
+        """
+        Plots one orbital period for a select number of fitted orbits
+        for a given object, with line segments colored according to time.
+        Also plot orbit tracks in Sep/PA panels from `self.start` to `self.end`.
+
+        Args:
+            square_plot (Boolean): Aspect ratio is always equal, but if
+                square_plot is True, then the axes will be square,
+                otherwise, white space padding is used (deafult: True)
+            show_colorbar (Boolean): Displays colorbar to the right of the plot (default: True).
+            cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
+                (default: `self.default_cmap`)
+            sep_pa_color (string): any valid matplotlib color string, used to set the
+                color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
+            mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
+                arcs with PAs that cross 360 deg during observations (default: False)
+            plot_astrometry (Boolean): Plots the astrometric data (default: True)
+            plot_astrometry_insts (Boolean): Plots the astrometric data by instruments (default: False)
+            rv_time_series (Boolean): if fitting for secondary mass using MCMC for rv fitting,
+                display rv time series of the primary (object 0) (default: False)
+            rv_time_series2 (Boolean): if fitting for secondary mass using MCMC for rv fitting,
+                display rv time series of the companion (object 1) (default: False)
+            rv_err_grouping (list of tuples of string literals ["observation", "offset", "jitter"]):
+                determines how errors for rv time series are grouped. The strings within each tuple determine
+                what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
+                would create one errorbar for the rv offset (gamma) and another for the combined observation (epsilon)
+                and jitter (sigma) errors. (default: [('observation', 'offset', 'jitter)]) 
+            fontsize (int): font size of labels (default: 20)
+            fig (matplotlib.pyplot.Figure): optionally include a predefined Figure object to plot the orbit on.
+                Most users will not need this keyword.
+
+        Return:
+            ``matplotlib.pyplot.Figure``: the orbit plot if input is valid, ``None`` otherwise
+
+
+        (written): Henry Ngo, Sarah Blunt, 2018
+        Additions by Malena Rice, 2019
+        Additions by Dino Hsu, 2023
+        Refactoring and additions by Eshel Dror, 2026 
+
+        """
+        
+        if cmap is None:
+            cmap = self.cmap
+
+        if rv_time_series and "m0" not in self.results.labels:
+            self.rv_time_series = False
+
+            warnings.warn(
+                "It seems that the stellar and companion mass "
+                "have not been fitted separately. Setting "
+                "rv_time_series=True is therefore not possible "
+                "so the argument is set to False instead."
+            )
+
+        if (rv_time_series and not self.rv_time_series) or (rv_time_series2 and not self.rv_time_series2):
+            self.set_params(rv_time_series=rv_time_series, rv_time_series2=rv_time_series2)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ErfaWarning)
+            # Create figure for orbit plots
+            if fig is None:
+                fig = plt.figure(figsize=(14, 6))
+                if (rv_time_series) and (rv_time_series2):
+                    fig = plt.figure(figsize=(18, 16))
+                    ax = plt.subplot2grid((4, 18), (0, 0), rowspan=2, colspan=6)
+                elif (not rv_time_series) and (rv_time_series2):
+                    fig = plt.figure(figsize=(16, 12))
+                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
+                elif (rv_time_series) and (not rv_time_series2):
+                    fig = plt.figure(figsize=(16, 12))
+                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
+                else:
+                    fig = plt.figure(figsize=(14, 8))
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+            else:
+                plt.figure(fig)
+                if (rv_time_series) and (rv_time_series2):
+                    ax = plt.subplot2grid((4, 16), (0, 0), rowspan=2, colspan=6)
+                elif (rv_time_series) and (not rv_time_series2):
+                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
+                elif (not rv_time_series) and (rv_time_series):
+                    ax = plt.subplot2grid((3, 16), (0, 0), rowspan=2, colspan=6)
+                else:
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+
+            self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts)
+            
+            # plot sep/PA and/or rv zoom-in panels
+            if (rv_time_series) and (rv_time_series2):
+                ax1 = plt.subplot2grid((4, 16), (0, 8), colspan=8)
+                ax2 = plt.subplot2grid((4, 16), (1, 8), colspan=8)
+                ax3 = plt.subplot2grid((4, 16), (2, 0), colspan=16, rowspan=1)
+                ax4 = plt.subplot2grid((4, 16), (3, 0), colspan=16, rowspan=1)
+                ax2.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
+                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
+                ax3.set_ylabel("Primary RV (km/s)", fontsize=fontsize)
+                ax3.set_xlabel("Epoch", fontsize=fontsize)
+                ax2.set_xlabel("Epoch", fontsize=fontsize)
+
+                ax4.set_ylabel("Companion RV (km/s)", fontsize=fontsize)
+                ax4.set_xlabel("Epoch", fontsize=fontsize)
+                plt.subplots_adjust(hspace=0.3)
+                panel_axes = [ax1, ax2, ax3, ax4]
+
+            elif (rv_time_series) and (not rv_time_series2):
+                ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
+                ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
+                ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
+                ax2.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
+                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
+                ax3.set_ylabel("Primary RV (km/s)", fontsize=fontsize)
+                ax3.set_xlabel("Epoch", fontsize=fontsize)
+                ax2.set_xlabel("Epoch", fontsize=fontsize)
+                plt.subplots_adjust(hspace=0.3)
+                panel_axes = [ax1, ax2, ax3]
+
+            elif (not rv_time_series) and (rv_time_series2):
+                ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
+                ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
+                ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
+                ax2.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
+                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
+                ax3.set_ylabel("Companion RV (km/s)", fontsize=fontsize)
+                ax3.set_xlabel("Epoch", fontsize=fontsize)
+                ax2.set_xlabel("Epoch", fontsize=fontsize)
+                plt.subplots_adjust(hspace=0.3)
+                panel_axes = [ax1, ax2, ax3]
+            else:
+                ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
+                ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
+                ax2.set_ylabel("PA [$^{{\\circ}}$]", fontsize=fontsize)
+                ax1.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
+                ax2.set_xlabel("Epoch", fontsize=fontsize)
+                panel_axes = [ax1, ax2]
+
+            self._plot_panels(plot_astrometry_insts, mod180, rv_time_series, rv_time_series2, sep_pa_color, rv_err_grouping, plot_errorbars, *panel_axes)
+            # add colorbar
+            if show_colorbar:
+                self._add_colorbar(ax, fig, rv_time_series, rv_time_series2, cmap)
+            
+            ax1.locator_params(axis="x", nbins=6)
+            ax1.locator_params(axis="y", nbins=6)
+            ax2.locator_params(axis="x", nbins=6)
+            ax2.locator_params(axis="y", nbins=6)
+
+            for ax1 in fig.get_axes():
+                ax1.tick_params(axis="both", which="both", labelsize=15, top=True, right=True)
+                ax1.minorticks_on()
+
+        fig.tight_layout()
+        
+        return fig
 
     def plot_residuals(
             self,
@@ -1327,6 +1373,9 @@ class Plotter(object):
         return fig
 
     def plot_corner(self, param_list=None, plot_priors=True, **corner_kwargs):
+        """
+        Wrapper for `orbitize.plot.plot_corner`
+        """
         return plot_corner(self.results, param_list, plot_priors, **corner_kwargs)
 
 def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
