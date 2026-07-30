@@ -5,22 +5,28 @@
 #define M_PI           3.14159265358979323846  /* pi */
 #endif
 
+#define PER_CONST 365.2568983840419
 #define PERIOD_CONVERSION 2105.6131276363703
 #define G 6.6743e-11
 #define KV_CONVERSION 2.742898587511721e-07
 
+double positive_mod1(
+    double x) {
+        double value = fmod(x,1.0);
+        if (value < 0.) {
+            value += 1.0;
+        }
+        return value;
+}
+
 double tau_to_manom(
     const double epoch,
-    const double sma,
-    const double mtot,
+    const double period,
     const double tau,
     const double tau_ref_epoch) {
-        double period, frac_date, mean_anom;
-        period = sqrt(
-            4 * pow(M_PI, 2.0) * pow(sma, 3.0) / (G * mtot)
-        ) / KV_CONVERSION;
-        frac_date = fmod((epoch - tau_ref_epoch)/period, 1.0);
-        mean_anom = fmod((frac_date - tau), 1.0) * 2 * M_PI;
+        double frac_date, mean_anom;
+        frac_date = positive_mod1((epoch - tau_ref_epoch)/period);
+        mean_anom = positive_mod1((frac_date - tau)) * 2 * M_PI;
         return mean_anom;
 }
 
@@ -134,17 +140,27 @@ void calc_orbit(
     double deoff[],
     double vz[]){
     int i, j, k;
-    double manom, eanom, tanom, radius, c2i2, s2i2, arg1, arg2, c1, c2, s1, s2, Kv;
+    double period, manom, eanom, partial_tanom, tanom, radius, c2i2, s2i2, arg1, arg2, c1, c2, s1, s2, rad_plx, Kv;
     for (i = 0; i < n_orbits; i ++) {
-        for (j = 0; j < n_epochs; j ++) {
+        // period = sqrt(
+        //     4 * pow(M_PI, 2.0) * pow(sma[i], 3.0) / (G * mtot[i])
+        // ) / PERIOD_CONVERSION;
+        period = sqrt(
+            pow(sma[i], 3.0) / (mtot[i])
+        ) * PER_CONST;
+        c2i2 = pow(cos(0.5*inc[i]),2);
+        s2i2 = pow(sin(0.5*inc[i]),2);
+        partial_tanom = sqrt((1.0 + ecc[i])/(1.0 - ecc[i]));
+        Kv = sqrt(G / (1.0 - pow(ecc[i],2))) * (mass_for_Kamp[i] *
+                                               sin(inc[i])) / sqrt(mtot[i]) / sqrt(sma[i]);
+        Kv /= KV_CONVERSION;
+        for (j = 0; j < n_epochs; j++) {
             k = i * n_epochs + j;
-            manom = tau_to_manom(epochs[j], sma[i], mtot[i], tau[i], tau_ref_epoch);
+            manom = tau_to_manom(epochs[j], period, tau[i], tau_ref_epoch);
             eanom = calc_ecc_anom(manom, ecc[i], tolerance, max_iter);
-            tanom = 2.0*atan(sqrt((1.0 + ecc[i])/(1.0 - ecc[i]))*tan(0.5*eanom));
+            tanom = 2.0*atan(partial_tanom*tan(0.5*eanom));
             radius = sma[i] * (1.0 - ecc[i] * cos(eanom));
 
-            c2i2 = pow(cos(0.5*inc[i]),2);
-            s2i2 = pow(sin(0.5*inc[i]),2);
             arg1 = tanom + aop[i] + pan[i];
             arg2 = tanom + aop[i] - pan[i];
             c1 = cos(arg1);
@@ -152,13 +168,11 @@ void calc_orbit(
             s1 = sin(arg1);
             s2 = sin(arg2);
 
-            raoff[k] = radius * (c2i2 * s1 - s2i2 * s2) * plx[i];
-            deoff[k] = radius * (c2i2 * c1 + s2i2 * c2) * plx[i];
-            
-            Kv = sqrt(G / (1.0 - pow(ecc[i],2))) * (mass_for_Kamp[i] *
-                                               sin(inc[i])) / sqrt(mtot[i]) / sqrt(sma[i]);
-            Kv /= KV_CONVERSION;
-            
+            rad_plx = radius * plx[i];
+
+            raoff[k] = rad_plx * (c2i2 * s1 - s2i2 * s2);
+            deoff[k] = rad_plx * (c2i2 * c1 + s2i2 * c2);
+
             vz[k] = Kv * (ecc[i]*cos(aop[i]) + cos(aop[i] + tanom));
         }
     }
