@@ -24,6 +24,96 @@ double tau_to_manom(
         return mean_anom;
 }
 
+
+double newton_solver(
+    const double manom, 
+    const double ecc, 
+    const double tol, 
+    const int max_iter) {
+    double diff;
+    int niter = 0;
+    int half_max = max_iter/2.0; // divide max_iter by 2 using bit shift
+    double eanom = manom;
+    
+    // Let's do one iteration to start with
+    eanom -= (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
+    diff = (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
+
+    while ((fabs(diff) > tol) && (niter <= max_iter)){
+        eanom -= diff;
+
+        // If it hasn't converged after half the iterations are done, try starting from pi
+        if (niter == half_max) {
+            eanom = M_PI;
+        }
+
+        diff = (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
+        niter += 1;
+    }
+
+    // If it has not converged, set eccentricity to -1 to signal that it needs to be
+    // solved using the analytical version. Note this behavior is a bit different from the 
+    // numpy implementation
+    if (niter >= max_iter){
+        printf("%f %f %f %f >= %d iter\n", manom, eanom, diff, ecc, max_iter);
+        eanom = -1.0;
+    }
+    return eanom;
+}
+
+double mikkola_solver(const double manom, const double ecc){
+    double eanom;
+    double alpha, beta, aux, z, s0, s1, se0, ce0;
+    double f, f1, f2, f3, f4, u1, u2, u3;
+
+    alpha = (1.0 - ecc) / ((4.0 * ecc) + 0.5);
+    beta = (0.5 * manom) / ((4.0 * ecc) + 0.5);
+
+    aux = sqrt(beta*beta + alpha*alpha*alpha);
+    z = pow(fabs(beta + aux), (1.0/3.0));
+
+    s0 = z - (alpha/z);
+    s1 = s0 - (0.078*(pow(s0, 5))) / (1.0 + ecc);
+    eanom = manom + (ecc * (3.0*s1 - 4.0*(s1*s1*s1)));
+
+    se0=sin(eanom);
+    ce0=cos(eanom);
+
+    f  = eanom-ecc*se0-manom;
+    f1 = 1.0-ecc*ce0;
+    f2 = ecc*se0;
+    f3 = ecc*ce0;
+    f4 = -f2;
+    u1 = -f/f1;
+    u2 = -f/(f1+0.5*f2*u1);
+    u3 = -f/(f1+0.5*f2*u2+(1.0/6.0)*f3*u2*u2);
+    eanom += -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3*u3*u3));
+    
+    return eanom;
+}
+
+double calc_ecc_anom(
+    const double manom,
+    const double ecc,
+    const double tol,
+    const int max_iter) {
+        double eanom = 0.0;
+        if (ecc == 0.0) {
+            return manom;
+        }
+        if (ecc < 0.95) {
+            eanom = newton_solver(manom, ecc, tol, max_iter);
+        }
+        if (ecc >= 0.95 | eanom == -1.0) {
+            if (manom > M_PI) {
+                eanom = 2. * M_PI - mikkola_solver(2. * M_PI - manom, ecc);
+            } else {
+                eanom = mikkola_solver(manom, ecc);
+            }
+        }
+        return eanom;
+    }
+
 void calc_orbit(
     const int n_orbits,
     const int n_epochs,
@@ -49,9 +139,27 @@ void calc_orbit(
         for (j = 0; j < n_epochs; j ++) {
             k = i * n_epochs + j;
             manom = tau_to_manom(epochs[j], sma[i], mtot[i], tau[i], tau_ref_epoch);
-            raoff[k] = epochs[j] + sma[i] + ecc[i] + inc[i] + aop[i] + pan[i] + tau[i] + plx[i] + mtot[i] + mass_for_Kamp[i] + tau_ref_epoch;
-            deoff[k] = epochs[j] + sma[i] + ecc[i] + inc[i] + aop[i] + pan[i] + tau[i] + plx[i] + mtot[i] + mass_for_Kamp[i] + tau_ref_epoch;
-            vz[k] = epochs[j] + sma[i] + ecc[i] + inc[i] + aop[i] + pan[i] + tau[i] + plx[i] + mtot[i] + mass_for_Kamp[i] + tau_ref_epoch;
+            eanom = calc_ecc_anom(manom, ecc[i], tolerance, max_iter);
+            tanom = 2.0*atan(sqrt((1.0 + ecc[i])/(1.0 - ecc[i]))*tan(0.5*eanom));
+            radius = sma[i] * (1.0 - ecc[i] * cos(eanom));
+
+            c2i2 = pow(cos(0.5*inc[i]),2);
+            s2i2 = pow(sin(0.5*inc[i]),2);
+            arg1 = tanom + aop[i] + pan[i];
+            arg2 = tanom + aop[i] - pan[i];
+            c1 = cos(arg1);
+            c2 = cos(arg2);
+            s1 = sin(arg1);
+            s2 = sin(arg2);
+
+            raoff[k] = radius * (c2i2 * s1 - s2i2 * s2) * plx[i];
+            deoff[k] = radius * (c2i2 * c1 + s2i2 * c2) * plx[i];
+            
+            Kv = sqrt(G / (1.0 - pow(ecc[i],2))) * (mass_for_Kamp[i] *
+                                               sin(inc[i])) / sqrt(mtot[i]) / sqrt(sma[i]);
+            Kv /= KV_CONVERSION;
+            
+            vz[k] = Kv * (ecc[i]*cos(aop[i]) + cos(aop[i] + tanom));
         }
     }
 }
