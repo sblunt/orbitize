@@ -94,7 +94,7 @@ def calc_orbit(
         epochs = np.array([epochs])
 
     n_orbs = np.size(sma)  # num sets of input orbital parameters
-    n_dates = np.len(epochs)  # number of dates to compute offsets and vz
+    n_dates = len(epochs)  # number of dates to compute offsets and vz
 
     # return planetary RV if `mass_for_Kamp` is not defined
     if mass_for_Kamp is None:
@@ -103,7 +103,8 @@ def calc_orbit(
     ecc_arr = np.tile(ecc, (n_dates, 1))
 
     # # compute mean anomaly (size: n_orbs x n_dates)
-    manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
+    if epochs.ndim == 1: epochs = epochs[:, None]
+    manom = tau_to_manom(epochs, sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
     eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
 
@@ -410,7 +411,7 @@ def calc_max_lighttravel_corr(sma, mtot, ecc, plx, inc = 90*u.deg):
         plx (np.array): array of system parallaxes
         inc (np.array): array of orbital inclinations, defaults to 90 degrees
     Return:
-        ra_corr (np.array): array of maximum possible corrections to RA
+        ra_corr (np.array): array of maximum possible corrections to RA [mas]
 
     Written: Ellis Bogat, 2026
     """
@@ -421,7 +422,7 @@ def calc_max_lighttravel_corr(sma, mtot, ecc, plx, inc = 90*u.deg):
 
     return ra_corr
 
-def calc_z(ra0,dec0,inc,aop,plx) :
+def calc_z(ra0,dec0,inc,aop,plx):
     """
     Calculate the z coordinate of the planet, given the RA and Dec offsets, 
     inclination, argument of periastron, and parallax. 

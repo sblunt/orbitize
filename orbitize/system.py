@@ -82,6 +82,8 @@ class System(object):
         self.gaia = gaia
         self.fitting_basis = fitting_basis
         self.use_rebound = use_rebound
+        self.corr_lighttravel = False # Initialize as false, and it will be overwritten 
+                                # if/when light travel correction is actually applied.
 
         self.best_epochs = []
         self.input_table = self.data_table.copy()
@@ -338,6 +340,11 @@ class System(object):
         hf.attrs["use_rebound"] = self.use_rebound
 
     def get_lightcorrected_epochs(self,params_arr,epochs=None,comp_rebound=False):
+        """
+        TODO: Figure out if there are issues in XYZ coords, since this assumes 0 deltat for the star location!
+        Returns:
+            np.array: array of corrected epochs, shape (n_epochs,n_bodies,n_orbits)
+        """
 
         inc = params_arr[self.inc_indx]
         aop = params_arr[self.aop_indx]
@@ -348,8 +355,13 @@ class System(object):
         params_arr_temp[self.inc_indx] = 0
         params_arr_temp[self.aop_indx] = 0
         params_arr_temp[self.pan_indx] = 0
-    
-        ra0,dec0,_ = self.compute_all_orbits(params_arr_temp,epochs=None,comp_rebound=comp_rebound)
+        ra0,dec0,_ = self.compute_all_orbits(params_arr_temp,epochs=epochs,comp_rebound=comp_rebound)
+
+        # Cast inc and aop to correct shape if multiplanet system
+        if isinstance(self.inc_indx,list):
+            inc = np.full_like(ra0,np.array([0,*inc])[:,np.newaxis]) # add nan for the star
+            aop = np.full_like(ra0,np.array([0,*aop])[:,np.newaxis]) # add nan for the star
+
         z = kepler.calc_z(ra0,dec0,inc,aop,plx) * u.AU
         deltat = ((z / consts.c).to(u.day).value)
         corrected_epochs = (self.data_table["epoch"][:,np.newaxis,np.newaxis] - deltat)
@@ -453,7 +465,7 @@ class System(object):
 
                 # Handle the case where we want to compute the position for a slightly different
                 # epoch for each body and orbit (light travel time corrections)
-                if epochs.ndim > 1:
+                if epochs.ndim > 1: # epochs should have shape (n_epochs,n_bodies,n_orbits)
                     body_epochs = epochs[:,body_num-1,:]
                     # body_epochs shape: (n_epochs,n_orbits)
                 else: body_epochs = epochs
