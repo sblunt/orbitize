@@ -177,15 +177,16 @@ class Plotter(object):
                 if len(self.rv_data2) == 0:
                     warnings.warn("Unable to calculate secondary radial velocity data.")
                     self.rv_time_series2=False
-            self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data)
             self.astr_raoff, self.astr_deoff, self.astr_vz, self.astr_inds, self.astr_epochs, self.astr_insts, self.astr_inst_inds = self._calc_astr_orbits(self.standard_post, self.num_orbits_to_plot, self.object_to_plot)
+            self.sep_data, self.sep_err, self.pa_data, self.pa_err, self.ra_data, self.ra_err, self.dec_data, self.dec_err = self._calc_seppa_radec(self.data, self.astr_inds)
 
-    def _calc_seppa_radec(self, all_data):
+    def _calc_seppa_radec(self, all_data, astr_inds):
         """
         Calculate both Sepparation/PA and Right Ascension/Declination from the data of an object
 
         Arg:
             all_data (astropy.table.Table): Data on an object
+            astr_inds (np.array of int): indices of astrometry in data
         Return:
             8-tuple:
                 sep_data (np.array): Separation data for any data point where seppa/radec was available
@@ -197,7 +198,7 @@ class Plotter(object):
                 dec_data (np.array)
                 dec_err (np.array)
         """
-        data = all_data[all_data["quant_type"]!="rv"]
+        data = all_data[astr_inds]
         radec_inds = np.where(data["quant_type"] == "radec")
         seppa_inds = np.where(data["quant_type"] == "seppa")
 
@@ -1384,8 +1385,8 @@ class Plotter(object):
                 # dra/dt and ddec/dt
                 ddec_b = np.gradient(deoff[i, :], timestep)  # in mas/yr
                 dec_b_radian = (
-                    deoff[i, :] * (2.7777778e-7) * (0.017453293)
-                )  # mas -> deg -> radian
+                    deoff[i, :] * u.mas
+                ).to(u.rad).value  # mas -> radian
                 ra_b = raoff[i, :]
                 rastar_b = ra_b * np.cos(dec_b_radian)  # in mas
                 drastar_b = np.gradient(rastar_b, timestep)  # in mas/yr
@@ -1415,7 +1416,7 @@ class Plotter(object):
                     zorder=0,
                 )
 
-        axes[0].set_xlim(1980, 2030)
+        axes[0].set_xlim(self.start.decimalyear, self.end.decimalyear)
         axes[0].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
         axes[1].set_xlabel("Epoch")
 
@@ -1459,7 +1460,7 @@ class Plotter(object):
             color="#5f61b4",
         )
 
-        axes[1].set_xlim(1980, 2030)
+        axes[1].set_xlim(self.start.decimalyear, self.end.decimalyear)
         axes[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
         axes[1].errorbar(
