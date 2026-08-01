@@ -254,7 +254,7 @@ def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = Fal
     for ee in eccs:
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, use_c = use_c, use_gpu = use_gpu)
 
-def profile_solver(n_params, n_epochs):
+def profile_solver(reps, n_params, n_epochs, **kwargs):
     sma = np.array([10,10,10]).repeat(n_params)
     ecc = np.array([0.3,0.3,0.99]).repeat(n_params)
     inc = np.array([3,3,3]).repeat(n_params)
@@ -265,20 +265,31 @@ def profile_solver(n_params, n_epochs):
     mtot = np.array([1.5,1.5,1.5]).repeat(n_params)
     epochs = np.array([1000, 1101.4]).repeat(n_epochs)
     mass = mtot/2
-    kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass, 0)
+    for i in range(reps):
+        kepler.calc_orbit(epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, mass, 0, **kwargs)
 
-def profile_solve(n_params=1000000, n_epochs=5):
-    reps = n_params // 100000
-    n_params %= 100000
-    n_params += 100000
+def profile_solve(reps=10, n_params=100000, n_epochs=5):
     profile_name = "Profile.prof"
     d = dict()
-    cProfile.runctx("for i in range(reps): profile_solver(n_params = n_params, n_epochs = n_epochs)", globals(), locals(), profile_name)
+
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs)", globals(), locals(), profile_name)
     s = pstats.Stats(profile_name)
-    d[f"{reps} {n_params} {n_epochs}"] = s.__dict__["total_tt"]
-    
+    d[f"K3\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
+
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, K3=False)", globals(), locals(), profile_name)
+    s = pstats.Stats(profile_name)
+    d[f"K2\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
+
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, K2=False)", globals(), locals(), profile_name)
+    s = pstats.Stats(profile_name)
+    d[f"K1\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
+
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, K2=False, use_c=False)", globals(), locals(), profile_name)
+    s = pstats.Stats(profile_name)
+    d[f"Py\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
+
     for i in d.keys():
-        print(f"{i}: {d[i]:.2f} seconds")
+        print(f"{i}\t{d[i]:.2f}")
 
     os.remove(profile_name)
 
@@ -356,10 +367,12 @@ if __name__ == "__main__":
         try:
             n_params = int(sys.argv[2])
             n_epochs = int(sys.argv[3])
+            reps = int(sys.argv[4])
         except:
-            n_params = 1000000
+            n_params = 100000
             n_epochs = 5
-        profile_solve(n_params, n_epochs)
+            reps = 10
+        profile_solve(reps, n_params, n_epochs)
     else:
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()

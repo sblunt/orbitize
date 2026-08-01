@@ -51,12 +51,9 @@ def make_array(obj):
         return np.array([obj], dtype=np.float64)
     return obj.astype(np.float64, copy=False)
 
-K2 = True
-K3 = True
-
 def calc_orbit(
   epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
-  max_iter=100, use_c=True, use_gpu=False
+  max_iter=100, use_c=True, use_gpu=False, K2=True, K3=True
 ):
     if K2:
         epochs = make_array(epochs)
