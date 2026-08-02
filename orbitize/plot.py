@@ -38,8 +38,6 @@ class Plotter(object):
             three years after the last data point)
         time_format (str): time format for `start` and `end` such as "mjd" or others
             from astropy.time.Time.FORMATS (default: 'decimalyear')
-        default_cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
-            (default: modified Purples_r)
         num_orbits_to_plot (int): number of orbits to plot (default: 100)
         num_epochs_to_plot (int): number of points to plot per orbit (default: 100)
         cbar_param (string): options are the following: 'Epoch [year]', 'sma1', 'ecc1', 'inc1', 'aop1',
@@ -55,7 +53,9 @@ class Plotter(object):
     Refactored to class by Eshel Dror, 2026
 
     """
-    # define modified color map for default use in orbit plots
+    # Color Map
+    CMAP = cmap
+    # first three letters of possible color bar parameters
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
     
     # colour/shape scheme scheme for data points
@@ -75,7 +75,6 @@ class Plotter(object):
         start=None,
         end=None,
         time_format="decimalyear",
-        default_cmap=cmap,
         num_orbits_to_plot=100,
         num_epochs_to_plot=100,
         cbar_param="Epoch [year]",
@@ -90,7 +89,7 @@ class Plotter(object):
         if end is None:
            end = getattr(Time(np.max(self.system.data_table['epoch'])+365*3, format="mjd"), time_format)
 
-        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, default_cmap, rv_time_series, rv_time_series2)
+        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2)
 
     def set_params(
         self,
@@ -101,7 +100,6 @@ class Plotter(object):
         num_orbits_to_plot=None,
         num_epochs_to_plot=None,
         cbar_param=None,
-        default_cmap=None,
         rv_time_series=None,
         rv_time_series2=None,
     ):
@@ -120,8 +118,6 @@ class Plotter(object):
             self.num_orbits_to_plot = num_orbits_to_plot
         if num_epochs_to_plot is not None:
             self.num_epochs_to_plot = num_epochs_to_plot
-        if default_cmap is not None:
-            self.cmap = default_cmap
         if rv_time_series is not None:
             self.rv_time_series = rv_time_series
         if rv_time_series2 is not None:
@@ -905,7 +901,7 @@ class Plotter(object):
                     s=30,
                     marker=next(ax3_symbols),
                     c=next(ax3_colors),
-                    label=name,
+                    label=name2,
                     zorder=5,
                 )
                 if plot_errorbars:
@@ -930,7 +926,7 @@ class Plotter(object):
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=primary_rv_err_label.format(name)
+                            label=primary_rv_err_label.format(name2)
                         )
                         bar_width += 1
 
@@ -1029,7 +1025,7 @@ class Plotter(object):
                 otherwise, white space padding is used (deafult: True)
             show_colorbar (Boolean): Displays colorbar to the right of the plot (default: True).
             cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
-                (default: `self.default_cmap`)
+                (default: None (uses `self.CMAP`))
             sep_pa_color (string): any valid matplotlib color string, used to set the
                 color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
             mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
@@ -1062,7 +1058,7 @@ class Plotter(object):
         """
         
         if cmap is None:
-            cmap = self.cmap
+            cmap = self.CMAP
 
         if rv_time_series and "m0" not in self.results.labels:
             self.rv_time_series = False
@@ -1345,7 +1341,7 @@ class Plotter(object):
             alpha (float): transparency of lines (default: 0.05)
             show_colorbar (Boolean): Displays colorbar to the right of the plot (default: True)
             cmap (matplotlib.cm.ColorMap): color map to use for making orbit tracks
-                (default: `self.default_cmap`)
+                (default: None (uses `self.CMAP`))
             tight_layout (bool): apply plt.tight_layout function (default: False)
 
         Return:
@@ -1357,7 +1353,7 @@ class Plotter(object):
 
         """
         if cmap is None:
-            cmap = self.cmap
+            cmap = self.CMAP
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
@@ -1718,7 +1714,7 @@ def plot_orbits(
     num_epochs_to_plot=100,
     square_plot=True,
     show_colorbar=True,
-    cmap=cmap,
+    cmap=None,
     sep_pa_color="lightgrey",
     sep_pa_end_year=2025.0,
     cbar_param="Epoch [year]",
@@ -1739,13 +1735,14 @@ def plot_orbits(
         start=Time(start_mjd, format="mjd").decimalyear,
         end=sep_pa_end_year,
         time_format="decimalyear",
-        default_cmap=cmap,
         num_orbits_to_plot=num_orbits_to_plot,
         num_epochs_to_plot=num_epochs_to_plot,
         cbar_param=cbar_param,
         rv_time_series=rv_time_series,
         rv_time_series2=rv_time_series2
         )
+    if cmap is not None:
+        plotter.CMAP = cmap
     return plotter.plot_orbits(
         square_plot=square_plot,
         show_colorbar=show_colorbar,
@@ -1777,7 +1774,6 @@ def plot_residuals(
         start=Time(start_mjd, format="mjd").decimalyear,
         end=sep_pa_end_year,
         time_format="decimalyear",
-        default_cmap=cmap,
         num_orbits_to_plot=num_orbits_to_plot,
         num_epochs_to_plot=num_epochs_to_plot,
         cbar_param=cbar_param
@@ -1798,7 +1794,7 @@ def plot_propermotion(
     num_orbits_to_plot=100,
     num_epochs_to_plot=100,
     show_colorbar=True,
-    cmap=cmap,
+    cmap=None,
     cbar_param="m0",
     tight_layout=False,
 ):
@@ -1809,11 +1805,12 @@ def plot_propermotion(
         start=Time(start_mjd, format="mjd").decimalyear,
         end=end_year,
         time_format="decimalyear",
-        default_cmap=cmap,
         num_orbits_to_plot=num_orbits_to_plot,
         num_epochs_to_plot=num_epochs_to_plot,
         cbar_param=cbar_param
     )
+    if cmap is not None:
+        plotter.CMAP = cmap
     return plotter.plot_propermotion(
         periods_to_plot=periods_to_plot,
         alpha=alpha,
