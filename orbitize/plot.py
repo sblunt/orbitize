@@ -308,7 +308,7 @@ class Plotter(object):
         # TODO: vectorize
         for i in np.arange(num_orbits_to_plot):
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, vz0 = self.system.compute_all_orbits(
+            raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
                 standard_post[i],
                 astr_epochs
             )
@@ -441,7 +441,7 @@ class Plotter(object):
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, vz0 = self.system.compute_all_orbits(
+            raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
                 standard_post[i],
                 epochs[i, :]
             )
@@ -482,7 +482,7 @@ class Plotter(object):
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, vz0 = self.system.compute_all_orbits(
+            raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
                 standard_post[i],
                 epochs[i, :]
             )
