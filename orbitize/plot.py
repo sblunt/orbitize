@@ -65,7 +65,7 @@ class Plotter(object):
     RV_SYMBOLS = ("o", "^", "v", "s")
 
     # Latex for rv error
-    RV_ERR_MATH = {"offset" : "std(\gamma_{{{0}}})", "observation": "\epsilon_{{{0}}}", "jitter": "med(\sigma_{{{0}}})"}
+    RV_ERR_MATH = {"offset" : "std(\\gamma_{{{0}}})", "observation": "\\epsilon_{{{0}}}", "jitter": "med(\\sigma_{{{0}}})"}
 
 
     def __init__(
