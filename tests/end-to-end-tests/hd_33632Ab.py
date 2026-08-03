@@ -1,9 +1,12 @@
 """
 Compare to Hsu+ 2024 (case with HGCA, no RVs, and relative astrometry)
+
+https://iopscience.iop.org/article/10.3847/1538-4357/ad58d3#apjad58d3t5
 """
 
 import os
-from orbitize import DATADIR, hipparcos, gaia, read_input, system, priors, sampler
+from orbitize import DATADIR, hipparcos, gaia, read_input, system, priors, sampler, results
+import matplotlib.pyplot as plt
 
 # the necessary input data for beta Pic is part of the orbitize! example data!
 iad_filepath = os.path.join(DATADIR, "H024332.d")
@@ -35,9 +38,9 @@ this_system = system.System(
 )
 
 # adjust the prior on mass to be uniform between 0 and 0.1 Msol
-this_system.sys_priors[this_system.param_idx["m1"]] = priors.LogUniformPrior(
-    0, 0.1
-)
+# this_system.sys_priors[this_system.param_idx["m1"]] = priors.LogUniformPrior(
+#     0, 0.1
+# )
 
 # MCMC parameters
 n_temps=20
@@ -47,11 +50,28 @@ total_orbits= n_walkers * 50_000
 burn_steps=10_000
 thin=10
 
-total_orbits = 100 * n_walkers
+run_fit = True
 
-# create the sampler, run it, and save posteriors
-this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads)
+if __name__ == '__main__':
 
-this_sampler.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+    # create the sampler, run it, and save posteriors
+    this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads)
 
-this_sampler.results.save_results("HD_33632_Ab.hdf5")
+    output_filename = "HD_33632_Ab.hdf5"
+    periodic_save_freq = 5_000
+
+    if run_fit:
+
+        this_sampler.run_sampler(
+            total_orbits, burn_steps=burn_steps, thin=thin, periodic_save_freq=periodic_save_freq,
+            output_filename=output_filename
+        )
+
+        this_sampler.results.save_results(output_filename)
+
+    myResults = results.Results()
+    myResults.load_results(output_filename)
+
+    # make corner plot
+    fig = myResults.plot_corner()
+    plt.savefig("HD_33632_Ab.png", dpi=250)
