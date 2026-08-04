@@ -6,16 +6,6 @@ __version__ = "3.3.2"
 orbitize_dir = os.path.dirname(__file__)
 DATADIR = os.path.join(orbitize_dir, "example_data/")
 
-# Detect a valid CUDA environment
-try:
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    from pycuda.compiler import SourceModule
-
-    cuda_ext = True
-except:
-    cuda_ext = False
-
 try:
     from . import _kepler
 
