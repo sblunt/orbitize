@@ -10,10 +10,6 @@ from orbitize import cuda_ext, cext
 if cext:
     from . import _kepler
 
-if cuda_ext:
-    # Configure GPU context for CUDA accelerated compute
-    from orbitize import gpu_context
-    kep_gpu_ctx = gpu_context.gpu_context()
 
 def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
@@ -54,7 +50,6 @@ def times2trueanom_and_eccanom(
     tolerance=1e-9,
     max_iter=100,
     use_c=True,
-    use_gpu=False,
 ):
     """ 
     Convert times to true anomaly and eccentric anomaly by solving Kepler's Equation.
@@ -69,7 +64,6 @@ def times2trueanom_and_eccanom(
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
         use_c (bool, optional): Use the C solver if configured. Defaults to True
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
     Returns:
         2-tuple:
@@ -91,7 +85,7 @@ def times2trueanom_and_eccanom(
     # # compute mean anomaly (size: n_orbs x n_dates)
     manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
+    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
@@ -103,7 +97,7 @@ def times2trueanom_and_eccanom(
 
 def calc_orbit(
   epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
-  max_iter=100, use_c=True, use_gpu=False
+  max_iter=100, use_c=True
 ):
 
     """
@@ -130,7 +124,6 @@ def calc_orbit(
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
         use_c (bool, optional): Use the C solver if configured. Defaults to True
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
     Return:
         3-tuple:
@@ -151,7 +144,7 @@ def calc_orbit(
         mass_for_Kamp = mtot
     ecc
 
-    tanom, eanom = times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=tau_ref_epoch, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
+    tanom, eanom = times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=tau_ref_epoch, tolerance=tolerance, max_iter=max_iter, use_c=use_c)
 
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
     radius = sma * (1.0 - ecc * np.cos(eanom))
@@ -184,7 +177,7 @@ def calc_orbit(
     vz = np.squeeze(vz)[()]
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gpu=False):
+def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -195,7 +188,6 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
         use_c (bool, optional): Use the C solver if configured. Defaults to False
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
 Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
@@ -231,16 +223,16 @@ Return:
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
     if len(ind_low[0]) > 0: 
-        eanom[ind_low] = _newton_solver_wrapper(manom[ind_low], ecc[ind_low], tolerance, max_iter, use_c, use_gpu)
+        eanom[ind_low] = _newton_solver_wrapper(manom[ind_low], ecc[ind_low], tolerance, max_iter, use_c)
     
     # Now high eccentricities
     ind_high = np.where(~ecc_zero & ~ecc_low | (eanom == -1)) # The C and CUDA solvers return the unphysical value -1 if they fail to converge
     if len(ind_high[0]) > 0: 
-        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c, use_gpu)
+        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c)
 
     return np.squeeze(eanom)[()]
 
-def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu=False):
+def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False):
     """
     Wrapper for the various (Python, C, CUDA) implementations of the Newton-Raphson solver 
     for eccentric anomaly.
@@ -250,7 +242,6 @@ def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu
         ecc (np.array): array of eccentricities
         eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
         use_c (bool, optional): Use the C solver if configured. Defaults to False
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
     Return:
         eanom (np.array): array of eccentric anomalies
 
@@ -258,10 +249,7 @@ def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu
     """
     eanom = np.empty_like(manom)
     
-    if cuda_ext and use_gpu:
-        # the CUDA solver returns eanom = -1 if it doesnt converge after max_iter iterations
-        eanom = _CUDA_newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
-    elif cext and use_c:
+    if cext and use_c:
         # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
         eanom = _kepler._c_newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
     else:
@@ -323,33 +311,8 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     return eanom
 
-def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
-    """
-    Helper function for calling the CUDA implementation of the Newton-Raphson solver for eccentric anomaly.
 
-    Args:
-        manom (np.array): array of mean anomalies
-        ecc (np.array): array of eccentricities
-        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
-    Return:
-        eanom (np.array): array of eccentric anomalies
-
-    Written: Devin Cody, 2021
-    """
-    global kep_gpu_ctx
-
-    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.asarray(manom)
-    ecc = np.asarray(ecc)
-    eanom = np.empty_like(manom)
-    tolerance = np.asarray(tolerance, dtype = np.float64)
-    max_iter = np.asarray(max_iter)
-    
-    kep_gpu_ctx.newton(manom, ecc, eanom, eanom0, tolerance, max_iter)
-
-    return eanom
-
-def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
+def _mikkola_solver_wrapper(manom, ecc, use_c=False):
     """
     Wrapper for the various (Python, C, CUDA) implementations of Analtyical Mikkola solver 
 
@@ -357,8 +320,6 @@ def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
         manom (np.array): array of mean anomalies between 0 and 2pi
         ecc (np.array): eccentricity
         use_c (bool, optional): Use the C solver if configured. Defaults to False
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
-
 
     Return:
         eanom (np.array): array of eccentric anomalies
@@ -368,9 +329,7 @@ def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
 
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
-    if cuda_ext and use_gpu:
-        eanom = _CUDA_mikkola_solver(manom, ecc)
-    elif cext and use_c:
+    if cext and use_c:
         eanom = _kepler._c_mikkola_solver(manom, ecc)
     else:
         eanom = _mikkola_solver(manom, ecc)
@@ -417,26 +376,3 @@ def _mikkola_solver(manom, ecc):
     u4 = -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3**3.0))
 
     return (e0 + u4)
-
-def _CUDA_mikkola_solver(manom, ecc):
-    """
-    Helper function for calling the CUDA implementation of the Analtyical Mikkola solver for the eccentric anomaly.
-
-    Args:
-        manom (float or np.array): mean anomaly, must be between 0 and pi.
-        ecc (float or np.array): eccentricity
-    Return:
-        eanom (np.array): array of eccentric anomalies
-
-    Written: Devin Cody, 2021
-    """
-    global kep_gpu_ctx
-
-    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.asarray(manom)
-    ecc = np.asarray(ecc)
-    eanom = np.empty_like(manom)
-
-    kep_gpu_ctx.mikkola(manom, ecc, eanom)
-
-    return eanom
