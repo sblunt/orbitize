@@ -302,7 +302,6 @@ if __name__ == "__main__":
         test_analytical_ecc_anom_solver()
         test_iterative_ecc_anom_solver()
         test_c_ecc_anom_solver()
-        test_pycuda_ecc_anom_solver()
         test_orbit_e03()
         test_orbit_e03_array()
         test_orbit_e99()
