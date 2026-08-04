@@ -179,6 +179,10 @@ def read_file(filename):
                 have_seppacorr = np.zeros(
                     num_measurements, dtype=bool
                 )  # zeros are False
+            if "brightness" in input_table.columns:
+                have_brightness = ~input_table["brightness"].mask
+            else:
+                have_brightness = np.zeros(num_measurements, dtype=bool)
             if "rv" in input_table.columns:
                 have_rv = ~input_table["rv"].mask
             else:
@@ -231,11 +235,14 @@ def read_file(filename):
             else:
                 have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
 
-            # Rob: not sure if we need this but adding just in case
             if "instrument" in input_table.columns:
                 have_inst = np.ones(num_measurements, dtype=bool)
             else:
                 have_inst = np.zeros(num_measurements, dtype=bool)
+            if "brightness" in input_table.columns:
+                have_brightness = np.ones(num_measurements, dtype=bool)
+            else:
+                have_brightness = np.zeros(num_measurements, dtype=bool)
 
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
@@ -280,9 +287,9 @@ def read_file(filename):
         if not isinstance(row["object"], (int, np.int32, np.int64)):
             raise Exception("Invalid object ID. Object IDs must be integers.")
 
-        # determine input quantity type (RA/DEC, SEP/PA, or RV)
+        # determine input quantity type (RA/DEC, SEP/PA, RV, or BRIGHTNESS)
         if orbitize_style:
-            if row["quant_type"] == "rv":  # special format for rv rows
+            if row["quant_type"] == "rv" or row["quant_type"] == 'brightness':  # special format for rv rows
                 output_table.add_row(
                     [
                         MJD,
@@ -332,6 +339,7 @@ def read_file(filename):
                 )
 
         else:  # When not in orbitize style
+
             if have_ra[index] and have_dec[index]:
                 # check if there's a covariance term
                 if have_radeccorr[index]:
@@ -427,6 +435,20 @@ def read_file(filename):
                             "rv",
                             "defrv",
                         ]
+                    )
+            if have_brightness[index]:
+                output_table.add_row(
+                    [
+                        MJD,
+                        row["object"],
+                        row["brightness"],
+                        row["brightness_err"],
+                        None,
+                        None,
+                        None,
+                        "brightness",
+                        "defbr",
+                    ]
                     )
 
     return output_table

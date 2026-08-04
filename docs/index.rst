@@ -55,9 +55,20 @@ User Guide:
 Changelog:
 ++++++++++
 
+**3.4.0 (2026-7-20)**
+
+This is a breaking change for System.compute_all_orbits.
+
+- joint fitting for reflected-light photometry with Lambertian disk approx! (@farrmol)
+
+**3.3.3 (2026-7-8)**
+
+- hotfix for issue plotting datapoints with different RV instruments (@sblunt)
+- fix for plots with RVs that makes perfectly fine fits look incorrect, introduced in v3.0.0 (@sblunt)
+
 **3.3.2 (2026-6-2)**
 
-- fix for a flaky unit test with int HIP IAD inputs (they should be str) @sblunt)
+- fix for a flaky unit test with int HIP IAD inputs (they should be str; @sblunt)
 
 **3.3.1 (2026-6-1)**
 
@@ -81,6 +92,7 @@ Changelog:
 **3.2.0 (2025-7-18)**
 
 - modernize install: setup.py -> pyproject.toml (@sblunt)
+- proper motion anomaly visualization (@wbalmer)
 
 **3.1.0 (2024-9-09)**
 
