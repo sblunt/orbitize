@@ -62,10 +62,11 @@ class Plotter(object):
     ASTR_COLORS = ("#FF7F11", "#11FFE3", "#14FF11", "#7A11FF", "#FF1919")
     ASTR_SYMBOLS = (".", "*", "p", "s")
     RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
+    RV_ERR_COLORS = ("#FF7F11", "#11FFE3", "#14FF11", "#7A11FF", "#FF1919")
     RV_SYMBOLS = ("o", "^", "v", "s")
 
     # Latex for rv error
-    RV_ERR_MATH = {"offset" : "std(\\gamma_{{{0}}})", "observation": "\\epsilon_{{{0}}}", "jitter": "med(\\sigma_{{{0}}})"}
+    RV_ERR_MATH = {"offset" : "std(\\gamma)", "observation": "\\epsilon", "jitter": "med(\\sigma)"}
 
 
     def __init__(
@@ -906,14 +907,14 @@ class Plotter(object):
                 )
                 if plot_errorbars:
                     bar_width = 1
-                    for grouping in rv_err_grouping:
+                    for group_i, grouping in enumerate(rv_err_grouping):
                         if not isinstance(grouping, str):
                             primary_rv_err2 = 0
                             primary_rv_err_labels = []
                             for err_type in grouping:
                                 primary_rv_err2 += np.square(primary_errors[err_type])
                                 primary_rv_err_labels.append("{0}^2".format(self.RV_ERR_MATH[err_type]))
-                            primary_rv_err_label = "$\sqrt{{" + "+".join(primary_rv_err_labels) + "}}$"
+                            primary_rv_err_label = "$(" + "+".join(primary_rv_err_labels) + ")^\\frac{{1}}{{2}}$"
                             primary_rv_err = np.sqrt(primary_rv_err2)
                         else:
                             primary_rv_err = primary_errors[grouping]
@@ -922,11 +923,11 @@ class Plotter(object):
                             x=epochs,
                             y=rvs-med_ga[i],
                             yerr=primary_rv_err,
-                            ecolor=next(ax3_colors),
+                            ecolor=self.RV_ERR_COLORS[group_i],
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=primary_rv_err_label.format(name2)
+                            label=primary_rv_err_label if i==0 else None
                         )
                         bar_width += 1
 
@@ -969,14 +970,14 @@ class Plotter(object):
                 )
                 if plot_errorbars:
                     bar_width = 1
-                    for grouping in rv_err_grouping:
+                    for group_i, grouping in enumerate(rv_err_grouping):
                         if not isinstance(grouping, str):
                             secondary_rv_err2 = 0
                             secondary_rv_err_labels = []
                             for err_type in grouping:
                                 secondary_rv_err2 += np.square(secondary_errors[err_type])
                                 secondary_rv_err_labels.append("{0}^2".format(self.RV_ERR_MATH[err_type]))
-                            secondary_rv_err_label = "$\sqrt{{" + "+".join(secondary_rv_err_labels) + "}}$"
+                            secondary_rv_err_label = "$(" + "+".join(secondary_rv_err_labels) + ")^\\frac{{1}}{{2}}$"
                             secondary_rv_err = np.sqrt(secondary_rv_err2)
                         else:
                             secondary_rv_err = secondary_errors[grouping]
@@ -985,11 +986,11 @@ class Plotter(object):
                             x=epochs2,
                             y=rvs2-med_ga2[i],
                             yerr=secondary_rv_err,
-                            ecolor=next(ax3_colors),
+                            ecolor=self.RV_ERR_COLORS[group_i],
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=secondary_rv_err_label.format(name)
+                            label=secondary_rv_err_label if i==0 else None
                         )
                         bar_width += 1
 
