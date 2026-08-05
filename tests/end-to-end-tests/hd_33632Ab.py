@@ -48,16 +48,21 @@ n_walkers=1000
 n_threads=20
 total_orbits= n_walkers * 50_000
 burn_steps=10_000
-thin=10
+thin=100
 
 run_fit = True
 
 if __name__ == '__main__':
 
     # create the sampler, run it, and save posteriors
-    this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads)
-
     output_filename = "HD_33632_Ab.hdf5"
+    if os.path.exists(output_filename):
+        prev_result_filename = output_filename
+    else:
+        prev_result_filename = None
+
+    this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads, prev_result_filename=prev_result_filename)
+
     periodic_save_freq = 5_000
 
     if run_fit:
