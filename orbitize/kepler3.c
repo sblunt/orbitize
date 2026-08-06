@@ -12,11 +12,12 @@
 
 double positive_mod1(
     double x) {
-        double value = fmod(x,1.0);
-        if (value < 0.) {
-            value += 1.0;
-        }
-        return value;
+        return x - floor(x);
+        // double value = fmod(x,1.0);
+        // if (value < 0.) {
+        //     value += 1.0;
+        // }
+        // return value;
 }
 
 double tau_to_manom(
@@ -76,7 +77,7 @@ double mikkola_solver(const double manom, const double ecc){
     beta = (0.5 * manom) / ((4.0 * ecc) + 0.5);
 
     aux = sqrt(beta*beta + alpha*alpha*alpha);
-    z = pow(fabs(beta + aux), (1.0/3.0));
+    z = cbrt(fabs(beta + aux));
 
     s0 = z - (alpha/z);
     s1 = s0 - (0.078*(pow(s0, 5))) / (1.0 + ecc);
@@ -110,7 +111,7 @@ double calc_ecc_anom(
         if (ecc < 0.95) {
             eanom = newton_solver(manom, ecc, tol, max_iter);
         }
-        if (ecc >= 0.95 | eanom == -1.0) {
+        if (ecc >= 0.95 || eanom == -1.0) {
             if (manom > M_PI) {
                 eanom = 2. * M_PI - mikkola_solver(2. * M_PI - manom, ecc);
             } else {
@@ -140,8 +141,12 @@ void calc_orbit(
     double deoff[],
     double vz[]){
     int i, j, k;
-    double period, manom, eanom, partial_tanom, tanom, radius, c2i2, s2i2, arg1, arg2, c1, c2, s1, s2, rad_plx, Kv;
-    double ecc_cos_aop;
+    double period, manom, eanom, partial_tanom, radius, c2i2, s2i2, c1, c2, s1, s2, rad_plx, Kv;
+    // double tanom, arg1, arg2;
+    double ecc_cos_aop, cos_aop, sin_aop;
+    double cos_p1, sin_p1, cos_p2, sin_p2, c_tanom, s_tanom;
+    double a, b, b_squared, c, c_squared;
+
     for (i = 0; i < n_orbits; i ++) {
         // period = sqrt(
         //     4 * pow(M_PI, 2.0) * pow(sma[i], 3.0) / (G * mtot[i])
@@ -149,34 +154,55 @@ void calc_orbit(
         period = sqrt(
             pow(sma[i], 3.0) / (mtot[i])
         ) * PER_CONST;
+        
         c2i2 = pow(cos(0.5*inc[i]),2);
-        s2i2 = 1.0 - c2i2;
-        // s2i2 = pow(sin(0.5*inc[i]),2);
+        s2i2 = 1.0 - c2i2; // s2i2 = pow(sin(0.5*inc[i]),2);
+        
         partial_tanom = sqrt((1.0 + ecc[i])/(1.0 - ecc[i]));
+        
         Kv = sqrt(G / (1.0 - pow(ecc[i],2))) * (mass_for_Kamp[i] *
                                                sin(inc[i])) / sqrt(mtot[i]) / sqrt(sma[i]);
         Kv /= KV_CONVERSION;
-        ecc_cos_aop = ecc[i]*cos(aop[i]);
+        
+        cos_aop = cos(aop[i]), sin_aop = sin(aop[i]);
+        ecc_cos_aop = ecc[i]*cos_aop;
+
+        cos_p1 = cos(aop[i] + pan[i]), sin_p1 = sin(aop[i] + pan[i]);
+        cos_p2 = cos(aop[i] - pan[i]), sin_p2 = sin(aop[i] - pan[i]);
+
         for (j = 0; j < n_epochs; j++) {
             k = i * n_epochs + j;
             manom = tau_to_manom(epochs[j], period, tau[i], tau_ref_epoch);
             eanom = calc_ecc_anom(manom, ecc[i], tolerance, max_iter);
-            tanom = 2.0*atan(partial_tanom*tan(0.5*eanom));
+            
+            // tanom = 2.0*atan(partial_tanom*tan(0.5*eanom));
+            // c_tanom = cos(tanom), s_tanom = sin(tanom);
+            c = partial_tanom * tan(0.5*eanom);
+            c_squared = c * c;
+            b_squared = c_squared / (c_squared + 1);
+            a = 1 / sqrt(c_squared + 1);
+            b = c * a;
+            c_tanom = 1.0 - 2.0 * b_squared;
+            s_tanom = 2.0 * b * a;
+            
+            // arg1 = tanom + aop[i] + pan[i];
+            // arg2 = tanom + aop[i] - pan[i];
+            // c1 = cos(arg1);
+            // c2 = cos(arg2);
+            // s1 = sin(arg1);
+            // s2 = sin(arg2);
+            c1 = c_tanom * cos_p1 - s_tanom * sin_p1;
+            s1 = s_tanom * cos_p1 + c_tanom * sin_p1;
+            c2 = c_tanom * cos_p2 - s_tanom * sin_p2;
+            s2 = s_tanom * cos_p2 + c_tanom * sin_p2;
+            
             radius = sma[i] * (1.0 - ecc[i] * cos(eanom));
-
-            arg1 = tanom + aop[i] + pan[i];
-            arg2 = tanom + aop[i] - pan[i];
-            c1 = cos(arg1);
-            c2 = cos(arg2);
-            s1 = sin(arg1);
-            s2 = sin(arg2);
-
             rad_plx = radius * plx[i];
-
             raoff[k] = rad_plx * (c2i2 * s1 - s2i2 * s2);
             deoff[k] = rad_plx * (c2i2 * c1 + s2i2 * c2);
 
-            vz[k] = Kv * (ecc_cos_aop + cos(aop[i] + tanom));
+            // vz[k] = Kv * (ecc[i] * cos(aop[i]) + cos(aop[i] + tanom));
+            vz[k] = Kv * (ecc_cos_aop + (cos_aop * c_tanom - sin_aop * s_tanom));
         }
     }
 }
