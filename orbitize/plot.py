@@ -1174,6 +1174,7 @@ class Plotter(object):
             self,
             sep_pa_color="lightgrey",
             mod180=False,
+            separate_error=False
         ):
         """
         Plots sep/PA residuals for a set of orbits
@@ -1183,6 +1184,8 @@ class Plotter(object):
                 color of the orbit tracks in the Sep/PA panels (default: 'lightgrey').
             mod180 (Bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
                 arcs with PAs that cross 360 deg during observations (default: False)
+            separate_error (Bool): separate the data error and error due to the standard deviation
+                in the model subtracted from the data (default: False)
 
         Return:
             ``matplotlib.pyplot.Figure``: the residual plots
@@ -1190,44 +1193,22 @@ class Plotter(object):
         Refactored by Eshel Dror, 2026        
     
         """
-        raoff = self.astr_raoff
-        deoff = self.astr_deoff
         seps = []
         pas = []
-        raoff_100 = self.raoff1
-        deoff_100 = self.deoff1
         seps_100 = []
         pas_100 = []
         for i in np.arange(self.num_orbits_to_plot):
 
-            raoff0, deoff0 = raoff[i], deoff[i]
+            raoff0, deoff0 = self.astr_raoff[i], self.astr_deoff[i]
 
-            raoff2, deoff2 = raoff_100[i], deoff_100[i]
+            raoff2, deoff2 = self.raoff1[i], self.deoff1[i]
 
             seps1, pas1 = orbitize.system.radec2seppa(raoff0, deoff0, mod180=mod180)
-            # seps1 = []
-            # pas1 = []
-
-            # for j in range(len(astr_epochs)):
-
-            #     seps0, pas0 = orbitize.system.radec2seppa(raoff[i][j], deoff[i][j], mod180=mod180)
-
-            #     seps1.append(seps0)
-            #     pas1.append(pas0)
 
             seps.append(seps1)
             pas.append(pas1)
 
             seps2, pas2 = orbitize.system.radec2seppa(raoff2, deoff2, mod180=mod180)
-            # seps2 = []
-            # pas2 = []
-
-            # for j in range(len(epochs_seppa[0])):
-
-            #     seps0_100, pas0_100 = orbitize.system.radec2seppa(raoff_100[i][j], deoff_100[i][j], mod180=mod180)
-
-            #     seps2.append(seps0_100)
-            #     pas2.append(pas0_100)
 
             seps_100.append(seps2)
             pas_100.append(pas2)
@@ -1240,71 +1221,113 @@ class Plotter(object):
         seps_100 = np.array(seps_100)
         pas_100 = np.array(pas_100)
 
-        median_seps = []
-        median_pas = []
-        median_seps_100 = []
-        median_pas_100 = []
-
-        seps_T = np.transpose(seps)
-        pas_T = np.transpose(pas)
-        seps_100_T = np.transpose(seps_100)
-        pas_100_T = np.transpose(pas_100)
-
-        for j in range(len(self.seppa_epochs[0])):
-            median_seps2 = np.median(seps_100_T[j])
-            median_pas2 = np.median(pas_100_T[j])
-
-            median_seps_100.append(median_seps2)
-            median_pas_100.append(median_pas2)
-
-        for j in range(len(self.astr_epochs)):
-            median_seps1 = np.median(seps_T[j])
-            median_pas1 = np.median(pas_T[j])
-
-            median_seps.append(median_seps1)
-            median_pas.append(median_pas1)
-
-        orbits_to_plot = np.linspace(0, self.num_orbits_to_plot - 1, 100)
+        median_seps_100 = np.median(seps_100, axis=0)
+        median_pas_100 = np.median(pas_100, axis=0)
+        
+        median_seps = np.median(seps, axis=0)
+        median_pas = np.median(pas, axis=0)
+        stddev_seps = np.std(seps, axis=0)
+        stddev_pas = np.std(pas, axis=0)
 
         residual_seps = median_seps - self.sep_data
         residual_pas = median_pas - self.pa_data
+        
 
         fig, axes = plt.subplots(1, 2, figsize=(8, 4))
 
-        axes[0].errorbar(
-            yr_epochs,
-            residual_seps,
-            yerr=self.sep_err,
-            xerr=None,
-            fmt="o",
-            ms=5,
-            linestyle="",
-            c="purple",
-            zorder=10,
-            capsize=2,
-        )
-        for i in range(len(orbits_to_plot)):
-            residual_seps_100 = median_seps_100 - seps_100[int(orbits_to_plot[i])]
+        if separate_error:
+            axes[0].errorbar(
+                yr_epochs,
+                residual_seps,
+                yerr=self.sep_err,
+                xerr=None,
+                fmt="o",
+                ms=5,
+                linestyle="",
+                c=self.ASTR_COLORS[0],
+                zorder=10,
+                capsize=2,
+                label="Data Error"
+            )
+            axes[0].errorbar(
+                yr_epochs,
+                residual_seps,
+                yerr=stddev_seps,
+                xerr=None,
+                ms=5,
+                linestyle="",
+                c=self.ASTR_COLORS[1],
+                zorder=10,
+                capsize=2,
+                label="Model Standard Deviation"
+            )
+            axes[0].legend()
+        else:
+            residual_seps_err = np.sqrt(self.sep_err ** 2 + stddev_seps ** 2)
+            axes[0].errorbar(
+                yr_epochs,
+                residual_seps,
+                yerr=residual_seps_err,
+                xerr=None,
+                fmt="o",
+                ms=5,
+                linestyle="",
+                c=self.ASTR_COLORS[0],
+                zorder=10,
+                capsize=2,
+            )
+
+        for i in range(self.num_orbits_to_plot):
+            residual_seps_100 = median_seps_100 - seps_100[i]
             axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
         axes[0].axhline(y=0, color="black", linestyle="-")
         axes[0].set_ylabel("Residual $\\rho$ [mas]")
         axes[0].set_xlabel("Epoch")
         axes[0].set_xlim(yr_epochs2[0], yr_epochs2[-1])
 
-        axes[1].errorbar(
-            yr_epochs,
-            residual_pas,
-            yerr=self.pa_err,
-            xerr=None,
-            fmt="o",
-            ms=5,
-            linestyle="",
-            c="purple",
-            zorder=10,
-            capsize=2,
-        )
-        for i in range(len(orbits_to_plot)):
-            residual_pas_100 = median_pas_100 - pas_100[int(orbits_to_plot[i])]
+        if separate_error:
+            axes[1].errorbar(
+                yr_epochs,
+                residual_pas,
+                yerr=self.pa_err,
+                xerr=None,
+                fmt="o",
+                ms=5,
+                linestyle="",
+                c=self.ASTR_COLORS[0],
+                zorder=10,
+                capsize=2,
+                label="Data Error"
+            )
+            axes[1].errorbar(
+                yr_epochs,
+                residual_pas,
+                yerr=stddev_pas,
+                xerr=None,
+                ms=5,
+                linestyle="",
+                c=self.ASTR_COLORS[1],
+                zorder=10,
+                capsize=2,
+                label="Model Standard Deviation"
+            )
+            axes[1].legend()
+        else:
+            residual_pa_err = np.sqrt(self.pa_err ** 2 + stddev_pas ** 2)
+            axes[1].errorbar(
+                yr_epochs,
+                residual_pas,
+                yerr=residual_pa_err,
+                xerr=None,
+                fmt="o",
+                ms=5,
+                linestyle="",
+                c=self.ASTR_COLORS[0],
+                zorder=10,
+                capsize=2,
+            )
+        for i in range(self.num_orbits_to_plot):
+            residual_pas_100 = median_pas_100 - pas_100[i]
             axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
         axes[1].axhline(y=0, color="black", linestyle="-")
         axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
@@ -1314,6 +1337,8 @@ class Plotter(object):
             ax.tick_params(axis="both", which="both", top=True, right=True)
             ax.minorticks_on()
         plt.tight_layout()
+
+        return fig
 
     def plot_propermotion(
         self,
