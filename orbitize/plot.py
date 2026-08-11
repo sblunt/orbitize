@@ -1189,152 +1189,156 @@ class Plotter(object):
         Refactored by Eshel Dror, 2026        
     
         """
-        object_to_plot = self.objects_to_plot[0] # TODO: All objects?
-        object_index = 0
 
-        seps = []
-        pas = []
-        seps_100 = []
-        pas_100 = []
-        for i in np.arange(self.num_orbits_to_plot):
+        fig, axes = plt.subplots(len(self.objects_to_plot), 2, figsize=(8, 4*len(self.objects_to_plot)))
+        for object_index, object_to_plot in enumerate(self.objects_to_plot):
+            object_axes = axes[object_index] if len(self.objects_to_plot) > 1 else axes
+            seps = []
+            pas = []
+            seps_100 = []
+            pas_100 = []
+            for i in np.arange(self.num_orbits_to_plot):
 
-            raoff0, deoff0 = self.astr_raoffs[object_index][i], self.astr_deoffs[object_index][i]
+                raoff0, deoff0 = self.astr_raoffs[object_index][i], self.astr_deoffs[object_index][i]
 
-            raoff2, deoff2 = self.fixed_raoffs[object_to_plot, i, :], self.fixed_deoffs[object_to_plot, i, :]
+                raoff2, deoff2 = self.fixed_raoffs[object_to_plot, i, :], self.fixed_deoffs[object_to_plot, i, :]
 
-            seps1, pas1 = orbitize.system.radec2seppa(raoff0, deoff0, mod180=mod180)
+                seps1, pas1 = orbitize.system.radec2seppa(raoff0, deoff0, mod180=mod180)
 
-            seps.append(seps1)
-            pas.append(pas1)
+                seps.append(seps1)
+                pas.append(pas1)
 
-            seps2, pas2 = orbitize.system.radec2seppa(raoff2, deoff2, mod180=mod180)
+                seps2, pas2 = orbitize.system.radec2seppa(raoff2, deoff2, mod180=mod180)
 
-            seps_100.append(seps2)
-            pas_100.append(pas2)
+                seps_100.append(seps2)
+                pas_100.append(pas2)
 
-        yr_epochs = Time(self.astr_epochs[object_index], format="mjd").decimalyear
-        yr_epochs2 = Time(self.fixed_epochs, format="mjd").decimalyear
+            yr_epochs = Time(self.astr_epochs[object_index], format="mjd").decimalyear
+            yr_epochs2 = Time(self.fixed_epochs, format="mjd").decimalyear
 
-        seps = np.array(seps)
-        pas = np.array(pas)
-        seps_100 = np.array(seps_100)
-        pas_100 = np.array(pas_100)
+            seps = np.array(seps)
+            pas = np.array(pas)
+            seps_100 = np.array(seps_100)
+            pas_100 = np.array(pas_100)
 
-        median_seps_100 = np.median(seps_100, axis=0)
-        median_pas_100 = np.median(pas_100, axis=0)
-        
-        median_seps = np.median(seps, axis=0)
-        median_pas = np.median(pas, axis=0)
-        stddev_seps = np.std(seps, axis=0)
-        stddev_pas = np.std(pas, axis=0)
+            median_seps_100 = np.median(seps_100, axis=0)
+            median_pas_100 = np.median(pas_100, axis=0)
+            
+            median_seps = np.median(seps, axis=0)
+            median_pas = np.median(pas, axis=0)
+            stddev_seps = np.std(seps, axis=0)
+            stddev_pas = np.std(pas, axis=0)
 
-        residual_seps = median_seps - self.sep_datas[object_index]
-        residual_pas = median_pas - self.pa_datas[object_index]
-        
+            residual_seps = median_seps - self.sep_datas[object_index]
+            residual_pas = median_pas - self.pa_datas[object_index]
+            
+            if separate_error:
+                object_axes[0].errorbar(
+                    yr_epochs,
+                    residual_seps,
+                    yerr=self.sep_errs[object_index],
+                    xerr=None,
+                    fmt="o",
+                    ms=5,
+                    linestyle="",
+                    c=self.ASTR_COLORS[0],
+                    zorder=10,
+                    capsize=2,
+                    label="Data Error"
+                )
+                object_axes[0].errorbar(
+                    yr_epochs,
+                    residual_seps,
+                    yerr=stddev_seps,
+                    xerr=None,
+                    ms=5,
+                    linestyle="",
+                    c=self.ASTR_COLORS[1],
+                    zorder=10,
+                    capsize=2,
+                    label="Model Standard Deviation"
+                )
+                object_axes[0].legend()
+            else:
+                residual_seps_err = np.sqrt(self.sep_errs[object_index] ** 2 + stddev_seps ** 2)
+                object_axes[0].errorbar(
+                    yr_epochs,
+                    residual_seps,
+                    yerr=residual_seps_err,
+                    xerr=None,
+                    fmt="o",
+                    ms=5,
+                    linestyle="",
+                    c=self.ASTR_COLORS[0],
+                    zorder=10,
+                    capsize=2,
+                )
 
-        fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+            for i in range(self.num_orbits_to_plot):
+                residual_seps_100 = median_seps_100 - seps_100[i]
+                object_axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
+            object_axes[0].axhline(y=0, color="black", linestyle="-")
+            if len(self.objects_to_plot) > 1:
+                object_axes[0].set_ylabel("Residual $\\rho$ {0} [mas]".format(object_to_plot))
+            else:
+                object_axes[0].set_ylabel("Residual $\\rho$ [mas]")
+            object_axes[0].set_xlabel("Epoch")
+            object_axes[0].set_xlim(yr_epochs2[0], yr_epochs2[-1])
 
-        if separate_error:
-            axes[0].errorbar(
-                yr_epochs,
-                residual_seps,
-                yerr=self.sep_errs[object_index],
-                xerr=None,
-                fmt="o",
-                ms=5,
-                linestyle="",
-                c=self.ASTR_COLORS[0],
-                zorder=10,
-                capsize=2,
-                label="Data Error"
-            )
-            axes[0].errorbar(
-                yr_epochs,
-                residual_seps,
-                yerr=stddev_seps,
-                xerr=None,
-                ms=5,
-                linestyle="",
-                c=self.ASTR_COLORS[1],
-                zorder=10,
-                capsize=2,
-                label="Model Standard Deviation"
-            )
-            axes[0].legend()
-        else:
-            residual_seps_err = np.sqrt(self.sep_errs[object_index] ** 2 + stddev_seps ** 2)
-            axes[0].errorbar(
-                yr_epochs,
-                residual_seps,
-                yerr=residual_seps_err,
-                xerr=None,
-                fmt="o",
-                ms=5,
-                linestyle="",
-                c=self.ASTR_COLORS[0],
-                zorder=10,
-                capsize=2,
-            )
-
-        for i in range(self.num_orbits_to_plot):
-            residual_seps_100 = median_seps_100 - seps_100[i]
-            axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
-        axes[0].axhline(y=0, color="black", linestyle="-")
-        axes[0].set_ylabel("Residual $\\rho$ [mas]")
-        axes[0].set_xlabel("Epoch")
-        axes[0].set_xlim(yr_epochs2[0], yr_epochs2[-1])
-
-        if separate_error:
-            axes[1].errorbar(
-                yr_epochs,
-                residual_pas,
-                yerr=self.pa_errs[object_index],
-                xerr=None,
-                fmt="o",
-                ms=5,
-                linestyle="",
-                c=self.ASTR_COLORS[0],
-                zorder=10,
-                capsize=2,
-                label="Data Error"
-            )
-            axes[1].errorbar(
-                yr_epochs,
-                residual_pas,
-                yerr=stddev_pas,
-                xerr=None,
-                ms=5,
-                linestyle="",
-                c=self.ASTR_COLORS[1],
-                zorder=10,
-                capsize=2,
-                label="Model Standard Deviation"
-            )
-            axes[1].legend()
-        else:
-            residual_pa_err = np.sqrt(self.pa_errs[object_index] ** 2 + stddev_pas ** 2)
-            axes[1].errorbar(
-                yr_epochs,
-                residual_pas,
-                yerr=residual_pa_err,
-                xerr=None,
-                fmt="o",
-                ms=5,
-                linestyle="",
-                c=self.ASTR_COLORS[0],
-                zorder=10,
-                capsize=2,
-            )
-        for i in range(self.num_orbits_to_plot):
-            residual_pas_100 = median_pas_100 - pas_100[i]
-            axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
-        axes[1].axhline(y=0, color="black", linestyle="-")
-        axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
-        axes[1].set_xlabel("Epoch")
-        axes[1].set_xlim(yr_epochs2[0], yr_epochs2[-1])
-        for ax in axes:
-            ax.tick_params(axis="both", which="both", top=True, right=True)
-            ax.minorticks_on()
+            if separate_error:
+                object_axes[1].errorbar(
+                    yr_epochs,
+                    residual_pas,
+                    yerr=self.pa_errs[object_index],
+                    xerr=None,
+                    fmt="o",
+                    ms=5,
+                    linestyle="",
+                    c=self.ASTR_COLORS[0],
+                    zorder=10,
+                    capsize=2,
+                    label="Data Error"
+                )
+                object_axes[1].errorbar(
+                    yr_epochs,
+                    residual_pas,
+                    yerr=stddev_pas,
+                    xerr=None,
+                    ms=5,
+                    linestyle="",
+                    c=self.ASTR_COLORS[1],
+                    zorder=10,
+                    capsize=2,
+                    label="Model Standard Deviation"
+                )
+                object_axes[1].legend()
+            else:
+                residual_pa_err = np.sqrt(self.pa_errs[object_index] ** 2 + stddev_pas ** 2)
+                object_axes[1].errorbar(
+                    yr_epochs,
+                    residual_pas,
+                    yerr=residual_pa_err,
+                    xerr=None,
+                    fmt="o",
+                    ms=5,
+                    linestyle="",
+                    c=self.ASTR_COLORS[0],
+                    zorder=10,
+                    capsize=2,
+                )
+            for i in range(self.num_orbits_to_plot):
+                residual_pas_100 = median_pas_100 - pas_100[i]
+                object_axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
+            object_axes[1].axhline(y=0, color="black", linestyle="-")
+            if len(self.objects_to_plot) > 1:
+                object_axes[1].set_ylabel("Residual PA {0} [$^{{\\circ}}$]".format(object_to_plot))
+            else:
+                object_axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
+            object_axes[1].set_xlabel("Epoch")
+            object_axes[1].set_xlim(yr_epochs2[0], yr_epochs2[-1])
+            for ax in object_axes:
+                ax.tick_params(axis="both", which="both", top=True, right=True)
+                ax.minorticks_on()
         plt.tight_layout()
 
         return fig
