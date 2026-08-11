@@ -59,10 +59,11 @@ class Plotter(object):
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
     
     # colour/shape scheme scheme for data points
-    ASTR_COLORS = ("#FF7F11", "#11FFE3", "#14FF11", "#7A11FF", "#FF1919")
+    ASTR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     ASTR_SYMBOLS = (".", "*", "p", "s")
+    MODEL_COLORS = ("#372554", "#0496FF", "#FF1053", "#3A7CA5", "#143109")
     RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
-    RV_ERR_COLORS = ("#FF7F11", "#11FFE3", "#14FF11", "#7A11FF", "#FF1919")
+    RV_ERR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     RV_SYMBOLS = ("o", "^", "v", "s")
 
     # Latex for rv error
@@ -595,7 +596,7 @@ class Plotter(object):
             )
         return cbar_param_arr, norm, norm_yr
 
-    def _plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, object_i, object_index, ax_colors, ax_symbols):
+    def _plot_full_orbits(self, ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_colors, astr_symbols, model_colors):
         """
         Plot raoff/deoff orbits and astrometry
 
@@ -608,14 +609,19 @@ class Plotter(object):
             plot_astrometry_insts (boolean): plot each astrometry instrument separately
         """
         # Plot each orbit (each segment between two points coloured using colormap)
+        if not use_cmap:
+            c = next(model_colors)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.period_raoffs[object_index, i, :], self.period_deoffs[object_index, i, :]]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
-            lc = LineCollection(segments, cmap=cmap, norm=self.norm, linewidth=1.0)
-            if self.cbar_param not in ["Epoch [year]", "Epoch (year)"]:
-                lc.set_array(np.ones(self.num_epochs_to_plot) * self.cbar_param_arr[i])
-            elif self.cbar_param in ["Epoch [year]", "Epoch (year)"]:
-                lc.set_array(self.period_epochss[object_index, i, :])
+            if use_cmap:
+                lc = LineCollection(segments, cmap=cmap, norm=self.norm, linewidth=1.0)
+                if self.cbar_param not in ["Epoch [year]", "Epoch (year)"]:
+                    lc.set_array(np.ones(self.num_epochs_to_plot) * self.cbar_param_arr[i])
+                elif self.cbar_param in ["Epoch [year]", "Epoch (year)"]:
+                    lc.set_array(self.period_epochss[object_index, i, :])
+            else:
+                lc = LineCollection(segments, colors=c, norm=self.norm, linewidth=1.0)
             ax.add_collection(lc)
 
         if plot_astrometry:
@@ -627,14 +633,14 @@ class Plotter(object):
                     ax.scatter(
                         ra,
                         dec,
-                        marker=next(ax_symbols),
-                        c=next(ax_colors),
+                        marker=next(astr_symbols),
+                        c=next(astr_colors),
                         zorder=10,
                         s=60,
                         label=self.astr_insts[object_i][i],
                     )
             else:
-                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(ax_symbols), c=next(ax_colors), zorder=10, s=60)
+                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=next(astr_colors), zorder=10, s=60)
 
         # modify the axes
         if square_plot:
@@ -1008,6 +1014,7 @@ class Plotter(object):
         self,
         square_plot=True,
         show_colorbar=True,
+        use_cmap=True,
         cmap=None,
         sep_pa_color="lightgrey",
         mod180=False,
@@ -1065,6 +1072,9 @@ class Plotter(object):
         
         if cmap is None:
             cmap = self.CMAP
+
+        if not use_cmap:
+            show_colorbar = False
 
         if (rv_time_series or rv_time_series2) and "m0" not in self.results.labels:
             rv_time_series = False
@@ -1138,10 +1148,11 @@ class Plotter(object):
                     ax3 = ax4
                     ax4 = None
 
-            ax_colors = itertools.cycle(self.ASTR_COLORS)
-            ax_symbols = itertools.cycle(self.ASTR_SYMBOLS)
+            astr_colors = itertools.cycle(self.ASTR_COLORS)
+            astr_symbols = itertools.cycle(self.ASTR_SYMBOLS)
+            model_colors = itertools.cycle(self.MODEL_COLORS)
             for object_i, object_index in enumerate(self.objects_to_plot):
-                self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, object_i, object_index, ax_colors, ax_symbols)
+                self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_colors, astr_symbols, model_colors)
                 self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
                 self._plot_sep_pa_instruments(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
 
