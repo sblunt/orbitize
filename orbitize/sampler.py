@@ -993,8 +993,7 @@ class MCMC(Sampler):
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
-        with mp.Pool(processes=self.num_threads) as pool:
-            if self.use_pt:
+        if self.use_pt:
                 sampler = ptemcee.Sampler(
                     self.num_walkers,
                     self.num_params,
@@ -1006,7 +1005,8 @@ class MCMC(Sampler):
                         self.priors,
                     ],
                 )
-            else:
+        else:
+            with mp.Pool(processes=self.num_threads) as pool:
                 sampler = emcee.EnsembleSampler(
                     self.num_walkers,
                     self.num_params,
@@ -1014,7 +1014,7 @@ class MCMC(Sampler):
                     pool=pool,
                     kwargs={"include_logp": True},
                 )
-
+        
             print("Starting Burn in")
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)
