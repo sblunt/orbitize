@@ -12,7 +12,7 @@ def test_secondary_rv_lnlike_calc():
     Generates fake secondary RV data and asserts that
     the log(likelihood) of the true parameters is what we expect.
     Also tests that the primary and secondary RV orbits are related by
-    -m/mtot
+    -m/mtot (accounting for RV of secondary being relative to the primary RV)
     """
 
     # define an orbit & generate secondary RVs
@@ -29,14 +29,20 @@ def test_secondary_rv_lnlike_calc():
 
     epochs = Time(np.linspace(2005, 2025, int(1e3)), format="decimalyear").mjd
 
+    # compute RV of planet
     _, _, rv_p = calc_orbit(
         epochs, a, e, i, omega, Omega, tau, plx, m0 + m1, mass_for_Kamp=m0
+    )
+
+    # compute RV of star
+    _, _, rv_s = calc_orbit(
+        epochs, a, e, i, -omega, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
     )
 
     data_file = DataFrame(columns=["epoch", "object", "rv", "rv_err"])
     data_file.epoch = epochs
     data_file.object = np.ones(len(epochs), dtype=int)
-    data_file.rv = rv_p
+    data_file.rv = rv_p - rv_s
     data_file.rv_err = np.ones(len(epochs)) * 0.01
 
     data_file.to_csv("tmp.csv", index=False)
@@ -50,6 +56,7 @@ def test_secondary_rv_lnlike_calc():
     computed_lnlike = mySamp._logl(orbitize_params_list)
 
     # residuals should be 0
+    import pdb; pdb.set_trace()
     assert computed_lnlike == np.sum(
         -np.log(np.sqrt(2 * np.pi * data_file.rv_err.values**2))
     )
@@ -63,6 +70,11 @@ def test_secondary_rv_lnlike_calc():
     rv1 = rv[:, 1]
 
     assert np.all(rv0 == -m1 / m0 * rv1)
+
+# TODO: update tutorial with relative RVs
+# TODO: test case of secondary RVs with multiple instruments
+# TODO: test case of secondary RVs with no inst specified
+# TODO: test relative RVs with massive secondary
 
 def test_read_input():
     """
