@@ -165,7 +165,7 @@ class Plotter(object):
             self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
             self.period_raoffs, self.period_deoffs, self.period_vzs, self.period_epochss = self._calc_full_orbits(
                 self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.standard_post)
-            self.fixed_raoffs, self.fixed_deoffs, self.fixed_vzs, self.fixed_epochs = self._calc_panel_orbits(
+            self.fixed_raoffs, self.fixed_deoffs, self.fixed_vzs, self.fixed_brightnesses, self.fixed_epochs = self._calc_panel_orbits(
                 self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.objects_to_plot, self.standard_post, self.end)
             self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.period_epochss, self.standard_post)
             if self.rv_time_series:
@@ -180,6 +180,7 @@ class Plotter(object):
                     self.rv_time_series2=False
             (
                 self.sep_datas, self.sep_errs, self.pa_datas, self.pa_errs, self.ra_datas, self.ra_errs, self.dec_datas, self.dec_errs,
+                self.bright_datas, self.bright_errs, self.bright_insts, self.bright_inst_inds, self.bright_epochs,
                 self.astr_raoffs, self.astr_deoffs, self.astr_vzs, self.astr_epochs, self.astr_insts, self.astr_inst_inds
             ) = self._calc_astrometry(self.standard_post, self.num_orbits_to_plot, self.data, self.objects_to_plot)
 
@@ -192,6 +193,12 @@ class Plotter(object):
         ra_errs = []
         dec_datas = []
         dec_errs = []
+
+        bright_datas = []
+        bright_errs = []
+        bright_insts = []
+        bright_inst_inds = []
+        bright_epochs = []
 
         astr_raoffs = []
         astr_deoffs = []
@@ -212,6 +219,13 @@ class Plotter(object):
             dec_datas.append(dec_data)
             dec_errs.append(dec_err)
 
+            bright_data, bright_err, bright_inst, bright_inst_ind, bright_epoch = self._calc_brightness(object_data)
+            bright_datas.append(bright_data)
+            bright_errs.append(bright_err)
+            bright_insts.append(bright_inst)
+            bright_inst_inds.append(bright_inst_ind)
+            bright_epochs.append(bright_epoch)
+
             astr_raoff, astr_deoff, astr_vz, astr_epoch, astr_inst, astr_inst_ind = self._calc_astr_orbits(standard_post, num_orbits_to_plot, i, object_data)
             astr_raoffs.append(astr_raoff) 
             astr_deoffs.append(astr_deoff) 
@@ -221,7 +235,7 @@ class Plotter(object):
             astr_inst_inds.append(astr_inst_ind) 
 
 
-        return sep_datas, sep_errs, pa_datas, pa_errs, ra_datas, ra_errs, dec_datas, dec_errs, astr_raoffs, astr_deoffs, astr_vzs, astr_epochs, astr_insts, astr_inst_inds
+        return sep_datas, sep_errs, pa_datas, pa_errs, ra_datas, ra_errs, dec_datas, dec_errs, bright_datas, bright_errs, bright_insts, bright_inst_inds, bright_epochs, astr_raoffs, astr_deoffs, astr_vzs, astr_epochs, astr_insts, astr_inst_inds
 
     def _calc_seppa_radec(self, object_data):
         """
@@ -315,6 +329,24 @@ class Plotter(object):
             dec_err[seppa_inds] = dec_err_from_seppa_data
         
         return sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err
+
+    def _calc_brightness(self, object_data):
+        brightness_indices = np.where(object_data["quant_type"] == "brightness")
+        data = object_data[brightness_indices]
+        brightness_data = data["quant1"]
+        brightness_err = data["quant1_err"]
+
+        bright_epochs = object_data["epoch"][brightness_indices]
+        bright_insts = np.unique(data["instrument"])
+        
+        # Indices corresponding to each instrument in datafile
+        bright_inst_inds = {}
+        for i in range(len(bright_insts)):
+            bright_inst_inds[bright_insts[i]] = np.where(
+                (data["instrument"] == bright_insts[i].encode()) | (data["instrument"] ==  bright_insts[i])
+            )[0]
+        return brightness_data, brightness_err, bright_insts, bright_inst_inds, bright_epochs
+
 
     def _calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot, data):
         """
@@ -540,7 +572,7 @@ class Plotter(object):
                 start.mjd, end.mjd, num_epochs_to_plot
             )
         
-        raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
+        raoff0, deoff0, vz0, brightness0 = self.system.compute_all_orbits(
             standard_post.T,
             epochs
         )
@@ -549,7 +581,8 @@ class Plotter(object):
         raoffs = np.transpose(raoff0, [1,2,0])
         deoffs = np.transpose(deoff0, [1,2,0])
         vzs = np.transpose(vz0, [1,2,0])
-        return raoffs, deoffs, vzs, epochs
+        brightnesses = np.transpose(brightness0, [1,2,0])
+        return raoffs, deoffs, vzs, brightnesses, epochs
 
     def _create_cbar(self, cbar_param, epochss, standard_post):
         """
@@ -611,6 +644,7 @@ class Plotter(object):
         # Plot each orbit (each segment between two points coloured using colormap)
         if not use_cmap:
             c = next(model_colors)
+        c2 = next(astr_colors)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.period_raoffs[object_index, i, :], self.period_deoffs[object_index, i, :]]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
@@ -634,13 +668,13 @@ class Plotter(object):
                         ra,
                         dec,
                         marker=next(astr_symbols),
-                        c=next(astr_colors),
+                        c=c2,
                         zorder=10,
                         s=60,
                         label=self.astr_insts[object_i][i],
                     )
             else:
-                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=next(astr_colors), zorder=10, s=60)
+                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=c2, zorder=10, s=60)
 
         # modify the axes
         if square_plot:
@@ -710,6 +744,14 @@ class Plotter(object):
 
             plt.sca(ax2)
             plt.plot(yr_epochs, pas, color=sep_pa_color)
+
+    def _plot_brightness_model(self, ax, sep_pa_color, object_i, object_index):
+        for i in np.arange(self.num_orbits_to_plot):
+            yr_epochs = Time(self.fixed_epochs, format="mjd").decimalyear
+            brightnesses = self.fixed_brightnesses[object_index, i, :]
+
+            plt.sca(ax)
+            plt.plot(yr_epochs, brightnesses, color=sep_pa_color)
     
     def _plot_rv_model(self, ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color):
         """
@@ -860,6 +902,63 @@ class Plotter(object):
                     Time(self.astr_epochs[object_i], format="mjd").decimalyear,
                     self.pa_datas[object_i],
                     yerr=self.pa_errs[object_i],
+                    ms=5,
+                    linestyle="",
+                    ecolor=self.ASTR_COLORS[0],
+                    zorder=10,
+                    capsize=2,
+                )
+
+    def _plot_brightness_instruments(self, ax, plot_astrometry_insts, plot_errorbars, object_i, object_index):
+        # Plot brightness instruments
+        plt.sca(ax)
+        if plot_astrometry_insts:
+            colors = itertools.cycle(self.ASTR_COLORS)
+            symbols = itertools.cycle(self.ASTR_SYMBOLS)
+
+            for inst in self.bright_insts[object_i]:
+                inst_inds = self.bright_inst_inds[object_i][inst]
+                brightness = self.bright_datas[object_i][inst_inds]
+                bright_err = self.bright_errs[object_i][inst_inds]
+                epochs = self.bright_epochs[object_i][inst_inds]
+
+                color = next(colors)
+                symbol = next(symbols)
+                plt.scatter(
+                    Time(epochs, format="mjd").decimalyear,
+                    brightness,
+                    s=60,
+                    marker=symbol,
+                    c=color,
+                    zorder=10,
+                    label=inst,
+                )
+                if plot_errorbars:
+                    plt.errorbar(
+                        Time(epochs, format="mjd").decimalyear,
+                        brightness,
+                        yerr=bright_err,
+                        ms=5,
+                        linestyle="",
+                        ecolor=color,
+                        zorder=10,
+                        capsize=2,
+                    )
+            plt.legend(fontsize=15, loc=1)
+        else:
+            plt.scatter(
+                Time(self.bright_epochs[object_i], format="mjd").decimalyear,
+                self.bright_datas[object_i],
+                s=60,
+                marker=self.ASTR_SYMBOLS[0],
+                c=self.ASTR_COLORS[0],
+                zorder=10,
+            )
+            if plot_errorbars:
+                plt.errorbar(
+                    Time(self.bright_epochs[object_i], format="mjd").decimalyear,
+                    self.bright_datas[object_i],
+                    yerr=self.bright_errs[object_i],
                     ms=5,
                     linestyle="",
                     ecolor=self.ASTR_COLORS[0],
@@ -1020,6 +1119,7 @@ class Plotter(object):
         mod180=False,
         plot_astrometry=True,
         plot_astrometry_insts=False,
+        plot_brightness=True,
         rv_time_series=False,
         rv_time_series2=False,
         plot_errorbars=True,
@@ -1087,6 +1187,10 @@ class Plotter(object):
                 "so the argument is set to False instead."
             )
 
+        if plot_brightness and len(self.objects_to_plot) == 1 and len(self.bright_datas[0]) == 0:
+            plot_brightness = False
+            warnings.warn("No brightness data was provided so plot_brightness=True is not possible")
+
         if (rv_time_series and not self.rv_time_series) or (rv_time_series2 and not self.rv_time_series2):
             self.set_params(rv_time_series=rv_time_series, rv_time_series2=rv_time_series2)
 
@@ -1097,6 +1201,8 @@ class Plotter(object):
             num_objects_to_plot = len(self.objects_to_plot)
             if num_objects_to_plot > 1:
                 height += num_objects_to_plot + 2
+            if num_objects_to_plot == 1 and plot_brightness:
+                height += 1
             if fig is None:
                 fig = plt.figure(figsize=(16, height * 4))
                 plt.subplots_adjust(hspace=0.3)
@@ -1104,28 +1210,43 @@ class Plotter(object):
                 plt.figure(fig)
 
             shape = (height, 16)
+            bright_shape = (height, 18)
             # Main Panel
             if num_objects_to_plot == 1:
-                ax = plt.subplot2grid(shape, (0, 0), rowspan=2, colspan=8 - show_colorbar)
+                ax = plt.subplot2grid(shape, (0, 0), rowspan=2+plot_brightness, colspan=8 - show_colorbar)
             else:
                 ax = plt.subplot2grid(shape, (0, 0), rowspan=4, colspan=16 - show_colorbar * 2)
 
-            # sep/PA panels
+            # sep/PA/bright panels
             sep_axes = []
             pa_axes = []
+            bright_axes = []
             if num_objects_to_plot == 1:
                 sep_ax = plt.subplot2grid(shape, (0, 10), rowspan=1, colspan=6)
                 pa_ax = plt.subplot2grid(shape, (1, 10), rowspan=1, colspan=6)
+                if plot_brightness:
+                    bright_ax = plt.subplot2grid(shape, (2, 10), rowspan=1, colspan=6)
+                else:
+                    bright_ax = None
                 sep_ax.set_ylabel("$\\rho$ (mas)", fontsize=fontsize)
                 pa_ax.set_ylabel("PA ($^{{\\circ}}$)", fontsize=fontsize)
                 sep_ax.set_xlabel("Epoch", fontsize=fontsize)
                 pa_ax.set_xlabel("Epoch", fontsize=fontsize)
                 sep_axes.append(sep_ax)
                 pa_axes.append(pa_ax)
+                bright_axes.append(bright_ax)
             else:
                 for i, object_index in enumerate(self.objects_to_plot):
-                    sep_ax = plt.subplot2grid(shape, (4+i, 0), rowspan=1, colspan=7)
-                    pa_ax = plt.subplot2grid(shape, (4+i, 9), rowspan=1, colspan=7)
+                    if plot_brightness and len(self.bright_datas[i]) > 0:
+                        sep_ax = plt.subplot2grid(bright_shape, (4+i, 0), rowspan=1, colspan=4)
+                        pa_ax = plt.subplot2grid(bright_shape, (4+i, 6), rowspan=1, colspan=4)
+                        bright_ax = plt.subplot2grid(bright_shape, (4+i, 12), rowspan=1, colspan=4)
+                        bright_ax.set_ylabel("brightness {0}".format(object_index), fontsize=fontsize)
+                        bright_ax.set_xlabel("Epoch", fontsize=fontsize)
+                    else:
+                        sep_ax = plt.subplot2grid(shape, (4+i, 0), rowspan=1, colspan=7)
+                        pa_ax = plt.subplot2grid(shape, (4+i, 9), rowspan=1, colspan=7)
+                        bright_ax = None
                     sep_ax.set_ylabel("$\\rho$ {0} (mas)".format(object_index), fontsize=fontsize)
                     pa_ax.set_ylabel("PA {0} ($^{{\\circ}}$)".format(object_index), fontsize=fontsize)
                     sep_ax.set_xlabel("Epoch", fontsize=fontsize)
@@ -1133,6 +1254,7 @@ class Plotter(object):
 
                     sep_axes.append(sep_ax)
                     pa_axes.append(pa_ax)
+                    bright_axes.append(bright_ax)
 
             # rv panels
             ax3 = ax4 = None
@@ -1155,6 +1277,11 @@ class Plotter(object):
                 self._plot_full_orbits(ax, plot_astrometry, square_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_colors, astr_symbols, model_colors)
                 self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
                 self._plot_sep_pa_instruments(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
+
+                bright_ax = bright_axes[object_i]
+                if bright_ax is not None:
+                    self._plot_brightness_model(bright_ax, sep_pa_color, object_i, object_index)
+                    self._plot_brightness_instruments(bright_ax, plot_astrometry_insts, plot_errorbars, object_i, object_index)
 
             if rv_time_series or rv_time_series2:
                 self._plot_rv_model(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
