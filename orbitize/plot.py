@@ -1865,6 +1865,10 @@ def plot_dr4_orbit(
     raoff_data, deoff_data = _get_star_offsets_dr4(median_params, system, epochs_mjd)
     median_model_al = _model_along_scan_dr4(median_params, system, dr4)
     al_resid = dr4.centroid_pos_al - median_model_al
+    if dr4.fit_jitter:
+        dr4_jitter = median_params[system.param_idx["dr4_jitter"]]
+    else:
+        dr4_jitter = dr4.jitter
 
     ra_data = raoff_data + al_resid * dr4.sin_scan
     de_data = deoff_data + al_resid * dr4.cos_scan
@@ -1872,7 +1876,7 @@ def plot_dr4_orbit(
     ax.scatter(ra_data, de_data, marker="*", c="red", s=60, zorder=10)
 
     for j in range(len(epochs_mjd)):
-        err = dr4.centroid_pos_error_al[j]
+        err = np.hypot(dr4.centroid_pos_error_al[j], dr4_jitter)
         ra1 = raoff_data[j] + (al_resid[j] + err) * dr4.sin_scan[j]
         ra2 = raoff_data[j] + (al_resid[j] - err) * dr4.sin_scan[j]
         de1 = deoff_data[j] + (al_resid[j] + err) * dr4.cos_scan[j]

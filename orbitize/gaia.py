@@ -516,8 +516,16 @@ class DR4LogProb(object):
         catalog_ra_off (float): positional offset in RA* at ref_epoch_jd [mas].  Default 0.
         catalog_ra_off_err (float): 1-sigma uncertainty [mas].  Default 1 (weakly informative; Gaia positions are sub-mas,
          but the offset is defined relative to an arbitrary origin).
-        catalog_dec_off (float): positional offset in Dec at `ef_epoch_jd [mas].  Default 0.
+        catalog_dec_off (float): positional offset in Dec at ref_epoch_jd [mas].
+            Default 0.
         catalog_dec_off_err (float): 1-sigma uncertainty [mas].  Default 1.
+        jitter (float): fixed along-scan jitter [mas] added in quadrature to
+            ``centroid_pos_error_al``. Default 0, preserving the original
+            likelihood.
+        jitter_prior (orbitize.priors.Prior, optional): prior for a fitted
+            along-scan jitter parameter [mas]. When supplied, ``dr4_jitter``
+            is registered as an additional System parameter. ``jitter`` must
+            remain zero when fitting the jitter.
 
     Written: Clarissa Do O, 2026
     """
@@ -529,7 +537,7 @@ class DR4LogProb(object):
         self,
         gaia_num,
         dr4_filepath,
-        ref_epoch_jd=2457936.875, #2017.5, same as tutorial
+        ref_epoch_jd=2457936.875,  # J2017.5, same as tutorial
         catalog_pmra=0.0,
         catalog_pmra_err=100.0,
         catalog_pmdec=0.0,
@@ -538,10 +546,21 @@ class DR4LogProb(object):
         catalog_ra_off_err=1.0,
         catalog_dec_off=0.0,
         catalog_dec_off_err=1.0,
+        jitter=0.0,
+        jitter_prior=None,
     ):
+        if not np.isfinite(jitter) or jitter < 0:
+            raise ValueError("jitter must be a finite, non-negative value in mas")
+        if jitter_prior is not None and jitter != 0:
+            raise ValueError("set either a fixed jitter or jitter_prior, not both")
+        if jitter_prior is not None and not isinstance(jitter_prior, priors.Prior):
+            raise TypeError("jitter_prior must be an orbitize.priors.Prior")
+
         self.gaia_num = gaia_num
         self.dr4_filepath = dr4_filepath
         self.ref_epoch_jd = ref_epoch_jd
+        self.jitter = float(jitter)
+        self.fit_jitter = jitter_prior is not None
 
         # read DR4 epoch astrometry
         dr4_dat = read(dr4_filepath)
@@ -573,31 +592,36 @@ class DR4LogProb(object):
         self.dt_yr = (epochs_jd - ref_epoch_jd) / 365.25
 
         # pre-compute scan projection of PM basis vectors
-        self.pm_ra_basis = self.dt_yr * self.sin_scan   # pmra, projected
-        self.pm_dec_basis = self.dt_yr * self.cos_scan   # pmdec, projected
-
-        # constant part of the lnlike normalization
-        self._log_norm = np.sum(np.log(2.0 * np.pi * self.centroid_pos_error_al ** 2))
-        self._weights = 1.0 / self.centroid_pos_error_al ** 2
+        self.pm_ra_basis = self.dt_yr * self.sin_scan  # pmra, projected
+        self.pm_dec_basis = self.dt_yr * self.cos_scan  # pmdec, projected
 
         # sampler interface (matches HGCALogProb convention so things don't break)
-        self.hipparcos_epoch = np.array([])   # empty
-        self.gaia_epoch = epochs_decyr        # DR4 scan epochs [decimal yr]
+        self.hipparcos_epoch = np.array([])  # empty
+        self.gaia_epoch = epochs_decyr  # DR4 scan epochs [decimal yr]
 
         # priors for the four linear astrometric parameters
-        self.extra_param_priors=(
-            priors.GaussianPrior(catalog_ra_off,catalog_ra_off_err,no_negatives=False),
-            priors.GaussianPrior(catalog_dec_off,catalog_dec_off_err,no_negatives=False),
-            priors.GaussianPrior(catalog_pmra,catalog_pmra_err,no_negatives=False),
-            priors.GaussianPrior(catalog_pmdec,catalog_pmdec_err,no_negatives=False),
+        self.extra_param_priors = (
+            priors.GaussianPrior(
+                catalog_ra_off, catalog_ra_off_err, no_negatives=False
+            ),
+            priors.GaussianPrior(
+                catalog_dec_off, catalog_dec_off_err, no_negatives=False
+            ),
+            priors.GaussianPrior(catalog_pmra, catalog_pmra_err, no_negatives=False),
+            priors.GaussianPrior(
+                catalog_pmdec, catalog_pmdec_err, no_negatives=False
+            ),
         )
-
-
+        if self.fit_jitter:
+            self.extra_param_names = self.extra_param_names + ("dr4_jitter",)
+            self.extra_param_priors = self.extra_param_priors + (jitter_prior,)
     def _save(self, hf):
         """Save to an open HDF5 file."""
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = "dr4"
         hf.attrs["dr4_ref_epoch_jd"] = self.ref_epoch_jd
+        hf.attrs["dr4_jitter"] = self.jitter
+        hf.attrs["dr4_fit_jitter"] = self.fit_jitter
 
         dr4_dat = read(self.dr4_filepath, converters={"*": [int, float, bytes]})
         hf.create_dataset("Gaia_DR4", data=dr4_dat)
@@ -605,9 +629,12 @@ class DR4LogProb(object):
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
         Compute the Gaussian lnlike of the DR4 along-scan data.
-        The four astrometric offsets (``dr4_ra_off``, ``dr4_dec_off``, ``dr4_pmra``, ``dr4_pmdec``)
-        are read from the MCMC state vector; their Gaussian priors are evaluated
-        separately by the sampler's standard prior machinery.
+        The four astrometric offsets (``dr4_ra_off``, ``dr4_dec_off``,
+        ``dr4_pmra``, ``dr4_pmdec``) are read from the MCMC state vector; their
+        Gaussian priors are evaluated separately by the sampler's standard
+        prior machinery. If ``jitter_prior`` was supplied at construction,
+        ``dr4_jitter`` is also read from the state vector and added in
+        quadrature to every along-scan uncertainty.
 
         Args:
             raoff_model (np.array): NxM primary RA offsets from the
@@ -623,29 +650,37 @@ class DR4LogProb(object):
         plx = samples[param_idx["plx"]]
 
         # four explicit astrometric parameters, they come from the catalog
-        ra_off = samples[param_idx["dr4_ra_off"]]    # [mas]
-        dec_off = samples[param_idx["dr4_dec_off"]]   # [mas]
-        pmra = samples[param_idx["dr4_pmra"]]        # [mas/yr]
-        pmdec = samples[param_idx["dr4_pmdec"]]       # [mas/yr]
+        ra_off = samples[param_idx["dr4_ra_off"]]  # [mas]
+        dec_off = samples[param_idx["dr4_dec_off"]]  # [mas]
+        pmra = samples[param_idx["dr4_pmra"]]  # [mas/yr]
+        pmdec = samples[param_idx["dr4_pmdec"]]  # [mas/yr]
 
         # project orbital perturbation onto along-scan direction
-        orbit_al = - (
+        orbit_al = -(
             raoff_model[:, 0] * self.sin_scan
             + deoff_model[:, 0] * self.cos_scan
         )
 
         # full along-scan model: position + PM + parallax + orbit
         model_al = (
-            ra_off * self.sin_scan # position offset, projected
-            + dec_off * self.cos_scan # position offset, projected
-            + pmra * self.pm_ra_basis # proper motion, projected
-            + pmdec * self.pm_dec_basis # proper motion, projected
-            + plx * self.parallax_factor_al # plx and its factor
-            + orbit_al # residual due to planet or companion
+            ra_off * self.sin_scan  # position offset, projected
+            + dec_off * self.cos_scan  # position offset, projected
+            + pmra * self.pm_ra_basis  # proper motion, projected
+            + pmdec * self.pm_dec_basis  # proper motion, projected
+            + plx * self.parallax_factor_al  # plx and its factor
+            + orbit_al  # residual due to planet or companion
         )
 
-        # Gaussian lnlike
+        # Gaussian lnlike. The normalization must be recomputed when jitter is
+        # fitted because the effective uncertainties then vary between samples.
         residuals = self.centroid_pos_al - model_al
-        chi2 = np.sum(residuals ** 2 * self._weights)
+        if self.fit_jitter:
+            jitter = samples[param_idx["dr4_jitter"]]
+        else:
+            jitter = self.jitter
 
-        return float(-0.5 * (chi2 + self._log_norm))
+        variance = self.centroid_pos_error_al**2 + jitter**2
+        chi2 = np.sum(residuals**2 / variance)
+        log_norm = np.sum(np.log(2.0 * np.pi * variance))
+
+        return float(-0.5 * (chi2 + log_norm))
