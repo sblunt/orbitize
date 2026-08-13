@@ -73,7 +73,7 @@ class Plotter(object):
     def __init__(
         self,
         results,
-        object_to_plot=1, # TODO: Support multiplanet
+        object_to_plot=1,
         start=None,
         end=None,
         time_format="decimalyear",
@@ -258,7 +258,7 @@ class Plotter(object):
             bright_inst_inds.append(bright_inst_ind)
             bright_epochs.append(bright_epoch)
 
-            astr_raoff, astr_deoff, astr_vz, astr_epoch, astr_inst, astr_inst_ind = self._calc_astr_orbits(standard_post, num_orbits_to_plot, i, object_data)
+            astr_raoff, astr_deoff, astr_vz, astr_epoch, astr_inst, astr_inst_ind = self._calc_astr_orbits(standard_post, i, object_data)
             astr_raoffs.append(astr_raoff) 
             astr_deoffs.append(astr_deoff) 
             astr_vzs.append(astr_vz) 
@@ -394,13 +394,12 @@ class Plotter(object):
             )[0]
         return brightness_data, brightness_err, bright_insts, bright_inst_inds, bright_epochs
 
-    def _calc_astr_orbits(self, standard_post, num_orbits_to_plot, object_to_plot, data):
+    def _calc_astr_orbits(self, standard_post, object_to_plot, data):
         """
         Calculate position in orbit at epochs of astrometry data
 
         Args:
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
-            num_orbits_to_plot (int): number of orbits for which to calculate, no more than num_orbits in standard_post
             object_to_plot (int): index of object to plot
             data (astropy.table.Table): data of object
         
@@ -415,7 +414,6 @@ class Plotter(object):
         """
         astr_inds = np.where((~np.isnan(data["quant1"])) & (~np.isnan(data["quant2"])))
         astr_epochs = data["epoch"][astr_inds]
-        num_astr_epochs = len(astr_epochs)
 
         astr_data = data[astr_inds]
         astr_insts = np.unique(astr_data["instrument"])
@@ -427,20 +425,15 @@ class Plotter(object):
                 (astr_data["instrument"] == astr_insts[i].encode()) | (astr_data["instrument"] ==  astr_insts[i])
             )[0]
 
-        deoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
-        raoff = np.zeros((num_orbits_to_plot, num_astr_epochs))
-        vz = np.zeros((num_orbits_to_plot, num_astr_epochs))
-        # TODO: vectorize
-        for i in np.arange(num_orbits_to_plot):
-            # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
-                standard_post[i],
-                astr_epochs
-            )
+        # Calculate ra/dec offsets for all epochs of this orbit
+        raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
+            standard_post.T,
+            astr_epochs
+        )
 
-            raoff[i, :] = raoff0[:, object_to_plot, 0]
-            deoff[i, :] = deoff0[:, object_to_plot, 0]
-            vz[i, :] = vz0[:, object_to_plot, 0]
+        raoff = np.transpose(raoff0, [1,2,0])[object_to_plot, :, :]
+        deoff = np.transpose(deoff0, [1,2,0])[object_to_plot, :, :]
+        vz = np.transpose(vz0, [1,2,0])[object_to_plot, :, :]
         
         return raoff, deoff, vz, astr_epochs, astr_insts, astr_inst_inds
 
@@ -496,7 +489,6 @@ class Plotter(object):
             ``np.array``: min(num_orbits_to_plot, post.shape[0]) x (num params + standard basis params) posterior including standard basis values
         """
         # TODO: Replace random with results.downsample
-        # TODO: vectorize to_standard_basis call
         num_orbits = len(self.results.post[:, 0])
         if num_orbits_to_plot > num_orbits:
             self.num_orbits_to_plot = num_orbits
@@ -838,7 +830,7 @@ class Plotter(object):
 
                 # scale back to primary RV semi amplitude
                 vz0 = self.fixed_vzs[0, i, :]
-                # vz0 = self.vz1[i] * (-(mtot[i] - m0[i]) / np.median(m0[i])) # TODO: vectorize
+                # vz0 = self.vz1[i] * (-(mtot[i] - m0[i]) / np.median(m0[i]))
 
                 plt.plot(
                     Time(self.fixed_epochs, format="mjd").decimalyear,
