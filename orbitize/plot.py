@@ -55,6 +55,9 @@ class Plotter(object):
     """
     # Color Map
     CMAP = cmap
+    # color bar
+    CBAR_SPACING = 0.005
+    CBAR_WIDTH = 0.02
     # first three letters of possible color bar parameters
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
     
@@ -669,7 +672,7 @@ class Plotter(object):
             )
         return cbar_param_arr, norm, norm_yr
 
-    def _plot_full_orbits(self, ax, plot_astrometry, full_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_colors, astr_symbols, model_colors):
+    def _plot_full_orbits(self, ax, plot_astrometry, full_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_color, astr_symbols, model_color):
         """
         Plot RAoff/Decoff orbits and astrometry
 
@@ -686,14 +689,11 @@ class Plotter(object):
                 otherwise, use one color per planet from `self.MODEL_COLORS`
             object_i (int): index of index of object to be plotted witin ``self.objects_to_plot``
             object_index (int): index of object to be plotted
-            astr_colors (iterable of strings): matplotlib color strings to use for astrometry if ``plot_astrometry``
+            astr_color (string): matplotlib color string to use for astrometry if ``plot_astrometry``
             astr_symbols (iterable of strings): matplotlib symbol strings to use for astrometry if ``plot_astrometry``
-            model_colors (iterable of strings): matploblib color strings to use for orbits if not ``use_cmap``
+            model_color (string): matploblib color string to use for orbits if not ``use_cmap``
         """
         # Plot each orbit (each segment between two points coloured using colormap)
-        if not use_cmap:
-            c = next(model_colors)
-        c2 = next(astr_colors)
         for i in np.arange(self.num_orbits_to_plot):
             points = np.array([self.period_raoffs[object_index, i, :], self.period_deoffs[object_index, i, :]]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
@@ -704,7 +704,7 @@ class Plotter(object):
                 elif self.cbar_param in ["Epoch [year]", "Epoch (year)"]:
                     lc.set_array(self.period_epochss[object_index, i, :])
             else:
-                lc = LineCollection(segments, colors=c, norm=self.norm, linewidth=1.0)
+                lc = LineCollection(segments, colors=model_color, norm=self.norm, linewidth=1.0)
             ax.add_collection(lc)
 
         if plot_astrometry:
@@ -717,14 +717,14 @@ class Plotter(object):
                         ra,
                         dec,
                         marker=next(astr_symbols),
-                        c=c2,
+                        c=astr_color,
                         zorder=10,
                         s=60,
                         label=self.astr_insts[object_i][i],
                     )
                 plt.legend(fontsize=15, loc=1)
             else:
-                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=c2, zorder=10, s=60)
+                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=astr_color, zorder=10, s=60)
 
         # modify the axes
         if full_plot:
@@ -739,33 +739,40 @@ class Plotter(object):
         ax.locator_params(axis="y", nbins=6)
         ax.invert_xaxis()  # To go to a left-handed coordinate system
 
-    def _add_colorbar(self, ax, fig, cmap):
+    def _add_colorbar(self, ax, fig, cmaps, num_cbars):
         """
         Adds a colorbar
 
         Args:
             ax (``matploblib.axes.Axes``): fxes besides which to put colorbar
             fig (``matplotlib.figure.Figure``): Figure which contains ``ax``
-            cmap (``matplotlib.cm.ColorMap``): color map to use with ``self.cbar_param, self.norm_yr``
+            cmaps (list of ``matplotlib.colors.Colormap``): color maps to use with ``self.cbar_param, self.norm_yr``
+            num_cbars (int): number of colorsbars to plot
         """
+        
         # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
-        # You can change x1.0.05 to adjust the distance between the main image and the colorbar.
-        # You can change 0.02 to adjust the width of the colorbar.
-        cbar_ax = fig.add_axes(
-            [
-                ax.get_position().x1 + 0.005,
-                ax.get_position().y0,
-                0.02,
-                ax.get_position().height,
-            ]
-        )
-        cbar = mpl.colorbar.ColorbarBase(
-            cbar_ax,
-            cmap=cmap,
-            norm=self.norm_yr,
-            orientation="vertical",
-            label=self.cbar_param,
-        )
+        for i in range(num_cbars):
+            cbar_ax = fig.add_axes(
+                [
+                    ax.get_position().x1 + self.CBAR_SPACING + (self.CBAR_SPACING + self.CBAR_WIDTH)*i,
+                    ax.get_position().y0,
+                    self.CBAR_WIDTH,
+                    ax.get_position().height,
+                ]
+            )
+            cbar = mpl.colorbar.ColorbarBase(
+                cbar_ax,
+                cmap=cmaps[i],
+                norm=self.norm_yr,
+                orientation="vertical",
+            )
+            if num_cbars > 1:
+                cbar_objects = self.objects_to_plot[i::num_cbars]
+                cbar.ax.set_xlabel(",".join(map(str,cbar_objects)), size=15)
+            last = i == num_cbars - 1
+            if not last:
+                cbar.ax.set_yticklabels([])
+        # Add label to last cbar
         cbar.ax.tick_params(labelsize=15)
         cbar.set_label(label=self.cbar_param, size=20)
 
@@ -1204,8 +1211,8 @@ class Plotter(object):
             show_colorbar (bool): displays colorbar to the right of the RA/Dec plot (default: True).
             use_cmap (bool): map a color map to orbits according to `self.cbar_param`,
                 otherwise, use one color per planet from `self.MODEL_COLORS` (default: True)
-            cmap (``matplotlib.cm.ColorMap``): color map to use for making orbit tracks
-                (default: None (uses `self.CMAP`))
+            cmap (``matplotlib.colors.Colormap`` or list of ``matplotlib.colors.Colormap``): color maps
+                to use for making orbit tracks (default: None (uses `self.CMAP`))
             sep_pa_color (string): any valid matplotlib color string, used to set the
                 color of the orbit tracks in the Sep/PA/RV/Brightness panels (default: 'lightgrey').
             mod180 (bool): if True, PA will be plotted in range [180, 540]. Useful for plotting short
@@ -1241,8 +1248,18 @@ class Plotter(object):
         if cmap is None:
             cmap = self.CMAP
 
+        if isinstance(cmap, colors.Colormap):
+            cmaps = [cmap]
+        else:
+            cmaps = cmap
+
         if not use_cmap:
             show_colorbar = False
+
+        if show_colorbar:
+            num_cbars = min(len(cmaps), len(self.objects_to_plot))
+        else:
+            num_cbars = 0
 
         if (rv_time_series or rv_time_series2) and "m0" not in self.results.labels:
             rv_time_series = False
@@ -1283,7 +1300,7 @@ class Plotter(object):
             if num_objects_to_plot == 1:
                 ax = plt.subplot2grid(shape, (0, 0), rowspan=2+plot_brightness, colspan=8 - show_colorbar)
             else:
-                ax = plt.subplot2grid(shape, (0, 0), rowspan=4, colspan=16 - show_colorbar * 2)
+                ax = plt.subplot2grid(shape, (0, 0), rowspan=4, colspan=16 - show_colorbar*2 - num_cbars//2)
 
             # sep/PA/bright panels
             sep_axes = []
@@ -1343,8 +1360,9 @@ class Plotter(object):
             astr_colors = itertools.cycle(self.ASTR_COLORS)
             astr_symbols = itertools.cycle(self.ASTR_SYMBOLS)
             model_colors = itertools.cycle(self.MODEL_COLORS)
+            cmaps_iter = itertools.cycle(cmaps)
             for object_i, object_index in enumerate(self.objects_to_plot):
-                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_colors, astr_symbols, model_colors)
+                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, next(cmaps_iter), plot_astrometry_insts, use_cmap, object_i, object_index, next(astr_colors), astr_symbols, next(model_colors))
                 self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
                 self._plot_sep_pa_data(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
 
@@ -1359,7 +1377,7 @@ class Plotter(object):
 
             # add colorbar
             if show_colorbar:
-                self._add_colorbar(ax, fig, cmap)
+                self._add_colorbar(ax, fig, cmaps, num_cbars)
             
             for ax1 in fig.get_axes():
                 ax1.tick_params(axis="both", which="both", labelsize=15, top=True, right=True)
@@ -1586,6 +1604,9 @@ class Plotter(object):
         """
         if cmap is None:
             cmap = self.CMAP
+
+        if not isinstance(cmap, colors.Colormap):
+            cmap = cmap[0]
 
         object_to_plot = self.objects_to_plot[0] # TODO: All objects?
 
