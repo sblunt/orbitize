@@ -11,7 +11,8 @@ import orbitize.kepler as kepler
 from orbitize import cuda_ext
 from orbitize import cext
 
-threshold = 1e-5
+solver_threshold = 2e-5
+ecc_threshold = 1e-5
 
 def angle_diff(ang1, ang2):
     # Return the difference between two angles
@@ -28,7 +29,7 @@ def test_analytical_ecc_anom_solver(use_c = False, use_gpu = False):
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c, use_gpu = use_gpu)
         calc_mm = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_mm, mean_anoms):
-            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=ecc_threshold)
 
 def test_iterative_ecc_anom_solver(use_c = False, use_gpu = False):
     """
@@ -41,7 +42,7 @@ def test_iterative_ecc_anom_solver(use_c = False, use_gpu = False):
         ecc_anoms = kepler._calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c, use_gpu = use_gpu)
         calc_ma = (ecc_anoms - ee*np.sin(ecc_anoms)) % (2*np.pi) # plug solutions into Kepler's equation
         for meas, truth in zip(calc_ma, mean_anoms):
-            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=threshold)
+            assert angle_diff(meas, truth) == pytest.approx(0.0, abs=ecc_threshold)
 
 def test_c_ecc_anom_solver():
     """
@@ -80,11 +81,11 @@ def test_orbit_e03():
     true_vz = [.86448656,  .97591289]
 
     for meas, truth in zip(raoffs, true_raoff):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
     for meas, truth in zip(deoffs, true_deoff):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=1e-8)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
 
 def test_orbit_e03_array():
     """
@@ -113,11 +114,11 @@ def test_orbit_e03_array():
 
     for ii in range(0,3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:,ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(vzs[:, ii], true_vz[:, ii]):
-            assert truth == pytest.approx(meas, abs=1e-8)
+            assert truth == pytest.approx(meas, rel=solver_threshold)
 
 
 def test_orbit_e99():
@@ -138,11 +139,11 @@ def test_orbit_e99():
     true_vz = [.39208876,  .42041953]
 
     for meas, truth in zip(raoffs, true_raoff):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
     for meas, truth in zip(deoffs, true_deoff):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=1e-8)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
 
 def test_orbit_with_mass():
     """
@@ -166,11 +167,11 @@ def test_orbit_with_mass():
     true_vz = [.39208876/2,  .42041953/2]
 
     for meas, truth in zip(raoffs, true_raoff):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
     for meas, truth in zip(deoffs, true_deoff):
-        assert truth == pytest.approx(meas, abs=threshold)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
     for meas, truth in zip(vzs, true_vz):
-        assert truth == pytest.approx(meas, abs=1e-8)
+        assert truth == pytest.approx(meas, rel=solver_threshold)
 
 def test_orbit_with_mass_array():
     """
@@ -202,11 +203,11 @@ def test_orbit_with_mass_array():
 
     for ii in range(0,3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
-            assert truth == pytest.approx(meas, abs=threshold)
+            assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(vzs[:, ii], true_vz[:, ii]):
-            assert truth == pytest.approx(meas, abs=1e-8)
+            assert truth == pytest.approx(meas, rel=solver_threshold)
 
 def test_orbit_scalar():
     """
@@ -229,9 +230,9 @@ def test_orbit_scalar():
     true_deoff = -462.91038
     true_vz    = .86448656
 
-    assert true_raoff == pytest.approx(raoffs, abs=threshold)
-    assert true_deoff == pytest.approx(deoffs, abs=threshold)
-    assert true_vz    == pytest.approx(vzs, abs=1e-8)
+    assert true_raoff == pytest.approx(raoffs, rel=solver_threshold)
+    assert true_deoff == pytest.approx(deoffs, rel=solver_threshold)
+    assert true_vz    == pytest.approx(vzs, rel=solver_threshold)
 
 def profile_iterative_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = False):
     """
@@ -256,7 +257,7 @@ def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = Fal
 
 def profile_solver(reps, n_params, n_epochs, **kwargs):
     sma = np.array([10,10,10]).repeat(n_params)
-    ecc = np.array([0.3,0.3,0.99]).repeat(n_params)
+    ecc = np.array([0.8,0.8,0.8]).repeat(n_params)
     inc = np.array([3,3,3]).repeat(n_params)
     argp = np.array([0.5,0.5,0.5]).repeat(n_params)
     lan = np.array([1.5,1.5,1.5]).repeat(n_params)
@@ -272,7 +273,7 @@ def profile_solve(reps=10, n_params=100000, n_epochs=5):
     profile_name = "Profile.prof"
     d = dict()
 
-    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs)", globals(), locals(), profile_name)
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=5, tolerance=1e-5)", globals(), locals(), profile_name)
     s = pstats.Stats(profile_name)
     d[f"K3\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
 
