@@ -5,9 +5,7 @@ import os
 import astropy.table as table
 
 import orbitize.system
-import orbitize.basis
 import orbitize.plot
-import orbitize.gaia, orbitize.hipparcos
 
 
 class Results(object):
@@ -212,6 +210,7 @@ class Results(object):
 
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
+            from orbitize.hipparcos import HipparcosLogProb
 
             tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
             with open(tmpfile, 'w+') as f:
@@ -226,7 +225,7 @@ class Results(object):
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
             renormalize_errors = bool(hf.attrs['renormalize_errors'])
 
-            hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
+            hipparcos_IAD = HipparcosLogProb(
                 tmpfile,
                 hip_num,
                 num_secondary_bodies,
@@ -238,7 +237,8 @@ class Results(object):
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
-                gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
+                from orbitize.gaia import GaiaLogProb
+                gaia = GaiaLogProb(gaia_num, hipparcos_IAD, dr)
             except KeyError:
                 gaia = None
 
@@ -250,7 +250,8 @@ class Results(object):
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
-                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
+                from orbitize.gaia import HGCALogProb
+                gaia = HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
 
