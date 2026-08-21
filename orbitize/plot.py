@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
 from matplotlib.ticker import FormatStrFormatter
+import matplotlib.transforms as transforms
 
 from erfa import ErfaWarning
 
@@ -163,7 +164,7 @@ class Plotter(object):
 
         if 0 in self.objects_to_plot and not (self.system.use_rebound or self.system.track_planet_perturbs):
             raise ValueError(
-                "Plotting the primary's orbit without system.rebound or system.track_planet_pertrubs currently unsupported. Stay tuned."
+                "Plotting the primary's orbit without rebound or tracking planetary perturbations (fitting for secondary masses) currently unsupported."
             )
 
         with warnings.catch_warnings():
@@ -189,18 +190,17 @@ class Plotter(object):
                     warnings.warn("Unable to calculate secondary radial velocity data.")
                     self.rv_time_series2=False
             (
-                self.sep_datas, self.sep_errs, self.pa_datas, self.pa_errs, self.ra_datas, self.ra_errs, self.dec_datas, self.dec_errs,
+                self.sep_datas, self.sep_errs, self.pa_datas, self.pa_errs, self.seppa_corrs, self.ra_datas, self.ra_errs, self.dec_datas, self.dec_errs, self.radec_corrs,
                 self.bright_datas, self.bright_errs, self.bright_insts, self.bright_inst_inds, self.bright_epochs,
                 self.astr_raoffs, self.astr_deoffs, self.astr_vzs, self.astr_epochs, self.astr_insts, self.astr_inst_inds
-            ) = self._calc_astrometry(self.standard_post, self.num_orbits_to_plot, self.data, self.objects_to_plot)
+            ) = self._calc_astrometry(self.standard_post, self.data, self.objects_to_plot)
 
-    def _calc_astrometry(self, standard_post, num_orbits_to_plot, all_data, objects_to_plot):
+    def _calc_astrometry(self, standard_post, all_data, objects_to_plot):
         """
         Calculate seppa/radec/brightness data and model from ``self.start`` to ``self.end``
         
         Args:
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
-            num_orbits_to_plot (int): number of orbits for which to calculate, no more than num_orbits in standard_post
             all_data (astropy.table.Table): data on all objects
             objects_to_plot (list of int): indexes of objects for which to calculate values
 
@@ -210,10 +210,12 @@ class Plotter(object):
                 sep_errs (list of np.array): separation data error for any data point where seppa/radec was available for each object
                 pa_datas (list of np.array): principal axis data for any data point where seppa/radec was available for each object
                 pa_errs (list of np.array): principal axis data error for any data point where seppa/radec was available for each object
+                seppa_corrs (list of np.array): correlation coefficient of sep/pa data error for any data point where seppa/radec was available for each object, may be nan
                 ra_datas (list of np.array): right ascension data for any data point where seppa/radec was available for each object
                 ra_errs (list of np.array): right ascension data error for any data point where seppa/radec was available for each object
                 dec_datas (list of np.array): declination data for any data point where seppa/radec was available for each object
                 dec_errs (list of np.array): declination data error for any data point where seppa/radec was available for each object
+                radec_corrs (list of np.array): correlation coefficient of ra/dec data error for any data point where seppa/radec was available for each object, may be nan
                 brightness_datas (list of np.array of float): brightness measurements for each object
                 brithness_errs (list of np.array of float): brightness measurement errors for each object
                 bright_insts (list of np.array of string): brightness instruments for each object
@@ -224,17 +226,18 @@ class Plotter(object):
                 astr_vzs (list of np.array of float): num_orbits x num_astr_epochs Radial velocities at astrometry epochs for each object
                 astr_epochs (list of np.array of float): epochs of astrometry data for each object
                 astr_insts (list of np.array of string): names of astrometry instruments for each object
-                astr_inst_inds (list of dictionary of string to np.array of int): indices of data points of each astrometry instrument for each object
-                
+                astr_inst_inds (list of dictionary of string to np.array of int): indices of data points of each astrometry instrument for each object  
         """
         sep_datas = []
         sep_errs = []
         pa_datas = []
         pa_errs = []
+        seppa_corrs = []
         ra_datas = []
         ra_errs = []
         dec_datas = []
         dec_errs = []
+        radec_corrs = []
 
         bright_datas = []
         bright_errs = []
@@ -251,15 +254,17 @@ class Plotter(object):
 
         for i in objects_to_plot:
             object_data = all_data[all_data["object"] == i]
-            sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err = self._calc_seppa_radec(object_data)
+            sep_data, sep_err, pa_data, pa_err, seppa_corr, ra_data, ra_err, dec_data, dec_err, radec_corr = self._calc_seppa_radec(object_data)
             sep_datas.append(sep_data)
             sep_errs.append(sep_err)
             pa_datas.append(pa_data)
             pa_errs.append(pa_err)
+            seppa_corrs.append(seppa_corr)
             ra_datas.append(ra_data)
             ra_errs.append(ra_err)
             dec_datas.append(dec_data)
             dec_errs.append(dec_err)
+            radec_corrs.append(radec_corr)
 
             bright_data, bright_err, bright_inst, bright_inst_ind, bright_epoch = self._calc_brightness(object_data)
             bright_datas.append(bright_data)
@@ -277,7 +282,7 @@ class Plotter(object):
             astr_inst_inds.append(astr_inst_ind) 
 
 
-        return (sep_datas, sep_errs, pa_datas, pa_errs, ra_datas, ra_errs, dec_datas, dec_errs,
+        return (sep_datas, sep_errs, pa_datas, pa_errs, seppa_corrs, ra_datas, ra_errs, dec_datas, dec_errs, radec_corrs,
                 bright_datas, bright_errs, bright_insts, bright_inst_inds, bright_epochs,
                 astr_raoffs, astr_deoffs, astr_vzs, astr_epochs, astr_insts, astr_inst_inds)
 
@@ -293,10 +298,12 @@ class Plotter(object):
                 sep_err (np.array): separation data error for any data point where seppa/radec was available
                 pa_data (np.array): principal axis data for any data point where seppa/radec was available
                 pa_err (np.array): principal axis data error for any data point where seppa/radec was available
+                seppa_corr (np.array): correlation coefficient of sep/pa data error for any data point where seppa/radec was available, may be nan
                 ra_data (np.array): right ascension data for any data point where seppa/radec was available
                 ra_err (np.array): right ascension data error for any data point where seppa/radec was available
                 dec_data (np.array): declination data for any data point where seppa/radec was available
                 dec_err (np.array): declination data error for any data point where seppa/radec was available
+                radec_corr (np.array): correlation coefficient of ra/dec data error for any data point where seppa/radec was available, may be nan
         """
         astr_inds = np.where((~np.isnan(object_data["quant1"])) & (~np.isnan(object_data["quant2"])))
         data = object_data[astr_inds]
@@ -308,6 +315,7 @@ class Plotter(object):
         sep_err = np.copy(data["quant1_err"])
         pa_data = np.copy(data["quant2"])
         pa_err = np.copy(data["quant2_err"])
+        seppa_corr = np.copy(data["quant12_corr"])
 
         if len(radec_inds[0] > 0):
 
@@ -318,9 +326,10 @@ class Plotter(object):
             num_radec_pts = len(radec_inds[0])
             sep_err_from_ra_data = np.empty(num_radec_pts)
             pa_err_from_dec_data = np.empty(num_radec_pts)
+            seppa_corr_from_radec_data = np.empty(num_radec_pts)
             for j in np.arange(num_radec_pts):
 
-                sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = (
+                sep_err_from_ra_data[j], pa_err_from_dec_data[j], seppa_corr_from_radec_data[j] = (
                     orbitize.system.transform_errors(
                         np.array(data["quant1"][radec_inds][j]),
                         np.array(data["quant2"][radec_inds][j]),
@@ -337,11 +346,14 @@ class Plotter(object):
             pa_data[radec_inds] = pa_from_dec_data
             pa_err[radec_inds] = pa_err_from_dec_data
 
+            seppa_corr[radec_inds] = seppa_corr_from_radec_data
+
         # Transform Sep/PA points to RA/Dec
         ra_data = np.copy(data["quant1"])
         ra_err = np.copy(data["quant1_err"])
         dec_data = np.copy(data["quant2"])
         dec_err = np.copy(data["quant2_err"])
+        radec_corr = np.copy(data["quant12_corr"])
 
         if len(seppa_inds[0] > 0):
 
@@ -352,9 +364,10 @@ class Plotter(object):
             num_seppa_pts = len(seppa_inds[0])
             ra_err_from_seppa_data = np.empty(num_seppa_pts)
             dec_err_from_seppa_data = np.empty(num_seppa_pts)
+            radec_corr_from_seppa_data = np.empty(num_seppa_pts)
             for j in np.arange(num_seppa_pts):
 
-                ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], _ = (
+                ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], radec_corr_from_seppa_data[j] = (
                     orbitize.system.transform_errors(
                         np.array(data["quant1"][seppa_inds][j]),
                         np.array(data["quant2"][seppa_inds][j]),
@@ -370,8 +383,10 @@ class Plotter(object):
 
             dec_data[seppa_inds] = dec_from_seppa_data
             dec_err[seppa_inds] = dec_err_from_seppa_data
+
+            radec_corr[seppa_inds] = radec_corr_from_seppa_data
         
-        return sep_data, sep_err, pa_data, pa_err, ra_data, ra_err, dec_data, dec_err
+        return sep_data, sep_err, pa_data, pa_err, seppa_corr, ra_data, ra_err, dec_data, dec_err, radec_corr
 
     def _calc_brightness(self, object_data):
         """
@@ -506,7 +521,7 @@ class Plotter(object):
         choose = np.random.randint(0, high=num_orbits, size=num_orbits_to_plot)
 
         post = np.copy(self.results.post[choose, :])
-        standard_post = self.results.basis.to_standard_basis(post)
+        standard_post = self.results.basis.to_standard_basis(post.T).T
         return standard_post
     
     def _calc_full_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, standard_post, periods_to_plot=1):
@@ -684,7 +699,41 @@ class Plotter(object):
             )
         return cbar_param_arr, norm, norm_yr
 
-    def _plot_full_orbits(self, ax, plot_astrometry, full_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, object_i, object_index, astr_color, astr_symbols, model_color):
+    @staticmethod
+    def _plot_correlated_errorbars(ax, x, y, xerr, yerr, pearson, n_std=1.0, **kwargs):
+        """
+        Plot errorbars with correlated x/y errors
+
+        Args:
+            ax (matplotlib.axes.Axes): Axes on which to plot
+            x (np.array): x values at which to plot 
+            y (np.array): y values at which to plot
+            xerr (np.array): xerr of value
+            yerr (np.array): yerr of value
+            pearson (np.array): pearson coefficient of errors
+            n_std (float): number of standard deviations by which to scale radii
+            **kwargs: passed to `ax.errorbar`
+
+        Eshel Dror (2026), based on "Plot a confidence ellipse of a two-dimensional dataset" matplotlib tutorial
+        """
+        if not (x.size == y.size == xerr.size == yerr.size == pearson.size):
+            raise ValueError("x and y must be the same size")
+
+        not_correlated = (np.isnan(pearson)) | (pearson == 0.0)
+        for i in range(x.size):
+            scale_x = xerr[i] * n_std
+            scale_y = yerr[i] * n_std
+            x0 = x[i]
+            y0 = y[i]
+            if not_correlated[i]:
+                ax.errorbar(x[i], y[i], xerr=scale_x, yerr=scale_y, **kwargs)
+            else:
+                eigen_x = np.sqrt(1 + pearson[i])
+                eigen_y = np.sqrt(1 - pearson[i])
+                transf = transforms.Affine2D().rotate_deg(45).scale(scale_x, scale_y).translate(x0, y0)
+                ax.errorbar(0, 0, xerr=eigen_x, yerr=eigen_y, transform=(transf + ax.transData), **kwargs)
+
+    def _plot_full_orbits(self, ax, plot_astrometry, full_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color):
         """
         Plot RAoff/Decoff orbits and astrometry
 
@@ -699,11 +748,13 @@ class Plotter(object):
             plot_astrometry_insts (bool): plot each astrometry instrument separately
             use_cmap (bool): map a color map to orbits according to `self.cbar_param`,
                 otherwise, use one color per planet from `self.MODEL_COLORS`
+            n_std (float): number of standard deviations to plot with errorbars
             object_i (int): index of index of object to be plotted witin ``self.objects_to_plot``
             object_index (int): index of object to be plotted
             astr_color (string): matplotlib color string to use for astrometry if ``plot_astrometry``
             astr_symbols (iterable of strings): matplotlib symbol strings to use for astrometry if ``plot_astrometry``
             model_color (string): matploblib color string to use for orbits if not ``use_cmap``
+            err_color (string): matplotlib color string to use for errorbars
         """
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
@@ -738,6 +789,13 @@ class Plotter(object):
                 plt.legend(fontsize=15, loc=1)
             else:
                 ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=astr_color, zorder=10, s=60)
+        if n_std != 0:
+            self._plot_correlated_errorbars(
+                ax, self.ra_datas[object_i], self.dec_datas[object_i],
+                xerr=self.ra_errs[object_i], yerr=self.dec_errs[object_i],
+                pearson=self.radec_corrs[object_i], n_std=n_std,
+                ecolor=err_color, zorder=11
+            )
 
         # modify the axes
         if full_plot:
@@ -1208,9 +1266,10 @@ class Plotter(object):
         plot_astrometry=True,
         plot_astrometry_insts=False,
         plot_brightness=False,
+        plot_errorbars=True,
+        n_std=1.0,
         rv_time_series=False,
         rv_time_series2=False,
-        plot_errorbars=True,
         rv_err_grouping=[("observation", "offset", "jitter")],
         fontsize=20,
         fig=None,
@@ -1234,11 +1293,13 @@ class Plotter(object):
             plot_astrometry (bool): plots the astrometric data in the RA/Dec panel (default: True)
             plot_astrometry_insts (bool): plots the astrometric data by instruments (default: False)
             plot_brightness (bool): plots the relative brightness if it exists (default: False)
+            plot_errorbars (bool): plot errorbars on data (default: True)
+            n_std (float): number of standard deviations to plot in the RA/Dec plot, 
+                no errorbars are plotted if n_std=0 (default: 1.0)
             rv_time_series (bool): if fitting for secondary mass using MCMC for rv fitting,
                 display rv time series of the primary (object 0) (default: False)
             rv_time_series2 (bool): if fitting for secondary mass using MCMC for rv fitting,
                 display rv time series of the companion (object 1) (default: False)
-            plot_errorbars (bool): plot errorbars on data (default: True)
             rv_err_grouping (list of tuples of string literals ["observation", "offset", "jitter"]):
                 determines how errors for rv time series are grouped. The strings within each tuple determine
                 what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
@@ -1376,7 +1437,12 @@ class Plotter(object):
             model_colors = itertools.cycle(self.MODEL_COLORS)
             cmaps_iter = itertools.cycle(cmaps)
             for object_i, object_index in enumerate(self.objects_to_plot):
-                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, next(cmaps_iter), plot_astrometry_insts, use_cmap, object_i, object_index, next(astr_colors), astr_symbols, next(model_colors))
+                astr_color = next(astr_colors)
+                if plot_errorbars:
+                    err_color = next(astr_colors)
+                else:
+                    err_color = None
+                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, next(cmaps_iter), plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, next(model_colors), err_color)
                 self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
                 self._plot_sep_pa_data(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
 
