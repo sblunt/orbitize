@@ -46,6 +46,8 @@ class Plotter(object):
             calculate rv_time_series of the primary (object 0) (default: False)
         rv_time_series2 (bool): if fitting for secondary mass using MCMC for rv fitting,
             calculate rv_time_series of the companion (object 1) (default: False)
+        post_to_use (np.array of float): num_orbits_to_plot x num_params posterior including
+            standard basis values to use instead of randomly draw from the posterior 
 
     (written): Henry Ngo, Sarah Blunt, 2018
     Additions by Malena Rice, 2019
@@ -84,7 +86,8 @@ class Plotter(object):
         num_epochs_to_plot=100,
         cbar_param="Epoch [year]",
         rv_time_series=False,
-        rv_time_series2=False
+        rv_time_series2=False,
+        post_to_use=None
     ):
         self.results = results
         self.system = results.system
@@ -94,7 +97,7 @@ class Plotter(object):
         if end is None:
            end = getattr(Time(np.max(self.system.data_table['epoch'])+365*3, format="mjd"), time_format)
 
-        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2)
+        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2, post_to_use)
 
     def set_params(
         self,
@@ -107,6 +110,7 @@ class Plotter(object):
         cbar_param=None,
         rv_time_series=None,
         rv_time_series2=None,
+        post_to_use=None,
     ):
         """
         Change parameters set when initializing `Plotter` and perform plotting precalculations
@@ -157,15 +161,18 @@ class Plotter(object):
                 )
             )
 
-        # if 0 in self.objects_to_plot:
-        #     raise ValueError(
-        #         "Plotting the primary's orbit is currently unsupported. Stay tuned."
-        #     )
+        if 0 in self.objects_to_plot and not (self.system.use_rebound or self.system.track_planet_perturbs):
+            raise ValueError(
+                "Plotting the primary's orbit without system.rebound or system.track_planet_pertrubs currently unsupported. Stay tuned."
+            )
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
 
-            self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
+            if post_to_use is not None:
+                self.standard_post = post_to_use
+            else:
+                self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
             self.period_raoffs, self.period_deoffs, self.period_vzs, self.period_epochss = self._calc_full_orbits(
                 self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.standard_post)
             self.fixed_raoffs, self.fixed_deoffs, self.fixed_vzs, self.fixed_brightnesses, self.fixed_epochs = self._calc_panel_orbits(
@@ -526,7 +533,7 @@ class Plotter(object):
         vzs = np.zeros((num_objects, num_orbits_to_plot, num_epochs_to_plot))
         epochss = np.zeros((num_objects, num_orbits_to_plot, num_epochs_to_plot))
 
-        for i in range(1, num_objects):
+        for i in range(num_objects):
             raoff, deoff, vz, epochs = self._calc_object_full_orbits(start, num_orbits_to_plot, num_epochs_to_plot, i, standard_post, periods_to_plot)
             raoffs[i, :, :] = raoff
             deoffs[i, :, :] = deoff
@@ -561,15 +568,20 @@ class Plotter(object):
         # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
         # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
         # Compute period (from Kepler's third law)
+        if object_to_plot == 0:
+            # Assume period is mainly determined by object 1
+            object_for_period = 1
+        else:
+            object_for_period = object_to_plot
         sma = standard_post[
-            :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
+            :, self.results.standard_param_idx["sma{}".format(object_for_period)]
         ]
         if "mtot" in self.results.labels:
             mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
         elif "m0" in self.results.labels:
             m0 = standard_post[:, self.results.standard_param_idx["m0"]]
             m1 = standard_post[
-                :, self.results.standard_param_idx["m{}".format(object_to_plot)]
+                :, self.results.standard_param_idx["m{}".format(object_for_period)]
             ]
             mtot = m0 + m1
         period = np.sqrt(
@@ -710,9 +722,9 @@ class Plotter(object):
         if plot_astrometry:
             # Plot astrometry along with instruments
             if plot_astrometry_insts:
-                for i in range(len(self.astr_insts[object_i])):
-                    ra = self.ra_datas[object_i][self.astr_inst_inds[object_i][self.astr_insts[object_i][i]]]
-                    dec = self.dec_datas[object_i][self.astr_inst_inds[object_i][self.astr_insts[object_i][i]]]
+                for astr_inst in self.astr_insts[object_i]:
+                    ra = self.ra_datas[object_i][self.astr_inst_inds[object_i][astr_inst]]
+                    dec = self.dec_datas[object_i][self.astr_inst_inds[object_i][astr_inst]]
                     ax.scatter(
                         ra,
                         dec,
@@ -720,8 +732,9 @@ class Plotter(object):
                         c=astr_color,
                         zorder=10,
                         s=60,
-                        label=self.astr_insts[object_i][i],
+                        label=astr_inst,
                     )
+                plt.sca(ax)
                 plt.legend(fontsize=15, loc=1)
             else:
                 ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=astr_color, zorder=10, s=60)
@@ -915,6 +928,7 @@ class Plotter(object):
                     marker=symbol,
                     c=color,
                     zorder=10,
+                    label=inst,
                 )
                 if plot_errorbars:
                     plt.errorbar(
