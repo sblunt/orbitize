@@ -179,10 +179,14 @@ void calc_orbit(
             // c_tanom = cos(tanom), s_tanom = sin(tanom);
             c = partial_tanom * tan(0.5*eanom);
             c_squared = c * c;
-            b_squared = c_squared / (c_squared + 1);
+            // c = cos(atan(c))
             a = 1 / sqrt(c_squared + 1);
+            // b = sin(atan(c))
             b = c * a;
+            b_squared = b * b;
+            // c_tanom = cos(2*atan(c)) = 1 - 2 * sin^2(atan(c))
             c_tanom = 1.0 - 2.0 * b_squared;
+            // s_tan = sin(2*atan(c)) = 2 * sin(atan(c)) * cos(atan(c))
             s_tanom = 2.0 * b * a;
             
             // arg1 = tanom + aop[i] + pan[i];
