@@ -35,6 +35,7 @@ data_table = read_file(input_file)
 num_secondary_bodies = 4
 
 epochs = Time(np.linspace(2020, 2022, num=int(1000)), format="decimalyear").mjd
+epochs2 = Time(np.linspace(2020, 2080, num=int(1000)), format="decimalyear").mjd
 
 sma1 = sma[0]
 ecc1 = ecc[0]
@@ -110,6 +111,104 @@ params_arr = np.array(
     ]
 )
 
+params_arr_1planet = np.array(
+    [
+        sma1,
+        ecc1,
+        inc1,
+        aop1,
+        pan1,
+        tau1,
+        plx,
+        mtot  
+    ]
+)
+
+hr8799_sys_1planet = System(
+    1,
+    data_table,
+    mtot,
+    plx,
+    fit_secondary_mass=False,
+    tau_ref_epoch=tau_ref_epoch,
+)
+
+
+def test_8799_1planet_rebound_vs_kepler(plotname=None):
+    assert not hr8799_sys_1planet.track_planet_perturbs
+
+    rra, rde, rvz = hr8799_sys_1planet.compute_all_orbits(
+        params_arr_1planet, epochs=epochs2, comp_rebound=True
+    )
+    kra, kde, kvz = hr8799_sys_1planet.compute_all_orbits(
+        params_arr_1planet, epochs=epochs2, comp_rebound=False
+    )    
+
+    delta_ra = abs(rra - kra)
+    delta_de = abs(rde - kde)
+    delta_vz = abs(rvz - kvz)
+
+    yepochs = Time(epochs2, format="mjd").decimalyear
+
+    assert np.max(delta_ra) < 2 * 1e-3
+    assert np.max(delta_de) < 2 * 1e-3
+    # assert np.max(delta_vz) < 10 * 1e-3
+
+    if plotname is not None:
+        # plot 1: RA & Dec differences over time
+        fig, (ax1, ax2, ax3) = plt.subplots(3)
+        fig.suptitle("Non-Massive Orbits in Rebound vs. Orbitize approx.")
+
+        ax1.plot(yepochs, delta_ra[:, 0], "black", label="Star")
+        ax2.plot(yepochs, delta_de[:, 0], "dimgray", label="Star")
+        ax3.plot(yepochs, delta_vz[:, 0], "dimgray", label="Star")
+
+        ax1.plot(
+            yepochs, delta_ra[:, 1], "brown", label="Planet E: RA offsets"
+        )  # first planet
+        ax2.plot(yepochs, delta_de[:, 1], "red", label="Planet E: Dec offsets")
+        ax3.plot(yepochs, delta_vz[:, 1], "red", label="Planet E: Vz offsets")
+
+        plt.xlabel("year")
+        ax1.set_ylabel("milliarcseconds")
+        ax2.set_ylabel("milliarcseconds")
+        ax3.set_ylabel("m/s")
+        ax1.legend()
+        ax2.legend()
+        ax3.legend()
+        plt.savefig("{}_differences.png".format(plotname), dpi=250)
+
+        # plot 2: orbit tracks over time
+        fig, (ax1, ax2) = plt.subplots(2)
+        ax1.plot(kra[:, 1, 0], kde[:, 1, 0], "indigo", label="Orbitize approx.")
+        ax1.plot(kra[-1, 1, 0], kde[-1, 1, 0], "o")
+
+        ax1.plot(rra[:, 1, 0], rde[:, 1, 0], "r", label="Rebound", alpha=0.25)
+        ax1.plot(rra[-1, 1, 0], rde[-1, 1, 0], "o", alpha=0.25)
+
+        ax1.plot(0, 0, "*")
+        ax1.legend()
+
+        ax2.plot(yepochs, kvz[:, 1, 0], "indigo", label="Orbitize approx", alpha=0.25)
+        ax2.plot(yepochs, rvz[:, 1, 0], "r", label="Rebound")
+        ax2.legend()
+        plt.savefig("{}_orbittracks.png".format(plotname), dpi=250)
+
+        # plot 3: primary orbit track over time
+        fig, (ax1, ax2) = plt.subplots(2)
+        ax1.plot(kra[:, 0, 0], kde[:, 0, 0], "indigo", label="Orbitize approx.")
+        ax1.plot(kra[-1, 0, 0], kde[-1, 0, 0], "o")
+
+        ax1.plot(rra[:, 0], rde[:, 0], "r", label="Rebound", alpha=0.25)
+        ax1.plot(rra[-1, 0], rde[-1, 0], "o", alpha=0.25)
+
+        ax1.plot(0, 0, "*")
+        ax1.legend()
+
+        ax2.plot(yepochs, kvz[:, 0, 0], "indigo", label="Orbitize approx", alpha=0.25)
+        ax2.plot(yepochs, rvz[:, 0, 0], "r", label="Rebound")
+        ax2.legend()
+        plt.savefig("{}_primaryorbittrack.png".format(plotname), dpi=250)
 
 def test_8799_rebound_vs_kepler(plotname=None):
     """
@@ -225,4 +324,5 @@ def test_rebound_mcmc():
 
 if __name__ == "__main__":
     # test_8799_rebound_vs_kepler(plotname="hr8799_diffs")
-    test_rebound_mcmc()
+    # test_rebound_mcmc()
+    test_8799_1planet_rebound_vs_kepler(plotname="K3_regular")
