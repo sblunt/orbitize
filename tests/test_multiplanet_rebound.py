@@ -38,15 +38,21 @@ def test_1planet():
     plx = 1
     mtot = 1
     tau_ref_epoch = 0
-    mass_b = 0.001
+    mass_b = 0.75
+    m0 = mtot - mass_b
 
     epochs = np.linspace(0, 300, 100) + tau_ref_epoch  # nearly the full period, MJD
 
     ra_model, dec_model, vz_st_model = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=mass_b
     )
+    ra_model, dec_model, vz_pl_model = kepler.calc_orbit(
+        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=m0
+    )
+    vz_pl_model *= -1 # orbitize coordinate system (compute_model does this automatically)
 
-    # generate some fake measurements just to feed into system.py to test bookkeeping
+    # generate some fake measurements of the planet (relative astrom & relative secondary rv) 
+    # just to feed into system.py to test bookkeeping
     t = Table(
         [
             epochs,
@@ -55,9 +61,12 @@ def test_1planet():
             np.zeros(ra_model.shape),
             dec_model,
             np.zeros(dec_model.shape),
+            vz_pl_model - vz_st_model,
+            np.zeros(dec_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
     )
+    # add fake measurements of the planet (stellar rv)
     t_rvs = Table(
         [
             epochs,
@@ -72,19 +81,20 @@ def test_1planet():
     t.write(filename, overwrite=True)
 
     # create the orbitize system and generate model predictions using the ground truth
-    astrom_dat = read_input.read_file(filename)
+    data = read_input.read_file(filename)
 
-    sys = system.System(1, astrom_dat, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
+    sys = system.System(1, data, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
 
     jit = 0
     gamma = 0
 
-    params = np.array([sma, ecc, inc, aop, pan, tau, plx, gamma, jit, mass_b, mtot-mass_b])
+    params = np.array([sma, ecc, inc, aop, pan, tau, plx, gamma, jit, mass_b, m0])
     modelpredict_orbitize, _ = sys.compute_model(params)
 
-    ra_orb = modelpredict_orbitize[::2, 0]
-    dec_orb = modelpredict_orbitize[::2, 1]
-    rv_star_orb = modelpredict_orbitize[1::2,0]
+    ra_orb = modelpredict_orbitize[:200:2, 0]
+    dec_orb = modelpredict_orbitize[:200:2, 1]
+    rv_pl_orb = modelpredict_orbitize[1:200:2,0]
+    rv_star_orb = modelpredict_orbitize[200:,0]
 
     # now project the orbit with rebound
     manom = basis.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
@@ -118,25 +128,26 @@ def test_1planet():
         ra_reb.append(-(ps[1].x - ps[0].x))  # ra is negative x
         dec_reb.append(ps[1].y - ps[0].y)
         rv_star_reb.append(ps[0].vz)
-        # rv_pl_reb.append(ps[1].vz - ps[0].vz)
+        rv_pl_reb.append(ps[1].vz - ps[0].vz)
 
     ra_reb = np.array(ra_reb)
     dec_reb = np.array(dec_reb)
+    rv_star_reb = np.array(rv_star_reb) * (u.au/u.yr).to(u.km/u.s)
+    rv_pl_reb = np.array(rv_pl_reb) * (u.au/u.yr).to(u.km/u.s)
+
 
     diff_ra = ra_reb - ra_orb / plx
     diff_dec = dec_reb - dec_orb / plx
     diff_rv_st = rv_star_reb - rv_star_orb
+    diff_rv_pl = rv_pl_reb - rv_pl_orb
 
-    import pdb; pdb.set_trace()
-
-
-    assert np.all(np.abs(diff_ra) < 1e-9)
-    assert np.all(np.abs(diff_dec) < 1e-9)
-    assert np.all(np.abs(diff_rv_st) < 1e-9)
-    # TODO: check diff of rv pl as well
+    assert np.all(np.abs(diff_ra) < 1e-7)
+    assert np.all(np.abs(diff_dec) < 1e-7)
+    assert np.all(np.abs(diff_rv_st) < 1e-7)
+    assert np.all(np.abs(diff_rv_pl) < 1e-7)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
 
 def test_2planet_massive():
