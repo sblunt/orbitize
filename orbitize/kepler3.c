@@ -8,7 +8,7 @@
 #define PER_CONST 365.2568983840419
 #define PERIOD_CONVERSION 2105.6131276363703
 #define G 6.6743e-11
-#define KV_CONVERSION 2.742898587511721e-07
+#define KV_CONVERSION 29.7846918319 // sqrt(mu/a) where mu = G [in km3/Msun/s2], a = 149597870.700 km 
 
 double positive_mod1(
     double x) {
@@ -160,9 +160,9 @@ void calc_orbit(
         
         partial_tanom = sqrt((1.0 + ecc[i])/(1.0 - ecc[i]));
         
-        Kv = sqrt(G / (1.0 - pow(ecc[i],2))) * (mass_for_Kamp[i] *
+        Kv = sqrt(1 / (1.0 - pow(ecc[i],2))) * (mass_for_Kamp[i] *
                                                sin(inc[i])) / sqrt(mtot[i]) / sqrt(sma[i]);
-        Kv /= KV_CONVERSION;
+        Kv *= KV_CONVERSION;
         
         cos_aop = cos(aop[i]), sin_aop = sin(aop[i]);
         ecc_cos_aop = ecc[i]*cos_aop;
