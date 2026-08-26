@@ -48,8 +48,8 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
 
 def make_array(obj):
     if np.isscalar(obj):
-        return np.array([obj], dtype=np.float64)
-    return obj.astype(np.float64, copy=False)
+        return np.ascontiguousarray([obj], dtype=np.float64)
+    return np.ascontiguousarray(obj, np.float64)
 
 def calc_orbit(
   epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 

@@ -257,7 +257,7 @@ def profile_mikkola_ecc_anom_solver(n_orbits = 1000, use_c = True, use_gpu = Fal
 
 def profile_solver(reps, n_params, n_epochs, **kwargs):
     sma = np.array([10,10,10]).repeat(n_params)
-    ecc = np.array([0.8,0.8,0.8]).repeat(n_params)
+    ecc = np.array([0.3,0.3,0.99]).repeat(n_params)
     inc = np.array([3,3,3]).repeat(n_params)
     argp = np.array([0.5,0.5,0.5]).repeat(n_params)
     lan = np.array([1.5,1.5,1.5]).repeat(n_params)
@@ -273,7 +273,7 @@ def profile_solve(reps=10, n_params=100000, n_epochs=5):
     profile_name = "Profile.prof"
     d = dict()
 
-    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=5, tolerance=1e-5)", globals(), locals(), profile_name)
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=10, tolerance=1e-9)", globals(), locals(), profile_name)
     s = pstats.Stats(profile_name)
     d[f"K3\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
 
