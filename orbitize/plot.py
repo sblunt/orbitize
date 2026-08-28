@@ -584,25 +584,39 @@ class Plotter(object):
         # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
         # Compute period (from Kepler's third law)
         if object_to_plot == 0:
-            # Assume period is mainly determined by object 1
-            object_for_period = 1
+            # Use longest secondary period
+            secondaries = np.arange(self.results.num_secondary_bodies) + 1
+            sma_indexes = [self.results.standard_param_idx["sma{}".format(i)] for i in secondaries]
+            smas = standard_post[:, sma_indexes]
+            if "mtot" in self.results.labels:
+                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
+            elif "m0" in self.results.labels:
+                m0 = standard_post[:, self.results.standard_param_idx["m0"]]
+                m1_indexes = [self.results.standard_param_idx["m{}".format(i)] for i in secondaries]
+                print(m1_indexes)
+                m1s = standard_post[:, m1_indexes]
+                mtots = (m0 + m1s.T).T
+            periods = np.sqrt(
+                4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+            )
+            periods = periods.to(u.day).value
+            period = np.max(periods, axis=1)
         else:
-            object_for_period = object_to_plot
-        sma = standard_post[
-            :, self.results.standard_param_idx["sma{}".format(object_for_period)]
-        ]
-        if "mtot" in self.results.labels:
-            mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
-        elif "m0" in self.results.labels:
-            m0 = standard_post[:, self.results.standard_param_idx["m0"]]
-            m1 = standard_post[
-                :, self.results.standard_param_idx["m{}".format(object_for_period)]
+            sma = standard_post[
+                :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
             ]
-            mtot = m0 + m1
-        period = np.sqrt(
-            4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
-        )
-        period = period.to(u.day).value
+            if "mtot" in self.results.labels:
+                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
+            elif "m0" in self.results.labels:
+                m0 = standard_post[:, self.results.standard_param_idx["m0"]]
+                m1 = standard_post[
+                    :, self.results.standard_param_idx["m{}".format(object_to_plot)]
+                ]
+                mtot = m0 + m1
+            period = np.sqrt(
+                4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
+            )
+            period = period.to(u.day).value
         for i in np.arange(num_orbits_to_plot):
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i, :] = np.linspace(
