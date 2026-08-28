@@ -63,7 +63,6 @@ class Plotter(object):
     CBAR_WIDTH = 0.02
     # first three letters of possible color bar parameters
     POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
-    
     # colour/shape scheme scheme for data points
     ASTR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     ASTR_SYMBOLS = (".", "*", "p", "s")
@@ -71,9 +70,10 @@ class Plotter(object):
     RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
     RV_ERR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     RV_SYMBOLS = ("o", "^", "v", "s")
-
     # Latex for rv error
     RV_ERR_MATH = {"offset" : "std(\\gamma)", "observation": "\\epsilon", "jitter": "med(\\sigma)"}
+    # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
+    OBJECT_LABELS = {0: "*"}
 
 
     def __init__(
@@ -654,6 +654,18 @@ class Plotter(object):
         brightnesses = np.transpose(brightness0, [1,2,0])
         return raoffs, deoffs, vzs, brightnesses, epochs
 
+    def _get_object_label(self, object_index):
+        """
+        Gets the label of an object by its index
+
+        Arg:
+            object_index: int
+        
+        Return:
+            (string): object label from `self.OBJECT_LABELS` or `str(object_index)` if no label exists
+        """
+        return self.OBJECT_LABELS.get(object_index, str(object_index))
+
     def _create_cbar(self, cbar_param, epochss, standard_post):
         """
         Create a linearly increasing colormap for the range of epochs
@@ -839,7 +851,7 @@ class Plotter(object):
             )
             if num_cbars > 1:
                 cbar_objects = self.objects_to_plot[i::num_cbars]
-                cbar.ax.set_xlabel(",".join(map(str,cbar_objects)), size=15)
+                cbar.ax.set_xlabel(",".join(map(self._get_object_label,cbar_objects)), size=15)
             last = i == num_cbars - 1
             if not last:
                 cbar.ax.set_yticklabels([])
@@ -1403,14 +1415,14 @@ class Plotter(object):
                         sep_ax = plt.subplot2grid(bright_shape, (4+i, 0), rowspan=1, colspan=4)
                         pa_ax = plt.subplot2grid(bright_shape, (4+i, 6), rowspan=1, colspan=4)
                         bright_ax = plt.subplot2grid(bright_shape, (4+i, 12), rowspan=1, colspan=4)
-                        bright_ax.set_ylabel("Brightness {0}".format(object_index), fontsize=fontsize)
+                        bright_ax.set_ylabel("$Brightness_{{{0}}}$".format(self._get_object_label(object_index)), fontsize=fontsize)
                         bright_ax.set_xlabel("Epoch", fontsize=fontsize)
                     else:
                         sep_ax = plt.subplot2grid(shape, (4+i, 0), rowspan=1, colspan=7)
                         pa_ax = plt.subplot2grid(shape, (4+i, 9), rowspan=1, colspan=7)
                         bright_ax = None
-                    sep_ax.set_ylabel("$\\rho$ {0} (mas)".format(object_index), fontsize=fontsize)
-                    pa_ax.set_ylabel("PA {0} ($^{{\\circ}}$)".format(object_index), fontsize=fontsize)
+                    sep_ax.set_ylabel("$\\rho_{{{0}}}$ (mas)".format(self._get_object_label(object_index)), fontsize=fontsize)
+                    pa_ax.set_ylabel("PA$_{{{0}}}$ ($^{{\\circ}}$)".format(self._get_object_label(object_index)), fontsize=fontsize)
                     sep_ax.set_xlabel("Epoch", fontsize=fontsize)
                     pa_ax.set_xlabel("Epoch", fontsize=fontsize)
 
@@ -1426,7 +1438,7 @@ class Plotter(object):
                 ax3.set_xlabel("Epoch", fontsize=fontsize)
             if rv_time_series2:
                 ax4 = plt.subplot2grid(shape, (height - 1, 0), rowspan=1, colspan=16)
-                ax4.set_ylabel("Companion RV (km/s)", fontsize=fontsize)
+                ax4.set_ylabel("Companion Relative RV (km/s)", fontsize=fontsize)
                 ax4.set_xlabel("Epoch", fontsize=fontsize)
                 if not rv_time_series:
                     ax3 = ax4
@@ -1580,7 +1592,7 @@ class Plotter(object):
                 object_axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
             object_axes[0].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
-                object_axes[0].set_ylabel("Residual $\\rho$ {0} [mas]".format(object_to_plot))
+                object_axes[0].set_ylabel("Residual $\\rho_{{{0}}}$ [mas]".format(self._get_object_label(object_index)))
             else:
                 object_axes[0].set_ylabel("Residual $\\rho$ [mas]")
             object_axes[0].set_xlabel("Epoch")
@@ -1632,7 +1644,7 @@ class Plotter(object):
                 object_axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
             object_axes[1].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
-                object_axes[1].set_ylabel("Residual PA {0} [$^{{\\circ}}$]".format(object_to_plot))
+                object_axes[1].set_ylabel("Residual PA$_{{{0}}}$ [$^{{\\circ}}$]".format(self._get_object_label(object_index)))
             else:
                 object_axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
             object_axes[1].set_xlabel("Epoch")
