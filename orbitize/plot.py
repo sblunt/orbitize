@@ -47,8 +47,7 @@ class Plotter(object):
             calculate rv_time_series of the primary (object 0) (default: False)
         rv_time_series2 (bool): if fitting for secondary mass using MCMC for rv fitting,
             calculate rv_time_series of the companion (object 1) (default: False)
-        post_to_use (np.array of float): num_orbits_to_plot x num_params posterior including
-            standard basis values to use instead of randomly draw from the posterior 
+        post_to_use (np.array of float): num_orbits_to_plot x num_params posterior to use instead of randomly draw from the posterior 
 
     (written): Henry Ngo, Sarah Blunt, 2018
     Additions by Malena Rice, 2019
@@ -61,8 +60,6 @@ class Plotter(object):
     # color bar
     CBAR_SPACING = 0.005
     CBAR_WIDTH = 0.02
-    # first three letters of possible color bar parameters
-    POSSIBLE_CBAR_PARAMS = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx", "m0", "m1"]
     # colour/shape scheme scheme for data points
     ASTR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     ASTR_SYMBOLS = (".", "*", "p", "s")
@@ -142,7 +139,7 @@ class Plotter(object):
             # Check cbar_param
             if cbar_param in ["Epoch [year]", "Epoch (year)"]:
                 pass
-            elif cbar_param[0:3] in self.POSSIBLE_CBAR_PARAMS:
+            elif cbar_param in self.results.param_idx or cbar_param in self.results.standard_param_idx:
                 pass
             else:
                 raise Exception(
@@ -171,14 +168,16 @@ class Plotter(object):
             warnings.simplefilter("ignore", ErfaWarning)
 
             if post_to_use is not None:
-                self.standard_post = post_to_use
+                self.post = post_to_use
+                post = np.copy(post_to_use)
+                self.standard_post = self.results.basis.to_standard_basis(post.T).T
             else:
-                self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
+                self.post, self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
             self.period_raoffs, self.period_deoffs, self.period_vzs, self.period_epochss = self._calc_full_orbits(
                 self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.standard_post)
             self.fixed_raoffs, self.fixed_deoffs, self.fixed_vzs, self.fixed_brightnesses, self.fixed_epochs = self._calc_panel_orbits(
                 self.start, self.num_epochs_to_plot, self.standard_post, self.end)
-            self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.period_epochss, self.standard_post)
+            self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.period_epochss, self.post, self.standard_post)
             if self.rv_time_series:
                 self.rv_data, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(object_index=0)
                 if len(self.rv_data) == 0:
@@ -511,7 +510,9 @@ class Plotter(object):
         Args:
             num_orbits_to_plot (int): Number of orbits to sample from `self.results`
         Return:
-            ``np.array``: min(num_orbits_to_plot, post.shape[0]) x (num params + standard basis params) posterior including standard basis values
+            2-tuple:
+                ``np.array``: min(num_orbits_to_plot, post.shape[0]) x (num params) posterior
+                ``np.array``: min(num_orbits_to_plot, post.shape[0]) x (num params) posterior converted to standard basis
         """
         # TODO: Replace random with results.downsample
         num_orbits = len(self.results.post[:, 0])
@@ -520,9 +521,9 @@ class Plotter(object):
             num_orbits_to_plot = num_orbits
         choose = np.random.randint(0, high=num_orbits, size=num_orbits_to_plot)
 
-        post = np.copy(self.results.post[choose, :])
-        standard_post = self.results.basis.to_standard_basis(post.T).T
-        return standard_post
+        post = self.results.post[choose, :]
+        standard_post = self.results.basis.to_standard_basis(np.copy(post).T).T
+        return post, standard_post
     
     def _calc_full_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, standard_post, periods_to_plot=1):
         """
@@ -589,7 +590,7 @@ class Plotter(object):
             sma_indexes = [self.results.standard_param_idx["sma{}".format(i)] for i in secondaries]
             smas = standard_post[:, sma_indexes]
             if "mtot" in self.results.labels:
-                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
+                mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
             elif "m0" in self.results.labels:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1_indexes = [self.results.standard_param_idx["m{}".format(i)] for i in secondaries]
@@ -680,14 +681,15 @@ class Plotter(object):
         """
         return self.OBJECT_LABELS.get(object_index, str(object_index))
 
-    def _create_cbar(self, cbar_param, epochss, standard_post):
+    def _create_cbar(self, cbar_param, epochss, post, standard_post):
         """
         Create a linearly increasing colormap for the range of epochs
 
         Args:
             cbar_param (string): name of parameter ('Epoch [year]', 'Epoch (year)', or a parameter label followed by object index)
             epochss (np.array of float): num_objects x num_orbits x num_epochs epochs for each orbit in standard_post
-            standard_post (np.array of float): num_orbits x num_params posterior
+            post (np.array of float): num_orbits x num_params posterior in system.basis
+            standard_post (np.array of float): num_orbits x num_params posterior in standard basis
         
         Return:
             3-tuple:
@@ -699,8 +701,12 @@ class Plotter(object):
         """
 
         if cbar_param not in ["Epoch [year]", "Epoch (year)"]:
-            index = self.results.param_idx[cbar_param]
-            cbar_param_arr = standard_post[:, index]
+            if cbar_param in self.results.param_idx:
+                index = self.results.param_idx[cbar_param]
+                cbar_param_arr = post[:, index]
+            else:
+                index = self.results.standard_param_idx[cbar_param]
+                cbar_param_arr = standard_post[:, index]
             norm = mpl.colors.Normalize(
                 vmin=np.min(cbar_param_arr), vmax=np.max(cbar_param_arr)
             )
