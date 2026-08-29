@@ -440,6 +440,7 @@ class UniformPrior(Prior):
     def __init__(self, minval, maxval):
         self.minval = minval
         self.maxval = maxval
+        self.lnprob = np.log(1 / (self.maxval - self.minval))
 
     def __repr__(self):
         return "Uniform"
@@ -487,16 +488,18 @@ class UniformPrior(Prior):
         Returns:
             np.array: array of prior probabilities
         """
-        lnprob = np.log(np.ones(np.size(element_array)) / (self.maxval - self.minval))
-
-        # account for scalar inputs
-        if np.shape(lnprob) == ():
+        size = np.size(element_array)
+        if size == 1:
             if (element_array > self.maxval) or (element_array < self.minval):
-                lnprob = -np.inf
-        else:
-            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-                -np.inf
-            )
+                return -np.inf
+            else:
+                return self.lnprob
+            
+        lnprob = np.ones(size)*self.lnprob
+
+        lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
+            -np.inf
+        )
 
         return lnprob
 
@@ -824,14 +827,13 @@ def all_lnpriors(params, priors):
     Returns:
         float: prior probability of this set of parameters
     """
-    logp = 0.0
+    logp = np.array(0.0)
 
-    for param, prior in zip(params, priors):
-        param = np.array([param])
+    params_2d = params.reshape((-1,1)) # Make each item an array of size 1, i.e. [[1],[2],[3],...]
+    for param, prior in zip(params_2d, priors):
+        logp = logp + prior.compute_lnprob(param)
 
-        logp += np.squeeze(prior.compute_lnprob(param))
-
-    return float(logp)
+    return logp.item()
 
 
 if __name__ == "__main__":

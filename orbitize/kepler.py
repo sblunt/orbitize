@@ -47,8 +47,6 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 def make_array(obj):
-    if np.isscalar(obj):
-        return np.ascontiguousarray([obj], dtype=np.float64)
     return np.ascontiguousarray(obj, np.float64)
 
 def calc_orbit(
