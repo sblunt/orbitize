@@ -5,11 +5,13 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as consts
 
-from orbitize import cuda_ext, cext
+from orbitize import cext
+
+MAX_ITER = 6
+TOLERANCE = 1e-9
+TAU_REF_EPOCH = 58849
 
 if cext:
-    from . import _kepler
-    from . import _kepler2
     from . import _kepler3
 
 def tau_to_manom_py(date, sma, mtot, tau, tau_ref_epoch):
@@ -20,7 +22,8 @@ def tau_to_manom_py(date, sma, mtot, tau, tau_ref_epoch):
         date (float or np.array): MJD
         sma (float): semi major axis (AU)
         mtot (float): total mass (M_sun)
-        tau (float): epoch of periastron, in units of the orbital period
+        tau (float): fraction of the orbit which is elapsed at the epoch of
+            periastron passage relative to the reference epoch (in the range [0,1))
         tau_ref_epoch (float): reference epoch for tau
         
     Returns:
@@ -42,9 +45,50 @@ def tau_to_manom_py(date, sma, mtot, tau, tau_ref_epoch):
     return mean_anom
 
 def make_array(obj):
+    """
+    Make a scalar or 1-dimensional numpy array into a c-compatible 1-dimensional numpy array or floats
+    """
     return np.ascontiguousarray(obj, np.float64)
 
-def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
+def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=TAU_REF_EPOCH, tolerance=TOLERANCE, max_iter=MAX_ITER):
+    """
+    Returns the right ascension offsets, declination offset, and radial velocities of the body given array of
+    orbital parameters (size n_orbits) at given epochs (array of size n_epochs) solved in c
+
+    Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang and Henry Ngo. Refactored by Eshel Dror.
+
+    Args:
+        epochs (np.array): MJD times for which we want the positions of the planet
+        sma (np.array): semi-major axis of orbit [au]
+        ecc (np.array): eccentricity of the orbit [0,1]
+        inc (np.array): inclination [radians]
+        aop (np.array): argument of periastron [radians]
+        pan (np.array): longitude of the ascending node [radians]
+        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        plx (np.array): parallax [mas]
+        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
+        mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
+            For example, if you want to return the stellar RV, this is the planet mass.
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
+        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+
+    Return:
+        3-tuple:
+
+            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies
+            (origin is at the other body) [mas]
+
+            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
+
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
+                (see `mass_for_Kamp` description)  [km/s]
+
+    Written: Jason Wang, Henry Ngo, 2018
+    Updated: Eshel Dror, 2026
+    """
     epochs = make_array(epochs)
     sma = make_array(sma)
     ecc = make_array(ecc)
@@ -65,7 +109,45 @@ def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=
     vz = np.squeeze(vz)[()]
     return raoff, deoff, vz
 
-def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
+def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=TAU_REF_EPOCH, tolerance=TOLERANCE, max_iter=MAX_ITER):
+    """
+    Returns the right ascension offsets, declination offset, and radial velocities of the body given array of
+    orbital parameters (size n_orbits) at given epochs (array of size n_epochs) solved in python
+
+    Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang and Henry Ngo.
+
+    Args:
+        epochs (np.array): MJD times for which we want the positions of the planet
+        sma (np.array): semi-major axis of orbit [au]
+        ecc (np.array): eccentricity of the orbit [0,1]
+        inc (np.array): inclination [radians]
+        aop (np.array): argument of periastron [radians]
+        pan (np.array): longitude of the ascending node [radians]
+        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        plx (np.array): parallax [mas]
+        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
+        mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
+            For example, if you want to return the stellar RV, this is the planet mass.
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
+        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+
+    Return:
+        3-tuple:
+
+            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies
+            (origin is at the other body) [mas]
+
+            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
+
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
+                (see `mass_for_Kamp` description)  [km/s]
+
+    Written: Jason Wang, Henry Ngo, 2018
+    Updated: Eshel Dror, 2026
+    """
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
@@ -117,13 +199,10 @@ def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp
     vz = np.squeeze(vz)[()]
     return raoff, deoff, vz
 
-def calc_orbit(
-  epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
-  max_iter=100, use_c=True
-):
+def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=TAU_REF_EPOCH, tolerance=TOLERANCE, max_iter=MAX_ITER, use_c=True):
     """
-    Returns the separation and radial velocity of the body given array of
-    orbital parameters (size n_orbs) at given epochs (array of size n_dates)
+    Returns the right ascension offsets, declination offset, and radial velocities of the body given array of
+    orbital parameters (size n_orbits) at given epochs (array of size n_epochs)
 
     Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang and Henry Ngo.
 
@@ -144,7 +223,6 @@ def calc_orbit(
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
-        use_c (bool, optional): Use the C solver if configured. Defaults to True
 
     Return:
         3-tuple:
@@ -158,13 +236,29 @@ def calc_orbit(
                 (see `mass_for_Kamp` description)  [km/s]
 
     Written: Jason Wang, Henry Ngo, 2018
+    Updated: Eshel Dror, 2026
     """
     if cext and use_c:
         return calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter)
     else:
         return calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter)
 
-def calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=True):
+def calc_ecc_anom(manom, ecc, tolerance=TOLERANCE, max_iter=MAX_ITER, use_c=True):
+    """
+    Computes the eccentric anomaly from the mean anomaly.
+    Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
+
+    Args:
+        manom (float/np.array): mean anomaly, either a scalar or np.array of any shape
+        ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+    Return:
+        eanom (float/np.array): eccentric anomalies, same shape as manom
+
+    Written: Jason Wang, 2018
+    Updated: Eshel Dror, 2026
+    """
     if cext and use_c:
         manom = make_array(manom)
         if np.isscalar(ecc):
@@ -180,9 +274,9 @@ def calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=True):
     else:
         return calc_ecc_anom_py(manom, ecc, tolerance, max_iter)
 
-def calc_ecc_anom_py(manom, ecc, tolerance=1e-9, max_iter=100):
+def calc_ecc_anom_py(manom, ecc, tolerance=TOLERANCE, max_iter=MAX_ITER):
     """
-    Computes the eccentric anomaly from the mean anomlay.
+    Computes the eccentric anomaly from the mean anomlay in Python.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
 
     Args:
@@ -234,9 +328,9 @@ def calc_ecc_anom_py(manom, ecc, tolerance=1e-9, max_iter=100):
 
     return np.squeeze(eanom)[()]
 
-def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+def _newton_solver(manom, ecc, tolerance=TOLERANCE, max_iter=MAX_ITER, eanom0=None):
     """
-    Newton-Raphson solver for eccentric anomaly.
+    Newton-Raphson solver for eccentric anomaly in python.
 
     Args:
         manom (np.array): array of mean anomalies
@@ -284,13 +378,13 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     if niter >= max_iter:
         print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version, this has not happened yet...
+        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version
 
     return eanom
 
 def _mikkola_solver_wrapper(manom, ecc):
     """
-    Wrapper for the python implementation of Analtyical Mikkola solver 
+    Wrapper for the python implementation of Analtyical Mikkola solver
 
     Args:
         manom (np.array): array of mean anomalies between 0 and 2pi
@@ -309,10 +403,9 @@ def _mikkola_solver_wrapper(manom, ecc):
 
     return eanom
 
-
 def _mikkola_solver(manom, ecc):
     """
-    Analtyical Mikkola solver for the eccentric anomaly. See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
+    Analtyical Mikkola solver for the eccentric anomaly in python. See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
     Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
 
     Args:

@@ -6,7 +6,8 @@
 #endif
 
 #define PER_CONST 365.2568983840419
-#define KV_CONVERSION 29.7846918319 // sqrt(mu/a) where mu = G [in km3/Msun/s2], a = 149597870.700 km 
+#define KV_CONVERSION 29.7846918319 // sqrt(mu/a) where mu = G [in km3/Msun/s2], a = 149597870.700 km
+#define MIKKOLA_THRESHOLD 0.4
 
 double positive_mod1(
     double x) {
@@ -23,14 +24,39 @@ double tau_to_manom(
     const double period,
     const double tau,
     const double tau_ref_epoch) {
-        double frac_date, mean_anom;
-        frac_date = positive_mod1((epoch - tau_ref_epoch)/period);
-        mean_anom = positive_mod1((frac_date - tau)) * 2 * M_PI;
-        return mean_anom;
+    /*
+    Converts epoch and tau orbital parameter to mean anomaly
+
+    Args:
+        epoch (double): epoch in the same units as tau, period, and tau_ref_epoch
+        period (double): orbital period
+        tau (double): fraction of the orbit which is elapsed at the epoch of
+            periastron passage relative to the reference epoch (in the range [0,1))
+        tau_ref_epoch (double): reference epoch
+    
+    Return:
+        (double): mean anomaly
+    */
+    double frac_date, mean_anom;
+    frac_date = positive_mod1((epoch - tau_ref_epoch)/period);
+    mean_anom = positive_mod1((frac_date - tau)) * 2 * M_PI;
+    return mean_anom;
 }
 
-
 double newton_solver(
+    /* 
+    Newton-Raphson solver for eccentric anomaly.
+
+    Args:
+        manom (double): mean anomaly
+        ecc (double): eccentricity
+        tol (double): absolute tolerance at which to stop
+        max_iter (int): maximum number of iterations to try
+    Return:
+        (double): eccentric anomaly or -1.0 if not converged after maximum number of iterations
+
+    Written: Devin Cody, 2018
+    */
     const double manom, 
     const double ecc, 
     const double tol, 
@@ -60,13 +86,26 @@ double newton_solver(
     // solved using the analytical version. Note this behavior is a bit different from the 
     // numpy implementation
     if (niter >= max_iter){
-        printf("%f %f %f %f >= %d iter\n", manom, eanom, diff, ecc, max_iter);
+        // printf("%f %f %f %f >= %d iter\n", manom, eanom, diff, ecc, max_iter);
         eanom = -1.0;
     }
     return eanom;
 }
 
-double mikkola_solver(const double manom, const double ecc){
+double mikkola_solver(const double manom, const double ecc) {
+    /*
+    Analtyical Mikkola solver for the eccentric anomaly.
+    See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
+    Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
+
+    Args:
+        manom (double): mean anomaly, must be between 0 and pi.
+        ecc (double): eccentricity
+    Return:
+        (double): eccentric anomaly
+
+    Written: Devin Cody, 2019
+    */
     double eanom;
     double alpha, beta, aux, z, s0, s1, se0, ce0;
     double f, f1, f2, f3, f4, u1, u2, u3;
@@ -102,22 +141,37 @@ double calc_ecc_anom(
     const double ecc,
     const double tol,
     const int max_iter) {
-        double eanom = 0.0;
-        if (ecc == 0.0) {
-            return manom;
-        }
-        if (ecc < 0.95) {
-            eanom = newton_solver(manom, ecc, tol, max_iter);
-        }
-        if (ecc >= 0.95 || eanom == -1.0) {
-            if (manom > M_PI) {
-                eanom = 2. * M_PI - mikkola_solver(2. * M_PI - manom, ecc);
-            } else {
-                eanom = mikkola_solver(manom, ecc);
-            }
-        }
-        return eanom;
+    /*
+    Computes the eccentric anomaly from the mean anomaly.
+    e < MIKKOLA_THRESHOLD: use Newton solver, e >= MIKKOLA_THRESHOLD: use Mikkola solver
+
+    Args:
+        manom (double): mean anomaly
+        ecc (double): eccentricity
+        tol (double): absolute tolerance of iterative computation
+        max_iter (int): maximum number of iterations before switching
+    
+    Return:
+        eanom (double): eccentric anomaly
+    
+    Written: Eshel Dror, 2026 (based on Python implementation by Jason Wang, 2018)
+    */
+    double eanom = 0.0;
+    if (ecc == 0.0) {
+        return manom;
     }
+    if (ecc < MIKKOLA_THRESHOLD) {
+        eanom = newton_solver(manom, ecc, tol, max_iter);
+    }
+    if (ecc >= MIKKOLA_THRESHOLD || eanom == -1.0) {
+        if (manom > M_PI) {
+            eanom = 2. * M_PI - mikkola_solver(2. * M_PI - manom, ecc);
+        } else {
+            eanom = mikkola_solver(manom, ecc);
+        }
+    }
+    return eanom;
+}
 
 void calc_ecc_anom_array(
     const int size,
@@ -126,11 +180,26 @@ void calc_ecc_anom_array(
     const double tol,
     const int max_iter,
     double eanom[]) {
-        int i;
-        for (i = 0; i < size; i++) {
-            eanom[i] = calc_ecc_anom(manom[i], ecc[i], tol, max_iter);
-        }
+    /*
+    Computes an array of eccentric anomalies from the mean anomalies.
+    e < MIKKOLA_THRESHOLD: use Newton solver, e >= MIKKOLA_THRESHOLD: use Mikkola solver
+
+    Args:
+        size (int): size of manom and ecc
+        manom (double[]): mean anomalies
+        ecc (double[]): eccentricities
+        tol (double): absolute tolerance of iterative computation
+        max_iter (int): maximum number of iterations before switching
+        eanom (double[]): array to update with eccentric anomalies
+    
+    Return:
+        None (updates eanom with eccentric anomalies)
+    */
+    int i;
+    for (i = 0; i < size; i++) {
+        eanom[i] = calc_ecc_anom(manom[i], ecc[i], tol, max_iter);
     }
+}
 
 void calc_orbit(
     const int n_orbits,
@@ -150,7 +219,44 @@ void calc_orbit(
     const int max_iter,
     double raoff[],
     double deoff[],
-    double vz[]){
+    double vz[]) {
+    /*
+    Calculates the right ascension offsets, declination offset, and radial velocities of the body given array of
+    orbital parameters (size n_orbits) at given epochs (array of size n_epochs) solved in c
+
+    Based on orbit solvers from James Graham and Rob De Rosa.
+    Adapted by Jason Wang and Henry Ngo.
+    Converted and optimized in C by Eshel Dror.
+
+    Args:
+        n_orbits (int): length of orbital parameter arrays
+        n_epochs (int): length of epochs array
+        epochs (double[]): MJD times for which we want the positions of the planet
+        sma (double[]): semi-major axis of orbit [au]
+        ecc (double[]): eccentricity of the orbit [0,1]
+        inc (double[]): inclination [radians]
+        aop (double[]): argument of periastron [radians]
+        pan (double[]): longitude of the ascending node [radians]
+        tau (double[]): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        plx (double[]): parallax [mas]
+        mtot (double[]): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
+        mass_for_Kamp (double[]): mass of the body that causes the RV signal.
+            For example, if you want to return the stellar RV, this is the planet mass.
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV.
+        tau_ref_epoch (double): reference date that tau is defined with respect to (i.e., tau=0)
+        tolerance (double): absolute tolerance of iterative computation
+        max_iter (int): maximum number of iterations before switching
+        raoff (double[]): array of length (n_dates x n_orbs) to update with RA offsets between the bodies [mas]
+        deoff (double[]): array of length (n_dates x n_orbs) to update with Dec offsets between the bodies [mas]
+        vz (double[]): array of length (n_dates x n_orbs) to update with radial
+            velocities of one of the bodies according to mass_for_Kamp [km/s]
+
+    Return:
+        None (updates raoff, deoff, and vz with the respective values, with orbit i and epoch j at position i * n_epochs + j)
+
+    Written: Eshel Dror, 2026
+    */
     int i, j, k;
     double period, manom, eanom, partial_tanom, radius, c2i2, s2i2, c1, c2, s1, s2, rad_plx, Kv;
     // double tanom, arg1, arg2;
@@ -217,133 +323,4 @@ void calc_orbit(
             vz[k] = Kv * (ecc_cos_aop + (cos_aop * c_tanom - sin_aop * s_tanom));
         }
     }
-}
-
-void newton_array(const int n_elements,
-                    const double manom[], 
-                    const double ecc[], 
-                    const double tol, 
-                    const int max_iter, 
-                    double eanom[]){
-    /* 
-    Vectorized C Newton-Raphson solver for eccentric anomaly.
-
-    Args:
-        manom (double[]): array of mean anomalies
-        ecc (double[]): array of eccentricities
-        eanom0 (double[]): array of first guess for eccentric anomaly, same shape as manom (optional)
-    Return:
-        None: eanom (double[]): is changed by reference
-
-    Written: Devin Cody, 2018
-    */
-    int i;
-    for (i = 0; i < n_elements; i ++){
-        double diff;
-        int niter = 0;
-        int half_max = max_iter/2.0; // divide max_iter by 2 using bit shift
-        
-        // Let's do one iteration to start with
-        eanom[i] -= (eanom[i] - (ecc[i] * sin(eanom[i])) - manom[i]) / (1.0 - (ecc[i] * cos(eanom[i])));
-        diff = (eanom[i] - (ecc[i] * sin(eanom[i])) - manom[i]) / (1.0 - (ecc[i] * cos(eanom[i])));
-
-        while ((fabs(diff) > tol) && (niter <= max_iter)){
-            eanom[i] -= diff;
-
-            // If it hasn't converged after half the iterations are done, try starting from pi
-            if (niter == half_max) {
-                eanom[i] = M_PI;
-            }
-
-            diff = (eanom[i] - (ecc[i] * sin(eanom[i])) - manom[i]) / (1.0 - (ecc[i] * cos(eanom[i])));
-            niter += 1;
-        }
-
-        // If it has not converged, set eccentricity to -1 to signal that it needs to be
-        // solved using the analytical version. Note this behavior is a bit different from the 
-        // numpy implementation
-        if (niter >= max_iter){
-            printf("%f %f %f %f >= %d iter\n", manom[i], eanom[i], diff, ecc[i], max_iter);
-            eanom[i] = -1;
-        }
-    }   
-}
-
-
-void mikkola_array(const int n_elements, const double manom[], const double ecc[], double eanom[]){
-    /*
-    Vectorized C Analtyical Mikkola solver for the eccentric anomaly.
-    See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
-    Adapted from IDL routine keplereq.pro by Rob De Rosa http://www.lpl.arizona.edu/~bjackson/idl_code/keplereq.pro
-
-    Args:
-        manom (double[]): mean anomaly, must be between 0 and pi.
-        ecc (double[]): eccentricity
-        eanom0 (double[]): array for eccentric anomaly
-    Return:
-        None: eanom (double[]): is changed by reference
-
-    Written: Devin Cody, 2019
-    */
-
-    int i;
-    double alpha, beta, aux, z, s0, s1, se0, ce0;
-    double f, f1, f2, f3, f4, u1, u2, u3;
-
-    for (i = 0; i < n_elements; i++){
-        alpha = (1.0 - ecc[i]) / ((4.0 * ecc[i]) + 0.5);
-        beta = (0.5 * manom[i]) / ((4.0 * ecc[i]) + 0.5);
-
-        aux = sqrt(beta*beta + alpha*alpha*alpha);
-        z = pow(fabs(beta + aux), (1.0/3.0));
-
-        s0 = z - (alpha/z);
-        s1 = s0 - (0.078*(pow(s0, 5))) / (1.0 + ecc[i]);
-        eanom[i] = manom[i] + (ecc[i] * (3.0*s1 - 4.0*(s1*s1*s1)));
-
-        se0=sin(eanom[i]);
-        ce0=cos(eanom[i]);
-
-        f  = eanom[i]-ecc[i]*se0-manom[i];
-        f1 = 1.0-ecc[i]*ce0;
-        f2 = ecc[i]*se0;
-        f3 = ecc[i]*ce0;
-        f4 = -f2;
-        u1 = -f/f1;
-        u2 = -f/(f1+0.5*f2*u1);
-        u3 = -f/(f1+0.5*f2*u2+(1.0/6.0)*f3*u2*u2);
-        eanom[i] += -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3*u3*u3));
-    }
-}
-
-
-int main(void){
-    // Test functions with a small program
-
-    // Define variables for newton array method
-    double m[] = {.5, 1, 1.5};
-    double ecc[] = {.25, .75, .83};
-    double tol = 1e-9;
-    int mi = 100;
-    double eanom[] = {0, 0, 0};
-
-    // test newton_array
-    // Answer should be: [ 0.65161852,  1.73936894,  2.18046524])
-
-    newton_array(3,  m, ecc, tol, mi, eanom);
-    int i;
-    for (i = 0; i < 3; i++){
-        printf("eanom[%d] = %f\n", i, eanom[i]);
-        eanom[i] = 0;
-    }
-
-    // test mikkola_array
-    // Answer should be: [ 0.65161852,  1.73936894,  2.18046524])
-
-    mikkola_array(3, m, ecc, eanom);
-    for (i = 0; i < 3; i++){
-        printf("eanom[%d] = %f\n", i, eanom[i]);
-    }
-
-    return 0;
 }

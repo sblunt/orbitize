@@ -48,9 +48,9 @@ def _calc_orbit(
     np.ndarray[DTYPE_t,ndim=1] plx,
     np.ndarray[DTYPE_t,ndim=1] mtot,
     np.ndarray[DTYPE_t,ndim=1] mass_for_Kamp,
-    float tau_ref_epoch=58849,
-    float tolerance=1e-9, 
-    int max_iter=100,
+    float tau_ref_epoch,
+    float tolerance, 
+    int max_iter,
 ):
     cdef int n_orbits = sma.shape[0]
     cdef int n_epochs = epochs.shape[0]
@@ -85,8 +85,8 @@ def _calc_orbit(
 def _calc_ecc_anom(
     np.ndarray[DTYPE_t,ndim=1] manom,
     np.ndarray[DTYPE_t,ndim=1] ecc,
-    float tolerance=1e-9, 
-    int max_iter=100,
+    float tolerance, 
+    int max_iter,
     ):
     cdef int size = manom.shape[0]
     cdef np.ndarray[DTYPE_t, ndim=1] eanom = np.zeros(size)
