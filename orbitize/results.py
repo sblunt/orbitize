@@ -48,6 +48,12 @@ class Results(object):
         self.ln_evidence = None
         self.ln_evidence_err = None
 
+        # bookkeeping for save_results(): lets repeated calls for the same
+        # output file append only the newly added rows instead of rewriting
+        # the whole file from scratch every time
+        self._saved_filename = None
+        self._n_rows_saved = 0
+
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
             self.labels = self.system.labels
@@ -92,6 +98,24 @@ class Results(object):
         if curr_pos is not None:
             self.curr_pos = curr_pos
 
+    def _write_growable_dataset(self, hf, name, data, n_already_saved):
+        """
+        Writes ``data`` to the dataset ``name`` in the open hdf5 file ``hf``.
+
+        If the dataset doesn't exist yet, it's created as resizable so that
+        future calls can extend it. If it already exists (i.e. a previous
+        call to ``save_results`` already wrote the first ``n_already_saved``
+        rows of ``data`` to this same file), only the new rows beyond that
+        point are written, instead of rewriting the whole dataset.
+        """
+        if name in hf:
+            dset = hf[name]
+            dset.resize(len(data), axis=0)
+            dset[n_already_saved:] = data[n_already_saved:]
+        else:
+            maxshape = (None,) + data.shape[1:]
+            hf.create_dataset(name, data=data, maxshape=maxshape, chunks=True)
+
     def save_results(self, filename):
         """
         Save results.Results object to an hdf5 file
@@ -105,12 +129,26 @@ class Results(object):
         ``post``, ``lnlike``, and ``parameter_labels`` are datasets
         that are members of the root group.
 
+        If called repeatedly with the same ``filename`` (e.g. from
+        ``periodic_save_freq`` during MCMC), only the rows of ``post``/``lnlike``
+        that were added since the last call are written to disk, rather than
+        rewriting the entire accumulated chain every time.
+
         Written: Henry Ngo, 2018
 
         API Update: Sarah Blunt, 2021
         """
 
-        hf = h5py.File(filename, 'w')  # Creates h5py file object
+        # if this is a new target file (or the first save), start fresh;
+        # otherwise reopen the file we've already been writing to and append
+        if filename != self._saved_filename:
+            mode = 'w'
+            self._n_rows_saved = 0
+            self._saved_filename = filename
+        else:
+            mode = 'a'
+
+        hf = h5py.File(filename, mode)  # Creates/opens h5py file object
         # Add sampler_name as attribute of the root group
 
         hf.attrs['sampler_name'] = self.sampler_name
@@ -124,15 +162,22 @@ class Results(object):
 
         # Now add post and lnlike from the results object as datasets
         if self.post is not None:
-            hf.create_dataset('post', data=self.post)
+            self._write_growable_dataset(hf, 'post', self.post, self._n_rows_saved)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
-            hf.create_dataset('lnlike', data=self.lnlike)
+            self._write_growable_dataset(hf, 'lnlike', self.lnlike, self._n_rows_saved)
+
+        self._n_rows_saved = len(self.post) if self.post is not None else 0
 
         if self.curr_pos is not None:
+            if 'curr_pos' in hf:
+                del hf['curr_pos']
             hf.create_dataset("curr_pos", data=self.curr_pos)
 
-        self.system.save(hf)
+        # the system configuration doesn't change between saves, so it only
+        # needs to be (re)written the first time we save to this file
+        if mode == 'w':
+            self.system.save(hf)
 
         hf.close()  # Closes file object, which writes file to disk
 
