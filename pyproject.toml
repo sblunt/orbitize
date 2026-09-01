@@ -27,7 +27,8 @@ dependencies = [
     "rebound",
     "dynesty",
     "pymultinest",
-    "tk"
+    "tk",
+    "pytest-randomly",
 ]
 
 [tool.setuptools.dynamic]
@@ -35,3 +36,6 @@ version = {attr = "orbitize.__version__"}
 
 [tool.setuptools.packages]
 find = {}
+
+[tool.pytest]
+addopts = ["--randomly-seed=6674", "--randomly-dont-reorganize"]
