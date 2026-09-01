@@ -212,7 +212,8 @@ void calc_orbit(
     const int max_iter,
     double raoff[],
     double deoff[],
-    double vz[]) {
+    double vz[],
+    double tanoms[]) {
     /*
     Calculates the right ascension offsets, declination offset, and radial velocities of the body given array of
     orbital parameters (size n_orbits) at given epochs (array of size n_epochs) solved in c
@@ -243,16 +244,17 @@ void calc_orbit(
         raoff (double[]): array of length (n_dates x n_orbs) to update with RA offsets between the bodies [mas]
         deoff (double[]): array of length (n_dates x n_orbs) to update with Dec offsets between the bodies [mas]
         vz (double[]): array of length (n_dates x n_orbs) to update with radial
-            velocities of one of the bodies according to mass_for_Kamp [km/s]
+        velocities of one of the bodies according to mass_for_Kamp [km/s]
+        tanoms (double[]): array of length (n_dates x n_orbs) to update with true anomalies
 
     Return:
-        None (updates raoff, deoff, and vz with the respective values, with orbit i and epoch j at position i * n_epochs + j)
+        None (updates raoff, deoff, vz, and tanoms with the respective values, with orbit i and epoch j at position i * n_epochs + j)
 
     Written: Eshel Dror, 2026
     */
     int i, j, k;
-    double period, manom, eanom, partial_tanom, radius, c2i2, s2i2, c1, c2, s1, s2, rad_plx, Kv;
-    // double tanom, arg1, arg2;
+    double period, manom, eanom, partial_tanom, tanom, radius, c2i2, s2i2, c1, c2, s1, s2, rad_plx, Kv;
+    // double arg1, arg2;
     double ecc_cos_aop, cos_aop, sin_aop;
     double cos_p1, sin_p1, cos_p2, sin_p2, c_tanom, s_tanom;
     double a, b, b_squared, c, c_squared;
@@ -282,9 +284,9 @@ void calc_orbit(
             manom = tau_to_manom(epochs[j], period, tau[i], tau_ref_epoch);
             eanom = calc_ecc_anom(manom, ecc[i], tolerance, max_iter);
             
-            // tanom = 2.0*atan(partial_tanom*tan(0.5*eanom));
             // c_tanom = cos(tanom), s_tanom = sin(tanom);
             c = partial_tanom * tan(0.5*eanom);
+            tanom = 2.0*atan(c);
             c_squared = c * c;
             // c = cos(atan(c))
             a = 1 / sqrt(c_squared + 1);
@@ -314,6 +316,8 @@ void calc_orbit(
 
             // vz[k] = Kv * (ecc[i] * cos(aop[i]) + cos(aop[i] + tanom));
             vz[k] = Kv * (ecc_cos_aop + (cos_aop * c_tanom - sin_aop * s_tanom));
+            
+            tanoms[k] = tanom;
         }
     }
 }

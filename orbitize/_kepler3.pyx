@@ -24,7 +24,8 @@ cdef extern from "kepler3.c":
         const int max_iter,
         double raoff[],
         double deoff[],
-        double vz[]
+        double vz[],
+        double tanom[]
     )
 
 cdef extern from "kepler3.c": 
@@ -57,6 +58,7 @@ def _calc_orbit(
     cdef np.ndarray[DTYPE_t, ndim=1] raoff = np.zeros(n_orbits * n_epochs)
     cdef np.ndarray[DTYPE_t, ndim=1] deoff = np.zeros(n_orbits * n_epochs)
     cdef np.ndarray[DTYPE_t, ndim=1] vz = np.zeros(n_orbits * n_epochs)
+    cdef np.ndarray[DTYPE_t, ndim=1] tanom = np.zeros(n_orbits * n_epochs)
     
     calc_orbit(
         n_orbits,
@@ -76,11 +78,13 @@ def _calc_orbit(
         max_iter,
         <double*> raoff.data,
         <double*> deoff.data,
-        <double*> vz.data)
+        <double*> vz.data,
+        <double*> tanom.data)
     cdef np.ndarray[DTYPE_t, ndim=2] raoff_ret = raoff.reshape((n_orbits, n_epochs)).T
     cdef np.ndarray[DTYPE_t, ndim=2] deoff_ret = deoff.reshape((n_orbits, n_epochs)).T
     cdef np.ndarray[DTYPE_t, ndim=2] vz_ret = vz.reshape((n_orbits, n_epochs)).T
-    return raoff_ret, deoff_ret, vz_ret
+    cdef np.ndarray[DTYPE_t, ndim=2] tanom_ret = tanom.reshape((n_orbits, n_epochs)).T
+    return raoff_ret, deoff_ret, vz_ret, tanom_ret
 
 def _calc_ecc_anom(
     np.ndarray[DTYPE_t,ndim=1] manom,

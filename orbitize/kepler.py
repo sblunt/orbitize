@@ -140,6 +140,8 @@ def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=
 
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
+            
+            tanom (np.array): array-like (n_dates x n_orbs) of true anomalies
 
     Written: Jason Wang, Henry Ngo, 2018
     Updated: Eshel Dror, 2026
@@ -156,13 +158,14 @@ def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=
     if mass_for_Kamp is None:
         mass_for_Kamp = mtot
     mass_for_Kamp = make_array(mass_for_Kamp)
-    raoff, deoff, vz = _kepler3._calc_orbit(
+    raoff, deoff, vz, tanom = _kepler3._calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter,
     )
     raoff = np.squeeze(raoff)[()]
     deoff = np.squeeze(deoff)[()]
     vz = np.squeeze(vz)[()]
-    return raoff, deoff, vz
+    tanom = np.squeeze(tanom)[()]
+    return raoff, deoff, vz, tanom
 
 def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=TAU_REF_EPOCH, tolerance=TOLERANCE, max_iter=MAX_ITER):
     """
@@ -199,15 +202,16 @@ def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp
 
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
+            
+            tanom (np.array): array-like (n_dates x n_orbs) of true anomalies
 
     Written: Jason Wang, Henry Ngo, 2018
     Updated: Eshel Dror, 2026
     """
 
- # return planetary RV if `mass_for_Kamp` is not defined
+    # return planetary RV if `mass_for_Kamp` is not defined
     if mass_for_Kamp is None:
         mass_for_Kamp = mtot
-    ecc
 
     tanom, eanom = times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=tau_ref_epoch, tolerance=tolerance, max_iter=max_iter, use_c=False)
 
@@ -240,7 +244,7 @@ def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp
     vz = Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]
-    return raoff, deoff, vz
+    return raoff, deoff, vz, tanom
 
 def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=TAU_REF_EPOCH, tolerance=TOLERANCE, max_iter=MAX_ITER, use_c=True):
     """
@@ -277,6 +281,8 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
+            
+            tanom (np.array): array-like (n_dates x n_orbs) of true anomalies
 
     Written: Jason Wang, Henry Ngo, 2018
     Updated: Eshel Dror, 2026
