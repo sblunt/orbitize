@@ -137,10 +137,10 @@ hr8799_sys_1planet = System(
 def test_8799_1planet_rebound_vs_kepler(plotname=None):
     assert not hr8799_sys_1planet.track_planet_perturbs
 
-    rra, rde, rvz = hr8799_sys_1planet.compute_all_orbits(
+    rra, rde, rvz, _ = hr8799_sys_1planet.compute_all_orbits(
         params_arr_1planet, epochs=epochs2, comp_rebound=True
     )
-    kra, kde, kvz = hr8799_sys_1planet.compute_all_orbits(
+    kra, kde, kvz, _ = hr8799_sys_1planet.compute_all_orbits(
         params_arr_1planet, epochs=epochs2, comp_rebound=False
     )    
 
@@ -218,10 +218,10 @@ def test_8799_rebound_vs_kepler(plotname=None):
 
     assert hr8799_sys.track_planet_perturbs
 
-    rra, rde, _ = hr8799_sys.compute_all_orbits(
+    rra, rde, _, _ = hr8799_sys.compute_all_orbits(
         params_arr, epochs=epochs, comp_rebound=True
     )
-    kra, kde, _ = hr8799_sys.compute_all_orbits(
+    kra, kde, _, _ = hr8799_sys.compute_all_orbits(
         params_arr, epochs=epochs, comp_rebound=False
     )
 

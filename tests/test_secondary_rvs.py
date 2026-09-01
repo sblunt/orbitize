@@ -58,7 +58,7 @@ def test_secondary_rv_lnlike_calc():
     os.system("rm tmp.csv")
 
     # assert that the secondary orbit is the primary orbit scaled
-    _, _, rv = mySys.compute_all_orbits(orbitize_params_list)
+    _, _, rv, _ = mySys.compute_all_orbits(orbitize_params_list)
     rv0 = rv[:, 0]
     rv1 = rv[:, 1]
 
@@ -75,5 +75,5 @@ def test_read_input():
     mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
 
 if __name__ == "__main__":
-    # test_secondary_rv_lnlike_calc()
+    test_secondary_rv_lnlike_calc()
     test_read_input()

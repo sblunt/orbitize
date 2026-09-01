@@ -98,14 +98,14 @@ class Sampler(abc.ABC):
 
         if self.system.hipparcos_IAD is not None:
             # compute Ra/Dec predictions at the Hipparcos IAD epochs
-            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+            raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
                 params, epochs=self.system.hipparcos_IAD.epochs_mjd
             )
 
             (
                 raoff_model_hip_epoch,
                 deoff_model_hip_epoch,
-                _,
+                _, _
             ) = self.system.compute_all_orbits(
                 params, epochs=Time([1991.25], format="decimalyear").mjd
             )
@@ -131,7 +131,7 @@ class Sampler(abc.ABC):
             ).mjd
 
             # compute Ra/Dec predictions at the Gaia epoch
-            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+            raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
                 params, epochs=gaiahip_epochs
             )
 
