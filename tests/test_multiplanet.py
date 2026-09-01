@@ -224,7 +224,6 @@ def test_fit_selfconsist():
     assert samp.num_params == 6
 
     # start walkers near the true location for the orbital parameters
-    np.random.seed(123)
     # planet b
     samp.curr_pos[:, 0] = np.random.normal(b_params[0], 0.01, n_walkers)  # sma
     samp.curr_pos[:, 1] = np.random.normal(b_params[-1], 0.01, n_walkers)  # tau
