@@ -7,7 +7,7 @@ import astropy.constants as consts
 
 from orbitize import cext
 
-MAX_ITER = 6
+MAX_ITER = 10
 TOLERANCE = 1e-9
 TAU_REF_EPOCH = 58849
 
@@ -367,9 +367,6 @@ def _newton_solver(manom, ecc, tolerance=TOLERANCE, max_iter=MAX_ITER, eanom0=No
     niter = 0
     while ((ind[0].size > 0) and (niter <= max_iter)):
         eanom[ind] -= diff[ind]
-        # If it hasn't converged after half the iterations are done, try starting from pi
-        if niter == (max_iter//2):
-            eanom[ind] = np.pi
         diff[ind] = (eanom[ind] - (ecc[ind] * np.sin(eanom[ind])) - manom[ind]) / \
             (1.0 - (ecc[ind] * np.cos(eanom[ind])))
         abs_diff[ind] = np.abs(diff[ind])
@@ -377,7 +374,7 @@ def _newton_solver(manom, ecc, tolerance=TOLERANCE, max_iter=MAX_ITER, eanom0=No
         niter += 1
 
     if niter >= max_iter:
-        print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
+        # print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
         eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version
 
     return eanom

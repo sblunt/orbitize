@@ -63,7 +63,6 @@ double newton_solver(
     const int max_iter) {
     double diff;
     int niter = 0;
-    int half_max = max_iter/2.0; // divide max_iter by 2 using bit shift
     double eanom = manom;
     
     // Let's do one iteration to start with
@@ -72,12 +71,6 @@ double newton_solver(
 
     while ((fabs(diff) > tol) && (niter <= max_iter)){
         eanom -= diff;
-
-        // If it hasn't converged after half the iterations are done, try starting from pi
-        if (niter == half_max) {
-            eanom = M_PI;
-        }
-
         diff = (eanom - (ecc * sin(eanom)) - manom) / (1.0 - (ecc * cos(eanom)));
         niter += 1;
     }
