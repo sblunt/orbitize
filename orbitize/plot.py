@@ -376,7 +376,7 @@ def plot_orbits(
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, _ = kepler.calc_orbit(
+            raoff0, deoff0, _, _ = kepler.calc_orbit(
                 epochs[i, :],
                 sma[i],
                 ecc[i],
@@ -613,7 +613,7 @@ def plot_orbits(
 
             # Calculate ra/dec offsets for all epochs of this orbit
             if (rv_time_series == True) or (rv_time_series2 == True):
-                raoff0, deoff0, vz = kepler.calc_orbit(
+                raoff0, deoff0, vz, _ = kepler.calc_orbit(
                     epochs_seppa[i, :],
                     sma[i],
                     ecc[i],
@@ -630,7 +630,7 @@ def plot_orbits(
                 raoff[i, :] = raoff0
                 deoff[i, :] = deoff0
             else:
-                raoff0, deoff0, _ = kepler.calc_orbit(
+                raoff0, deoff0, _, _ = kepler.calc_orbit(
                     epochs_seppa[i, :],
                     sma[i],
                     ecc[i],
@@ -1179,7 +1179,7 @@ def plot_residuals(
         )
 
         # Calculate ra/dec offsets for all epochs of this orbit
-        raoff0, deoff0, _ = kepler.calc_orbit(
+        raoff0, deoff0, _, _ = kepler.calc_orbit(
             epochs[i, :],
             sma[i],
             ecc[i],
@@ -1287,7 +1287,7 @@ def plot_residuals(
             num_epochs_to_plot,
         )
 
-        raoff0, deoff0, _ = kepler.calc_orbit(
+        raoff0, deoff0, _, _ = kepler.calc_orbit(
             astr_epochs,
             sma[i],
             ecc[i],
@@ -1300,7 +1300,7 @@ def plot_residuals(
             tau_ref_epoch=my_results.tau_ref_epoch,
         )
 
-        raoff2, deoff2, _ = kepler.calc_orbit(
+        raoff2, deoff2, _, _ = kepler.calc_orbit(
             epochs_seppa[0],
             sma[i],
             ecc[i],
@@ -1596,7 +1596,7 @@ def plot_propermotion(
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, _ = kepler.calc_orbit(
+            raoff0, deoff0, _, _ = kepler.calc_orbit(
                 epochs[i, :],
                 sma[i],
                 ecc[i],

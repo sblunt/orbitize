@@ -353,7 +353,7 @@ class OFTI(
             meananno = self.epochs[min_epoch] / period_prescale - tau
 
             # compute sep/PA of generated orbits
-            ra, dec, _ = orbitize.kepler.calc_orbit(
+            ra, dec, _, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch],
                 sma,
                 ecc,
