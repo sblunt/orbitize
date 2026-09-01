@@ -55,6 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**4.0.0 (TBD)**
+
+- ptemcee and emcee implementations now cleanly use mp.Pool
+
 **3.4.0 (2026-7-20)**
 
 This is a breaking change for System.compute_all_orbits.
