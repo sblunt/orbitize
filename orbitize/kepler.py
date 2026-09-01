@@ -12,12 +12,7 @@ if cext:
     from . import _kepler2
     from . import _kepler3
 
-if cuda_ext:
-    # Configure GPU context for CUDA accelerated compute
-    from orbitize import gpu_context
-    kep_gpu_ctx = gpu_context.gpu_context()
-
-def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
+def tau_to_manom_py(date, sma, mtot, tau, tau_ref_epoch):
     """
     Gets the mean anomlay
     
@@ -49,75 +44,28 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
 def make_array(obj):
     return np.ascontiguousarray(obj, np.float64)
 
-def calc_orbit(
-  epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
-  max_iter=100, use_c=True, use_gpu=False, K2=True, K3=True
-):
-    if K2:
-        epochs = make_array(epochs)
-        sma = make_array(sma)
-        ecc = make_array(ecc)
-        inc = make_array(inc)
-        aop = make_array(aop)
-        pan = make_array(pan)
-        tau = make_array(tau)
-        plx = make_array(plx)
-        mtot = make_array(mtot)
-        if mass_for_Kamp is None:
-            mass_for_Kamp = mtot
-        mass_for_Kamp = make_array(mass_for_Kamp)
-        if K3:
-            raoff, deoff, vz = _kepler3._calc_orbit(
-                epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter,
-            )
-        else:
-            raoff, deoff, vz = _kepler2.calc_orbit(
-                epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter,
-            )
-        raoff = np.squeeze(raoff)[()]
-        deoff = np.squeeze(deoff)[()]
-        vz = np.squeeze(vz)[()]
-        return raoff, deoff, vz
+def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
+    epochs = make_array(epochs)
+    sma = make_array(sma)
+    ecc = make_array(ecc)
+    inc = make_array(inc)
+    aop = make_array(aop)
+    pan = make_array(pan)
+    tau = make_array(tau)
+    plx = make_array(plx)
+    mtot = make_array(mtot)
+    if mass_for_Kamp is None:
+        mass_for_Kamp = mtot
+    mass_for_Kamp = make_array(mass_for_Kamp)
+    raoff, deoff, vz = _kepler3._calc_orbit(
+        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter,
+    )
+    raoff = np.squeeze(raoff)[()]
+    deoff = np.squeeze(deoff)[()]
+    vz = np.squeeze(vz)[()]
+    return raoff, deoff, vz
 
-    """
-    Returns the separation and radial velocity of the body given array of
-    orbital parameters (size n_orbs) at given epochs (array of size n_dates)
-
-    Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang and Henry Ngo.
-
-    Args:
-        epochs (np.array): MJD times for which we want the positions of the planet
-        sma (np.array): semi-major axis of orbit [au]
-        ecc (np.array): eccentricity of the orbit [0,1]
-        inc (np.array): inclination [radians]
-        aop (np.array): argument of periastron [radians]
-        pan (np.array): longitude of the ascending node [radians]
-        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
-        plx (np.array): parallax [mas]
-        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
-        mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
-            For example, if you want to return the stellar RV, this is the planet mass.
-            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
-            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
-        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
-        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
-        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
-        use_c (bool, optional): Use the C solver if configured. Defaults to True
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
-
-    Return:
-        3-tuple:
-
-            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies
-            (origin is at the other body) [mas]
-
-            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
-
-            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
-                (see `mass_for_Kamp` description)  [km/s]
-
-    Written: Jason Wang, Henry Ngo, 2018
-    """
+def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, max_iter=100):
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
@@ -131,9 +79,9 @@ def calc_orbit(
     ecc_arr = np.tile(ecc, (n_dates, 1))
 
     # # compute mean anomaly (size: n_orbs x n_dates)
-    manom = tau_to_manom(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
+    manom = tau_to_manom_py(epochs[:, None], sma, mtot, tau, tau_ref_epoch)
     # compute eccentric anomalies (size: n_orbs x n_dates)
-    eanom = _calc_ecc_anom(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c, use_gpu=use_gpu)
+    eanom = calc_ecc_anom_py(manom, ecc_arr, tolerance=tolerance, max_iter=max_iter)
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
@@ -169,7 +117,70 @@ def calc_orbit(
     vz = np.squeeze(vz)[()]
     return raoff, deoff, vz
 
-def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gpu=False):
+def calc_orbit(
+  epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=58849, tolerance=1e-9, 
+  max_iter=100, use_c=True
+):
+    """
+    Returns the separation and radial velocity of the body given array of
+    orbital parameters (size n_orbs) at given epochs (array of size n_dates)
+
+    Based on orbit solvers from James Graham and Rob De Rosa. Adapted by Jason Wang and Henry Ngo.
+
+    Args:
+        epochs (np.array): MJD times for which we want the positions of the planet
+        sma (np.array): semi-major axis of orbit [au]
+        ecc (np.array): eccentricity of the orbit [0,1]
+        inc (np.array): inclination [radians]
+        aop (np.array): argument of periastron [radians]
+        pan (np.array): longitude of the ascending node [radians]
+        tau (np.array): epoch of periastron passage in fraction of orbital period past MJD=0 [0,1]
+        plx (np.array): parallax [mas]
+        mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
+        mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
+            For example, if you want to return the stellar RV, this is the planet mass.
+            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
+            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
+        tau_ref_epoch (float, optional): reference date that tau is defined with respect to (i.e., tau=0)
+        tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
+        max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
+        use_c (bool, optional): Use the C solver if configured. Defaults to True
+
+    Return:
+        3-tuple:
+
+            raoff (np.array): array-like (n_dates x n_orbs) of RA offsets between the bodies
+            (origin is at the other body) [mas]
+
+            deoff (np.array): array-like (n_dates x n_orbs) of Dec offsets between the bodies [mas]
+
+            vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
+                (see `mass_for_Kamp` description)  [km/s]
+
+    Written: Jason Wang, Henry Ngo, 2018
+    """
+    if cext and use_c:
+        return calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter)
+    else:
+        return calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter)
+
+def calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=True):
+    if cext and use_c:
+        manom = make_array(manom)
+        if np.isscalar(ecc):
+            ecc = np.ones(manom.shape[0]) * ecc
+        ecc = make_array(ecc)
+        if (manom.shape == ecc.shape):
+            pass
+        else:
+            raise ValueError("ecc must be a scalar, or ecc.shape == manom.shape")
+        
+        eanom = _kepler3._calc_ecc_anom(manom, ecc, tolerance, max_iter)
+        return np.squeeze(eanom)[()]
+    else:
+        return calc_ecc_anom_py(manom, ecc, tolerance, max_iter)
+
+def calc_ecc_anom_py(manom, ecc, tolerance=1e-9, max_iter=100):
     """
     Computes the eccentric anomaly from the mean anomlay.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -179,10 +190,8 @@ def _calc_ecc_anom(manom, ecc, tolerance=1e-9, max_iter=100, use_c=False, use_gp
         ecc (float/np.array): eccentricity, either a scalar or np.array of the same shape as manom
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
-        use_c (bool, optional): Use the C solver if configured. Defaults to False
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
 
-Return:
+    Return:
         eanom (float/np.array): eccentric anomalies, same shape as manom
 
     Written: Jason Wang, 2018
@@ -216,43 +225,14 @@ Return:
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
     if len(ind_low[0]) > 0: 
-        eanom[ind_low] = _newton_solver_wrapper(manom[ind_low], ecc[ind_low], tolerance, max_iter, use_c, use_gpu)
+        eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance, max_iter)
     
     # Now high eccentricities
-    ind_high = np.where(~ecc_zero & ~ecc_low | (eanom == -1)) # The C and CUDA solvers return the unphysical value -1 if they fail to converge
+    ind_high = np.where(~ecc_zero & ~ecc_low)
     if len(ind_high[0]) > 0: 
-        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high], use_c, use_gpu)
+        eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
     return np.squeeze(eanom)[()]
-
-def _newton_solver_wrapper(manom, ecc, tolerance, max_iter, use_c=False, use_gpu=False):
-    """
-    Wrapper for the various (Python, C, CUDA) implementations of the Newton-Raphson solver 
-    for eccentric anomaly.
-
-    Args:
-        manom (np.array): array of mean anomalies
-        ecc (np.array): array of eccentricities
-        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
-        use_c (bool, optional): Use the C solver if configured. Defaults to False
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
-    Return:
-        eanom (np.array): array of eccentric anomalies
-
-    Written: Devin Cody, 2021
-    """
-    eanom = np.empty_like(manom)
-    
-    if cuda_ext and use_gpu:
-        # the CUDA solver returns eanom = -1 if it doesnt converge after max_iter iterations
-        eanom = _CUDA_newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
-    elif cext and use_c:
-        # the C solver returns eanom = -1 if it doesnt converge after max_iter iterations
-        eanom = _kepler._c_newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
-    else:
-        eanom = _newton_solver(manom, ecc, tolerance=tolerance, max_iter=max_iter)
-
-    return eanom
 
 def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
     """
@@ -308,42 +288,13 @@ def _newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
 
     return eanom
 
-def _CUDA_newton_solver(manom, ecc, tolerance=1e-9, max_iter=100, eanom0=None):
+def _mikkola_solver_wrapper(manom, ecc):
     """
-    Helper function for calling the CUDA implementation of the Newton-Raphson solver for eccentric anomaly.
-
-    Args:
-        manom (np.array): array of mean anomalies
-        ecc (np.array): array of eccentricities
-        eanom0 (np.array, optional): array of first guess for eccentric anomaly, same shape as manom (optional)
-    Return:
-        eanom (np.array): array of eccentric anomalies
-
-    Written: Devin Cody, 2021
-    """
-    global kep_gpu_ctx
-
-    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.asarray(manom)
-    ecc = np.asarray(ecc)
-    eanom = np.empty_like(manom)
-    tolerance = np.asarray(tolerance, dtype = np.float64)
-    max_iter = np.asarray(max_iter)
-    
-    kep_gpu_ctx.newton(manom, ecc, eanom, eanom0, tolerance, max_iter)
-
-    return eanom
-
-def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
-    """
-    Wrapper for the various (Python, C, CUDA) implementations of Analtyical Mikkola solver 
+    Wrapper for the python implementation of Analtyical Mikkola solver 
 
     Args:
         manom (np.array): array of mean anomalies between 0 and 2pi
         ecc (np.array): eccentricity
-        use_c (bool, optional): Use the C solver if configured. Defaults to False
-        use_gpu (bool, optional): Use the GPU solver if configured. Defaults to False
-
 
     Return:
         eanom (np.array): array of eccentric anomalies
@@ -353,12 +304,7 @@ def _mikkola_solver_wrapper(manom, ecc, use_c=False, use_gpu=False):
 
     ind_change = np.where(manom > np.pi)
     manom[ind_change] = (2.0 * np.pi) - manom[ind_change]
-    if cuda_ext and use_gpu:
-        eanom = _CUDA_mikkola_solver(manom, ecc)
-    elif cext and use_c:
-        eanom = _kepler._c_mikkola_solver(manom, ecc)
-    else:
-        eanom = _mikkola_solver(manom, ecc)
+    eanom = _mikkola_solver(manom, ecc)
     eanom[ind_change] = (2.0 * np.pi) - eanom[ind_change]
 
     return eanom
@@ -402,26 +348,3 @@ def _mikkola_solver(manom, ecc):
     u4 = -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3**3.0))
 
     return (e0 + u4)
-
-def _CUDA_mikkola_solver(manom, ecc):
-    """
-    Helper function for calling the CUDA implementation of the Analtyical Mikkola solver for the eccentric anomaly.
-
-    Args:
-        manom (float or np.array): mean anomaly, must be between 0 and pi.
-        ecc (float or np.array): eccentricity
-    Return:
-        eanom (np.array): array of eccentric anomalies
-
-    Written: Devin Cody, 2021
-    """
-    global kep_gpu_ctx
-
-    # Ensure manom and ecc are np.array (might get passed as astropy.Table Columns instead)
-    manom = np.asarray(manom)
-    ecc = np.asarray(ecc)
-    eanom = np.empty_like(manom)
-
-    kep_gpu_ctx.mikkola(manom, ecc, eanom)
-
-    return eanom

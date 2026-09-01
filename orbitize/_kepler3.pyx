@@ -27,6 +27,16 @@ cdef extern from "kepler3.c":
         double vz[]
     )
 
+cdef extern from "kepler3.c": 
+    void calc_ecc_anom_array(
+        const int size,
+        const double manom[],
+        const double ecc[],
+        const double tolerance,
+        const int max_iter,
+        double eanom[],
+    )
+
 def _calc_orbit(
     np.ndarray[DTYPE_t,ndim=1] epochs,
     np.ndarray[DTYPE_t,ndim=1] sma,
@@ -71,3 +81,21 @@ def _calc_orbit(
     cdef np.ndarray[DTYPE_t, ndim=2] deoff_ret = deoff.reshape((n_orbits, n_epochs)).T
     cdef np.ndarray[DTYPE_t, ndim=2] vz_ret = vz.reshape((n_orbits, n_epochs)).T
     return raoff_ret, deoff_ret, vz_ret
+
+def _calc_ecc_anom(
+    np.ndarray[DTYPE_t,ndim=1] manom,
+    np.ndarray[DTYPE_t,ndim=1] ecc,
+    float tolerance=1e-9, 
+    int max_iter=100,
+    ):
+    cdef int size = manom.shape[0]
+    cdef np.ndarray[DTYPE_t, ndim=1] eanom = np.zeros(size)
+    calc_ecc_anom_array(
+        size,
+        <double*> manom.data,
+        <double*> ecc.data,
+        tolerance,
+        max_iter,
+        <double*> eanom.data
+    )
+    return eanom

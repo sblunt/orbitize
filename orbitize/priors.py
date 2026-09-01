@@ -3,7 +3,7 @@ import abc
 from astropy import units as u, constants as cst
 
 from orbitize import basis
-from orbitize.kepler import _calc_ecc_anom
+from orbitize.kepler import calc_ecc_anom
 import scipy.special
 import scipy.stats
 
@@ -791,7 +791,7 @@ class ObsPrior(Prior):
             meananom = basis.tau_to_manom(
                 self.epochs, sma, self.mtot, tau, self.tau_ref_epoch
             )
-            eccanom = _calc_ecc_anom(meananom, ecc)
+            eccanom = calc_ecc_anom(meananom, ecc)
 
             # sum Jacobian over all epochs (O'Neil 2019 eq 33)
             jacobian = np.sum(

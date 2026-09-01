@@ -6,8 +6,6 @@
 #endif
 
 #define PER_CONST 365.2568983840419
-#define PERIOD_CONVERSION 2105.6131276363703
-#define G 6.6743e-11
 #define KV_CONVERSION 29.7846918319 // sqrt(mu/a) where mu = G [in km3/Msun/s2], a = 149597870.700 km 
 
 double positive_mod1(
@@ -121,6 +119,19 @@ double calc_ecc_anom(
         return eanom;
     }
 
+void calc_ecc_anom_array(
+    const int size,
+    const double manom[],
+    const double ecc[],
+    const double tol,
+    const int max_iter,
+    double eanom[]) {
+        int i;
+        for (i = 0; i < size; i++) {
+            eanom[i] = calc_ecc_anom(manom[i], ecc[i], tol, max_iter);
+        }
+    }
+
 void calc_orbit(
     const int n_orbits,
     const int n_epochs,
@@ -148,9 +159,6 @@ void calc_orbit(
     double a, b, b_squared, c, c_squared;
 
     for (i = 0; i < n_orbits; i ++) {
-        // period = sqrt(
-        //     4 * pow(M_PI, 2.0) * pow(sma[i], 3.0) / (G * mtot[i])
-        // ) / PERIOD_CONVERSION;
         period = sqrt(
             pow(sma[i], 3.0) / (mtot[i])
         ) * PER_CONST;
