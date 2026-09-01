@@ -12,7 +12,7 @@ from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy.linalg
 
-from orbitize import DATADIR
+from orbitize import DATADIR, read_input
 import orbitize.lnlike
 
 
@@ -503,20 +503,24 @@ class DR4LogProb(object):
 
     Args:
         gaia_num (int): Gaia source ID
-        dr4_filepath (str): path to CSV file containing DR4 epoch astrometry
-            with columns: 'obs_time_tcb', 'centroid_pos_al',
-            'centroid_pos_error_al', 'parallax_factor_al',
-            'scan_pos_angle', 'field_of_view'
-        ref_epoch_jd (float): reference epoch in JD (TCB) for the linear
-            astrometric model.  Default 2457936.875 (J2017.5).
+        dr4_filepath (str or astropy.table.Table): Raw OHP CSV (JD timestamps),
+            or a table returned by ``from_ohp_file`` / ``from_dl2``
+            (MJD timestamps). Times are normalized once to MJD(TCB).
+            Required columns: 'obs_time_tcb', 'centroid_pos_al',
+            'centroid_pos_error_al', 'parallax_factor_al', 'scan_pos_angle',
+            'field_of_view'. MJD tables must carry ``meta['time_format']='mjd'``.
+        ref_epoch_jd (float, optional): Legacy JD(TCB) reference epoch;
+            converted to MJD on input. Prefer ``ref_epoch_mjd`` for new code.
+        ref_epoch_mjd (float, optional): Reference epoch in MJD(TCB) for the
+            linear astrometric model. Default 57936.375 (J2017.5).
         catalog_pmra (float): Gaia catalog proper motion in RA* [mas/yr].
         catalog_pmra_err (float): 1-sigma uncertainty on catalog_pmra.
         catalog_pmdec (float): Gaia catalog proper motion in Dec [mas/yr].
         catalog_pmdec_err (float): 1-sigma uncertainty on catalog_pmdec.
-        catalog_ra_off (float): positional offset in RA* at ref_epoch_jd [mas].  Default 0.
+        catalog_ra_off (float): positional offset in RA* at ref_epoch_mjd [mas].  Default 0.
         catalog_ra_off_err (float): 1-sigma uncertainty [mas].  Default 1 (weakly informative; Gaia positions are sub-mas,
          but the offset is defined relative to an arbitrary origin).
-        catalog_dec_off (float): positional offset in Dec at ref_epoch_jd [mas].
+        catalog_dec_off (float): positional offset in Dec at ref_epoch_mjd [mas].
             Default 0.
         catalog_dec_off_err (float): 1-sigma uncertainty [mas].  Default 1.
         jitter (float): fixed along-scan jitter [mas] added in quadrature to
@@ -526,6 +530,10 @@ class DR4LogProb(object):
             along-scan jitter parameter [mas]. When supplied, ``dr4_jitter``
             is registered as an additional System parameter. ``jitter`` must
             remain zero when fitting the jitter.
+
+    Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
+    scale for joint fits. This class does not convert RV or relative-astrometry
+    timestamps whose time scale is unspecified.
 
     Written: Clarissa Do O, 2026
     """
@@ -537,7 +545,7 @@ class DR4LogProb(object):
         self,
         gaia_num,
         dr4_filepath,
-        ref_epoch_jd=2457936.875,  # J2017.5, same as tutorial
+        ref_epoch_jd=None,
         catalog_pmra=0.0,
         catalog_pmra_err=100.0,
         catalog_pmdec=0.0,
@@ -548,7 +556,15 @@ class DR4LogProb(object):
         catalog_dec_off_err=1.0,
         jitter=0.0,
         jitter_prior=None,
+        *,
+        ref_epoch_mjd=None,
     ):
+        if ref_epoch_jd is not None:
+            if ref_epoch_mjd is not None:
+                raise ValueError("Set only one of ref_epoch_mjd and ref_epoch_jd.")
+            ref_epoch_mjd = ref_epoch_jd - 2400000.5
+        if ref_epoch_mjd is None:
+            ref_epoch_mjd = 57936.375  # J2017.5 in MJD(TCB)
         if not np.isfinite(jitter) or jitter < 0:
             raise ValueError("jitter must be a finite, non-negative value in mas")
         if jitter_prior is not None and jitter != 0:
@@ -558,20 +574,16 @@ class DR4LogProb(object):
 
         self.gaia_num = gaia_num
         self.dr4_filepath = dr4_filepath
-        self.ref_epoch_jd = ref_epoch_jd
+        self.ref_epoch_mjd = ref_epoch_mjd
+        self.time_scale = "tcb"
         self.jitter = float(jitter)
         self.fit_jitter = jitter_prior is not None
 
-        # read DR4 epoch astrometry
-        dr4_dat = read(dr4_filepath)
-
-        epochs_time = time.Time(
-            dr4_dat["obs_time_tcb"], format="jd", scale="tcb"
-        )
-        epochs_decyr = epochs_time.decimalyear
-        epochs_jd = np.array(dr4_dat["obs_time_tcb"])
-
-        self.n_obs = len(epochs_decyr)
+        # Normalize raw OHP files or already-read Gaia tables once to MJD(TCB).
+        self.data_table = read_input.from_ohp_file(dr4_filepath)
+        dr4_dat = self.data_table
+        self.epochs_mjd = np.array(dr4_dat["obs_time_tcb"])
+        self.n_obs = len(self.epochs_mjd)
 
         # along scan measurements and errors [mas]
         self.centroid_pos_al = np.array(dr4_dat["centroid_pos_al"])
@@ -589,15 +601,17 @@ class DR4LogProb(object):
         self.fov = np.array(dr4_dat["field_of_view"])
 
         # time offsets from reference epoch [Julian yr]
-        self.dt_yr = (epochs_jd - ref_epoch_jd) / 365.25
+        self.dt_yr = (self.epochs_mjd - self.ref_epoch_mjd) / 365.25
 
         # pre-compute scan projection of PM basis vectors
         self.pm_ra_basis = self.dt_yr * self.sin_scan  # pmra, projected
         self.pm_dec_basis = self.dt_yr * self.cos_scan  # pmdec, projected
 
-        # sampler interface (matches HGCALogProb convention so things don't break)
+        # Decimal years are retained for display/legacy callers, not orbit times.
         self.hipparcos_epoch = np.array([])  # empty
-        self.gaia_epoch = epochs_decyr  # DR4 scan epochs [decimal yr]
+        self.gaia_epoch = time.Time(
+            self.epochs_mjd, format="mjd", scale=self.time_scale
+        ).decimalyear
 
         # priors for the four linear astrometric parameters
         self.extra_param_priors = (
@@ -619,12 +633,15 @@ class DR4LogProb(object):
         """Save to an open HDF5 file."""
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = "dr4"
-        hf.attrs["dr4_ref_epoch_jd"] = self.ref_epoch_jd
+        hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
+        hf.attrs["dr4_time_format"] = "mjd"
+        hf.attrs["dr4_time_scale"] = self.time_scale
         hf.attrs["dr4_jitter"] = self.jitter
         hf.attrs["dr4_fit_jitter"] = self.fit_jitter
 
-        dr4_dat = read(self.dr4_filepath, converters={"*": [int, float, bytes]})
-        hf.create_dataset("Gaia_DR4", data=dr4_dat)
+        dr4_dat = self.data_table.copy()
+        dr4_dat.convert_unicode_to_bytestring()
+        hf.create_dataset("Gaia_DR4", data=dr4_dat.as_array())
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """

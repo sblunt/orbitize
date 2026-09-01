@@ -2,7 +2,9 @@ import pytest
 import numpy as np
 import os
 import orbitize
-from orbitize.read_input import read_file, write_orbitize_input
+from astropy import units as u
+from astropy.table import Table
+from orbitize.read_input import from_dl2, from_ohp_file, read_file, write_orbitize_input
 
 
 def _compare_table(input_table):
@@ -133,8 +135,94 @@ def test_read_old_orbitize_format():
     assert input_data["instrument"][2] == "defrv"
 
 
+def test_from_ohp_file():
+    """
+    Check that the OHP reader converts JD to MJD, preserves the measurements,
+    and assigns the expected units.
+    """
+
+    # check reader and astropy match
+    path = os.path.join(orbitize.DATADIR, "target_1.csv")
+    expected = Table.read(path, format="ascii.csv")
+    actual = from_ohp_file(path)
+    expected["obs_time_tcb"] -= 2400000.5
+    assert isinstance(actual, Table)
+    assert len(actual) == 102
+    assert actual.colnames == expected.colnames
+    for name in expected.colnames:
+        np.testing.assert_array_equal(actual[name], expected[name])
+    assert actual["obs_time_tcb"].unit == u.day
+    assert actual["centroid_pos_al"].unit == u.mas
+    assert actual["centroid_pos_error_al"].unit == u.mas
+    assert actual["parallax_factor_al"].unit == u.dimensionless_unscaled
+    assert actual["scan_pos_angle"].unit == u.rad
+    assert actual.meta["time_format"] == "mjd"
+    assert actual.meta["time_scale"] == "tcb"
+    assert actual.meta["input_format"] == "ohp"
+    unlabelled = actual.copy()
+    unlabelled.meta.clear()
+    with pytest.raises(ValueError, match="Expected raw OHP JD times"):
+        from_ohp_file(unlabelled)
+
+
+def test_from_ohp_file_missing_column():
+    """
+    Check that OHP reader is not missing required columns for orbit fitting.
+    """
+
+    path = os.path.join(orbitize.DATADIR, "target_1.csv")
+    table = Table.read(path, format="ascii.csv")
+
+    # remove a column, e.g. along scan position
+    table.remove_column("centroid_pos_al")
+
+    with pytest.raises(ValueError, match="Missing required OHP columns: centroid_pos_al"):
+        from_ohp_file(table)
+
+
+def test_from_ohp_file_empty():
+    """
+    Check that OHP reader is not reading an empty file
+
+    """
+    path = os.path.join(orbitize.DATADIR, "target_1.csv")
+    table = Table.read(path, format="ascii.csv")[:0]
+    with pytest.raises(ValueError, match="at least one observation"):
+        from_ohp_file(table)
+
+
+def test_from_dl2_mjd(tmp_path):
+    """Convert native ns to barycentric MJD once, keeping separate CCDs."""
+    native = Table({
+        "source_id": [123], "transit_id": [0],
+        "ra0": [60.0], "dec0": [-10.0], "parallax_factor_al": [0.5],
+        "obs_time_bary_corr": [2_000_000_000],
+        "obs_time_tcb": [86400_000_000_000 + np.arange(3) * 1_000_000_000],
+        "centroid_pos_al": [[1.0, -10.0, 20.0]],
+        "centroid_pos_error_al": [[0.1, 0.2, 0.3]],
+        "scan_pos_angle": [[0.0, 90.0, 180.0]],
+        "used_by_agis_al": [[False, True, True]],
+    })
+    path = tmp_path / "epoch_astrometry.xml"
+    native.write(path, format="votable", tabledata_format="binary2")
+    actual = from_dl2(path, source_id=123)
+    np.testing.assert_allclose(
+        actual["obs_time_tcb"], 55198.0 + np.array([3.0, 4.0]) / 86400,
+        rtol=0, atol=1e-10,
+    )
+    np.testing.assert_array_equal(actual["component_index"], [1, 2])
+    np.testing.assert_array_equal(actual["centroid_pos_al"], [-10.0, 20.0])
+    np.testing.assert_allclose(actual["centroid_pos_error_al"], [0.2, 0.3])
+    np.testing.assert_allclose(actual["scan_pos_angle"], [np.pi / 2, np.pi])
+    assert actual.meta["time_format"] == "mjd"
+    assert actual.meta["time_scale"] == "tcb"
+
+
 if __name__ == "__main__":
     test_read_file()
     test_write_orbitize_input()
     test_cov_input()
     test_read_old_orbitize_format()
+    test_from_ohp_file()
+    test_from_ohp_file_missing_column()
+    test_from_ohp_file_empty()

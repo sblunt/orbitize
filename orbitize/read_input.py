@@ -6,6 +6,7 @@ import numpy as np
 import orbitize
 from astropy.table import Table
 from astropy.io.ascii import read, write
+from astropy import units as u
 
 
 def read_file(filename):
@@ -429,6 +430,161 @@ def read_file(filename):
                         ]
                     )
 
+    return output_table
+
+
+def from_ohp_file(filename):
+    """Read flat OHP-format Gaia epoch astrometry, including mock data.
+
+    Each row is one observation with these required scalar columns:
+
+        - ``obs_time_tcb``: Julian date in TCB (days, not MJD or nanoseconds).
+        - ``centroid_pos_al``: along-scan position in mas.
+        - ``centroid_pos_error_al``: positive along-scan uncertainty in mas.
+        - ``parallax_factor_al``: dimensionless along-scan parallax factor.
+        - ``scan_pos_angle``: scan position angle in radians.
+
+    Input JD times are converted to MJD(TCB). Tables already marked with
+    ``meta['time_format']='mjd'`` are not converted again. This reader does not
+    apply a barycentric correction, rescale uncertainties, average observations,
+    or sort/drop rows. Native Gaia EAS arrays require a separate reader.
+    Pass normalized tables directly, or save as ECSV to preserve time metadata;
+    a plain CSV does not retain the JD/MJD label.
+
+    Args:
+        filename (str, pathlib.Path, or astropy.table.Table): OHP file readable
+            by ``astropy.io.ascii.read`` (e.g. CSV), or an existing table.
+
+    Returns:
+        astropy.table.Table: Independent table with the five required columns
+        stored as float64 values with units. Additional columns, including
+        optional numeric or text ``field_of_view``, are preserved. Metadata
+        records ``time_format='mjd'``, ``time_scale='tcb'``, and
+        ``input_format='ohp'``. This is a Gaia-specific table, not the
+        RV/relative-astrometry table returned by :func:`read_file`.
+
+    Raises:
+        ValueError: If the table is empty, required columns are missing, or
+            required values are masked, nonfinite, nonscalar, nonnumeric,
+            have conflicting units, or include nonpositive uncertainties.
+
+    Written: Clarissa Do O, 2026
+    """
+    output_table = filename.copy() if isinstance(filename, Table) else read(filename)
+    time_format = output_table.meta.get("time_format", "jd")
+    if time_format not in ("jd", "mjd") or output_table.meta.get("time_scale", "tcb") != "tcb":
+        raise ValueError("Gaia epoch times must be JD or MJD in the TCB time scale.")
+    #check all needed data
+    required_units = {
+        "obs_time_tcb": u.day,
+        "centroid_pos_al": u.mas,
+        "centroid_pos_error_al": u.mas,
+        "parallax_factor_al": u.dimensionless_unscaled,
+        "scan_pos_angle": u.rad,
+    }
+
+    missing = [name for name in required_units if name not in output_table.colnames]
+    if missing:
+        raise ValueError("Missing required OHP columns: {}".format(", ".join(missing)))
+    if len(output_table) == 0:
+        raise ValueError("OHP input must contain at least one observation.")
+
+    for name, unit in required_units.items():
+        column = output_table[name]
+        if column.ndim != 1 or np.iscomplexobj(column):
+            raise ValueError(
+                "OHP column '{}' must contain real scalar values.".format(name)
+            )
+        # Inspect the mask before converting: np.asarray discards Astropy masks.
+        if np.any(np.ma.getmaskarray(column)):
+            raise ValueError("OHP column '{}' contains missing values.".format(name))
+        input_unit = getattr(column, "unit", None)
+        if input_unit is not None and input_unit != unit:
+            raise ValueError(
+                "OHP column '{}' must use units of {}.".format(
+                    name, str(unit) or "dimensionless"
+                )
+            )
+        try:
+            values = np.asarray(column, dtype=np.float64)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "OHP column '{}' must contain numeric scalars.".format(name)
+            ) from exc
+        if not np.all(np.isfinite(values)):
+            raise ValueError("OHP column '{}' contains nonfinite values.".format(name))
+        output_table[name] = values
+        output_table[name].unit = unit
+
+    if np.any(output_table["centroid_pos_error_al"] <= 0):
+        raise ValueError("OHP column 'centroid_pos_error_al' must be strictly positive.")
+
+    if time_format == "jd":
+        if np.any(output_table["obs_time_tcb"] < 2400000.5):
+            raise ValueError("Expected raw OHP JD times; mark MJD tables with meta['time_format']='mjd'.")
+        output_table["obs_time_tcb"] -= 2400000.5
+    output_table.meta.update(time_format="mjd", time_scale="tcb")
+    output_table.meta.setdefault("input_format", "ohp")
+    return output_table
+
+
+def from_dl2(filename, source_id, *, agis_only=True):
+    """Read native EAS prerelease XML (2026-06-26) for one star.
+
+    Specify the star's integer Gaia ``source_id``.
+    Returns one row per CCD, keeping AGIS-used measurements by default.
+    No additional validity filtering or transit averaging.
+
+    The five measurement columns follow :func:`from_ohp_file`: barycentrically
+    corrected MJD(TCB), AL position/error in mas, parallax factor, and scan angle
+    in radians. Native times/corrections must be in ns and angles in degrees.
+    Source/transit IDs, CCD index (0=SM, 1..9=AF), AGIS flag, field of view,
+    and the position reference ``ra0, dec0`` are retained; other fields are not.
+    """
+    data = Table.read(filename, format="votable")
+    data = data[data["source_id"] == source_id]
+
+    # Unpack each CCD into a row; repeat the shared transit information.
+    sizes = [np.size(value) for value in data["obs_time_tcb"]]
+    output_table = Table()
+    for name in (
+        "obs_time_tcb", "centroid_pos_al", "centroid_pos_error_al",
+        "scan_pos_angle", "used_by_agis_al",
+    ):
+        if [np.shape(value) for value in data[name]] != [(size,) for size in sizes]:
+            raise ValueError("EAS column '{}' must have one aligned CCD array per transit.".format(name))
+        output_table[name] = np.ma.concatenate(data[name])
+    transit_rows = np.repeat(np.arange(len(data)), sizes)
+    for name in ("source_id", "transit_id", "ra0", "dec0", "parallax_factor_al"):
+        output_table[name] = data[name][transit_rows]
+    output_table["component_index"] = np.concatenate([np.arange(size) for size in sizes])
+
+    # ns (Gaia) -> barycentric MJD; degrees -> radians.
+    time_ns = np.ma.asarray(output_table["obs_time_tcb"], dtype=np.float64) # ns
+    correction_ns = np.ma.asarray(data["obs_time_bary_corr"][transit_rows], dtype=np.float64) # barycentric corr
+    output_table["obs_time_tcb"] = 55197.0 + (time_ns + correction_ns) / 86400e9
+    output_table["scan_pos_angle"] = np.deg2rad(
+        np.ma.asarray(output_table["scan_pos_angle"], dtype=np.float64)
+    )
+
+    # Keep the measurements Gaia used in AGIS.
+    if agis_only:
+        output_table = output_table[np.ma.filled(output_table["used_by_agis_al"], False)]
+
+    for name, unit in {
+        "obs_time_tcb": u.day,
+        "centroid_pos_al": u.mas,
+        "centroid_pos_error_al": u.mas,
+        "scan_pos_angle": u.rad,
+        "parallax_factor_al": u.dimensionless_unscaled,
+        "ra0": u.deg,
+        "dec0": u.deg,
+    }.items():
+        output_table[name].unit = unit
+    output_table["field_of_view"] = 1 + ((np.asarray(output_table["transit_id"]) >> 15) & 0x03)
+    output_table.meta.update(
+        time_format="mjd", time_scale="tcb", input_format="eas_prerelease",
+    )
     return output_table
 
 
