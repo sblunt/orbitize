@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 import pytest
 import astropy.table as table
 import orbitize
@@ -16,7 +17,7 @@ def test_compute_model():
     roughly the amplitude we expect.
     """
     # generate planet b orbital parameters
-    b_params = [1, 0, 0, 0, 0, 0]
+    b_params = [1, 0, np.deg2rad(45), 0, 0, 0]
     tau_ref_epoch = 0
     mass_b = 0.001  # Msun
     m0 = 1  # Msun
@@ -24,7 +25,7 @@ def test_compute_model():
 
     # generate planet c orbital parameters
     # at 0.3 au, and starts on the opposite side of the star relative to b
-    c_params = [0.3, 0, 0, np.pi, 0, 0]
+    c_params = [0.3, 0, np.deg2rad(45), np.pi, 0, 0]
     mass_c = 0.002  # Msun
 
     mtot = m0 + mass_b + mass_c
@@ -33,7 +34,7 @@ def test_compute_model():
     # period_b = np.sqrt(b_params[0] ** 3 / mtot)
 
     epochs = (
-        np.linspace(0, period_c * 365.25, 5) + tau_ref_epoch
+        np.linspace(0, period_c * 365.25, 100) + tau_ref_epoch
     )  # the full period of c, MJD
 
     ra_model, dec_model, vz_model = kepler.calc_orbit(
@@ -47,6 +48,7 @@ def test_compute_model():
         plx,
         mtot,
         tau_ref_epoch=tau_ref_epoch,
+        mass_for_Kamp=m0
     )
 
     # generate some fake measurements just to feed into system.py to test bookkeeping
@@ -59,8 +61,10 @@ def test_compute_model():
             np.zeros(ra_model.shape),
             dec_model,
             np.zeros(dec_model.shape),
+            vz_model,
+            np.zeros(vz_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "multiplanet_fake_1planettest.csv")
     t.write(filename, overwrite=True)
@@ -81,16 +85,18 @@ def test_compute_model():
     # only does planet b measurements
     params = np.append(b_params, [plx, mass_b, m0])
     radec_1body, _ = sys_1body.compute_model(params)
-    ra_1body = radec_1body[:, 0]
-    dec_1body = radec_1body[:, 1]
+    ra_1body = radec_1body[sys_1body.radec[1], 0]
+    dec_1body = radec_1body[sys_1body.radec[1], 1]
+    rv_1body = radec_1body[sys_1body.rv[1], 0]
 
     # model predictions for the 2 body case
     # still only generates predictions of b's location, but including the
     # perturbation for c
     params = np.append(b_params, np.append(c_params, [plx, mass_b, mass_c, m0]))
     radec_2body, _ = sys_2body.compute_model(params)
-    ra_2body = radec_2body[:, 0]
-    dec_2body = radec_2body[:, 1]
+    ra_2body = radec_2body[sys_2body.radec[1], 0]
+    dec_2body = radec_2body[sys_2body.radec[1], 1]
+    rv_2body = radec_2body[sys_2body.rv[1], 0]
 
     ra_diff = ra_2body - ra_1body
     dec_diff = dec_2body - dec_1body
@@ -103,8 +109,14 @@ def test_compute_model():
         mass_c / m0 * c_params[0] * plx, abs=0.01 * mass_c / m0 * b_params[0] * plx
     )
 
+    # rv_diff = rv_2body - rv_1body
+    # plt.figure()
+    # plt.plot(epochs, rv_diff)
+    # plt.savefig("test_multiplanet.png")
+
     # clean up
     os.system("rm {}".format(filename))
+    # os.system("rm {}".format("test_multiplanet.png"))
 
 
 def test_fit_selfconsist():
@@ -113,7 +125,7 @@ def test_fit_selfconsist():
     this does not test for correctness.
     """
     # generate planet b orbital parameters
-    b_params = [1, 0, 0, 0, 0, 0.5]
+    b_params = [1, 0, np.deg2rad(45), 0, 0, 0.5]
     tau_ref_epoch = 0
     mass_b = 0.001  # Msun
     m0 = 1  # Msun
@@ -121,7 +133,7 @@ def test_fit_selfconsist():
 
     # generate planet c orbital parameters
     # at 0.3 au, and starts on the opposite side of the star relative to b
-    c_params = [0.3, 0, 0, np.pi, 0, 0.5]
+    c_params = [0.3, 0, np.deg2rad(45), np.pi, 0, 0.5]
     mass_c = 0.002  # Msun
 
     mtot_c = m0 + mass_b + mass_c
@@ -169,6 +181,7 @@ def test_fit_selfconsist():
     # the sign is positive b/c of 2 negative signs cancelling.
     ra_model_b += mass_c / m0 * ra_model_c
     dec_model_b += mass_c / m0 * dec_model_c
+    vz_model += mass_c / m0 * vz_model_c
 
     # # perturb c due to b
     # ra_model_c += mass_b/m0 * ra_model_b_orig
@@ -183,12 +196,14 @@ def test_fit_selfconsist():
             0.00001 * np.ones(epochs.shape, dtype=int),
             dec_model_b,
             0.00001 * np.ones(epochs.shape, dtype=int),
+            vz_model,
+            0.00001 * np.ones(epochs.shape, dtype=int),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
     )
     # add c
-    for eps, ra, dec in zip(epochs, ra_model_c, dec_model_c):
-        t.add_row([eps, 2, ra, 0.000001, dec, 0.000001])
+    for eps, ra, dec, rv in zip(epochs, ra_model_c, dec_model_c, vz_model_c):
+        t.add_row([eps, 2, ra, 0.000001, dec, 0.000001, rv, 0.000001])
 
     filename = os.path.join(orbitize.DATADIR, "multiplanet_fake_2planettest.csv")
     t.write(filename, overwrite=True)
@@ -256,6 +271,17 @@ def test_fit_selfconsist():
     )
 
     os.system("rm {}".format(filename))
+
+    plt.figure()
+    plt.scatter(epochs, vz_model)
+
+    sol_2body, _ = sys.compute_model(np.median(res.post, axis=0))
+    rv_2body = sol_2body[sys.rv[1], 0]
+
+    plt.plot(epochs, rv_2body)
+
+    plt.savefig("test_multiplanet_2.png")
+    os.system("rm {}".format("test_multiplanet_2.png"))
 
 
 if __name__ == "__main__":
