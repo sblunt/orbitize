@@ -30,7 +30,7 @@ def test_scale_and_rotate():
 
     s = myDriver.sampler
 
-    samples = s.prepare_samples(100)
+    samples = s.prepare_samples(10_000_000)
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
@@ -421,11 +421,11 @@ def test_OFTI_pan_priors():
 
 
 if __name__ == "__main__":
-    # test_scale_and_rotate()
+    test_scale_and_rotate()
     # test_run_sampler()
 
     # test_OFTI_covariances()
-    test_OFTI_multiplanet()
+    # test_OFTI_multiplanet()
     # test_not_implemented()
     # test_fixed_sys_params_sampling()
     # test_OFTI_pan_priors()

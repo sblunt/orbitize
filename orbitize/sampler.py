@@ -405,6 +405,13 @@ class OFTI(
 
             tau = (self.epochs[min_epoch] / period_new - meananno) % 1
 
+            plt.figure(figsize=(5,5))
+            plt.hist(tau, bins=100, color='rebeccapurple', density=True, alpha=0.5)
+            plt.xlabel('$\\tau_0$')
+            plt.ylabel('prob.')
+            plt.xlim(0,1)
+            plt.savefig('tau_samples.png', dpi=250)
+
             plt.figure()
             plt.hist(meananno % (2*np.pi), bins=100)
             plt.savefig('meananno_samples.png', dpi=250)
