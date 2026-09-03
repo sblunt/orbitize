@@ -39,6 +39,10 @@ def test_secondary_rv_lnlike_calc():
         epochs, a, e, i, -omega, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
     )
 
+    # first check that the relationship between the RV datasets is what we expect
+    print(rv_s)
+    print(-rv_p * m0/m1)
+
     data_file = DataFrame(columns=["epoch", "object", "rv", "rv_err"])
     data_file.epoch = epochs
     data_file.object = np.ones(len(epochs), dtype=int)
@@ -87,5 +91,6 @@ def test_read_input():
     mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
 
 if __name__ == "__main__":
-    test_secondary_rv_lnlike_calc()
     test_read_input()
+
+    test_secondary_rv_lnlike_calc()
