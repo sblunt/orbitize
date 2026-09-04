@@ -123,9 +123,11 @@ def calc_orbit(
         plx (np.array): parallax [mas]
         mtot (np.array): total mass of the two-body orbit (M_* + M_planet) [Solar masses]
         mass_for_Kamp (np.array, optional): mass of the body that causes the RV signal.
-            For example, if you want to return the stellar RV, this is the planet mass.
-            If you want to return the planetary RV, this is the stellar mass. [Solar masses].
-            For planet mass ~ 0, mass_for_Kamp ~ M_tot, and function returns planetary RV (default).
+            For example, if you want to return the stellar RV relative to the barycenter, this is the planet mass. Note
+            that orbitize! assumes aop is that of the planet by default, so you would need to also add 180deg to
+            the aop to return stellar RV with the correct sign. If you want to return the planetary RV relative to 
+            the barycenter, this is the stellar mass. [Solar masses]. For planet mass ~ 0, mass_for_Kamp ~ M_tot, 
+            and function returns planetary RV (default).
         tau_ref_epoch (float, optional): reference date that tau is defined with respect to (default: 58849)
         tolerance (float, optional): absolute tolerance of iterative computation. Defaults to 1e-9.
         max_iter (int, optional): maximum number of iterations before switching. Defaults to 100.
