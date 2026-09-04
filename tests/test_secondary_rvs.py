@@ -11,8 +11,9 @@ def test_secondary_rv_lnlike_calc():
     """
     Generates fake secondary RV data and asserts that
     the log(likelihood) of the true parameters is what we expect.
-    Also tests that the primary and secondary RV orbits are related by
-    -m/mtot (accounting for RV of secondary being relative to the primary RV)
+    Also tests that the relative secondary RV output from compute_model
+    is the orbit of the secondary relative to the barycenter minus
+    the orbit of the primary relative to the barycenter.
     """
 
     # define an orbit & generate secondary RVs
@@ -23,11 +24,11 @@ def test_secondary_rv_lnlike_calc():
     Omega = 0
     tau = 0.3
     m0 = 1
-    m1 = 0.1
+    m1 = 0.7
     plx = 10
     orbitize_params_list = np.array([a, e, i, omega, Omega, tau, plx, m1, m0])
 
-    epochs = Time(np.linspace(2005, 2025, int(1e3)), format="decimalyear").mjd
+    epochs = Time(np.linspace(2005, 2025, int(1e1)), format="decimalyear").mjd
 
     # compute RV of planet
     _, _, rv_p = calc_orbit(
@@ -36,12 +37,11 @@ def test_secondary_rv_lnlike_calc():
 
     # compute RV of star
     _, _, rv_s = calc_orbit(
-        epochs, a, e, i, -omega, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
+        epochs, a, e, i, omega+np.pi, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
     )
 
     # first check that the relationship between the RV datasets is what we expect
-    print(rv_s)
-    print(-rv_p * m0/m1)
+    assert np.all(np.isclose(rv_s, -rv_p * m1/m0))
 
     data_file = DataFrame(columns=["epoch", "object", "rv", "rv_err"])
     data_file.epoch = epochs
@@ -60,7 +60,6 @@ def test_secondary_rv_lnlike_calc():
     computed_lnlike = mySamp._logl(orbitize_params_list)
 
     # residuals should be 0
-    import pdb; pdb.set_trace()
     assert computed_lnlike == np.sum(
         -np.log(np.sqrt(2 * np.pi * data_file.rv_err.values**2))
     )
@@ -73,12 +72,9 @@ def test_secondary_rv_lnlike_calc():
     rv0 = rv[:, 0]
     rv1 = rv[:, 1]
 
-    assert np.all(rv0 == -m1 / m0 * rv1)
-
-# TODO: update tutorial with relative RVs
-# TODO: test case of secondary RVs with multiple instruments
-# TODO: test case of secondary RVs with no inst specified
-# TODO: test relative RVs with massive secondary
+    # check that the output of compute_model for the secondary is the difference between the primary
+    # and secondary RV signals
+    assert np.all(np.isclose(rv1.flatten(), rv_p-rv_s))
 
 def test_read_input():
     """
@@ -90,7 +86,24 @@ def test_read_input():
     input_data['object'] = 1 # make sure all astrometry and RV is marked as of the secondary
     mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
 
+def test_secondary_rvs_inst_specified():
+    """
+    Check that orbitize! sets up the System object correctly (i.e. doesn't fit for
+    gamma and jitter) even with multiple instruments specified for relative RVs.
+    """
+    input_data = read_input.read_file('{}/HD4747.csv'.format(DATADIR)) 
+    input_data['object'] = 1 # make sure all astrometry and RV is marked as of the secondary
+    input_data['inst'] = "test"
+    mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
+
+    # check that inclusion of secondary RVs doesn't trigger gamma/jitter params to be created
+    assert not mySystem.fit_secondary_mass
+    for param in mySystem.param_idx.keys():
+        assert not param.startswith('gamma') and not param.startswith('jit')
+
+
 if __name__ == "__main__":
     test_read_input()
 
     test_secondary_rv_lnlike_calc()
+    test_secondary_rvs_inst_specified()
