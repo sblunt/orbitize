@@ -370,13 +370,14 @@ class System(object):
                     Dec offsets from barycenter at each epoch.
 
                 vz (np.array of float): N_epochs x N_bodies x N_orbits array of
-                    radial velocities at each epoch.
+                    radial velocities at each epoch. RVs of the primary are
+                    relative to the barycenter, and RVs of secondary companions
+                    are relative to the primary.
 
                 brightness (np.array of float): N_epochs x N_bodies x N_orbits of 
                     photometric brightness predictions, assuming a Lambertian disk
                     reflection law, at each epoch. Normalized so that brightness=1
                     at maximum.
-
         """
 
         if epochs is None:
@@ -535,8 +536,12 @@ class System(object):
                     vz0 = np.reshape(
                         vz_i * -(mass / m0), (n_epochs, n_orbits)
                     )  # calculating stellar velocity due to ith companion
-                    vz[:, 0, :] += vz0  # adding stellar velocity and gamma
-
+                    vz[:, 0, :] += vz0  # adding contribution from ith companion rv to stellar velocity
+                    
+            # Secondary RVs are assumed to be *relative* to the primary, so for all companions,
+            # we need to subtract the RV of the primary
+            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
+            
             # if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass.
