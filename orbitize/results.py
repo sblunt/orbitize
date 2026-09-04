@@ -54,6 +54,13 @@ class Results(object):
         self._saved_filename = None
         self._n_rows_saved = 0
 
+        # backing buffers for add_samples(): allow post/lnlike to grow with
+        # amortized O(1) cost per row instead of reallocating+copying the
+        # full array on every call (see add_samples() docstring)
+        self._post_buf = None
+        self._lnlike_buf = None
+        self._n_used = 0
+
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
             self.labels = self.system.labels
@@ -64,36 +71,66 @@ class Results(object):
             self.param_idx = self.system.param_idx
             self.standard_param_idx = self.system.basis.standard_basis_idx
 
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
+    def add_samples(self, orbital_params, lnlikes, curr_pos=None):
         """
-        Add accepted orbits, their likelihoods, and the orbitize version number 
+        Add accepted orbits, their likelihoods, and the orbitize version number
         to the results
 
         Args:
-            orbital_params (np.array): add sets of orbital params (could be multiple) 
+            orbital_params (np.array): add sets of orbital params (could be multiple)
                 to results
             lnlike (np.array): add corresponding lnlike values to results
-            curr_pos (np.array of float): for MCMC only. A multi-D array of the 
+            curr_pos (np.array of float): for MCMC only. A multi-D array of the
                 current walker positions
+
+        .. Note:: ``post``/``lnlike`` are backed by an internal buffer that's
+            over-allocated and grown by doubling, so repeated calls (e.g. from
+            ``periodic_save_freq`` during MCMC) append in amortized O(1) time
+            per row instead of reallocating and copying the full accumulated
+            array on every call.
 
         Written: Henry Ngo, 2018
 
         API Update: Sarah Blunt, 2021
         """
-        
+
         # Adding the orbitize version number to the results
         if self.version_number is None:
             self.version_number = orbitize.__version__
 
-        # If no exisiting results then it is easy
-        if self.post is None:
-            self.post = orbital_params
-            self.lnlike = lnlikes
+        n_new = len(orbital_params)
 
-        # Otherwise, need to append properly
-        else:
-            self.post = np.vstack((self.post, orbital_params))
-            self.lnlike = np.append(self.lnlike, lnlikes)
+        # lazily adopt any existing post/lnlike (e.g. set directly via the
+        # constructor) as the starting buffer
+        if self._post_buf is None:
+            if self.post is not None:
+                self._post_buf = self.post
+                self._lnlike_buf = self.lnlike
+                self._n_used = len(self.post)
+            else:
+                self._post_buf = np.empty((0, orbital_params.shape[1]), dtype=orbital_params.dtype)
+                self._lnlike_buf = np.empty(0, dtype=lnlikes.dtype)
+                self._n_used = 0
+
+        needed = self._n_used + n_new
+        capacity = self._post_buf.shape[0]
+        if needed > capacity:
+            new_capacity = max(needed, capacity * 2)
+
+            new_post_buf = np.empty((new_capacity,) + self._post_buf.shape[1:], dtype=self._post_buf.dtype)
+            new_post_buf[: self._n_used] = self._post_buf[: self._n_used]
+            self._post_buf = new_post_buf
+
+            new_lnlike_buf = np.empty(new_capacity, dtype=self._lnlike_buf.dtype)
+            new_lnlike_buf[: self._n_used] = self._lnlike_buf[: self._n_used]
+            self._lnlike_buf = new_lnlike_buf
+
+        self._post_buf[self._n_used : needed] = orbital_params
+        self._lnlike_buf[self._n_used : needed] = lnlikes
+        self._n_used = needed
+
+        self.post = self._post_buf[: self._n_used]
+        self.lnlike = self._lnlike_buf[: self._n_used]
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
