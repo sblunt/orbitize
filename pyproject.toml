@@ -27,7 +27,8 @@ dependencies = [
     "rebound",
     "dynesty",
     "pymultinest",
-    "tk"
+    "tk",
+    "nautilus-sampler"
 ]
 
 [tool.setuptools.dynamic]
