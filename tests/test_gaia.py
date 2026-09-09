@@ -1,25 +1,56 @@
 import numpy as np
 import os
+import contextlib
+from io import StringIO
+import warnings
 from orbitize import DATADIR
 from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results
 
+
+hip_num = "027321"  # beta Pic
+edr3_num = 4792774797545800832
+dr2_number = 4792774797545105664
+
+# Data to use in testing when no internet is available
+gaia_edr3_data = {
+    "ra": 86.82123452009108,
+    "ra_error": 0.13713108,
+    "dec": -51.066136257823345,
+    "dec_error": 0.13109376
+}
+
+gaia_dr2_data = {
+    "ra": 86.82123366090146,
+    "ra_error": 0.3136836085700656,
+    "dec": -51.06614803159093,
+    "dec_error": 0.34165541753173584
+}
+
+output = StringIO()
+with contextlib.redirect_stdout(output):
+    gaia.Gaia.get_status_messages()
+response = output.getvalue()
+offline = False
+if len(response) > 0:
+    warnings.warn("Testing with offline data because Gaia is behaving irregularly: {}".format(response))
+    offline = True
 
 def test_dr2_edr3():
     """
     Test that both DR2 and eDR3 retrieval gives ballpark similar values for
     beta Pic
     """
-    hip_num = "027321"  # beta Pic
-    edr3_num = 4792774797545800832
-    dr2_number = 4792774797545105664
-
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
     myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
 
-    dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
-    dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, dr="dr2")
+    if offline:
+        dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3", query=False, gaia_data=gaia_edr3_data)
+        dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, dr="dr2", query=False, gaia_data=gaia_dr2_data)
+    else:
+        dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+        dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, dr="dr2")
 
     assert np.isclose(dr2Gaia.ra, dr3Gaia.ra, atol=0.1)  # abs tolerance in degrees
 
@@ -28,13 +59,14 @@ def test_system_setup():
     """
     Test that a System object with Hipparcos and Gaia is initialized correctly
     """
-    hip_num = "027321"  # beta Pic
-    edr3_num = 4792774797545800832
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
     myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+    if offline:
+        myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3",  query=False, gaia_data=gaia_edr3_data)
+    else:
+        myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
     plx = 51.5
@@ -78,8 +110,6 @@ def test_valueerror():
     """
     Check that if I don't say dr2 or edr3, I get a value error
     """
-    hip_num = "027321"  # beta Pic
-    edr3_num = 4792774797545800832
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
@@ -121,13 +151,14 @@ def test_orbit_calculation():
     a0 = 0
     d0 = 0
 
-    hip_num = "027321"  # beta Pic
-    edr3_num = 4792774797545800832
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
     myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+    if offline:
+        myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3", query=False, gaia_data=gaia_edr3_data)
+    else:
+        myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
 
     param_idx = {
         "sma1": 0,
@@ -225,7 +256,7 @@ def test_hgca():
     gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
     astrometry_filepath = os.path.join(DATADIR, "betaPic.csv")
 
-    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1)
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, hip_num, 1)
     hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
 
     # test a few things were read in correctly
@@ -307,7 +338,7 @@ def test_nointernet():
 
 
 if __name__ == "__main__":
-    test_nointernet()
+    # test_nointernet()
     # test_dr2_edr3()
     # test_system_setup()
     # test_valueerror()

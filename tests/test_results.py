@@ -6,6 +6,8 @@ import orbitize
 from orbitize import results, read_input, system, DATADIR, hipparcos, gaia, sampler
 import numpy as np
 import pytest
+import io
+import contextlib
 import os
 
 std_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "mtot"]
@@ -293,7 +295,13 @@ def test_save_and_load_gaia_and_hipparcos():
     Test that a Results object for a Gaia+Hipparcos fit
     is saved and loaded properly.
     """
-
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        gaia.Gaia.get_status_messages()
+    response = output.getvalue()
+    if len(response) > 0:
+        pytest.skip("Gaia is behaving irregularly: {}".format(response))
+    
     hip_num = "027321"
     gaia_num = 4792774797545105664
     num_secondary_bodies = 1
