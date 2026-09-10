@@ -24,8 +24,6 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
     Tests the MCMC sampler by making sure it runs
     Args:
         num_temps (int): Number of temperatures to use
-            Uses Parallel Tempering MCMC (ptemcee) if > 1,
-            otherwises, uses Affine-Invariant Ensemble Sampler (emcee)
         num_threads (int): number of threads to run
         make_corner_plot (bool): if True, make a corner plot of the results
     """
@@ -106,8 +104,6 @@ def do_examine_chop_chains(num_temps=0, num_threads=1):
     Tests the MCMC sampler's examine_chains and chop_chains methods
     Args:
         num_temps: Number of temperatures to use
-            Uses Parallel Tempering MCMC (ptemcee) if > 1,
-            otherwises, uses Affine-Invariant Ensemble Sampler (emcee)
         num_threads: number of threads to run
     """
 
