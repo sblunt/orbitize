@@ -846,9 +846,7 @@ class MCMC(Sampler):
             start_step (int): if not 0, only (re)computes steps from this index
                 onwards, so self.post/self.lnlikes end up covering just the
                 ``[start_step, num_steps)`` chunk of the chain instead of the
-                full history. Used during periodic saving so that the (costly,
-                unvectorized) prior recomputation below doesn't get redone over
-                steps that were already processed in a previous call.
+                full history. Used during periodic saving.
         """
         if num_steps is None:
             # use all the steps, grab total number of steps from dimension of chains
@@ -857,11 +855,11 @@ class MCMC(Sampler):
         self.chain = sampler.chain
         num_params = self.chain.shape[-1]
 
-        # chain is shape: Ntemp x Nwalkers x Nsteps x Nparams
+        # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
         self.post = sampler.chain[0, :, start_step:num_steps].reshape(
             -1, num_params
         )  # the reshaping flattens the chain
-        # should also be picking out the lowest temperature logps
+        # pick out the lowest temperature loglikelihoods
         self.lnlikes = sampler.loglikelihood[0, :, start_step:num_steps].flatten()
         self.lnlikes_alltemps = sampler.loglikelihood[:, :, start_step:num_steps]
 
@@ -1001,9 +999,9 @@ class MCMC(Sampler):
 
                 if periodic_save_freq is not None:
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
+
                         # only (re)compute the chunk of the chain since the last
-                        # save, not the full history -- avoids redoing the prior
-                        # recomputation over steps that were already saved
+                        # save, not the full history
                         self._update_chains_from_sampler(
                             sampler, num_steps=i + 1, start_step=saved_upto
                         )
