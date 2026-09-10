@@ -30,7 +30,7 @@ def test_1planet():
 
     epochs = np.linspace(0, 300, 100) + tau_ref_epoch  # nearly the full period, MJD
 
-    ra_model, dec_model, _ = kepler.calc_orbit(
+    ra_model, dec_model, _, _ = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch
     )
 

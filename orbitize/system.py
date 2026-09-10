@@ -488,7 +488,7 @@ class System(object):
                     mtots[body_num] = mtot
 
                 # solve Kepler's equation
-                raoff, decoff, vz_i = kepler.calc_orbit(
+                raoff, decoff, vz_i, tanom = kepler.calc_orbit(
                     epochs,
                     sma,
                     ecc,
@@ -501,9 +501,6 @@ class System(object):
                     mass_for_Kamp=m0,
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
-
-                tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=self.tau_ref_epoch)
-                
 
                 R = (sma*(1-ecc**2))/(1+ecc*np.cos(tanom))
         
@@ -895,7 +892,7 @@ def generate_synthetic_data(
 
     # calculate RA/Dec at three observation epochs
     # `num_obs` epochs between ~2000 and ~2003 [MJD]
-    ra, dec, _ = kepler.calc_orbit(
+    ra, dec, _, _ = kepler.calc_orbit(
         observation_epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
     )
 

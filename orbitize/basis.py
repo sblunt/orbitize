@@ -1451,7 +1451,7 @@ class XYZ(Basis):
             2.0 * np.pi
         )
         # Eccentric anomaly
-        eanom = kepler._calc_ecc_anom(
+        eanom = kepler.calc_ecc_anom(
             manom, ecc, tolerance=tolerance, max_iter=max_iter
         )
         # if eanom.ndim == 1:
@@ -1630,4 +1630,4 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         float or np.array: mean anomaly on that date [0, 2pi)
     """
 
-    return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)
+    return kepler.tau_to_manom_py(date, sma, mtot, tau, tau_ref_epoch)
