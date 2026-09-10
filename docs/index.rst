@@ -55,6 +55,10 @@ User Guide:
 Changelog:
 ++++++++++
 
+**4.0.0 (release date TBD)**
+
+- fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
+
 **3.4.0 (2026-7-20)**
 
 This is a breaking change for System.compute_all_orbits.
