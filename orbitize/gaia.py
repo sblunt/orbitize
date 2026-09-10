@@ -7,7 +7,7 @@ with contextlib.redirect_stdout(None):
     from astroquery.gaia import Gaia
 from astropy import units as u
 import astropy.io.fits as fits
-import astropy.time as time
+from astropy.time import Time
 from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy.linalg
@@ -61,12 +61,12 @@ class GaiaLogProb(object):
         self.dr = dr
 
         if self.dr == "edr3":
-            self.gaia_epoch = 2016.0
+            self.gaia_epoch = Time("J2016", format='jyear_str')
         elif self.dr == "dr2":
-            self.gaia_epoch = 2015.5
+            self.gaia_epoch = Time("J2015.5", format='jyear_str')
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
-        self.hipparcos_epoch = 1991.25
+        self.hipparcos_epoch = Time("J1991.25", format='jyear_str')
 
         if query:
             query = """SELECT
@@ -134,12 +134,12 @@ class GaiaLogProb(object):
         """
 
         alpha_H0 = samples[param_idx["alpha0"]]  # [deg]
-        pm_ra = samples[param_idx["pm_ra"]]  # [mas/yr]
-        delta_alpha_from_pm = pm_ra * (self.gaia_epoch - self.hipparcos_epoch)  # [mas]
+        pm_ra = samples[param_idx["pm_ra"]]  # [mas/jyr]
+        delta_alpha_from_pm = pm_ra * (self.gaia_epoch.jyear - self.hipparcos_epoch.jyear)  # [mas]
 
         delta_H0 = samples[param_idx["delta0"]]  # [deg]
-        pm_dec = samples[param_idx["pm_dec"]]  # [mas/yr]
-        delta_delta_from_pm = pm_dec * (self.gaia_epoch - self.hipparcos_epoch)  # [mas]
+        pm_dec = samples[param_idx["pm_dec"]]  # [mas/jyr]
+        delta_delta_from_pm = pm_dec * (self.gaia_epoch.jyear - self.hipparcos_epoch.jyear)  # [mas]
 
         # difference in position due to orbital motion between Hipparcos & Gaia epochs
         alpha_diff_orbit = raoff_model[1, :] - raoff_model[0, :]  # [mas]
@@ -162,6 +162,7 @@ class GaiaLogProb(object):
         # technically this is an angle so we should wrap it, but the precision
         # of Hipparcos and Gaia is so good that we'll never have to.
         alpha_resid = alpha_model - alpha_data
+
         alpha_chi2 = (alpha_resid / alpha_unc) ** 2
 
         delta_model = self.hiplogprob.delta0 + self.mas2deg * (  # [deg]
@@ -296,9 +297,9 @@ class HGCALogProb(object):
         self.gaia_epoch_dec = entry["epoch_dec_gaia"][0]
         # read in the GOST file to get the estimated Gaia epochs and scan angles
         gost_dat = read(gost_filepath, converters={"*": [int, float, bytes]})
-        self.gaia_epoch = time.Time(
+        self.gaia_epoch = Time(
             gost_dat["ObservationTimeAtGaia[UTC]"]
-        ).decimalyear  # in decimal year
+        )  # in julian year
         gaia_scan_theta = np.array(gost_dat["scanAngle[rad]"])
         gaia_scan_phi = gaia_scan_theta + np.pi / 2
         self.gaia_cos_phi = np.cos(gaia_scan_phi)
@@ -443,9 +444,9 @@ class HGCALogProb(object):
         """
         # Sovle y = A * x
         # construct A matrix
-        A_pmra = cos_phi * (epochs - epoch_ref_ra) / errs
+        A_pmra = cos_phi * (epochs.jyear - epoch_ref_ra) / errs
         A_raoff = cos_phi / errs
-        A_pmdec = sin_phi * (epochs - epoch_ref_dec) / errs
+        A_pmdec = sin_phi * (epochs.jyear - epoch_ref_dec) / errs
         A_decoff = sin_phi / errs
         A_matrix = np.vstack((A_raoff, A_decoff, A_pmra, A_pmdec)).T
 

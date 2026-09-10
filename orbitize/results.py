@@ -58,36 +58,35 @@ class Results(object):
             self.param_idx = self.system.param_idx
             self.standard_param_idx = self.system.basis.standard_basis_idx
 
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
+    def add_samples(self, orbital_params, lnlikes, curr_pos=None):
         """
-        Add accepted orbits, their likelihoods, and the orbitize version number 
+        Add accepted orbits, their likelihoods, and the orbitize version number
         to the results
 
         Args:
-            orbital_params (np.array): add sets of orbital params (could be multiple) 
+            orbital_params (np.array): add sets of orbital params (could be multiple)
                 to results
             lnlike (np.array): add corresponding lnlike values to results
-            curr_pos (np.array of float): for MCMC only. A multi-D array of the 
+            curr_pos (np.array of float): for MCMC only. A multi-D array of the
                 current walker positions
+
+        .. Note:: ``post``/``lnlike`` are backed by an internal buffer that's
+            over-allocated and grown by doubling, so repeated calls (e.g. from
+            ``periodic_save_freq`` during MCMC) append in amortized O(1) time
+            per row instead of reallocating and copying the full accumulated
+            array on every call.
 
         Written: Henry Ngo, 2018
 
         API Update: Sarah Blunt, 2021
         """
-        
+
         # Adding the orbitize version number to the results
         if self.version_number is None:
             self.version_number = orbitize.__version__
 
-        # If no exisiting results then it is easy
-        if self.post is None:
-            self.post = orbital_params
-            self.lnlike = lnlikes
-
-        # Otherwise, need to append properly
-        else:
-            self.post = np.vstack((self.post, orbital_params))
-            self.lnlike = np.append(self.lnlike, lnlikes)
+        self.post = self._post_buf[: self._n_used]
+        self.lnlike = self._lnlike_buf[: self._n_used]
 
         if curr_pos is not None:
             self.curr_pos = curr_pos

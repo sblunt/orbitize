@@ -226,16 +226,16 @@ def test_fit_selfconsist():
     # start walkers near the true location for the orbital parameters
     np.random.seed(123)
     # planet b
-    samp.curr_pos[:, 0] = np.random.normal(b_params[0], 0.01, n_walkers)  # sma
-    samp.curr_pos[:, 1] = np.random.normal(b_params[-1], 0.01, n_walkers)  # tau
+    samp.curr_pos[0, :, 0] = np.random.normal(b_params[0], 0.01, n_walkers)  # sma
+    samp.curr_pos[0, :, 1] = np.random.normal(b_params[-1], 0.01, n_walkers)  # tau
     # planet c
-    samp.curr_pos[:, 2] = np.random.normal(c_params[0], 0.01, n_walkers)  # sma
-    samp.curr_pos[:, 3] = np.random.normal(c_params[-1], 0.01, n_walkers)  # tau
+    samp.curr_pos[0, :, 2] = np.random.normal(c_params[0], 0.01, n_walkers)  # sma
+    samp.curr_pos[0, :, 3] = np.random.normal(c_params[-1], 0.01, n_walkers)  # tau
     # we will make a fairly broad mass starting position
-    samp.curr_pos[:, 4] = np.random.uniform(mass_b * 0.25, mass_b * 4, n_walkers)
-    samp.curr_pos[:, 5] = np.random.uniform(mass_c * 0.25, mass_c * 4, n_walkers)
-    samp.curr_pos[0, 4] = mass_b
-    samp.curr_pos[0, 5] = mass_c
+    samp.curr_pos[0, :, 4] = np.random.uniform(mass_b * 0.25, mass_b * 4, n_walkers)
+    samp.curr_pos[0, :, 5] = np.random.uniform(mass_c * 0.25, mass_c * 4, n_walkers)
+    samp.curr_pos[0, 0, 4] = mass_b
+    samp.curr_pos[0, 0, 5] = mass_c
 
     samp.run_sampler(n_walkers * 50, burn_steps=50)
 
@@ -259,5 +259,5 @@ def test_fit_selfconsist():
 
 
 if __name__ == "__main__":
-    # test_compute_model()
+    test_compute_model()
     test_fit_selfconsist()
