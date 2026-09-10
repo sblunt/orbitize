@@ -70,8 +70,11 @@ betaPic_system = system.System(
     gaia=betaPic_gaia,
     fit_secondary_mass=fit_secondary_mass,
     mass_err=0.01,
-    plx_err=0.01,
+    plx_err=0.01
 )
+
+astrom_figure = betaPic_system.plot_astrometry()
+plt.savefig('betaPic_astrometry_data.png')
 
 m0_or_mtot_prior = priors.UniformPrior(1.5, 2.0)
 
