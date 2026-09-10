@@ -6,7 +6,6 @@ import warnings
 import astropy.units as u
 import astropy.constants as consts
 import dynesty
-import emcee
 import matplotlib.pyplot as plt
 import numpy as np
 import ptemcee
@@ -663,9 +662,8 @@ class OFTI(
 
 class MCMC(Sampler):
     """
-    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if ``num_temps`` > 1
-    Parallel-Tempered MCMC Sampler uses ptemcee, a fork of the emcee Affine-infariant sampler
-    Affine-Invariant Ensemble MCMC Sampler uses emcee.
+    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will 
+    be run if ``num_temps`` > 1 using ptemcee, a fork of the emcee Affine-infariant sampler.
 
     .. Warning:: may not work well for multi-modal distributions
 
@@ -841,7 +839,7 @@ class MCMC(Sampler):
         Updates self.post, self.chain, and self.lnlike from the MCMC sampler
 
         Args:
-            sampler (emcee.EnsembleSampler or ptemcee.Sampler): sampler object.
+            sampler (ptemcee.Sampler): sampler object.
             num_steps (int): if not None, only stores the first num_steps number of steps
             start_step (int): if not 0, only (re)computes steps from this index
                 onwards, so self.post/self.lnlikes end up covering just the
@@ -934,7 +932,7 @@ class MCMC(Sampler):
                 every nth step while running, where n is value passed into this variable.
 
         Returns:
-            ``emcee.sampler`` object: the sampler used to run the MCMC
+            ``ptemcee.sampler`` object: the sampler used to run the MCMC
         """
 
         if periodic_save_freq is not None and output_filename is None:
