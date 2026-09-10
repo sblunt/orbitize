@@ -48,19 +48,6 @@ class Results(object):
         self.ln_evidence = None
         self.ln_evidence_err = None
 
-        # bookkeeping for save_results(): lets repeated calls for the same
-        # output file append only the newly added rows instead of rewriting
-        # the whole file from scratch every time
-        self._saved_filename = None
-        self._n_rows_saved = 0
-
-        # backing buffers for add_samples(): allow post/lnlike to grow with
-        # amortized O(1) cost per row instead of reallocating+copying the
-        # full array on every call (see add_samples() docstring)
-        self._post_buf = None
-        self._lnlike_buf = None
-        self._n_used = 0
-
         if self.system is not None:
             self.tau_ref_epoch = self.system.tau_ref_epoch
             self.labels = self.system.labels
@@ -98,60 +85,11 @@ class Results(object):
         if self.version_number is None:
             self.version_number = orbitize.__version__
 
-        n_new = len(orbital_params)
-
-        # lazily adopt any existing post/lnlike (e.g. set directly via the
-        # constructor) as the starting buffer
-        if self._post_buf is None:
-            if self.post is not None:
-                self._post_buf = self.post
-                self._lnlike_buf = self.lnlike
-                self._n_used = len(self.post)
-            else:
-                self._post_buf = np.empty((0, orbital_params.shape[1]), dtype=orbital_params.dtype)
-                self._lnlike_buf = np.empty(0, dtype=lnlikes.dtype)
-                self._n_used = 0
-
-        needed = self._n_used + n_new
-        capacity = self._post_buf.shape[0]
-        if needed > capacity:
-            new_capacity = max(needed, capacity * 2)
-
-            new_post_buf = np.empty((new_capacity,) + self._post_buf.shape[1:], dtype=self._post_buf.dtype)
-            new_post_buf[: self._n_used] = self._post_buf[: self._n_used]
-            self._post_buf = new_post_buf
-
-            new_lnlike_buf = np.empty(new_capacity, dtype=self._lnlike_buf.dtype)
-            new_lnlike_buf[: self._n_used] = self._lnlike_buf[: self._n_used]
-            self._lnlike_buf = new_lnlike_buf
-
-        self._post_buf[self._n_used : needed] = orbital_params
-        self._lnlike_buf[self._n_used : needed] = lnlikes
-        self._n_used = needed
-
         self.post = self._post_buf[: self._n_used]
         self.lnlike = self._lnlike_buf[: self._n_used]
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
-
-    def _write_growable_dataset(self, hf, name, data, n_already_saved):
-        """
-        Writes ``data`` to the dataset ``name`` in the open hdf5 file ``hf``.
-
-        If the dataset doesn't exist yet, it's created as resizable so that
-        future calls can extend it. If it already exists (i.e. a previous
-        call to ``save_results`` already wrote the first ``n_already_saved``
-        rows of ``data`` to this same file), only the new rows beyond that
-        point are written, instead of rewriting the whole dataset.
-        """
-        if name in hf:
-            dset = hf[name]
-            dset.resize(len(data), axis=0)
-            dset[n_already_saved:] = data[n_already_saved:]
-        else:
-            maxshape = (None,) + data.shape[1:]
-            hf.create_dataset(name, data=data, maxshape=maxshape, chunks=True)
 
     def save_results(self, filename):
         """
@@ -166,26 +104,12 @@ class Results(object):
         ``post``, ``lnlike``, and ``parameter_labels`` are datasets
         that are members of the root group.
 
-        If called repeatedly with the same ``filename`` (e.g. from
-        ``periodic_save_freq`` during MCMC), only the rows of ``post``/``lnlike``
-        that were added since the last call are written to disk, rather than
-        rewriting the entire accumulated chain every time.
-
         Written: Henry Ngo, 2018
 
         API Update: Sarah Blunt, 2021
         """
 
-        # if this is a new target file (or the first save), start fresh;
-        # otherwise reopen the file we've already been writing to and append
-        if filename != self._saved_filename:
-            mode = 'w'
-            self._n_rows_saved = 0
-            self._saved_filename = filename
-        else:
-            mode = 'a'
-
-        hf = h5py.File(filename, mode)  # Creates/opens h5py file object
+        hf = h5py.File(filename, 'w')  # Creates h5py file object
         # Add sampler_name as attribute of the root group
 
         hf.attrs['sampler_name'] = self.sampler_name
@@ -199,22 +123,15 @@ class Results(object):
 
         # Now add post and lnlike from the results object as datasets
         if self.post is not None:
-            self._write_growable_dataset(hf, 'post', self.post, self._n_rows_saved)
+            hf.create_dataset('post', data=self.post)
         # hf.create_dataset('data', data=self.data)
         if self.lnlike is not None:
-            self._write_growable_dataset(hf, 'lnlike', self.lnlike, self._n_rows_saved)
-
-        self._n_rows_saved = len(self.post) if self.post is not None else 0
+            hf.create_dataset('lnlike', data=self.lnlike)
 
         if self.curr_pos is not None:
-            if 'curr_pos' in hf:
-                del hf['curr_pos']
             hf.create_dataset("curr_pos", data=self.curr_pos)
 
-        # the system configuration doesn't change between saves, so it only
-        # needs to be (re)written the first time we save to this file
-        if mode == 'w':
-            self.system.save(hf)
+        self.system.save(hf)
 
         hf.close()  # Closes file object, which writes file to disk
 
