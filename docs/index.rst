@@ -58,6 +58,7 @@ Changelog:
 **4.0.0 (release date TBD)**
 
 - fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
+- implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
 
 **3.4.0 (2026-7-20)**
 
