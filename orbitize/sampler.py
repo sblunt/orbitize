@@ -942,6 +942,10 @@ class MCMC(Sampler):
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
 
+        if output_filename is not None:
+            if output_filename.endswith('.hdf5'):
+                output_filename = output_filename.split('.hdf5')[0]
+
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
@@ -979,7 +983,7 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self.results.curr_pos = self.curr_pos
-                        self.results.save_results(output_filename)
+                        self.results.save_results(f'{output_filename}_{i+1}burnsteps.hdf5')
 
             sampler.reset()
             print("")
@@ -1008,7 +1012,7 @@ class MCMC(Sampler):
                         self.results.add_samples(
                             self.post, self.lnlikes, curr_pos=self.curr_pos
                         )
-                        self.results.save_results(output_filename)
+                        self.results.save_results(f'{output_filename}_{i+1}steps.hdf5')
                         saved_upto = i + 1
 
             print("")
@@ -1032,7 +1036,7 @@ class MCMC(Sampler):
                 self._update_chains_from_sampler(sampler)
 
             if output_filename is not None:
-                self.results.save_results(output_filename)
+                self.results.save_results(f'{output_filename}.hdf5')
 
             print("Run complete")
 
