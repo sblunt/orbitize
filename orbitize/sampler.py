@@ -719,12 +719,6 @@ class MCMC(Sampler):
             version_number=orbitize.__version__,
         )
 
-        if self.num_temps > 1:
-            self.use_pt = True
-        else:
-            self.use_pt = False
-            self.num_temps = 1
-
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
         self.fixed_params = []
@@ -757,15 +751,10 @@ class MCMC(Sampler):
                 init_positions.append(random_init)
 
             # save this as the current position for the walkers
-            if self.use_pt:
-                # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
-                # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
-                self.curr_pos = np.dstack(init_positions)
-            else:
-                # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
-                # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
-                # We need to make nparams the second dimension, so we have to transpose the stacked array
-                self.curr_pos = np.stack(init_positions).T
+            # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
+            self.curr_pos = np.dstack(init_positions)
+
         else:
             # restart from previous walker positions
             self.results.load_results(prev_result_filename, append=True)
@@ -773,9 +762,7 @@ class MCMC(Sampler):
             prev_pos = self.results.curr_pos
 
             # check previous positions has the correct dimensions as we need given how this sampler was created.
-            expected_shape = (self.num_walkers, len(self.priors))
-            if self.use_pt:
-                expected_shape = (self.num_temps,) + expected_shape
+            expected_shape = (self.num_temps,) + (self.num_walkers, len(self.priors))
             if prev_pos.shape != expected_shape:
                 raise ValueError(
                     "Unable to restart chain. Saved walker positions has shape {0}, while current sampler needs {1}".format(
@@ -870,22 +857,13 @@ class MCMC(Sampler):
         self.chain = sampler.chain
         num_params = self.chain.shape[-1]
 
-        if self.use_pt:
-            # chain is shape: Ntemp x Nwalkers x Nsteps x Nparams
-            self.post = sampler.chain[0, :, start_step:num_steps].reshape(
-                -1, num_params
-            )  # the reshaping flattens the chain
-            # should also be picking out the lowest temperature logps
-            self.lnlikes = sampler.loglikelihood[0, :, start_step:num_steps].flatten()
-            self.lnlikes_alltemps = sampler.loglikelihood[:, :, start_step:num_steps]
-        else:
-            # chain is shape: Nwalkers x Nsteps x Nparams
-            self.post = sampler.chain[:, start_step:num_steps].reshape(-1, num_params)
-            self.lnlikes = sampler.lnprobability[:, start_step:num_steps].flatten()
-
-            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
-            for i, orb in enumerate(self.post):
-                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
+        # chain is shape: Ntemp x Nwalkers x Nsteps x Nparams
+        self.post = sampler.chain[0, :, start_step:num_steps].reshape(
+            -1, num_params
+        )  # the reshaping flattens the chain
+        # should also be picking out the lowest temperature logps
+        self.lnlikes = sampler.loglikelihood[0, :, start_step:num_steps].flatten()
+        self.lnlikes_alltemps = sampler.loglikelihood[:, :, start_step:num_steps]
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
@@ -897,62 +875,35 @@ class MCMC(Sampler):
         positions by new randomly generated positions until all are valid.
         """
         if self.system.fitting_basis == "XYZ":
-            if self.use_pt:
-                all_valid = False
-                while not all_valid:
-                    total_invalids = 0
-                    for temp in range(self.num_temps):
-                        to_stand = self.system.basis.to_standard_basis(
-                            self.curr_pos[temp, :, :].T.copy()
-                        ).T
-
-                        # Get invalids by checking ecc values for each companion
-                        indices = [
-                            ((i * 6) + 1)
-                            for i in range(self.system.num_secondary_bodies)
-                        ]
-                        invalids = np.where(
-                            (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
-                        )[0]
-
-                        # Redraw samples for the invalid ones
-                        if len(invalids) > 0:
-                            newpos = []
-                            for prior in self.priors:
-                                randompos = prior.draw_samples(len(invalids))
-                                newpos.append(randompos)
-                            self.curr_pos[temp, invalids, :] = np.stack(newpos).T
-                            total_invalids += len(invalids)
-                    if total_invalids == 0:
-                        all_valid = True
-                        print("All walker positions validated.")
-            else:
-                all_valid = False
-                while not all_valid:
-                    total_invalids = 0
+            all_valid = False
+            while not all_valid:
+                total_invalids = 0
+                for temp in range(self.num_temps):
                     to_stand = self.system.basis.to_standard_basis(
-                        self.curr_pos[:, :].T.copy()
+                        self.curr_pos[temp, :, :].T.copy()
                     ).T
 
                     # Get invalids by checking ecc values for each companion
                     indices = [
-                        ((i * 6) + 1) for i in range(self.system.num_secondary_bodies)
+                        ((i * 6) + 1)
+                        for i in range(self.system.num_secondary_bodies)
                     ]
                     invalids = np.where(
                         (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
                     )[0]
 
-                    # Redraw saples for the invalid ones
+                    # Redraw samples for the invalid ones
                     if len(invalids) > 0:
                         newpos = []
                         for prior in self.priors:
                             randompos = prior.draw_samples(len(invalids))
                             newpos.append(randompos)
-                        self.curr_pos[invalids, :] = np.stack(newpos).T
+                        self.curr_pos[temp, invalids, :] = np.stack(newpos).T
                         total_invalids += len(invalids)
-                    if total_invalids == 0:
-                        all_valid = True
-                        print("All walker positions validated.")
+                if total_invalids == 0:
+                    all_valid = True
+                    print("All walker positions validated.")
+            
 
     def run_sampler(
         self,
@@ -1000,35 +951,25 @@ class MCMC(Sampler):
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
         with mp.Pool(processes=self.num_threads) as pool:
-            if self.use_pt:
-                sampler = ptemcee.Sampler(
-                    self.num_walkers,
-                    self.num_params,
-                    self._logl,
-                    orbitize.priors.all_lnpriors,
-                    ntemps=self.num_temps,
-                    logpargs=[
-                        self.priors,
-                    ],
-                    pool=pool
-                )
-            else:
-                sampler = emcee.EnsembleSampler(
-                    self.num_walkers,
-                    self.num_params,
-                    self._logl,
-                    pool=pool,
-                    kwargs={"include_logp": True},
-                )
+            sampler = ptemcee.Sampler(
+                self.num_walkers,
+                self.num_params,
+                self._logl,
+                orbitize.priors.all_lnpriors,
+                ntemps=self.num_temps,
+                logpargs=[
+                    self.priors,
+                ],
+                pool=pool
+            )
+
 
             print("Starting Burn in")
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)
             ):
-                if self.use_pt:
-                    self.curr_pos = state[0]
-                else:
-                    self.curr_pos = state.coords
+                self.curr_pos = state[0]
+
 
                 if (i + 1) % 5 == 0:
                     print(
@@ -1052,10 +993,7 @@ class MCMC(Sampler):
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
-                if self.use_pt:
-                    self.curr_pos = state[0]
-                else:
-                    self.curr_pos = state.coords
+                self.curr_pos = state[0]
 
                 # print progress statement
                 if (i + 1) % 5 == 0:
