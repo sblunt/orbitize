@@ -56,12 +56,7 @@ if __name__ == '__main__':
 
     # create the sampler, run it, and save posteriors
     output_filename = "HD_33632_Ab.hdf5"
-    if os.path.exists(output_filename):
-        prev_result_filename = output_filename
-    else:
-        prev_result_filename = None
-
-    this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads, prev_result_filename=prev_result_filename)
+    this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads)
 
     periodic_save_freq = 5_000
 
