@@ -80,13 +80,20 @@ class Results(object):
 
         API Update: Sarah Blunt, 2021
         """
-
+        
         # Adding the orbitize version number to the results
         if self.version_number is None:
             self.version_number = orbitize.__version__
 
-        self.post = self._post_buf[: self._n_used]
-        self.lnlike = self._lnlike_buf[: self._n_used]
+        # If no exisiting results then it is easy
+        if self.post is None:
+            self.post = orbital_params
+            self.lnlike = lnlikes
+
+        # Otherwise, need to append properly
+        else:
+            self.post = np.vstack((self.post, orbital_params))
+            self.lnlike = np.append(self.lnlike, lnlikes)
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
