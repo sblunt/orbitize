@@ -6,7 +6,6 @@ import warnings
 import astropy.units as u
 import astropy.constants as consts
 import dynesty
-import emcee
 import matplotlib.pyplot as plt
 import numpy as np
 import ptemcee
@@ -663,9 +662,8 @@ class OFTI(
 
 class MCMC(Sampler):
     """
-    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if ``num_temps`` > 1
-    Parallel-Tempered MCMC Sampler uses ptemcee, a fork of the emcee Affine-infariant sampler
-    Affine-Invariant Ensemble MCMC Sampler uses emcee.
+    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will 
+    be run if ``num_temps`` > 1 using ptemcee, a fork of the emcee Affine-infariant sampler.
 
     .. Warning:: may not work well for multi-modal distributions
 
@@ -719,12 +717,6 @@ class MCMC(Sampler):
             version_number=orbitize.__version__,
         )
 
-        if self.num_temps > 1:
-            self.use_pt = True
-        else:
-            self.use_pt = False
-            self.num_temps = 1
-
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
         self.fixed_params = []
@@ -757,15 +749,10 @@ class MCMC(Sampler):
                 init_positions.append(random_init)
 
             # save this as the current position for the walkers
-            if self.use_pt:
-                # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
-                # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
-                self.curr_pos = np.dstack(init_positions)
-            else:
-                # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
-                # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
-                # We need to make nparams the second dimension, so we have to transpose the stacked array
-                self.curr_pos = np.stack(init_positions).T
+            # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
+            self.curr_pos = np.dstack(init_positions)
+
         else:
             # restart from previous walker positions
             self.results.load_results(prev_result_filename, append=True)
@@ -773,9 +760,7 @@ class MCMC(Sampler):
             prev_pos = self.results.curr_pos
 
             # check previous positions has the correct dimensions as we need given how this sampler was created.
-            expected_shape = (self.num_walkers, len(self.priors))
-            if self.use_pt:
-                expected_shape = (self.num_temps,) + expected_shape
+            expected_shape = (self.num_temps,) + (self.num_walkers, len(self.priors))
             if prev_pos.shape != expected_shape:
                 raise ValueError(
                     "Unable to restart chain. Saved walker positions has shape {0}, while current sampler needs {1}".format(
@@ -849,13 +834,17 @@ class MCMC(Sampler):
 
         return super(MCMC, self)._logl(full_params) + logp
 
-    def _update_chains_from_sampler(self, sampler, num_steps=None):
+    def _update_chains_from_sampler(self, sampler, num_steps=None, start_step=0):
         """
         Updates self.post, self.chain, and self.lnlike from the MCMC sampler
 
         Args:
-            sampler (emcee.EnsembleSampler or ptemcee.Sampler): sampler object.
+            sampler (ptemcee.Sampler): sampler object.
             num_steps (int): if not None, only stores the first num_steps number of steps
+            start_step (int): if not 0, only (re)computes steps from this index
+                onwards, so self.post/self.lnlikes end up covering just the
+                ``[start_step, num_steps)`` chunk of the chain instead of the
+                full history. Used during periodic saving.
         """
         if num_steps is None:
             # use all the steps, grab total number of steps from dimension of chains
@@ -864,22 +853,13 @@ class MCMC(Sampler):
         self.chain = sampler.chain
         num_params = self.chain.shape[-1]
 
-        if self.use_pt:
-            # chain is shape: Ntemp x Nwalkers x Nsteps x Nparams
-            self.post = sampler.chain[0, :, :num_steps].reshape(
-                -1, num_params
-            )  # the reshaping flattens the chain
-            # should also be picking out the lowest temperature logps
-            self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
-            self.lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
-        else:
-            # chain is shape: Nwalkers x Nsteps x Nparams
-            self.post = sampler.chain[:, :num_steps].reshape(-1, num_params)
-            self.lnlikes = sampler.lnprobability[:, :num_steps].flatten()
-
-            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
-            for i, orb in enumerate(self.post):
-                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
+        # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
+        self.post = sampler.chain[0, :, start_step:num_steps].reshape(
+            -1, num_params
+        )  # the reshaping flattens the chain
+        # pick out the lowest temperature loglikelihoods
+        self.lnlikes = sampler.loglikelihood[0, :, start_step:num_steps].flatten()
+        self.lnlikes_alltemps = sampler.loglikelihood[:, :, start_step:num_steps]
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
@@ -891,62 +871,35 @@ class MCMC(Sampler):
         positions by new randomly generated positions until all are valid.
         """
         if self.system.fitting_basis == "XYZ":
-            if self.use_pt:
-                all_valid = False
-                while not all_valid:
-                    total_invalids = 0
-                    for temp in range(self.num_temps):
-                        to_stand = self.system.basis.to_standard_basis(
-                            self.curr_pos[temp, :, :].T.copy()
-                        ).T
-
-                        # Get invalids by checking ecc values for each companion
-                        indices = [
-                            ((i * 6) + 1)
-                            for i in range(self.system.num_secondary_bodies)
-                        ]
-                        invalids = np.where(
-                            (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
-                        )[0]
-
-                        # Redraw samples for the invalid ones
-                        if len(invalids) > 0:
-                            newpos = []
-                            for prior in self.priors:
-                                randompos = prior.draw_samples(len(invalids))
-                                newpos.append(randompos)
-                            self.curr_pos[temp, invalids, :] = np.stack(newpos).T
-                            total_invalids += len(invalids)
-                    if total_invalids == 0:
-                        all_valid = True
-                        print("All walker positions validated.")
-            else:
-                all_valid = False
-                while not all_valid:
-                    total_invalids = 0
+            all_valid = False
+            while not all_valid:
+                total_invalids = 0
+                for temp in range(self.num_temps):
                     to_stand = self.system.basis.to_standard_basis(
-                        self.curr_pos[:, :].T.copy()
+                        self.curr_pos[temp, :, :].T.copy()
                     ).T
 
                     # Get invalids by checking ecc values for each companion
                     indices = [
-                        ((i * 6) + 1) for i in range(self.system.num_secondary_bodies)
+                        ((i * 6) + 1)
+                        for i in range(self.system.num_secondary_bodies)
                     ]
                     invalids = np.where(
                         (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
                     )[0]
 
-                    # Redraw saples for the invalid ones
+                    # Redraw samples for the invalid ones
                     if len(invalids) > 0:
                         newpos = []
                         for prior in self.priors:
                             randompos = prior.draw_samples(len(invalids))
                             newpos.append(randompos)
-                        self.curr_pos[invalids, :] = np.stack(newpos).T
+                        self.curr_pos[temp, invalids, :] = np.stack(newpos).T
                         total_invalids += len(invalids)
-                    if total_invalids == 0:
-                        all_valid = True
-                        print("All walker positions validated.")
+                if total_invalids == 0:
+                    all_valid = True
+                    print("All walker positions validated.")
+            
 
     def run_sampler(
         self,
@@ -979,7 +932,7 @@ class MCMC(Sampler):
                 every nth step while running, where n is value passed into this variable.
 
         Returns:
-            ``emcee.sampler`` object: the sampler used to run the MCMC
+            ``ptemcee.sampler`` object: the sampler used to run the MCMC
         """
 
         if periodic_save_freq is not None and output_filename is None:
@@ -989,40 +942,34 @@ class MCMC(Sampler):
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
 
+        if output_filename is not None:
+            if output_filename.endswith('.hdf5'):
+                output_filename = output_filename.split('.hdf5')[0]
+
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
         with mp.Pool(processes=self.num_threads) as pool:
-            if self.use_pt:
-                sampler = ptemcee.Sampler(
-                    self.num_walkers,
-                    self.num_params,
-                    self._logl,
-                    orbitize.priors.all_lnpriors,
-                    ntemps=self.num_temps,
-                    logpargs=[
-                        self.priors,
-                    ],
-                    pool=pool
-                )
-            else:
-                sampler = emcee.EnsembleSampler(
-                    self.num_walkers,
-                    self.num_params,
-                    self._logl,
-                    pool=pool,
-                    kwargs={"include_logp": True},
-                )
+            sampler = ptemcee.Sampler(
+                self.num_walkers,
+                self.num_params,
+                self._logl,
+                orbitize.priors.all_lnpriors,
+                ntemps=self.num_temps,
+                logpargs=[
+                    self.priors,
+                ],
+                pool=pool
+            )
+
 
             print("Starting Burn in")
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)
             ):
-                if self.use_pt:
-                    self.curr_pos = state[0]
-                else:
-                    self.curr_pos = state.coords
+                self.curr_pos = state[0]
+
 
                 if (i + 1) % 5 == 0:
                     print(
@@ -1036,7 +983,7 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self.results.curr_pos = self.curr_pos
-                        self.results.save_results(output_filename)
+                        self.results.save_results(f'{output_filename}_{i+1}burnsteps.hdf5')
 
             sampler.reset()
             print("")
@@ -1046,76 +993,52 @@ class MCMC(Sampler):
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
-                if self.use_pt:
-                    self.curr_pos = state[0]
-                else:
-                    self.curr_pos = state.coords
+                self.curr_pos = state[0]
 
                 # print progress statement
                 if (i + 1) % 5 == 0:
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
                 if periodic_save_freq is not None:
+                    save_start_time = time.time()
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
-                        self._update_chains_from_sampler(sampler, num_steps=i + 1)
 
-                        # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
-                        # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
-                        post_shape = self.post.shape
-                        curr_chain_shape = (
-                            self.num_walkers,
-                            post_shape[0] // self.num_walkers,
-                            post_shape[-1],
+                        # only (re)compute the chunk of the chain since the last
+                        # save, not the full history
+                        self._update_chains_from_sampler(
+                            sampler, num_steps=i + 1, start_step=saved_upto
                         )
-                        curr_chain = self.post.reshape(curr_chain_shape)
-                        curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
-                        # use the reshaped arrays and find the new steps we computed
-                        curr_chunk = curr_chain[:, saved_upto : i + 1]
-                        curr_chunk = curr_chunk.reshape(
-                            -1, curr_chunk.shape[-1]
-                        )  # flatten nwalkers x nsteps dim
-                        curr_lnlike_chunk = curr_lnlike_chain[
-                            :, saved_upto : i + 1
-                        ].flatten()
 
                         # add this current chunk to the results object (which already has all the previous chunks saved)
                         self.results.add_samples(
-                            curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
+                            self.post, self.lnlikes, curr_pos=self.curr_pos
                         )
-                        self.results.save_results(output_filename)
+                        self.results.save_results(f'{output_filename}_{i+1}steps.hdf5')
                         saved_upto = i + 1
+                    print(f'saving took {time.time()-save_start_time} s')
 
             print("")
-            self._update_chains_from_sampler(sampler)
 
             if periodic_save_freq is None:
-                # need to save everything
+                # nothing has been processed/saved yet; need to do the whole chain
+                self._update_chains_from_sampler(sampler)
                 self.results.add_samples(
                     self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
             elif saved_upto < nsteps:
-                # just need to save the last few
-                # same code as above except we just need to grab the last few
-                post_shape = self.post.shape
-                curr_chain_shape = (
-                    self.num_walkers,
-                    post_shape[0] // self.num_walkers,
-                    post_shape[-1],
-                )
-                curr_chain = self.post.reshape(curr_chain_shape)
-                curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
-                curr_chunk = curr_chain[:, saved_upto:]
-                curr_chunk = curr_chunk.reshape(
-                    -1, curr_chunk.shape[-1]
-                )  # flatten nwalkers x nsteps dim
-                curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
-
+                # just need to process and save the leftover chunk since the last save
+                self._update_chains_from_sampler(sampler, start_step=saved_upto)
                 self.results.add_samples(
-                    curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
+                    self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
+            else:
+                # everything has already been saved; still refresh self.chain,
+                # self.post, and self.lnlikes to reflect the full run in case
+                # the caller inspects them after run_sampler() returns
+                self._update_chains_from_sampler(sampler)
 
             if output_filename is not None:
-                self.results.save_results(output_filename)
+                self.results.save_results(f'{output_filename}.hdf5')
 
             print("Run complete")
 
