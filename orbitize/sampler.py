@@ -1000,6 +1000,7 @@ class MCMC(Sampler):
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
                 if periodic_save_freq is not None:
+                    save_start_time = time.time()
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
 
                         # only (re)compute the chunk of the chain since the last
@@ -1014,6 +1015,7 @@ class MCMC(Sampler):
                         )
                         self.results.save_results(f'{output_filename}_{i+1}steps.hdf5')
                         saved_upto = i + 1
+                    print(f'saving took {time.time()-save_start_time} s')
 
             print("")
 
