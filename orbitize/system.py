@@ -396,6 +396,7 @@ class System(object):
 
         ra_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
         dec_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+        vz_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
 
         vz = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
         brightness_out = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
@@ -577,6 +578,7 @@ class System(object):
                             dec_perturb[:, other_body_num, :] -= (
                                 masses[body_num] / mtots[body_num]
                             ) * dec_kepler[:, body_num, :]
+                            vz_perturb[:, other_body_num, :] += vz[:, body_num, :] * 0.0 # perturb on the stellar RV vz0 is already accounted for above when adding vz_i's together. so make these columns 0
 
                         else:
                             ra_perturb[:, other_body_num, :] += (
@@ -585,9 +587,13 @@ class System(object):
                             dec_perturb[:, other_body_num, :] += (
                                 masses[body_num] / mtots[body_num]
                             ) * dec_kepler[:, body_num, :]
+                            vz_perturb[:, other_body_num, :] += (
+                                masses[body_num] / mtots[body_num]
+                            ) * vz[:, body_num, :]
 
             raoff = ra_kepler + ra_perturb
             deoff = dec_kepler + dec_perturb
+            vz = vz + vz_perturb
 
         if self.fitting_basis == "XYZ":
             
