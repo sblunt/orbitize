@@ -984,13 +984,10 @@ class MCMC(Sampler):
             print("")
             print("Burn in complete. Sampling posterior now.")
 
-            start_time = time.time()
             saved_upto = 0
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
-                print(f'loop took {time.time() - start_time:.2f} s')
-                start_time = time.time()
                 self.curr_pos = state[0]
 
                 # print progress statement
