@@ -638,9 +638,9 @@ class System(object):
         to_convert = np.copy(params_arr)
         standard_params_arr = self.basis.to_standard_basis(to_convert)
 
-        if use_rebound:
-            raoff, decoff, vz = self.compute_all_orbits(
-                standard_params_arr, comp_rebound=True
+        if use_rebound or self.use_rebound:
+            raoff, decoff, vz, _ = self.compute_all_orbits(
+                standard_params_arr, comp_rebound=use_rebound
             )
         else:
             raoff, decoff, vz, brightness = self.compute_all_orbits(standard_params_arr)
