@@ -591,15 +591,17 @@ class Plotter(object):
             smas = standard_post[:, sma_indexes]
             if "mtot" in self.results.labels:
                 mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
+                periods = np.sqrt(
+                    4 * np.pi**2.0 * (smas.T * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+                ).T
             elif "m0" in self.results.labels:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1_indexes = [self.results.standard_param_idx["m{}".format(i)] for i in secondaries]
-                print(m1_indexes)
                 m1s = standard_post[:, m1_indexes]
                 mtots = (m0 + m1s.T).T
-            periods = np.sqrt(
-                4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
-            )
+                periods = np.sqrt(
+                    4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+                )
             periods = periods.to(u.day).value
             period = np.max(periods, axis=1)
         else:
