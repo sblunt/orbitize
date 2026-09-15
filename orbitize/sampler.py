@@ -1001,10 +1001,10 @@ class MCMC(Sampler):
                     self._logl,
                     orbitize.priors.all_lnpriors,
                     ntemps=self.num_temps,
-                    threads=self.num_threads,
                     logpargs=[
                         self.priors,
                     ],
+                    pool=pool
                 )
             else:
                 sampler = emcee.EnsembleSampler(
@@ -1118,7 +1118,7 @@ class MCMC(Sampler):
                 self.results.save_results(output_filename)
 
             print("Run complete")
-        # Close pool
+
         if examine_chains:
             self.examine_chains()
 
