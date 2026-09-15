@@ -1,10 +1,18 @@
 import numpy as np
 import os
+import io
+import contextlib
+import pytest
 
 from orbitize import DATADIR, read_input, system, sampler, results
-from orbitize.gaia import GaiaLogProb
+from orbitize import gaia
 from orbitize.hipparcos import HipparcosLogProb, nielsen_iad_refitting_test
 
+output = io.StringIO()
+with contextlib.redirect_stdout(output):
+    gaia.Gaia.get_status_messages()
+response = output.getvalue()
+offline = len(response) > 0
 
 def test_hipparcos_api():
     """
@@ -180,7 +188,9 @@ def test_save_load_dvd():
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
     myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = GaiaLogProb(4792774797545800832, myHip, dr="edr3")
+    if offline:
+        pytest.skip("Gaia is behaving irregularly: {}".format(response))
+    myGaia = gaia.GaiaLogProb(4792774797545800832, myHip, dr="edr3")
 
     input_file = os.path.join(DATADIR, "HD4747.csv")
     data_table_with_rvs = read_input.read_file(input_file)
@@ -225,7 +235,9 @@ def test_save_load_2021():
     path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
 
     myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = GaiaLogProb(4792774797545800832, myHip, dr="edr3")
+    if offline:
+        pytest.skip("Gaia is behaving irregularly: {}".format(response))
+    myGaia = gaia.GaiaLogProb(4792774797545800832, myHip, dr="edr3")
 
     input_file = os.path.join(DATADIR, "HD4747.csv")
     data_table_with_rvs = read_input.read_file(input_file)
