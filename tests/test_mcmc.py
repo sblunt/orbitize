@@ -49,6 +49,7 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
     myDriver.sampler.run_sampler(
         400, burn_steps=10, output_filename=output_filename, periodic_save_freq=2
     )
+    assert myDriver.sampler.results.post.shape[0] == 400
 
     # run it a little more (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)

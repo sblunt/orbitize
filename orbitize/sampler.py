@@ -836,7 +836,7 @@ class MCMC(Sampler):
 
     def _update_chains_from_sampler(self, sampler, num_steps=None, start_step=0):
         """
-        Updates self.post, self.chain, and self.lnlike from the MCMC sampler
+        Updates self.post and self.lnlike from the MCMC sampler
 
         Args:
             sampler (ptemcee.Sampler): sampler object.
@@ -850,8 +850,7 @@ class MCMC(Sampler):
             # use all the steps, grab total number of steps from dimension of chains
             num_steps = sampler.chain.shape[-2]
 
-        self.chain = sampler.chain
-        num_params = self.chain.shape[-1]
+        num_params = sampler.chain.shape[-1]
 
         # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
         self.post = sampler.chain[0, :, start_step:num_steps].reshape(
@@ -911,7 +910,7 @@ class MCMC(Sampler):
         periodic_save_freq=None,
     ):
         """
-        Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
+        Runs PT MCMC sampler. Results are stored in ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
 
         .. Note:: Can be run multiple times if you want to pause and inspect things.
@@ -989,10 +988,13 @@ class MCMC(Sampler):
             print("")
             print("Burn in complete. Sampling posterior now.")
 
-            saved_upto = 0  # keep track of how many steps of this chain we've saved. this is the next index that needs to be saved
+            start_time = time.time()
+            saved_upto = 0
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
+                print(f'loop took {time.time() - start_time:.2f} s')
+                start_time = time.time()
                 self.curr_pos = state[0]
 
                 # print progress statement
@@ -1000,42 +1002,36 @@ class MCMC(Sampler):
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
                 if periodic_save_freq is not None:
-                    save_start_time = time.time()
+                    
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
 
-                        # only (re)compute the chunk of the chain since the last
-                        # save, not the full history
                         self._update_chains_from_sampler(
                             sampler, num_steps=i + 1, start_step=saved_upto
                         )
+                        saved_upto += i+1
 
-                        # add this current chunk to the results object (which already has all the previous chunks saved)
                         self.results.add_samples(
                             self.post, self.lnlikes, curr_pos=self.curr_pos
                         )
                         self.results.save_results(f'{output_filename}_{i+1}steps.hdf5')
-                        saved_upto = i + 1
-                    print(f'saving took {time.time()-save_start_time} s')
+
 
             print("")
 
-            if periodic_save_freq is None:
-                # nothing has been processed/saved yet; need to do the whole chain
+            if periodic_save_freq is None: # we haven't updated self.post and other attributes at all yet, so do that here
                 self._update_chains_from_sampler(sampler)
                 self.results.add_samples(
                     self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
-            elif saved_upto < nsteps:
-                # just need to process and save the leftover chunk since the last save
-                self._update_chains_from_sampler(sampler, start_step=saved_upto)
+            else: # we just need to save the last unsaved bit of the chain
+                self._update_chains_from_sampler(
+                    sampler, num_steps=i + 1, start_step=saved_upto
+                )
+
                 self.results.add_samples(
                     self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
-            else:
-                # everything has already been saved; still refresh self.chain,
-                # self.post, and self.lnlikes to reflect the full run in case
-                # the caller inspects them after run_sampler() returns
-                self._update_chains_from_sampler(sampler)
+
 
             if output_filename is not None:
                 self.results.save_results(f'{output_filename}.hdf5')
