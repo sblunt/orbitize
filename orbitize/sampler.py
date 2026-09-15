@@ -834,17 +834,13 @@ class MCMC(Sampler):
 
         return super(MCMC, self)._logl(full_params) + logp
 
-    def _update_chains_from_sampler(self, sampler, num_steps=None, start_step=0):
+    def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
         Updates self.post and self.lnlike from the MCMC sampler
 
         Args:
             sampler (ptemcee.Sampler): sampler object.
             num_steps (int): if not None, only stores the first num_steps number of steps
-            start_step (int): if not 0, only (re)computes steps from this index
-                onwards, so self.post/self.lnlikes end up covering just the
-                ``[start_step, num_steps)`` chunk of the chain instead of the
-                full history. Used during periodic saving.
         """
         if num_steps is None:
             # use all the steps, grab total number of steps from dimension of chains
@@ -853,12 +849,12 @@ class MCMC(Sampler):
         num_params = sampler.chain.shape[-1]
 
         # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
-        self.post = sampler.chain[0, :, start_step:num_steps].reshape(
+        self.post = sampler.chain[0, :, :num_steps].reshape(
             -1, num_params
         )  # the reshaping flattens the chain
         # pick out the lowest temperature loglikelihoods
-        self.lnlikes = sampler.loglikelihood[0, :, start_step:num_steps].flatten()
-        self.lnlikes_alltemps = sampler.loglikelihood[:, :, start_step:num_steps]
+        self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
+        self.lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
@@ -1004,32 +1000,62 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
+                        self._update_chains_from_sampler(sampler, num_steps=i + 1)
 
-                        self._update_chains_from_sampler(
-                            sampler, num_steps=i + 1, start_step=saved_upto
+                        # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
+                        # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
+                        post_shape = self.post.shape
+                        curr_chain_shape = (
+                            self.num_walkers,
+                            post_shape[0] // self.num_walkers,
+                            post_shape[-1],
                         )
-                        saved_upto += i+1
+                        curr_chain = self.post.reshape(curr_chain_shape)
+                        curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                        # use the reshaped arrays and find the new steps we computed
+                        curr_chunk = curr_chain[:, saved_upto : i + 1]
+                        curr_chunk = curr_chunk.reshape(
+                            -1, curr_chunk.shape[-1]
+                        )  # flatten nwalkers x nsteps dim
+                        curr_lnlike_chunk = curr_lnlike_chain[
+                            :, saved_upto : i + 1
+                        ].flatten()
 
+                        # add this current chunk to the results object (which already has all the previous chunks saved)
                         self.results.add_samples(
-                            self.post, self.lnlikes, curr_pos=self.curr_pos
+                            curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
                         )
-                        self.results.save_results(f'{output_filename}_{i+1}steps.hdf5')
+                        self.results.save_results(output_filename)
+                        saved_upto = i + 1
 
 
             print("")
+            self._update_chains_from_sampler(sampler)
 
-            if periodic_save_freq is None: # we haven't updated self.post and other attributes at all yet, so do that here
-                self._update_chains_from_sampler(sampler)
+            if periodic_save_freq is None:
+                # need to save everything
                 self.results.add_samples(
                     self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
-            else: # we just need to save the last unsaved bit of the chain
-                self._update_chains_from_sampler(
-                    sampler, num_steps=i + 1, start_step=saved_upto
+            elif saved_upto < nsteps:
+                # just need to save the last few
+                # same code as above except we just need to grab the last few
+                post_shape = self.post.shape
+                curr_chain_shape = (
+                    self.num_walkers,
+                    post_shape[0] // self.num_walkers,
+                    post_shape[-1],
                 )
+                curr_chain = self.post.reshape(curr_chain_shape)
+                curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                curr_chunk = curr_chain[:, saved_upto:]
+                curr_chunk = curr_chunk.reshape(
+                    -1, curr_chunk.shape[-1]
+                )  # flatten nwalkers x nsteps dim
+                curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
 
                 self.results.add_samples(
-                    self.post, self.lnlikes, curr_pos=self.curr_pos
+                    curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
                 )
 
 
