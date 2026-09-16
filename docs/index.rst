@@ -55,6 +55,12 @@ User Guide:
 Changelog:
 ++++++++++
 
+**4.0.0 (release date TBD)**
+
+- fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
+- implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
+- add an astrometry plotting utility function that folks can use to check if data were input correctly (@DTCupcakes)
+
 **3.4.0 (2026-7-20)**
 
 This is a breaking change for System.compute_all_orbits.

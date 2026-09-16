@@ -1,6 +1,7 @@
 import numpy as np
 import orbitize.basis as basis
 import rebound
+import astropy.units as u
 
 
 def calc_orbit(
@@ -104,24 +105,24 @@ def calc_orbit(
             (tx, indv + 1)
         )  # numpy.zeros(number of [arrays], size of each array)
         dec_reb = np.zeros((tx, indv + 1))
-        vz = np.zeros((tx, indv + 1))
+        vz_reb = np.zeros((tx, indv + 1))
         for j, t in enumerate(te):
             sim.integrate(t / 365.25)
             # for the star and each planet in each epoch denoted by j,t find the RA, Dec, and RV
             com = sim.com()
             ra_reb[j, 0] = -(ps[0].x - com.x)  # ra is negative x
             dec_reb[j, 0] = ps[0].y - com.y
-            vz[j, 0] = ps[0].vz
+            vz_reb[j, 0] = ps[0].vz
             for i in num_planets:
                 ra_reb[j, i + 1] = -(ps[int(i + 1)].x - ps[0].x)  # ra is negative x
                 dec_reb[j, i + 1] = ps[int(i + 1)].y - ps[0].y
-                vz[j, i + 1] = ps[int(i + 1)].vz
+                vz_reb[j, i + 1] = ps[int(i + 1)].vz
     else:
         ra_reb = np.zeros(
             (tx, indv)
         )  # numpy.zeros(number of [arrays], size of each array)
         dec_reb = np.zeros((tx, indv))
-        vz = np.zeros((tx, indv))
+        vz_reb = np.zeros((tx, indv))
         # integrate at each epoch
         for j, t in enumerate(te):
             sim.integrate(t / 365.25)
@@ -129,11 +130,12 @@ def calc_orbit(
             for i in num_planets:
                 ra_reb[j, i] = -(ps[int(i + 1)].x - ps[0].x)  # ra is negative x
                 dec_reb[j, i] = ps[int(i + 1)].y - ps[0].y
-                vz[j, i] = ps[int(i + 1)].vz
+                vz_reb[j, i] = ps[int(i + 1)].vz
 
     # adjusting for parallax
     raoff = plx * ra_reb
     deoff = plx * dec_reb
+    vz = (vz_reb * (u.au / (365.25 * u.day))).to(u.km/u.s).value # au/jyear -> km/s
 
     # always assume we're using MCMC (i.e. n_orbits = 1)
     raoff = raoff.reshape((tx, indv + 1, 1))
