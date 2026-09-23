@@ -5,7 +5,7 @@ np.import_array()
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
-cdef extern from "kepler3.c": 
+cdef extern from "kepler.c": 
     void calc_orbit(
         const int n_orbits,
         const int n_epochs,
@@ -28,7 +28,7 @@ cdef extern from "kepler3.c":
         double tanom[]
     )
 
-cdef extern from "kepler3.c": 
+cdef extern from "kepler.c": 
     void calc_ecc_anom_array(
         const int size,
         const double manom[],

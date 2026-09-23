@@ -6,7 +6,6 @@ import orbitize
 import orbitize.read_input as read_input
 import orbitize.kepler as kepler
 import orbitize.system as system
-import orbitize.basis as basis
 
 # Skip this test on Windows since REBOUND doesn't work on Windows
 import sys
@@ -73,7 +72,7 @@ def test_1planet():
     dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
-    manom = basis.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
+    manom = kepler.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
 
     sim = rebound.Simulation()
     sim.units = ("yr", "AU", "Msun")
@@ -229,10 +228,10 @@ def test_2planet_massive():
     assert np.all(b_ra_orb_noc != b_ra_orb)
 
     # now project the orbit with rebound
-    b_manom = basis.tau_to_manom(
+    b_manom = kepler.tau_to_manom(
         epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
     )
-    c_manom = basis.tau_to_manom(
+    c_manom = kepler.tau_to_manom(
         epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
     )
 
@@ -476,10 +475,10 @@ def test_2planet_massive_reverse_order():
     b_dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
-    c_manom = basis.tau_to_manom(
+    c_manom = kepler.tau_to_manom(
         epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
     )
-    b_manom = basis.tau_to_manom(
+    b_manom = kepler.tau_to_manom(
         epochs[0],
         params[0 + 6],
         params[-1] + params[-2] + params[-3],
@@ -631,10 +630,10 @@ def test_2planet_nomass():
     b_dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
-    b_manom = basis.tau_to_manom(
+    b_manom = kepler.tau_to_manom(
         epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
     )
-    c_manom = basis.tau_to_manom(
+    c_manom = kepler.tau_to_manom(
         epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
     )
 

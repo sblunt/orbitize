@@ -7,8 +7,8 @@ def get_extensions():
     extensions = cythonize(
         [
         Extension(
-            "orbitize._kepler3",
-            ["orbitize/_kepler3.pyx"],
+            "orbitize._kepler",
+            ["orbitize/_kepler.pyx"],
             include_dirs=[numpy.get_include()],
         )
         ],

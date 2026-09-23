@@ -17,7 +17,7 @@ except:
     cuda_ext = False
 
 try:
-    from . import _kepler3
+    from . import _kepler
 
     cext = True
 except ImportError:

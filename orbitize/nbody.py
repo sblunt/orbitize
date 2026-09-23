@@ -1,5 +1,5 @@
 import numpy as np
-import orbitize.basis as basis
+from orbitize.kepler import tau_to_manom
 import rebound
 
 
@@ -81,7 +81,7 @@ def calc_orbit(
     for i in num_planets:
         # calculating mean anomaly
         m_interior = m_star + sum(m_pl[0 : i + 1])
-        mnm = basis.tau_to_manom(epochs[0], sma[i], m_interior, tau[i], tau_ref_epoch)
+        mnm = tau_to_manom(epochs[0], sma[i], m_interior, tau[i], tau_ref_epoch)
         # adding each planet
         sim.add(
             m=m_pl[i],

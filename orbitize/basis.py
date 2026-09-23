@@ -1630,4 +1630,4 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         float or np.array: mean anomaly on that date [0, 2pi)
     """
 
-    return kepler.tau_to_manom_py(date, sma, mtot, tau, tau_ref_epoch)
+    return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)

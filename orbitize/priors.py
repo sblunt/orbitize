@@ -3,7 +3,7 @@ import abc
 from astropy import units as u, constants as cst
 
 from orbitize import basis
-from orbitize.kepler import calc_ecc_anom
+from orbitize.kepler import tau_to_manom, calc_ecc_anom
 import scipy.special
 import scipy.stats
 
@@ -788,7 +788,7 @@ class ObsPrior(Prior):
 
             tau = basis.tp_to_tau(tp, self.tau_ref_epoch, period)
 
-            meananom = basis.tau_to_manom(
+            meananom = tau_to_manom(
                 self.epochs, sma, self.mtot, tau, self.tau_ref_epoch
             )
             eccanom = calc_ecc_anom(meananom, ecc)
