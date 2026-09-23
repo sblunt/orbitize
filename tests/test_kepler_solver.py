@@ -11,8 +11,8 @@ import orbitize.kepler as kepler
 from orbitize import cuda_ext
 from orbitize import cext
 
-solver_threshold = 2e-5
-ecc_threshold = 1e-5
+solver_threshold = 1e-7 # max precision on true data
+ecc_threshold = 2e-9 # a bit more than the tolerance
 
 def angle_diff(ang1, ang2):
     # Return the difference between two angles
@@ -267,19 +267,11 @@ def profile_solve(reps=10, n_params=100000, n_epochs=5):
     profile_name = "Profile.prof"
     d = dict()
 
-    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=10, tolerance=1e-9)", globals(), locals(), profile_name)
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=10, tolerance=1e-9, use_c=True)", globals(), locals(), profile_name)
     s = pstats.Stats(profile_name)
     d[f"K3\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
 
-    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, K3=False)", globals(), locals(), profile_name)
-    s = pstats.Stats(profile_name)
-    d[f"K2\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
-
-    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, K2=False)", globals(), locals(), profile_name)
-    s = pstats.Stats(profile_name)
-    d[f"K1\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
-
-    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, K2=False, use_c=False)", globals(), locals(), profile_name)
+    cProfile.runctx("profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=10, tolerance=1e-9, use_c=False)", globals(), locals(), profile_name)
     s = pstats.Stats(profile_name)
     d[f"Py\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
 
