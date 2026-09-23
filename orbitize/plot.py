@@ -61,14 +61,15 @@ class Plotter(object):
     CBAR_SPACING = 0.005
     CBAR_WIDTH = 0.02
     # colour/shape scheme scheme for data points
-    ASTR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
+    ASTR_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     ASTR_SYMBOLS = (".", "*", "p", "s")
     MODEL_COLORS = ("#372554", "#0496FF", "#FF1053", "#3A7CA5", "#143109")
     RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
     RV_ERR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     RV_SYMBOLS = ("o", "^", "v", "s")
+    BORDER_COLOR = "k"
     # Latex for rv error
-    RV_ERR_MATH = {"offset" : "std(\\gamma)", "observation": "\\epsilon", "jitter": "med(\\sigma)"}
+    RV_ERR_MATH = {"offset" : "\\mathrm{{std}}(\\gamma)", "observation": "\\epsilon", "jitter": "\\mathrm{{med}}(\\sigma)"}
     # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
     OBJECT_LABELS = {0: "*"}
 
@@ -814,6 +815,7 @@ class Plotter(object):
                         ra,
                         dec,
                         marker=next(astr_symbols),
+                        edgecolors=self.BORDER_COLOR,
                         c=astr_color,
                         zorder=10,
                         s=60,
@@ -822,13 +824,13 @@ class Plotter(object):
                 plt.sca(ax)
                 plt.legend(fontsize=15, loc=1)
             else:
-                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), c=astr_color, zorder=10, s=60)
+                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), edgecolors=self.BORDER_COLOR, c=astr_color, zorder=10, s=60)
         if n_std != 0:
             self._plot_correlated_errorbars(
                 ax, self.ra_datas[object_i], self.dec_datas[object_i],
                 xerr=self.ra_errs[object_i], yerr=self.dec_errs[object_i],
                 pearson=self.radec_corrs[object_i], n_std=n_std,
-                ecolor=err_color, zorder=11
+                ecolor=err_color, zorder=9
             )
 
         # modify the axes
@@ -1684,7 +1686,7 @@ class Plotter(object):
         alpha=0.05,
         show_colorbar=True,
         cmap=None,
-        tight_layout=False,
+        tight_layout=True,
     ):
         """
         Plots the proper motion of a host star as induced by a companion for
@@ -1792,8 +1794,9 @@ class Plotter(object):
             self.system.gaia.hip_pm[0],
             yerr=self.system.gaia.hip_pm_err[0],
             zorder=30,
-            mec="k",
+            mec=self.BORDER_COLOR,
             fmt="s",
+            ecolor=self.BORDER_COLOR,
             color="cornflowerblue",
         )
 
@@ -1810,8 +1813,9 @@ class Plotter(object):
             xerr=hgca_epoch_err,
             yerr=self.system.gaia.hg_pm_err[0],
             zorder=30,
-            mec="k",
+            mec=self.BORDER_COLOR,
             fmt="^",
+            ecolor=self.BORDER_COLOR,
             color="#6280D6",
         )
 
@@ -1820,8 +1824,9 @@ class Plotter(object):
             self.system.gaia.gaia_pm[0],
             yerr=self.system.gaia.gaia_pm_err[0],
             zorder=30,
-            mec="k",
+            mec=self.BORDER_COLOR,
             fmt="o",
+            ecolor=self.BORDER_COLOR,
             color="#5f61b4",
         )
 
@@ -1833,9 +1838,10 @@ class Plotter(object):
             self.system.gaia.hip_pm[1],
             yerr=self.system.gaia.hip_pm_err[1],
             zorder=30,
-            mec="k",
+            mec=self.BORDER_COLOR,
             fmt="s",
             color="cornflowerblue",
+            ecolor=self.BORDER_COLOR,
             label="Hip.",
         )
 
@@ -1845,9 +1851,10 @@ class Plotter(object):
             xerr=hgca_epoch_err,
             yerr=self.system.gaia.hg_pm_err[1],
             zorder=30,
-            mec="k",
+            mec=self.BORDER_COLOR,
             fmt="^",
             color="#6280D6",
+            ecolor=self.BORDER_COLOR,
             label="H-G",
         )
 
@@ -1856,9 +1863,10 @@ class Plotter(object):
             self.system.gaia.gaia_pm[1],
             yerr=self.system.gaia.gaia_pm_err[1],
             zorder=30,
-            mec="k",
+            mec=self.BORDER_COLOR,
             fmt="o",
             color="#5f61b4",
+            ecolor=self.BORDER_COLOR,
             label="Gaia",
         )
 
@@ -1900,7 +1908,7 @@ class Plotter(object):
         """
         return plot_corner(self.results, param_list, plot_priors, downsample, **corner_kwargs)
 
-def plot_corner(results, param_list=None, plot_priors=True, downsample=None, **corner_kwargs):
+def plot_corner(results, param_list=None, plot_priors=True, downsample=None, prior_color="orange", **corner_kwargs):
     """
     Make a corner plot of posterior on orbit fit from any sampler
 
@@ -2080,6 +2088,13 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, **c
             else:
                 y_plot = y
             ax.plot(x_plot, y_plot, color="orange")
+
+        corner_color = corner_kwargs.get("color", mpl.rcParams["ytick.color"])
+        legend_elements = [
+            mpl.lines.Line2D([0], [0], color=corner_color, lw=4, label='Posterior'),
+            mpl.lines.Line2D([0], [0], color=prior_color, lw=4, label='Prior'),
+            ]
+        figure.legend(handles=legend_elements, loc=1)
 
     return figure
 
