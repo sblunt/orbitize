@@ -2,6 +2,7 @@ import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
 from orbitize.read_input import read_file
+import matplotlib.pyplot as plt
 
 
 class System(object):
@@ -765,6 +766,55 @@ class System(object):
             )
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
 
+    def plot_astrometry(self):
+        """
+        Plot astrometry to ensure data is correct.
+        
+        Returns:
+            matplotlib.pyplot.figure object: figure of data plot.
+
+        Written: David Trevascus, 2024
+        """
+
+        if len(self.all_radec) + len(self.all_seppa) == 0: # no astrometry to plot
+            return None
+
+        self.convert_data_table_radec2seppa()
+        
+        # create figure
+        fig, ax = plt.subplots(2, self.num_secondary_bodies)
+        ax = ax.reshape((2, self.num_secondary_bodies))
+
+        # plot each object separately
+        for n in np.arange(self.num_secondary_bodies)+1:
+            
+            # plot seppa astrometry
+            ax[0, n-1].errorbar(
+                self.data_table['epoch'][self.seppa[n]],
+                self.data_table["quant1"][self.seppa[n]], 
+                yerr=self.data_table["quant1_err"][self.seppa[n]], 
+                linestyle='None',
+                marker='o',
+                capsize=3,
+            )
+            ax[1, n-1].errorbar(
+                self.data_table['epoch'][self.seppa[n]],
+                self.data_table["quant2"][self.seppa[n]], 
+                yerr=self.data_table["quant2_err"][self.seppa[n]], 
+                linestyle='None',
+                marker='o',
+                capsize=3,
+            )
+
+            # set axis labels
+            ax[1, n-1].set_xlabel('time [mjd]')
+            ax[0, 0].set_ylabel('sep [mas]')
+            ax[1, 0].set_ylabel('PA [deg]')
+
+        plt.suptitle('Check to make sure your astrometry looks correct:')
+        plt.tight_layout()
+
+        return fig
 
 def radec2seppa(ra, dec, mod180=False):
     """

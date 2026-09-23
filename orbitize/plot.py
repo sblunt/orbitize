@@ -1894,13 +1894,13 @@ class Plotter(object):
 
         return fig
 
-    def plot_corner(self, param_list=None, plot_priors=True, **corner_kwargs):
+    def plot_corner(self, param_list=None, plot_priors=True, downsample=None, **corner_kwargs):
         """
         Wrapper for `orbitize.plot.plot_corner`
         """
-        return plot_corner(self.results, param_list, plot_priors, **corner_kwargs)
+        return plot_corner(self.results, param_list, plot_priors, downsample, **corner_kwargs)
 
-def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
+def plot_corner(results, param_list=None, plot_priors=True, downsample=None, **corner_kwargs):
     """
     Make a corner plot of posterior on orbit fit from any sampler
 
@@ -1927,6 +1927,8 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
                 mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass)
                 mtot: total mass (only if fit_secondary_mass == False)
         plot priors (bool): overplot prior probabilites on the 1d histograms (default: True)
+        downsample (int):
+            amount of samples to randomly draw from the posterior using ``results.downsample``
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
@@ -1998,8 +2000,15 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
         else:
             fixed_indices.append(i)
 
+    if downsample is not None:
+        post, _ = results.downsample(downsample)
+        weights = None
+    else:
+        post = results.weighted_post
+        weights = results.weights
+
     samples = np.copy(
-        results.post[:, param_indices]
+        post[:, param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -2039,7 +2048,7 @@ def plot_corner(results, param_list=None, plot_priors=True, **corner_kwargs):
         hist_kwargs["density"] = True
         corner_kwargs["hist_kwargs"] = hist_kwargs
 
-    figure = corner.corner(samples, **corner_kwargs)
+    figure = corner.corner(samples, weights=weights, **corner_kwargs)
 
     if plot_priors:
         axes = figure.axes
