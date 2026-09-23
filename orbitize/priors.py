@@ -270,6 +270,7 @@ class GaussianPrior(Prior):
         self.mu = mu
         self.sigma = sigma
         self.no_negatives = no_negatives
+        self.lnnorm = -(np.log(sigma)+0.5*np.log(2*np.pi))
 
     def __repr__(self):
         return "Gaussian"
@@ -330,7 +331,7 @@ class GaussianPrior(Prior):
             corresponding to the probability of drawing each of the numbers
             in the input `element_array`.
         """
-        lnprob = -0.5 * ((element_array - self.mu) / self.sigma) ** 2
+        lnprob = -0.5 * ((element_array - self.mu) / self.sigma) ** 2 + self.lnnorm
 
         if self.no_negatives:
             bad_samples = np.where(element_array < 0)[0]
