@@ -12,7 +12,7 @@ from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy.linalg
 
-from orbitize import DATADIR
+from orbitize import DATADIR, read_input
 import orbitize.lnlike
 
 
@@ -455,3 +455,249 @@ class HGCALogProb(object):
         x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
 
         return x
+
+
+import numpy as np
+import astropy.time as time
+from astropy.io.ascii import read
+
+from orbitize import priors
+
+
+class DR4LogProb(object):
+    """
+    Class to compute the log probability of an orbit with respect to Gaia DR4
+    astrometric measurements (epoch astrometry).
+    We treat the four linear astrometric parameters (proper motion RA/Dec and position RA/Dec)
+    due to linear motion
+    as explicit MCMC parameters constrained
+    by Gaussian priors from the Gaia catalog.
+
+    The forward model for each scan at epoch t_i is::
+
+        eta_i = dr4_ra_off  * sin(psi_i)  +  dr4_dec_off * cos(psi_i)
+              + dr4_pmra * dt_i * sin(psi_i)  +  dr4_pmdec * dt_i * cos(psi_i)
+              + plx * parallax_factor_i
+              + raoff_orbit_i * sin(psi_i)  +  deoff_orbit_i * cos(psi_i)
+
+    where psi_i is the scan position angle, dt_i = (t_i - t_ref) in Julian
+    years, and the last line is the orbital perturbation of the primary star
+    passed in by the sampler.
+
+    Required parameters in the MCMC state vector (in addition to the usual
+    orbital elements, plx, masses):
+
+        dr4_ra_off   – positional offset in RA* at reference epoch [mas]
+        dr4_dec_off  – positional offset in Dec  at reference epoch [mas]
+        dr4_pmra     – proper motion in RA*  [mas/yr]
+        dr4_pmdec    – proper motion in Dec  [mas/yr]
+
+    These are registered automatically when the System is constructed with
+    gaia=dr4 (requires the corresponding hooks in system.py; see
+    extra_param_names and extra_param_priors below). Alternatively,
+    they can be injected manually after System creation.
+
+    Pass this object into the gaia keyword of orbitize.system.System.
+    You must 'set fit_secondary_mass=True' so that the star's barycentric
+    wobble is computed.
+
+    Args:
+        gaia_num (int): Gaia source ID
+        dr4_filepath (str or astropy.table.Table): Raw OHP CSV (JD timestamps),
+            or a table returned by ``from_ohp_file`` / ``from_dl2``
+            (MJD timestamps). Times are normalized once to MJD(TCB).
+            Required columns: 'obs_time_tcb', 'centroid_pos_al',
+            'centroid_pos_error_al', 'parallax_factor_al', 'scan_pos_angle',
+            'field_of_view'. MJD tables must carry ``meta['time_format']='mjd'``.
+        ref_epoch_jd (float, optional): Legacy JD(TCB) reference epoch;
+            converted to MJD on input. Prefer ``ref_epoch_mjd`` for new code.
+        ref_epoch_mjd (float, optional): Reference epoch in MJD(TCB) for the
+            linear astrometric model. Default 57936.375 (J2017.5).
+        catalog_pmra (float): Gaia catalog proper motion in RA* [mas/yr].
+        catalog_pmra_err (float): 1-sigma uncertainty on catalog_pmra.
+        catalog_pmdec (float): Gaia catalog proper motion in Dec [mas/yr].
+        catalog_pmdec_err (float): 1-sigma uncertainty on catalog_pmdec.
+        catalog_ra_off (float): positional offset in RA* at ref_epoch_mjd [mas].  Default 0.
+        catalog_ra_off_err (float): 1-sigma uncertainty [mas].  Default 1 (weakly informative; Gaia positions are sub-mas,
+         but the offset is defined relative to an arbitrary origin).
+        catalog_dec_off (float): positional offset in Dec at ref_epoch_mjd [mas].
+            Default 0.
+        catalog_dec_off_err (float): 1-sigma uncertainty [mas].  Default 1.
+        jitter (float): fixed along-scan jitter [mas] added in quadrature to
+            ``centroid_pos_error_al``. Default 0, preserving the original
+            likelihood.
+        jitter_prior (orbitize.priors.Prior, optional): prior for a fitted
+            along-scan jitter parameter [mas]. When supplied, ``dr4_jitter``
+            is registered as an additional System parameter. ``jitter`` must
+            remain zero when fitting the jitter.
+
+    Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
+    scale for joint fits. This class does not convert RV or relative-astrometry
+    timestamps whose time scale is unspecified.
+
+    Written: Clarissa Do O, 2026
+    """
+
+    # The four parameter names this class injects into the System.
+    extra_param_names = ("dr4_ra_off", "dr4_dec_off", "dr4_pmra", "dr4_pmdec")
+
+    def __init__(
+        self,
+        gaia_num,
+        dr4_filepath,
+        ref_epoch_jd=None,
+        catalog_pmra=0.0,
+        catalog_pmra_err=100.0,
+        catalog_pmdec=0.0,
+        catalog_pmdec_err=100.0,
+        catalog_ra_off=0.0,
+        catalog_ra_off_err=1.0,
+        catalog_dec_off=0.0,
+        catalog_dec_off_err=1.0,
+        jitter=0.0,
+        jitter_prior=None,
+        *,
+        ref_epoch_mjd=None,
+    ):
+        if ref_epoch_jd is not None:
+            if ref_epoch_mjd is not None:
+                raise ValueError("Set only one of ref_epoch_mjd and ref_epoch_jd.")
+            ref_epoch_mjd = ref_epoch_jd - 2400000.5
+        if ref_epoch_mjd is None:
+            ref_epoch_mjd = 57936.375  # J2017.5 in MJD(TCB)
+        if not np.isfinite(jitter) or jitter < 0:
+            raise ValueError("jitter must be a finite, non-negative value in mas")
+        if jitter_prior is not None and jitter != 0:
+            raise ValueError("set either a fixed jitter or jitter_prior, not both")
+        if jitter_prior is not None and not isinstance(jitter_prior, priors.Prior):
+            raise TypeError("jitter_prior must be an orbitize.priors.Prior")
+
+        self.gaia_num = gaia_num
+        self.dr4_filepath = dr4_filepath
+        self.ref_epoch_mjd = ref_epoch_mjd
+        self.time_scale = "tcb"
+        self.jitter = float(jitter)
+        self.fit_jitter = jitter_prior is not None
+
+        # Normalize raw OHP files or already-read Gaia tables once to MJD(TCB).
+        self.data_table = read_input.from_ohp_file(dr4_filepath)
+        dr4_dat = self.data_table
+        self.epochs_mjd = np.array(dr4_dat["obs_time_tcb"])
+        self.n_obs = len(self.epochs_mjd)
+
+        # along scan measurements and errors [mas]
+        self.centroid_pos_al = np.array(dr4_dat["centroid_pos_al"])
+        self.centroid_pos_error_al = np.array(dr4_dat["centroid_pos_error_al"])
+
+        # parallax factors (pre-projected onto scan direction)
+        self.parallax_factor_al = np.array(dr4_dat["parallax_factor_al"])
+
+        # scan position angles [rad] and their sin/cos
+        scan_angle = np.array(dr4_dat["scan_pos_angle"])
+        self.sin_scan = np.sin(scan_angle)
+        self.cos_scan = np.cos(scan_angle)
+
+        # FOV identifier, currently not used but read in.
+        self.fov = np.array(dr4_dat["field_of_view"])
+
+        # time offsets from reference epoch [Julian yr]
+        self.dt_yr = (self.epochs_mjd - self.ref_epoch_mjd) / 365.25
+
+        # pre-compute scan projection of PM basis vectors
+        self.pm_ra_basis = self.dt_yr * self.sin_scan  # pmra, projected
+        self.pm_dec_basis = self.dt_yr * self.cos_scan  # pmdec, projected
+
+        # Decimal years are retained for display/legacy callers, not orbit times.
+        self.hipparcos_epoch = np.array([])  # empty
+        self.gaia_epoch = time.Time(
+            self.epochs_mjd, format="mjd", scale=self.time_scale
+        ).decimalyear
+
+        # priors for the four linear astrometric parameters
+        self.extra_param_priors = (
+            priors.GaussianPrior(
+                catalog_ra_off, catalog_ra_off_err, no_negatives=False
+            ),
+            priors.GaussianPrior(
+                catalog_dec_off, catalog_dec_off_err, no_negatives=False
+            ),
+            priors.GaussianPrior(catalog_pmra, catalog_pmra_err, no_negatives=False),
+            priors.GaussianPrior(
+                catalog_pmdec, catalog_pmdec_err, no_negatives=False
+            ),
+        )
+        if self.fit_jitter:
+            self.extra_param_names = self.extra_param_names + ("dr4_jitter",)
+            self.extra_param_priors = self.extra_param_priors + (jitter_prior,)
+    def _save(self, hf):
+        """Save to an open HDF5 file."""
+        hf.attrs["gaia_num"] = self.gaia_num
+        hf.attrs["dr"] = "dr4"
+        hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
+        hf.attrs["dr4_time_format"] = "mjd"
+        hf.attrs["dr4_time_scale"] = self.time_scale
+        hf.attrs["dr4_jitter"] = self.jitter
+        hf.attrs["dr4_fit_jitter"] = self.fit_jitter
+
+        dr4_dat = self.data_table.copy()
+        dr4_dat.convert_unicode_to_bytestring()
+        hf.create_dataset("Gaia_DR4", data=dr4_dat.as_array())
+
+    def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
+        """
+        Compute the Gaussian lnlike of the DR4 along-scan data.
+        The four astrometric offsets (``dr4_ra_off``, ``dr4_dec_off``,
+        ``dr4_pmra``, ``dr4_pmdec``) are read from the MCMC state vector; their
+        Gaussian priors are evaluated separately by the sampler's standard
+        prior machinery. If ``jitter_prior`` was supplied at construction,
+        ``dr4_jitter`` is also read from the state vector and added in
+        quadrature to every along-scan uncertainty.
+
+        Args:
+            raoff_model (np.array): NxM primary RA offsets from the
+                barycenter due to orbital motion [mas].
+            deoff_model (np.array): NxM primary Dec offsets [mas].
+            samples (np.array): current parameter vector.
+            param_idx (dict): parameter-name to index mapping.
+
+        Returns:
+            float: log-likelihood summed over all scans.
+        """
+        # orbital parameters
+        plx = samples[param_idx["plx"]]
+
+        # four explicit astrometric parameters, they come from the catalog
+        ra_off = samples[param_idx["dr4_ra_off"]]  # [mas]
+        dec_off = samples[param_idx["dr4_dec_off"]]  # [mas]
+        pmra = samples[param_idx["dr4_pmra"]]  # [mas/yr]
+        pmdec = samples[param_idx["dr4_pmdec"]]  # [mas/yr]
+
+        # project orbital perturbation onto along-scan direction
+        orbit_al = -(
+            raoff_model[:, 0] * self.sin_scan
+            + deoff_model[:, 0] * self.cos_scan
+        )
+
+        # full along-scan model: position + PM + parallax + orbit
+        model_al = (
+            ra_off * self.sin_scan  # position offset, projected
+            + dec_off * self.cos_scan  # position offset, projected
+            + pmra * self.pm_ra_basis  # proper motion, projected
+            + pmdec * self.pm_dec_basis  # proper motion, projected
+            + plx * self.parallax_factor_al  # plx and its factor
+            + orbit_al  # residual due to planet or companion
+        )
+
+        # Gaussian lnlike. The normalization must be recomputed when jitter is
+        # fitted because the effective uncertainties then vary between samples.
+        residuals = self.centroid_pos_al - model_al
+        if self.fit_jitter:
+            jitter = samples[param_idx["dr4_jitter"]]
+        else:
+            jitter = self.jitter
+
+        variance = self.centroid_pos_error_al**2 + jitter**2
+        chi2 = np.sum(residuals**2 / variance)
+        log_norm = np.sum(np.log(2.0 * np.pi * variance))
+
+        return float(-0.5 * (chi2 + log_norm))
