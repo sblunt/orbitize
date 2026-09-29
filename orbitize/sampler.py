@@ -1,25 +1,25 @@
-import numpy as np
+import abc
+import multiprocessing as mp
+import time
+import warnings
+
 import astropy.units as u
 import astropy.constants as consts
-import abc
-import time
+import dynesty
+import emcee
+import matplotlib.pyplot as plt
+import nautilus
+import numpy as np
+import ptemcee
+
 from astropy.time import Time
 
-import dynesty
-
-import emcee
-import ptemcee
-import multiprocessing as mp
-
-from multiprocessing import Pool
-
+import orbitize.kepler
 import orbitize.lnlike
 import orbitize.priors
-import orbitize.kepler
-from orbitize import cuda_ext
-
 import orbitize.results
-import matplotlib.pyplot as plt
+
+import sys
 
 
 class Sampler(abc.ABC):
@@ -101,14 +101,14 @@ class Sampler(abc.ABC):
 
         if self.system.hipparcos_IAD is not None:
             # compute Ra/Dec predictions at the Hipparcos IAD epochs
-            raoff_model, deoff_model, _ = self.system.compute_all_orbits(
+            raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
                 params, epochs=self.system.hipparcos_IAD.epochs_mjd
             )
 
             (
                 raoff_model_hip_epoch,
                 deoff_model_hip_epoch,
-                _,
+                _, _
             ) = self.system.compute_all_orbits(
                 params, epochs=Time([1991.25], format="decimalyear").mjd
             )
@@ -367,7 +367,7 @@ class OFTI(
             meananno = self.epochs[min_epoch] / period_prescale - tau
 
             # compute sep/PA of generated orbits
-            ra, dec, _ = orbitize.kepler.calc_orbit(
+            ra, dec, _, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch],
                 sma,
                 ecc,
@@ -1007,7 +1007,7 @@ class MCMC(Sampler):
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
-        with Pool(processes=self.num_threads) as pool:
+        with mp.Pool(processes=self.num_threads) as pool:
             if self.use_pt:
                 sampler = ptemcee.Sampler(
                     self.num_walkers,
@@ -1015,10 +1015,10 @@ class MCMC(Sampler):
                     self._logl,
                     orbitize.priors.all_lnpriors,
                     ntemps=self.num_temps,
-                    threads=self.num_threads,
                     logpargs=[
                         self.priors,
                     ],
+                    pool=pool
                 )
             else:
                 sampler = emcee.EnsembleSampler(
@@ -1132,7 +1132,7 @@ class MCMC(Sampler):
                 self.results.save_results(output_filename)
 
             print("Run complete")
-        # Close pool
+
         if examine_chains:
             self.examine_chains()
 
@@ -1323,15 +1323,62 @@ class MCMC(Sampler):
         return
 
 
-class NestedSampler(Sampler):
+class BaseNestedSampler(Sampler):
+    def ptform(self, u):
+        """
+        Prior transform function.
+
+        Args:
+            u (np.array of floats): RxM array of uniform
+                samples with values 0 < u < 1,
+                where R is the number of parameters
+                and M is the number of orbits
+
+        Returns:
+            numpy RxM array of floats: u samples transformed to
+                a chosen Prior Class distribution.
+        """
+        utform = np.zeros(u.shape)
+        for i in range(u.shape[0]):
+            if hasattr(self.system.sys_priors[i], 'transform_samples'):
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            else:
+                # prior is a fixed number
+                utform[i] = self.system.sys_priors[i]
+        return utform
+
+
+class NestedSampler(BaseNestedSampler):
     """
-    Implements nested sampling using Dynesty package.
+    Implements nested sampling using the Dynesty package.
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
 
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
-    def __init__(self, system):
-        super(NestedSampler, self).__init__(system)
+    def __init__(self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super(NestedSampler, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
 
         # create an empty results object
         self.results = orbitize.results.Results(
@@ -1344,27 +1391,9 @@ class NestedSampler(Sampler):
         self.start = time.time()
         self.dynesty_sampler = None
 
-    def ptform(self, u):
-        """
-        Prior transform function.
-
-        Args:
-            u (array of floats): list of samples with values 0 < u < 1.
-
-        Returns:
-            numpy array of floats: 1D u samples transformed to a chosen Prior
-                Class distribution.
-        """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
-            try:
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            except AttributeError:  # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
-        return utform
-
     def run_sampler(
         self,
+        nlive=500,
         static=False,
         bound="multi",
         pfrac=1.0,
@@ -1375,6 +1404,11 @@ class NestedSampler(Sampler):
         """Runs the nested sampler from the Dynesty package.
 
         Args:
+            nlive (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 500). The value is only
+                used by the static sampler (i.e. with static=True).
             static (bool): True if using static nested sampling,
                 False if using dynamic.
             bound (str): Method used to approximately bound the prior
@@ -1402,10 +1436,9 @@ class NestedSampler(Sampler):
         """
 
         mp.set_start_method(start_method, force=True)
-        if static and pfrac != 1.0:
-            raise ValueError(
-                """The static nested sampler does not take alternate values for pfrac."""
-            )
+
+        if not static:
+            run_nested_kwargs['wt_kwargs'] = {"pfrac": pfrac}
 
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
@@ -1417,8 +1450,8 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
+                        nlive=nlive,
                     )
-                    self.dynesty_sampler.run_nested(**run_nested_kwargs)
                 else:
                     self.dynesty_sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
@@ -1427,10 +1460,10 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
+                        nlive=nlive
                     )
-                    self.dynesty_sampler.run_nested(
-                        wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
-                    )
+                self.dynesty_sampler.run_nested(**run_nested_kwargs)
+
         else:
             if static:
                 self.dynesty_sampler = dynesty.NestedSampler(
@@ -1438,23 +1471,356 @@ class NestedSampler(Sampler):
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
+                    nlive=nlive,
                 )
-                self.dynesty_sampler.run_nested(**run_nested_kwargs)
             else:
                 self.dynesty_sampler = dynesty.DynamicNestedSampler(
                     self._logl,
                     self.ptform,
                     len(self.system.sys_priors),
                     bound=bound,
+                    nlive=nlive,
                 )
-                self.dynesty_sampler.run_nested(
-                    wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
-                )
+            self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
         self.results.add_samples(
             self.dynesty_sampler.results["samples"],
             self.dynesty_sampler.results["logl"],
         )
-        num_iter = self.dynesty_sampler.results["niter"]
 
-        return self.dynesty_sampler.results["samples"], num_iter
+        self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
+        self.results.ln_evidence_err = self.dynesty_sampler.results["logzerr"][-1]
+
+        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["niter"]
+
+
+class MultiNest(Sampler):
+    """
+    Implements nested sampling using the (Py)MultiNest package. In order
+    to use this sampler, MultiNest should be `manually compiled
+    <https://johannesbuchner.github.io/PyMultiNest/install.html#building-the-libraries>`_.
+    The sampler supports multiprocessing with MPI, which requires the
+    installation of mpi4py (e.g. as "pip install mpi4py").
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
+
+    Tomas Stolker 2024
+    """
+
+    def __init__(self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super(MultiNest, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+
+    def run_sampler(
+        self,
+        n_live_points=500,
+        output_basename='./multinest',
+        hdf5_file=None,
+        multinest_kwargs=None,
+    ):
+        """Runs the nested sampler from the (Py)MultiNest package.
+
+        Args:
+            n_live_points (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 500).
+            output_basename (str): Basename for the MultiNest output.
+                Can be a folder and/or prefix for the filenames. Any
+                (sub)folder should first be manually created.
+            hdf5_file (str): HDF5 filename in which the results are stored.
+                Setting the argument will store the results by calling the
+                save_results method of the Results objects. This parameter
+                was implemented because calling save_results separately
+                after the sampling has finished, may cause an error when
+                using MPI because only one process should write the results.
+                The results are not stored if the argument is set to None.
+            multinest_kwargs (dict): dictionary of keywords that will be
+                passed to pymultinest.run().
+
+        Returns:
+            numpy.array of float: posterior samples
+        """
+
+        # Import here because it will otherwise give a warning
+        # if the compiled MultiNest library is not found
+        # when importing orbitize
+        import pymultinest
+
+        # Number of parameters to fit
+        n_parameters = len(self.system.labels)
+
+        # Create empty dictionary if needed
+
+        if multinest_kwargs is None:
+            multinest_kwargs = {}
+
+        # Add the resume parameter
+
+        if "resume" not in multinest_kwargs:
+            multinest_kwargs["resume"] = False
+
+        # Check multinest_kwargs keywords
+
+        if "n_live_points" in multinest_kwargs:
+            warnings.warn(
+                "Please specify the number of live points "
+                "as argument of 'n_live_points' instead "
+                "of using 'multinest_kwargs'."
+            )
+
+            del multinest_kwargs["n_live_points"]
+
+        if "outputfiles_basename" in multinest_kwargs:
+            warnings.warn(
+                "Please use the 'output_basename' "
+                "parameter instead of setting the "
+                "value of 'outputfiles_basename' "
+                "in 'multinest_kwargs'."
+            )
+
+            del multinest_kwargs["outputfiles_basename"]
+
+        def _logprior_multinest(param_cube, n_dim, n_param):
+            """
+            Parameters
+            ----------
+            param_cube : LP_c_double
+                Unit cube.
+            n_dim : int
+                Number of dimensions. This parameter is mandatory.
+            n_param : int
+                Number of parameters. This parameter is mandatory.
+
+            Returns
+            -------
+            LP_c_double
+                Parameter cube.
+            """
+
+            for i in range(n_param):
+                if hasattr(self.system.sys_priors[i], 'transform_samples'):
+                    param_cube[i] = self.system.sys_priors[i].transform_samples(param_cube[i])
+                else:
+                    # The prior is a fixed number
+                    param_cube[i] = self.system.sys_priors[i]
+
+            return param_cube
+
+        def _loglike_multinest(param_cube, n_dim, n_param):
+            """
+            Parameters
+            ----------
+            param_cube : LP_c_double
+                Parameter cube.
+            n_dim : int
+                Number of dimensions. This parameter is mandatory.
+            n_param : int
+                Number of parameters. This parameter is mandatory.
+
+            Returns
+            -------
+            float
+                Log-likelihood.
+            """
+
+            # Convert LP_c_double to np.float64
+            param_array = np.zeros(n_param)
+            for i in range(n_param):
+                param_array[i] = param_cube[i]
+
+            return self._logl(param_array)
+
+        pymultinest.run(
+            _loglike_multinest,
+            _logprior_multinest,
+            n_parameters,
+            outputfiles_basename=output_basename,
+            n_live_points=n_live_points,
+            **multinest_kwargs,
+        )
+
+        analyzer = pymultinest.analyse.Analyzer(
+            n_parameters,
+            outputfiles_basename=output_basename,
+            verbose=False,
+        )
+
+        sampling_stats = analyzer.get_stats()
+        post_samples = analyzer.get_equal_weighted_posterior()
+
+        # The log-likelihood is stored in the last column
+        self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
+        self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
+        self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+
+        # Get the MPI rank of the process
+        try:
+            from mpi4py import MPI
+            mpi_rank = MPI.COMM_WORLD.Get_rank()
+        except ModuleNotFoundError:
+            mpi_rank = 0
+
+        if hdf5_file is not None and mpi_rank == 0:
+            # Only a single process should write to the HDF5 file
+            self.results.save_results(filename=hdf5_file)
+
+        return post_samples[:, :-1]
+
+class NautilusSampler(BaseNestedSampler):
+    """
+    Implements nested sampling using the Nautilus-Sampler package.
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
+
+    Eshel Dror, Quinton Blackston, Aniruddh Chalagulla, & Niklas Naworal 2026
+    """
+    def __init__(self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super(NautilusSampler, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+        self.start = time.time()
+    
+    def nautilus_ptform(self, u):
+        return self.ptform(u.T).T
+    
+    def nautilus_logl(self, u: np.ndarray):
+        return self._logl(u.T).T
+    
+    def run_sampler(
+        self,
+        n_live = 2000,
+        n_update = None,
+        verbose = False,
+        num_threads = 1,
+        savefile = None,
+        sampler_kwargs = {},
+        run_kwargs = {}
+    ):
+        """Runs the nested sampler from the Nautilus package.
+
+        Args:
+            n_live (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 2000).
+            n_update (int): Number of points added to the live set before
+                creating a new shell. When None defaults to `n_live` (default: None).
+            verbose (bool): Print progress when running sampler (default: False).
+            num_threads (int, tuple, pool): number of threads to use for parallelization.
+                If a tuple of two integers, the number of threads for
+                likelihood evaluations and sampler calculations respectively. If a thread
+                pool, the pool used for parallelization (default=1).
+            savefile (str): File used by Nautilus to save progress.
+                If file already exists, resumes from saved progress.
+            sampler_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler,
+                such as `periodic`
+            run_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler.run,
+                such as `n_eff`
+
+
+        Returns:
+            numpy.array of float: equal-weighted posterior samples
+        """
+        if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
+            with mp.Pool(processes=num_threads) as pool:
+                self.naut_sampler = nautilus.Sampler(
+                    prior=self.nautilus_ptform,
+                    likelihood=self.nautilus_logl,
+                    n_dim=len(self.system.sys_priors),
+                    vectorized=True,
+                    n_live=n_live,
+                    n_update=n_update,
+                    pool=pool,
+                    filepath=savefile,
+                    **sampler_kwargs
+                    )
+
+                success = self.naut_sampler.run(
+                    verbose=verbose,
+                    **run_kwargs
+                )
+        else:
+            self.naut_sampler = nautilus.Sampler(
+                prior=self.nautilus_ptform,
+                likelihood=self.nautilus_logl,
+                n_dim=len(self.system.sys_priors),
+                vectorized=True,
+                n_live=n_live,
+                n_update=n_update,
+                pool=num_threads,
+                filepath=savefile,
+                **sampler_kwargs
+                )
+
+            success = self.naut_sampler.run(
+                verbose=verbose,
+                **run_kwargs
+            )
+        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+        weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
+
+        self.results.add_samples(
+            points,
+            log_l,
+            weighted_post=weighted_points,
+            weighted_lnlike=weighted_log_l,
+            lnweight=log_w
+        )
+
+        return points

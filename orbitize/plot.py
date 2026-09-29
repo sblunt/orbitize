@@ -28,8 +28,7 @@ cmap = colors.LinearSegmentedColormap.from_list(
     cmap(np.linspace(0.0, 0.7, 1000)),
 )
 
-
-def plot_corner(results, param_list=None, **corner_kwargs):
+def plot_corner(results, param_list=None, downsample=None, **corner_kwargs):
     """
     Make a corner plot of posterior on orbit fit from any sampler
 
@@ -55,6 +54,9 @@ def plot_corner(results, param_list=None, **corner_kwargs):
                 sigma: rv jitter
                 mi: mass of individual body i, for i = 0, 1, 2, ... (only if fit_secondary_mass == True)
                 mtot: total mass (only if fit_secondary_mass == False)
+        
+        downsample (int):
+            amount of samples to randomly draw from the posterior using ``results.downsample``
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
@@ -107,24 +109,33 @@ def plot_corner(results, param_list=None, **corner_kwargs):
     param_indices = []
     angle_indices = []
     secondary_mass_indices = []
-    for i, param in enumerate(param_list):
-        index_num = results.param_idx[param]
+    fixed_indices = []
+    for i, label_key in enumerate(param_list):
+        index_num = results.param_idx[label_key]
 
         # only plot non-fixed parameters
-        if np.std(results.post[:, index_num]) > 0:
+        if not np.isclose(0.0, np.std(results.post[:, index_num])):
             param_indices.append(index_num)
-            label_key = param
             if (
                 label_key.startswith("aop")
                 or label_key.startswith("pan")
                 or label_key.startswith("inc")
             ):
-                angle_indices.append(i)
+                angle_indices.append(i-len(fixed_indices))
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
-                secondary_mass_indices.append(i)
+                secondary_mass_indices.append(i-len(fixed_indices))
+        else:
+            fixed_indices.append(i)
+
+    if downsample is not None:
+        post, _ = results.downsample(downsample)
+        weights = None
+    else:
+        post = results.weighted_post
+        weights = results.weights
 
     samples = np.copy(
-        results.post[:, param_indices]
+        post[:, param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -137,7 +148,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in np.arange(len(param_indices)):
+        for i in range(len(param_indices)):
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
@@ -159,7 +170,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
 
         corner_kwargs["labels"] = reduced_labels_list
 
-    figure = corner.corner(samples, **corner_kwargs)
+    figure = corner.corner(samples, weights=weights, **corner_kwargs)
     return figure
 
 
@@ -374,7 +385,7 @@ def plot_orbits(
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, _ = kepler.calc_orbit(
+            raoff0, deoff0, _, _ = kepler.calc_orbit(
                 epochs[i, :],
                 sma[i],
                 ecc[i],
@@ -501,7 +512,7 @@ def plot_orbits(
             astr_inst_inds = {}
             for i in range(len(astr_insts)):
                 astr_inst_inds[astr_insts[i]] = np.where(
-                    astr_data["instrument"] == astr_insts[i].encode()
+                    (astr_data["instrument"] == astr_insts[i].encode()) | (astr_data["instrument"] ==  astr_insts[i])
                 )[0]
 
         # Plot each orbit (each segment between two points coloured using colormap)
@@ -611,7 +622,7 @@ def plot_orbits(
 
             # Calculate ra/dec offsets for all epochs of this orbit
             if (rv_time_series == True) or (rv_time_series2 == True):
-                raoff0, deoff0, vz = kepler.calc_orbit(
+                raoff0, deoff0, vz, _ = kepler.calc_orbit(
                     epochs_seppa[i, :],
                     sma[i],
                     ecc[i],
@@ -628,7 +639,7 @@ def plot_orbits(
                 raoff[i, :] = raoff0
                 deoff[i, :] = deoff0
             else:
-                raoff0, deoff0, _ = kepler.calc_orbit(
+                raoff0, deoff0, _, _ = kepler.calc_orbit(
                     epochs_seppa[i, :],
                     sma[i],
                     ecc[i],
@@ -670,7 +681,7 @@ def plot_orbits(
                 )
 
                 plt.plot(
-                    Time(epochs_rv, format="mjd").decimalyear,
+                    Time(epochs_seppa[i, :], format="mjd").decimalyear,
                     vz0 + gamma3[i],
                     color=sep_pa_color,
                 )
@@ -690,7 +701,7 @@ def plot_orbits(
                     )
 
                     plt.plot(
-                        Time(epochs_rv, format="mjd").decimalyear,
+                        Time(epochs_seppa[i, :], format="mjd").decimalyear,
                         vz,
                         color=sep_pa_color,
                     )
@@ -705,7 +716,7 @@ def plot_orbits(
                     )
 
                     plt.plot(
-                        Time(epochs_rv2, format="mjd").decimalyear,
+                        Time(epochs_seppa[i, :], format="mjd").decimalyear,
                         vz,
                         color=sep_pa_color,
                     )
@@ -829,7 +840,9 @@ def plot_orbits(
             # indices corresponding to each instrument in the datafile
             inds = {}
             for i in range(len(insts)):
-                inds[insts[i]] = np.where(rv_data["instrument"] == insts[i].encode())[0]
+                inds[insts[i]] = np.where( # include encode for backwards compatibility
+                    (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
+                )[0]
 
             # choose the orbit with the best log probability
             best_like = np.where(results.lnlike == np.amax(results.lnlike))[0][0]
@@ -926,7 +939,7 @@ def plot_orbits(
                 inds = {}
                 for i in range(len(insts)):
                     inds[insts[i]] = np.where(
-                        rv_data["instrument"] == insts[i].encode()
+                        (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
                     )[0]
 
                 # choose the orbit with the best log probability
@@ -961,7 +974,7 @@ def plot_orbits(
             inds2 = {}
             for i in range(len(insts2)):
                 inds2[insts2[i]] = np.where(
-                    rv_data2["instrument"] == insts2[i].encode()
+                    (rv_data2["instrument"] == insts2[i].encode()) | (rv_data2["instrument"] == insts2[i])
                 )[0]
 
             if rv_time_series == True:
@@ -1175,7 +1188,7 @@ def plot_residuals(
         )
 
         # Calculate ra/dec offsets for all epochs of this orbit
-        raoff0, deoff0, _ = kepler.calc_orbit(
+        raoff0, deoff0, _, _ = kepler.calc_orbit(
             epochs[i, :],
             sma[i],
             ecc[i],
@@ -1283,7 +1296,7 @@ def plot_residuals(
             num_epochs_to_plot,
         )
 
-        raoff0, deoff0, _ = kepler.calc_orbit(
+        raoff0, deoff0, _, _ = kepler.calc_orbit(
             astr_epochs,
             sma[i],
             ecc[i],
@@ -1296,7 +1309,7 @@ def plot_residuals(
             tau_ref_epoch=my_results.tau_ref_epoch,
         )
 
-        raoff2, deoff2, _ = kepler.calc_orbit(
+        raoff2, deoff2, _, _ = kepler.calc_orbit(
             epochs_seppa[0],
             sma[i],
             ecc[i],
@@ -1592,7 +1605,7 @@ def plot_propermotion(
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
-            raoff0, deoff0, _ = kepler.calc_orbit(
+            raoff0, deoff0, _, _ = kepler.calc_orbit(
                 epochs[i, :],
                 sma[i],
                 ecc[i],

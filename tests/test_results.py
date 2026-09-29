@@ -75,7 +75,7 @@ def simulate_orbit_sampling(n_sim_orbits):
     return sim_post
 
 
-def test_init_and_add_samples(radec_input=False):
+def test_init_and_add_samples(radec_input=False, weighted=False):
     """
     Tests object creation and add_samples() with some simulated posterior
     samples, and returns results.Results object
@@ -96,8 +96,18 @@ def test_init_and_add_samples(radec_input=False):
     n_orbit_draws1 = 1000
     sim_post = simulate_orbit_sampling(n_orbit_draws1)
     sim_lnlike = np.random.uniform(size=n_orbit_draws1)
-    # Test adding samples
-    results_obj.add_samples(sim_post, sim_lnlike)  # , labels=std_labels)
+    if weighted:
+        n_weighted_orbit_draws1 = 4000
+        sim_weighted_post = simulate_orbit_sampling(n_weighted_orbit_draws1)
+        sim_weighted_lnlike = np.random.uniform(size=n_weighted_orbit_draws1)
+        sim_weight = np.random.uniform(size=n_weighted_orbit_draws1)
+        sim_lnweight = np.log(sim_weight / np.sum(sim_weight)) # Normalize
+        # Test adding samples
+        results_obj.add_samples(sim_post, sim_lnlike, weighted_post=sim_weighted_post,
+                                weighted_lnlike=sim_weighted_lnlike, lnweight=sim_lnweight)
+    else:
+        # Test adding samples
+        results_obj.add_samples(sim_post, sim_lnlike)  # , labels=std_labels)
     # Simulate some more sample draws
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
@@ -108,6 +118,12 @@ def test_init_and_add_samples(radec_input=False):
     expected_length = n_orbit_draws1 + n_orbit_draws2
     assert results_obj.post.shape == (expected_length, 8)
     assert results_obj.lnlike.shape == (expected_length,)
+    if weighted:
+        expected_length_weighted = n_weighted_orbit_draws1
+        assert results_obj.weighted_post.shape == (expected_length_weighted, 8)
+        assert results_obj.weighted_lnlike.shape == (expected_length_weighted,)
+        assert results_obj.weights.shape == (expected_length_weighted,)
+        
     assert results_obj.tau_ref_epoch == 58849
     assert results_obj.labels == std_labels
 
@@ -132,8 +148,15 @@ def results_to_test():
     n_orbit_draws2 = 2000
     sim_post = simulate_orbit_sampling(n_orbit_draws2)
     sim_lnlike = np.random.uniform(size=n_orbit_draws2)
-    # Test adding more samples
-    results_obj.add_samples(sim_post, sim_lnlike)
+    # Simulate some weighted draws
+    n_weighted_orbit_draws = 4000
+    sim_weighted_post = simulate_orbit_sampling(n_weighted_orbit_draws)
+    sim_weighted_lnlike = np.random.uniform(size=n_weighted_orbit_draws)
+    sim_weight = np.random.uniform(size=n_weighted_orbit_draws)
+    sim_lnweight = np.log(sim_weight / np.sum(sim_weight)) # Normalize
+    # Test adding weighted and more samples
+    results_obj.add_samples(sim_post, sim_lnlike, weighted_post=sim_weighted_post,
+                            weighted_lnlike=sim_weighted_lnlike, lnweight=sim_lnweight)
     # Return object for testing
     return results_obj
 
@@ -173,8 +196,11 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     assert results_to_save.sampler_name == loaded_results.sampler_name
     assert results_to_save.version_number == loaded_results.version_number
     assert np.array_equal(results_to_save.post, loaded_results.post)
+    assert np.array_equal(results_to_save.weighted_post, loaded_results.weighted_post)
+    assert np.array_equal(results_to_save.lnweight, loaded_results.lnweight)
     if has_lnlike:
         assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
+        assert np.array_equal(results_to_save.weighted_lnlike, loaded_results.weighted_lnlike)
     # Try to load the saved results again, this time appending
     loaded_results.load_results(save_filename, append=True)
     # Now check that the loaded results object has the expected size
@@ -200,7 +226,8 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
 def test_plot_corner(results_to_test):
     """
     Tests plot_corner() with plotting simulated posterior samples
-    for all 8 parameters and for just four selected parameters
+    for all 8 parameters, for just four selected parameters,
+    with fixed parameters, and downsampled
     """
 
     Figure1 = results_to_test.plot_corner()
@@ -213,10 +240,15 @@ def test_plot_corner(results_to_test):
     # test that fixing parameters doesn't crash corner plot code
     results_to_test.post[:, -1] = np.ones(len(results_to_test.post[:, -1]))
     Figure3 = results_to_test.plot_corner()
+    assert Figure3 is not None
 
     results_to_test.post[:, -1] = mass_vals
 
-    return Figure1, Figure2, Figure3
+    Figure4 = results_to_test.plot_corner(downsample=1000)
+    assert Figure4 is not None
+
+
+    return Figure1, Figure2, Figure3, Figure4
 
 
 def test_plot_orbits(results_to_test):
@@ -244,6 +276,25 @@ def test_plot_orbits(results_to_test):
     )
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
+
+def test_downsample(results_to_test):
+    """
+    Test downsample() with simulated posterior samples
+    """
+    size = results_to_test.weighted_post.shape[0]
+    post, lnlikes = results_to_test.downsample(size*2, duplicates=True)
+    assert post.shape[0] == size*2
+    assert lnlikes.shape[0] == size*2
+    post, lnlikes = results_to_test.downsample(size, duplicates=False)
+    assert post.shape[0] == size
+    assert lnlikes.shape[0] == size
+    try:
+        post, lnlikes = results_to_test.downsample(size+1, duplicates=False)
+    except ValueError:
+        pass # Expected error when taking too many samples without replacement
+    else:
+        assert False, "Expected ValueError for drawing more samples than possible without duplicates did not occur"
+
 
 
 def test_save_and_load_hipparcos_only():
@@ -339,17 +390,20 @@ if __name__ == "__main__":
     test_save_and_load_hipparcos_only()
     test_save_and_load_gaia_and_hipparcos()
 
+    # Not weighted
     test_results = test_init_and_add_samples()
 
     test_results_printing(test_results)
     test_plot_long_periods(test_results)
+    test_downsample(test_results)
+    # TODO: Update failing test with radec_input=True
     test_results_radec = test_init_and_add_samples(radec_input=True)
 
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
     test_save_and_load_results(test_results, has_lnlike=False)
-    test_corner_fig1, test_corner_fig2, test_corner_fig3 = test_plot_corner(
+    test_corner_fig1, test_corner_fig2, test_corner_fig3, test_corner_fig4 = test_plot_corner(
         test_results
     )
     test_orbit_figs = test_plot_orbits(test_results)
@@ -357,11 +411,29 @@ if __name__ == "__main__":
     test_corner_fig1.savefig("test_corner1.png")
     test_corner_fig2.savefig("test_corner2.png")
     test_corner_fig3.savefig("test_corner3.png")
+    test_corner_fig4.savefig("test_corner4.png")
     test_orbit_figs[0].savefig("test_orbit1.png")
     test_orbit_figs[1].savefig("test_orbit2.png")
     test_orbit_figs[2].savefig("test_orbit3.png")
     test_orbit_figs[3].savefig("test_orbit4.png")
     test_orbit_figs[4].savefig("test_orbit5.png")
 
+    # Weighted
+    test_results_weighted = test_init_and_add_samples(weighted=True)
+
+    test_results_printing(test_results_weighted)
+    test_downsample(test_results_weighted)
+
+    test_save_and_load_results(test_results_weighted, has_lnlike=True)
+    test_save_and_load_results(test_results_weighted, has_lnlike=True)
+    test_save_and_load_results(test_results_weighted, has_lnlike=False)
+    test_save_and_load_results(test_results_weighted, has_lnlike=False)
+    test_corner_fig5, test_corner_fig6, test_corner_fig7, test_corner_fig8 = test_plot_corner(
+        test_results_weighted
+    )
+    test_corner_fig5.savefig("test_corner5.png")
+    test_corner_fig6.savefig("test_corner6.png")
+    test_corner_fig7.savefig("test_corner7.png")
+    test_corner_fig8.savefig("test_corner8.png")
     # clean up
     os.system("rm test_*.png")

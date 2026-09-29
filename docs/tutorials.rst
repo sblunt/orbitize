@@ -45,6 +45,8 @@ us if you are still confused).
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
    tutorials/Modifying_MCMC_initial_positions.ipynb
+   tutorials/dynesty_tutorial.ipynb
+   tutorials/Nautilus_tutorial.ipynb
 
 .. toctree::
    :maxdepth: 1
@@ -57,6 +59,7 @@ us if you are still confused).
    tutorials/Hipparcos_IAD.ipynb
    tutorials/HGCA_tutorial.ipynb
    tutorials/abs_astrometry.ipynb
+   tutorials/ONeil-ObsPriors.ipynb
 
 
 

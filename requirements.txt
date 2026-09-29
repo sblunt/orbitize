@@ -14,3 +14,6 @@ pyerfa
 astroquery
 rebound
 dynesty
+pymultinest
+tk
+nautilus-sampler
