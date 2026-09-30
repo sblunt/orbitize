@@ -17,7 +17,6 @@ import matplotlib.transforms as transforms
 from erfa import ErfaWarning
 
 import orbitize
-import orbitize.kepler as kepler
 
 
 cmap = mpl.cm.Purples_r
