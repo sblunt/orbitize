@@ -64,10 +64,11 @@ class Plotter(object):
     ASTR_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
     ASTR_SYMBOLS = (".", "*", "p", "s")
     MODEL_COLORS = ("#372554", "#0496FF", "#FF1053", "#3A7CA5", "#143109")
-    RV_COLORS = ("#0496FF", "#372554", "#FF1053", "#3A7CA5", "#143109")
-    RV_ERR_COLORS = ("#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
-    RV_SYMBOLS = ("o", "^", "v", "s")
+    RV_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
+    RV_ERR_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
+    RV_SYMBOLS = (".", "*", "p", "s")
     BORDER_COLOR = "k"
+    RADEC_ERR_COLORS = ("k")
     # Latex for rv error
     RV_ERR_MATH = {"offset" : "\\mathrm{{std}}(\\gamma)", "observation": "\\epsilon", "jitter": "\\mathrm{{med}}(\\sigma)"}
     # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
@@ -830,7 +831,7 @@ class Plotter(object):
                 ax, self.ra_datas[object_i], self.dec_datas[object_i],
                 xerr=self.ra_errs[object_i], yerr=self.dec_errs[object_i],
                 pearson=self.radec_corrs[object_i], n_std=n_std,
-                ecolor=err_color, zorder=9
+                ecolor=err_color, zorder=5
             )
 
         # modify the axes
@@ -1148,7 +1149,7 @@ class Plotter(object):
                     capsize=2,
                 )
     
-    def _plot_rv_instruments(self, ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars):
+    def _plot_rv_data(self, ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars):
         """
         Plot primary/secondary rv vs epoch of instrument data. The median rv offset (gamma) is subtracted from each instrument.
 
@@ -1166,8 +1167,8 @@ class Plotter(object):
                 and jitter (sigma) errors.
             plot_errorbars (bool): plot errorbars on data
         """
-        ax3_colors = itertools.cycle(self.RV_COLORS)
-        ax3_symbols = itertools.cycle(self.RV_SYMBOLS)
+        colors = itertools.cycle(self.RV_COLORS)
+        symbols = itertools.cycle(self.RV_SYMBOLS)
         if rv_time_series and len(self.rv_data) > 0:
             # switch current axis to rv panel
             plt.sca(ax3)
@@ -1192,8 +1193,8 @@ class Plotter(object):
                     epochs,
                     rvs-med_ga[i],
                     s=30,
-                    marker=next(ax3_symbols),
-                    c=next(ax3_colors),
+                    marker=next(symbols),
+                    c=next(colors),
                     label=name2,
                     zorder=5,
                 )
@@ -1219,9 +1220,10 @@ class Plotter(object):
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=primary_rv_err_label if i==0 else None
+                            label=primary_rv_err_label if i==0 else None,
+                            alpha=1-0.1*(bar_width-1)
                         )
-                        bar_width += 1
+                        bar_width += 3
 
             if (rv_err_grouping == [("observation", "offset", "jitter")] or (not plot_errorbars)) and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
@@ -1255,8 +1257,8 @@ class Plotter(object):
                     epochs2,
                     rvs2-med_ga2[i],
                     s=30,
-                    marker=next(ax3_symbols),
-                    c=next(ax3_colors),
+                    marker=next(symbols),
+                    c=next(colors),
                     label=name2,
                     zorder=5,
                 )
@@ -1282,9 +1284,10 @@ class Plotter(object):
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=secondary_rv_err_label if i==0 else None
+                            label=secondary_rv_err_label if i==0 else None,
+                            alpha=1-0.1*(bar_width-1)
                         )
-                        bar_width += 1
+                        bar_width += 3
 
             if rv_err_grouping == [("observation", "offset", "jitter")] and len(self.rv_inst_inds2.keys()) == 1 and "defrv" in self.rv_inst_inds2.keys():
                 pass
@@ -1462,23 +1465,22 @@ class Plotter(object):
                 ax3.set_xlabel("Epoch", fontsize=fontsize)
             if rv_time_series2:
                 ax4 = plt.subplot2grid(shape, (height - 1, 0), rowspan=1, colspan=16)
-                ax4.set_ylabel("Companion Relative RV (km/s)", fontsize=fontsize)
+                ax4.set_ylabel("Companion Rel. RV (km/s)", fontsize=fontsize)
                 ax4.set_xlabel("Epoch", fontsize=fontsize)
                 if not rv_time_series:
                     ax3 = ax4
                     ax4 = None
 
             astr_colors = itertools.cycle(self.ASTR_COLORS)
+            err_colors = itertools.cycle(self.RADEC_ERR_COLORS)
             astr_symbols = itertools.cycle(self.ASTR_SYMBOLS)
             model_colors = itertools.cycle(self.MODEL_COLORS)
             cmaps_iter = itertools.cycle(cmaps)
             for object_i, object_index in enumerate(self.objects_to_plot):
                 astr_color = next(astr_colors)
-                if plot_errorbars:
-                    err_color = next(astr_colors)
-                else:
-                    err_color = None
-                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, next(cmaps_iter), plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, next(model_colors), err_color)
+                err_color = next(err_colors)
+                model_color = next(model_colors)
+                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, next(cmaps_iter), plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color)
                 self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
                 self._plot_sep_pa_data(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
 
@@ -1489,7 +1491,7 @@ class Plotter(object):
 
             if rv_time_series or rv_time_series2:
                 self._plot_rv_model(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
-                self._plot_rv_instruments(ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars)
+                self._plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars)
 
             # add colorbar
             if show_colorbar:
