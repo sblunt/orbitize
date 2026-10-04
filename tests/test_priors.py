@@ -40,8 +40,8 @@ expected_probs = {
         [
             0.0,
             0.0,
-            nm(1000.0, 1.0).pdf(1000.0) * np.sqrt(2 * np.pi),
-            nm(1000.0, 1.0).pdf(999.0) * np.sqrt(2 * np.pi),
+            nm(1000.0, 1.0).pdf(1000.0),
+            nm(1000.0, 1.0).pdf(999.0),
         ]
     ),
     priors.LogUniformPrior: np.array([0.0, 0.0, 1.0, 2.0 / 3.0, 0.5, 0.0]) / np.log(2),
