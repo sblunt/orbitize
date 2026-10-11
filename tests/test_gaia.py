@@ -253,9 +253,10 @@ def test_hgca():
     iad_filepath = os.path.join(DATADIR, "HIP027321.d")
     gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
     astrometry_filepath = os.path.join(DATADIR, "betaPic.csv")
+    hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3_betapic.fits")
 
     hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1, hip_data=hip_data)
-    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
+    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath, hgca_filepath)
 
     # test a few things were read in correctly
     assert np.all(np.isfinite(hgca_lnprob.hip_pm))
