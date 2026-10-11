@@ -156,7 +156,7 @@ class GaiaLogProb(object):
         chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2
 
-        return lnlike
+        return np.squeeze(lnlike) # TODO: figure out what is adding a dimensions
 
 
 class HGCALogProb(object):
