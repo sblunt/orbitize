@@ -61,6 +61,7 @@ Changelog:
 - implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
 - add an astrometry plotting utility function that folks can use to check if data were input correctly (@DTCupcakes)
 - Kepler solver optimization (@eshelDror)
+- Major refresh and refactor of the plotting module (@eshelDror)
 
 **3.4.0 (2026-7-20)**
 
