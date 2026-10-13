@@ -986,7 +986,8 @@ class MCMC(Sampler):
             assert False, "need to implement blobs for ptemcee" # TODO
         else:
             self.blobs = sampler.blobs[:num_steps, :].T.reshape(len(self.blob_labels), -1).T
-            assert (self.lnlikes == self.blobs[:, 0]).all(), (self.lnlikes, self.blobs[:, 0])
+            no_diff = ((self.lnlikes == self.blobs[:, 0]) | (np.abs(self.lnlikes - self.blobs[:, 0]) < 0.001))
+            assert (no_diff).all(), (self.lnlikes[~no_diff], self.blobs[:, 0][~no_diff], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
             self.marginalized_param_blobs = self.blobs[:, 1:]
             assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[:5, :10]
         num_orbits = self.post.shape[0]

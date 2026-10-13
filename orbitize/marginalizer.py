@@ -87,6 +87,13 @@ class OFTeI_sma_pan(Marginalizer):
         self.sigma_pas = sigma_pas
         self.covar_seps_pas = covar_seps_pas
         self.n_obs = len(epochs)
+        # compute variance-covariance matrix W of observational uncertainties
+        self.W = (
+            np.diag(np.hstack((self.sigma_seps**2, self.sigma_pas**2)))
+            + np.diag(self.covar_seps_pas, k=self.n_obs)
+            + np.diag(self.covar_seps_pas, k=-self.n_obs)
+        )
+        self.W_inv = np.linalg.inv(self.W)
 
     @staticmethod
     def calc_f_and_g(manoms, ecc, inc, aop, plx):
@@ -108,7 +115,7 @@ class OFTeI_sma_pan(Marginalizer):
         n_dates = np.size(manoms)
 
         # compute eccentric anomalies (size: n_dates)
-        eanom = kepler.calc_ecc_anom(manoms, ecc)
+        eanom = kepler.calc_ecc_anom(manoms, ecc, use_c=False)
 
         tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
 
@@ -144,7 +151,7 @@ class OFTeI_sma_pan(Marginalizer):
         return f, g
 
     @staticmethod
-    def calc_cov_matrix_det(seps, pas, fs, gs, W):
+    def calc_cov_matrix_det(seps, pas, fs, gs, W, W_inv=None):
         """
         Calculate the MAP values of sma and pan and the determinant of the
         covariance matrix describing their conditional posterior uncertainties
@@ -169,15 +176,16 @@ class OFTeI_sma_pan(Marginalizer):
 
         Y = np.hstack((seps, basis.angle_diff(pas, gs)))
 
-        def solve_linear_eq(Y, A, C):
-            C_inv = np.linalg.inv(C)
+        def solve_linear_eq(Y, A, C, C_inv=None):
+            if C_inv is None:
+                C_inv = np.linalg.inv(C)
             cov_matrix = np.linalg.inv(
                 A.T @ C_inv @ A
             )  # variance on diag, covar on off-diag
             best_fit = cov_matrix @ (A.T @ C_inv @ Y)
             return best_fit, cov_matrix
 
-        map_fit, cov_matrix = solve_linear_eq(Y, D, W)
+        map_fit, cov_matrix = solve_linear_eq(Y, D, W, W_inv)
         sma_map = map_fit[0]
         pan_map = map_fit[1]
 
@@ -193,7 +201,7 @@ class OFTeI_sma_pan(Marginalizer):
         return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample
 
     @staticmethod
-    def lnlike(y, X, beta_hat, W, add_error_norm=False):
+    def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
         """
         Compute log likelihood, excluding volume in marginalization integral (first two terms in \ref{eq:marg_like} in
         PASP review):
@@ -210,8 +218,9 @@ class OFTeI_sma_pan(Marginalizer):
         Returns:
             float: loglikelihood
         """
-
-        chi2_map = (y - X @ beta_hat).T @ np.linalg.inv(W) @ (y - X @ beta_hat)
+        if W_inv is None:
+            W_inv = np.linalg.inv(W)
+        chi2_map = (y - X @ beta_hat).T @ W_inv @ (y - X @ beta_hat)
 
         # NOTE: this term can be ignored unless we're fitting for jitter
         if add_error_norm:
@@ -227,6 +236,7 @@ class OFTeI_sma_pan(Marginalizer):
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
         ecc, inc, aop, tau, plx, period_yr = param_arr
+        assert period_yr > 0
         frac_date = self.epochs / (period_yr * u.yr.to(u.day))
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
@@ -238,16 +248,12 @@ class OFTeI_sma_pan(Marginalizer):
             aop,
             plx,
         )
-        # compute variance-covariance matrix W of observational uncertainties
-        W = (
-            np.diag(np.hstack((self.sigma_seps**2, self.sigma_pas**2)))
-            + np.diag(self.covar_seps_pas, k=self.n_obs)
-            + np.diag(self.covar_seps_pas, k=-self.n_obs)
-        )
+        W = self.W
+        W_inv = self.W_inv
 
         try:
-            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample = (
-                self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W)
+            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg = (
+                self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W, W_inv)
             )
         except np.linalg.LinAlgError:
             return -np.inf, None, None
@@ -261,11 +267,13 @@ class OFTeI_sma_pan(Marginalizer):
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
         # compute marginalized likelihood (e.g. Price-Whelan 2017 eq 11)
-        chi2lnlike = self.lnlike(y, X, beta_hat, W)
+        chi2lnlike = self.lnlike(y, X, beta_hat, W, W_inv)
 
         logprob = (
             chi2lnlike + 0.5 * logdet_covmatrix
         )  # NOTE: the sign here differs from APW+ 2017 (which I think is correct; I think they have a bug)
+
+        pan_sample = np.deg2rad(pan_sample_deg) % (2 * np.pi)
 
         # apply sma/pan priors
         if self.sma_prior is not None:
@@ -276,12 +284,12 @@ class OFTeI_sma_pan(Marginalizer):
         # apply total mass prior
         mtot_sample = sma_sample**3 / (period_yr) ** 2
         if self.mass_prior is not None:
-            logprob -= self.implicit_mass_prior.compute_lnprob(
+            logprob -= np.sum(self.implicit_mass_prior.compute_lnprob(
                 np.array([mtot_sample])
-            )  # "undo" the effective prior
-            logprob += self.mass_prior.compute_lnprob(
+            ))  # "undo" the effective prior
+            logprob += np.sum(self.mass_prior.compute_lnprob(
                 np.array([mtot_sample])
-            )  # apply the user-defined prior
+            ))  # apply the user-defined prior
 
         loglike = logprob # TODO
         samples = np.array([sma_sample, pan_sample])

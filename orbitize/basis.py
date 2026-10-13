@@ -654,17 +654,17 @@ class OftEiBasis(Basis):
         )
         assert not self.fit_secondary_mass
 
-    def construct_priors(self, per_min=0.1, per_max=1000):
+    def construct_priors(self, per_min=1e-5, per_max=1e6):
         basis_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "per1"]
         basis_priors = [
-            priors.GaussianPrior(100, 10),  # set nonstandard sma prior
+            priors.LogUniformPrior(0.001, 1e4),
             priors.UniformPrior(
                 0,
                 1,
             ),
             priors.SinPrior(),
             priors.UniformPrior(0, 2 * np.pi),
-            priors.GaussianPrior(180, 10),  # set nonstandard pan prior
+            priors.UniformPrior(0, 2 * np.pi), 
             priors.UniformPrior(0, 1),
             self.plx,
             priors.LogUniformPrior(per_min, per_max),
