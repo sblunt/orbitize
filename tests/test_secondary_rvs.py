@@ -36,7 +36,7 @@ def test_secondary_rv_lnlike_calc():
     )
 
     # compute RV of star
-    _, _, rv_s = calc_orbit(
+    _, _, rv_s, _ = calc_orbit(
         epochs, a, e, i, omega+np.pi, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
     )
 
