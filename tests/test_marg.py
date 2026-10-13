@@ -77,5 +77,72 @@ def test_MargPriorNoInput():
     assert np.std(myResults.post[:, 9]) == pytest.approx(1, rel=0.1)
     assert np.mean(myResults.post[:, 9]) == pytest.approx(10, rel=0.1)
 
+def test_incompatible():
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data_table = read_input.read_file(input_file)
+    output_file = os.path.join(orbitize.DATADIR, 'test_marg.hdf5')
+
+    mySystem = system.System(
+        1,
+        data_table,
+        1,
+        0.01,
+    )
+    epochs = data_table[data_table["quant_type"] == "epoch"]
+    sep = data_table[data_table["quant_type"] == "sep"]
+    pa = data_table[data_table["quant_type"] == "pa"]
+    sep_err = data_table[data_table["quant_type"] == "sep_err"]
+    pa_err = data_table[data_table["quant_type"] == "pa_err"]
+    covar = np.zeros(len(epochs))
+    marg = marginalizer.OFTeI_sma_pan(epochs, sep, pa, sep_err, pa_err, covar)
+    try:
+        mySampler = sampler.MCMC(
+            mySystem,
+            num_temps=0,
+            num_walkers=100,
+            num_threads=1,
+            marginalizers=[marg]
+        )
+        mySampler.run_sampler(400, 10, output_filename=output_file, periodic_save_freq=2)
+    except ValueError:
+        assert True
+    else:
+        assert False, "Did not raise ValueError despite marginalizer incompatible with basis"
+
+def test_OFTeI():
+    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    data_table = read_input.read_file(input_file)
+    output_file = os.path.join(orbitize.DATADIR, 'test_marg.hdf5')
+
+    mySystem = system.System(
+        1,
+        data_table,
+        1,
+        0.01,
+        fitting_basis="OftEiBasis"
+    )
+    ind = data_table["quant_type"] == "seppa"
+    epochs = data_table["epoch"][ind]
+    sep = data_table["quant1"][ind]
+    pa = data_table["quant2"][ind]
+    sep_err = data_table["quant1_err"][ind]
+    pa_err = data_table["quant2_err"][ind]
+    covar = np.zeros(len(epochs))
+    sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
+    pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
+    marg = marginalizer.OFTeI_sma_pan(epochs, sep, pa, sep_err, pa_err, covar, sma_prior, pan_prior)
+    mySampler = sampler.MCMC(
+        mySystem,
+        num_temps=0,
+        num_walkers=100,
+        num_threads=1,
+        marginalizers=[marg]
+    )
+    mySampler.run_sampler(40000, 10, output_filename=output_file, periodic_save_freq=2)
+    myResults = mySampler.results
+    print(myResults.post.shape)
+    print(myResults.post[:3, :])
+
 if __name__ == "__main__":
-    test_MargConstNoInput()
+    # test_MargConstNoInput()
+    test_OFTeI()

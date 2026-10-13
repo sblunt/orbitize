@@ -53,6 +53,7 @@ class Sampler(abc.ABC):
             # TODO: Construct if not empty list
             self.marginalizers = marginalizers
 
+
         # TODO: multiplanet
         marginalized_param_labels_set = set(label for marg in self.marginalizers for label in marg.MARG_PARAMS)
         fitted_param_labels_set = set(system.labels) - marginalized_param_labels_set
@@ -84,8 +85,11 @@ class Sampler(abc.ABC):
         quants = set(np.unique(self.system.data_table["quant_type"]))
         marg_quants = {(quant_type for quant_type in marg.QUANT_TYPES) for marg in self.marginalizers}
         self.blob_labels = ["lnlike"] + self.marg_param_labels
-
+        
         self.non_marg_quants = list(quants - marg_quants)
+
+        if not orbitize.marginalizer.compatible_params(self.marginalizers, self.fitted_param_labels):
+            raise ValueError("Marginalizers and basis are incompatible")
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
