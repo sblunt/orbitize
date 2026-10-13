@@ -28,6 +28,11 @@ cmap = colors.LinearSegmentedColormap.from_list(
     cmap(np.linspace(0.0, 0.7, 1000)),
 )
 
+# Pink epoch shading for Gaia DR4 stellar orbits only.
+dr4_cmap = colors.LinearSegmentedColormap.from_list(
+    "gaia_dr4_pink", ["#B2185B", "#FF69AF"],
+)
+
 
 def plot_corner(results, param_list=None, **corner_kwargs):
     """
@@ -1771,25 +1776,45 @@ def plot_propermotion(
         plt.tight_layout()
 
     return fig
+
 def _get_star_offsets_dr4(params, system, epochs_mjd):
-    """Primary star's RA/Dec offsets from barycenter (sign-corrected)."""
-    raoff, deoff, _ = system.compute_all_orbits(params, epochs=epochs_mjd)
+    """
+    Compute the primary star's sky offsets from the barycenter.
+
+    Args:
+        params (np.ndarray): parameter vector in the system's fitting basis.
+        system (orbitize.system.System): system used to compute the orbit.
+        epochs_mjd (np.ndarray): evaluation epochs in MJD.
+
+    Returns:
+        tuple: primary star RA*cos(Dec) and Dec offset arrays [mas].
+    """
+    standard_params = system.basis.to_standard_basis(np.copy(params))
+    raoff, deoff, _ = system.compute_all_orbits(standard_params, epochs=epochs_mjd)
     return -raoff[:, 0, 0], -deoff[:, 0, 0]
 
 
 def _model_along_scan_dr4(params, system, dr4):
-    """Full along-scan model for a single parameter draw."""
-    from astropy.time import Time
-    epochs_mjd = Time(dr4.gaia_epoch, format="decimalyear").mjd
-    raoff, deoff = _get_star_offsets_dr4(params, system, epochs_mjd)
+    """
+    Compute the full along scan model for one parameter vector.
+
+    Args:
+        params (np.ndarray): parameter vector in the system's fitting basis.
+        system (orbitize.system.System): system defining the parameter indices.
+        dr4 (orbitize.gaia.DR4LogProb): DR4 observations and scan geometry.
+
+    Returns:
+        np.ndarray: predicted along-scan positions [mas].
+    """
+    raoff, deoff = _get_star_offsets_dr4(params, system, dr4.epochs_mjd)
 
     orbit_al = raoff * dr4.sin_scan + deoff * dr4.cos_scan
 
     return (
-        params[system.param_idx["dr4_ra_off"]] * dr4.sin_scan
-        + params[system.param_idx["dr4_dec_off"]] * dr4.cos_scan
-        + params[system.param_idx["dr4_pmra"]] * dr4.pm_ra_basis
-        + params[system.param_idx["dr4_pmdec"]] * dr4.pm_dec_basis
+        params[system.param_idx["alpha0"]] * dr4.sin_scan
+        + params[system.param_idx["delta0"]] * dr4.cos_scan
+        + params[system.param_idx["pm_ra"]] * dr4.pm_ra_basis
+        + params[system.param_idx["pm_dec"]] * dr4.pm_dec_basis
         + params[system.param_idx["plx"]] * dr4.parallax_factor_al
         + orbit_al
     )
@@ -1798,10 +1823,10 @@ def _model_along_scan_dr4(params, system, dr4):
 def plot_dr4_orbit(
     results, system, num_orbits_to_plot=100, num_epochs_to_plot=500,
     square_plot=True, show_colorbar=True, cbar_param="Epoch [year]",
-    fontsize=20, fig=None,
+    fontsize=20, fig=None, data_params=None, include_jitter=False,plot_map=False,
 ):
     """
-    Plot the sky-projected stellar orbit from a DR4 epoch astrometry fit.
+    Plot the sky-projected stellar orbit from a Gaia DR4 epoch astrometry fit.
 
     Args:
         results (orbitize.results.Results): Results object with posterior
@@ -1814,28 +1839,58 @@ def plot_dr4_orbit(
         cbar_param (str): colorbar label
         fontsize (int): font size for axis labels
         fig (matplotlib.pyplot.Figure): optional predefined Figure
+        data_params (np.ndarray, optional): parameter vector used to remove
+            position, proper motion, and parallax contributions and anchor
+            the unmeasured across-scan coordinate. Defaults to the MAP sample
+            when plot_map=True, or the highest-likelihood sample otherwise.
+        include_jitter (bool): if True, add the jitter from ``data_params`` in
+            quadrature with each stored AL uncertainty. Default: False.
+        plot_map (bool): if True, plot only the stored sample with the
+            highest posterior probability.
 
     Returns:
         matplotlib.pyplot.Figure
 
+    Notes:
+        Gaia supplies a 1D along scan measurement, not a full
+        sky-plane position. The displayed marker uses ``data_params`` only to
+        anchor its unmeasured across-scan coordinate. Its displacement from
+        that anchor and its error segment are the observed AL residual and
+        stored AL uncertainty, optionally combined with jitter.
+
     Written: Clarissa Do O, 2026
     """
-    from astropy.time import Time
-    from matplotlib.collections import LineCollection
 
     dr4 = system.gaia
     post = results.post
 
-    n_draws = min(num_orbits_to_plot, len(post))
-    choose = np.random.randint(0, high=len(post), size=n_draws)
+    if plot_map:
 
-    epochs_decyr = dr4.gaia_epoch
-    epochs_mjd = Time(epochs_decyr, format="decimalyear").mjd
+        # compute log prior probability for each posterior sample
+        lnprior = np.zeros(len(post))
+        for i, prior in enumerate(system.sys_priors):
+            if hasattr(prior, "compute_lnprob"):
+                lnprior += prior.compute_lnprob(post[:, i])
 
-    t_fine_decyr = np.linspace(
-        epochs_decyr.min() - 0.5, epochs_decyr.max() + 0.5, num_epochs_to_plot
+        # pick sample with highes log posterior
+        map_idx = np.nanargmax(np.asarray(results.lnlike) + lnprior)
+        choose = [map_idx]
+
+        if data_params is None:
+            data_params = post[map_idx]
+    else:
+        n_draws = min(num_orbits_to_plot, len(post))
+        choose = np.random.randint(0, high=len(post), size=n_draws)
+
+
+    epochs_mjd = dr4.epochs_mjd
+
+    t_fine_mjd = np.linspace(
+        epochs_mjd.min() - 0.5 * 365.25,
+        epochs_mjd.max() + 0.5 * 365.25,
+        num_epochs_to_plot,
     )
-    t_fine_mjd = Time(t_fine_decyr, format="decimalyear").mjd
+    t_fine_decyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).decimalyear
 
     norm_yr = mpl.colors.Normalize(
         vmin=t_fine_decyr.min(), vmax=t_fine_decyr.max()
@@ -1855,33 +1910,43 @@ def plot_dr4_orbit(
         points = np.array([ra_fine, de_fine]).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         lc = LineCollection(
-            segments, cmap=cmap, norm=norm_yr, linewidth=1.0, alpha=0.3
+            segments, cmap=dr4_cmap, norm=norm_yr,
+            linewidth=1.5 if plot_map else 1.0,
+            alpha=0.85 if plot_map else 0.3,
         )
         lc.set_array(t_fine_decyr)
         ax.add_collection(lc)
 
-    # Project data onto sky
-    median_params = np.median(post, axis=0)
-    raoff_data, deoff_data = _get_star_offsets_dr4(median_params, system, epochs_mjd)
-    median_model_al = _model_along_scan_dr4(median_params, system, dr4)
-    al_resid = dr4.centroid_pos_al - median_model_al
-    if dr4.fit_jitter:
-        dr4_jitter = median_params[system.param_idx["dr4_jitter"]]
-    else:
-        dr4_jitter = dr4.jitter
+    # Anchor the unmeasured across-scan coordinate to one fixed orbit, then
+    # place the observed AL residual and uncertainty along the scan direction.
+    if data_params is None:
+        data_params = post[np.nanargmax(results.lnlike)]
 
-    ra_data = raoff_data + al_resid * dr4.sin_scan
-    de_data = deoff_data + al_resid * dr4.cos_scan
+    scan_unit = np.column_stack((dr4.sin_scan, dr4.cos_scan))
+    ra_anchor, de_anchor = _get_star_offsets_dr4(data_params, system, epochs_mjd)
+    anchor_points = np.column_stack((ra_anchor, de_anchor))
+    al_residual = dr4.centroid_pos_al - _model_along_scan_dr4(
+        data_params, system, dr4
+    )
+    al_points = anchor_points + al_residual[:, None] * scan_unit
+    al_sigma = dr4.centroid_pos_error_al
+    if include_jitter:
+        if dr4.fit_jitter:
+            jitter = data_params[system.param_idx["dr4_jitter"]]
+        else:
+            jitter = dr4.jitter
+        al_sigma = np.hypot(al_sigma, jitter)
+    al_errors = al_sigma[:, None] * scan_unit
+    al_segments = np.stack((al_points - al_errors, al_points + al_errors), axis=1)
 
-    ax.scatter(ra_data, de_data, marker="*", c="red", s=60, zorder=10)
-
-    for j in range(len(epochs_mjd)):
-        err = np.hypot(dr4.centroid_pos_error_al[j], dr4_jitter)
-        ra1 = raoff_data[j] + (al_resid[j] + err) * dr4.sin_scan[j]
-        ra2 = raoff_data[j] + (al_resid[j] - err) * dr4.sin_scan[j]
-        de1 = deoff_data[j] + (al_resid[j] + err) * dr4.cos_scan[j]
-        de2 = deoff_data[j] + (al_resid[j] - err) * dr4.cos_scan[j]
-        ax.plot([ra1, ra2], [de1, de2], "k-", lw=0.6, alpha=0.5)
+    ax.add_collection(
+        LineCollection(al_segments, colors="k", linewidths=0.6, alpha=0.5)
+    )
+    ax.scatter(
+        al_points[:, 0], al_points[:, 1],
+        marker="*", c="k", edgecolors="0.2",
+        linewidths=0.6, s=80, zorder=10,
+    )
 
     ax.plot(0, 0, "+", color="k", ms=15, mew=2, zorder=10)
 
@@ -1901,7 +1966,7 @@ def plot_dr4_orbit(
             0.02, ax.get_position().height,
         ])
         cbar = mpl.colorbar.ColorbarBase(
-            cbar_ax, cmap=cmap, norm=norm_yr,
+            cbar_ax, cmap=dr4_cmap, norm=norm_yr,
             orientation="vertical", label=cbar_param,
         )
         cbar.ax.tick_params(labelsize=fontsize - 5)

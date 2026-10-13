@@ -4,7 +4,7 @@ import os
 import orbitize
 from astropy import units as u
 from astropy.table import Table
-from orbitize.read_input import from_dl2, from_ohp_file, read_file, write_orbitize_input
+from orbitize.read_input import from_dl2, from_ohp_file, read_file, write_orbitize_input, bootstrap_transit
 
 
 def _compare_table(input_table):
@@ -202,6 +202,7 @@ def test_from_dl2_mjd(tmp_path):
         "centroid_pos_error_al": [[0.1, 0.2, 0.3]],
         "scan_pos_angle": [[0.0, 90.0, 180.0]],
         "used_by_agis_al": [[False, True, True]],
+        "ipd_error_al": [[0.01, 0.02, 0.03]],
     })
     path = tmp_path / "epoch_astrometry.xml"
     native.write(path, format="votable", tabledata_format="binary2")
@@ -214,9 +215,33 @@ def test_from_dl2_mjd(tmp_path):
     np.testing.assert_array_equal(actual["centroid_pos_al"], [-10.0, 20.0])
     np.testing.assert_allclose(actual["centroid_pos_error_al"], [0.2, 0.3])
     np.testing.assert_allclose(actual["scan_pos_angle"], [np.pi / 2, np.pi])
+    np.testing.assert_allclose(actual["ipd_error_al"], [0.02, 0.03])
     assert actual.meta["time_format"] == "mjd"
     assert actual.meta["time_scale"] == "tcb"
 
+def test_bootstrap_transit():
+    """Check bootstrap output and its error floor."""
+
+    ccd = Table({
+        "centroid_pos_al": [1.0, 2.0, 3.0] * u.mas,
+        "ipd_error_al": [0.1, 0.1, 0.1] * u.mas,
+    })
+
+    actual = bootstrap_transit(ccd, n_boot=500, rng=42)
+    np.testing.assert_allclose(
+        actual,
+        [2.0, 0.7246034089075215],
+        rtol=0, atol=1e-12,
+    )
+
+    # Identical positions give zero bootstrap spread: use the floor.
+    ccd["centroid_pos_al"] = [2.0, 2.0, 2.0] * u.mas
+    actual = bootstrap_transit(ccd, n_boot=500, rng=42)
+    np.testing.assert_allclose(
+        actual,
+        [2.0, 0.05773502691896258],
+        rtol=0, atol=1e-12,
+    )
 
 if __name__ == "__main__":
     test_read_file()
@@ -226,3 +251,4 @@ if __name__ == "__main__":
     test_from_ohp_file()
     test_from_ohp_file_missing_column()
     test_from_ohp_file_empty()
+    test_bootstrap_transit()

@@ -1,8 +1,8 @@
 import numpy as np
 import os
 from orbitize import DATADIR
-from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results
-
+from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results, priors
+from astropy.table import Table
 
 def test_dr2_edr3():
     """
@@ -305,11 +305,53 @@ def test_nointernet():
         gaia_data={"ra": 0, "dec": 0, "ra_error": 0, "dec_error": 0},
     )
 
+def test_dr4_likelihood():
+    """Check the AL model and Gaussian likelihood with sampled jitter."""
+    # make mock data
+    ref_epoch = 57936.375
+    data = Table({
+        "obs_time_tcb": [ref_epoch + 365.25, ref_epoch + 2 * 365.25],
+        "centroid_pos_al": [22.0, 5.0],
+        "centroid_pos_error_al": [1.0, 2.0],
+        "scan_pos_angle": [0.0, np.pi / 2],
+        "parallax_factor_al": [1.0, -1.0],
+        "field_of_view": [0, 1],
+    })
+    data.meta.update(time_format="mjd", time_scale="tcb")
 
+    #buile dr4 likelihood
+    dr4 = gaia.DR4LogProb(
+        0, data,
+        ref_epoch_mjd=ref_epoch,
+        jitter_prior=priors.UniformPrior(0.0, 2.0),
+    )
+    param_idx = dict(zip(
+        ["plx", "alpha0", "delta0", "pm_ra", "pm_dec", "dr4_jitter"],
+        range(6),
+    ))
+
+    samples = np.array([5.0, 10.0, 20.0, 2.0, -1.0, 0.0])
+    raoff = np.array([[1.0], [2.0]])
+    decoff = np.array([[3.0], [4.0]])
+
+    # Hand calculated model: [21, 7]; data model: [1, -2].
+    # Expected values include the Gaussian normalization.
+    for jitter, expected in [
+        (0.0, -3.5310242469692907),
+        (1.0, -3.639169612906368),
+    ]:
+        samples[param_idx["dr4_jitter"]] = jitter
+        actual = dr4.compute_lnlike(
+            raoff, decoff, samples, param_idx
+        )
+        np.testing.assert_allclose(
+            actual, expected, rtol=0, atol=1e-12
+        )
 if __name__ == "__main__":
     test_nointernet()
     # test_dr2_edr3()
     # test_system_setup()
     # test_valueerror()
     # test_orbit_calculation()
-    test_hgca()
+    # test_hgca()
+    test_dr4_likelihood()

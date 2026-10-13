@@ -137,16 +137,11 @@ class Sampler(abc.ABC):
                     format="decimalyear",
                 ).mjd
 
-            # Convert the active fitting basis to the standard basis expected by
-            # compute_all_orbits (e.g., SemiAmp P/K -> standard sma/mass). (clarissa added this because the rv + dr4 module was using the wrong basis)
-            standard_params = self.system.basis.to_standard_basis(
-                np.copy(params)
-            )
-
-            # compute Ra/Dec predictions at the Gaia epoch
+            # System handles conversion from the active fitting basis.
             raoff_model, deoff_model, _ = self.system.compute_all_orbits(
-                standard_params,
+                params,
                 epochs=gaiahip_epochs,
+                params_basis="fitting",
             )
 
             # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn

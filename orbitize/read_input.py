@@ -548,7 +548,7 @@ def from_dl2(filename, source_id, *, agis_only=True):
     sizes = [np.size(value) for value in data["obs_time_tcb"]]
     output_table = Table()
     for name in (
-        "obs_time_tcb", "centroid_pos_al", "centroid_pos_error_al",
+        "obs_time_tcb", "centroid_pos_al", "centroid_pos_error_al", "ipd_error_al",
         "scan_pos_angle", "used_by_agis_al",
     ):
         if [np.shape(value) for value in data[name]] != [(size,) for size in sizes]:
@@ -575,6 +575,7 @@ def from_dl2(filename, source_id, *, agis_only=True):
         "obs_time_tcb": u.day,
         "centroid_pos_al": u.mas,
         "centroid_pos_error_al": u.mas,
+        "ipd_error_al": u.mas,
         "scan_pos_angle": u.rad,
         "parallax_factor_al": u.dimensionless_unscaled,
         "ra0": u.deg,
@@ -587,6 +588,87 @@ def from_dl2(filename, source_id, *, agis_only=True):
     )
     return output_table
 
+def bootstrap_transit(ccd, n_boot=500, rng=None):
+    """
+    Estimate the median along-scan position and uncertainty for one transit using a bootstrap
+    method.
+
+    Args:
+        ccd (astropy.table.Table): Selected CCD measurements for one transit.
+            Must contain ``centroid_pos_al`` and ``ipd_error_al``, both in mas.
+        n_boot (int, optional): Number of bootstrap resamples. Default: 500.
+        rng (numpy.random.Generator or int, optional): Existing random generator
+            or integer seed. If None, create a new generator.
+
+    Returns:
+        tuple: Median AL position and estimated uncertainty, both in mas.
+            The uncertainty is the larger of the standard deviation of the
+            bootstrap medians and ``median(ipd_error_al) / sqrt(n_ccd)``.
+    """
+    rng = np.random.default_rng(rng)
+
+    positions = np.asarray(ccd["centroid_pos_al"], dtype=float)
+    ipd_errors = np.asarray(ccd["ipd_error_al"], dtype=float)
+    n_ccd = len(ccd)
+    samples = rng.choice(positions, size=(n_boot, n_ccd), replace=True)
+    bootstrap_error = np.std(np.median(samples, axis=1), ddof=1)
+    error_floor = np.median(ipd_errors) / np.sqrt(n_ccd)
+
+    return np.median(positions), max(bootstrap_error, error_floor)
+
+def combine_transits(data, method=bootstrap_transit, **kwargs):
+    """
+    Combine CCD measurements into one along-scan measurement per transit.
+
+    Args:
+        data (astropy.table.Table): CCD-level table returned by from_dl2().
+        method (callable or None): Function taking one transit's CCD table
+            and returning (AL position, uncertainty), both in mas.
+            Defaults to bootstrap_transit. None keeps individual CCDs.
+        **kwargs: Arguments forwarded to method, such as n_boot and rng.
+
+    Returns:
+        astropy.table.Table: Transit-level measurements, or a copy of the
+        original CCD table when method is None. Units and metadata are kept.
+
+    Notes:
+        Uses the mean CCD epoch and the first CCD's scan angle and
+        parallax factor, matching the current notebook reduction.
+    """
+    if method is None:
+        return data.copy()
+
+    if method is bootstrap_transit:
+        kwargs["rng"] = np.random.default_rng(kwargs.get("rng"))
+
+    rows = []
+    for ccd in data.group_by(["source_id", "transit_id"]).groups:
+        first = ccd[0]
+        position, error = method(ccd, **kwargs)
+
+        rows.append((
+            first["source_id"], first["transit_id"],
+            np.mean(ccd["obs_time_tcb"]), position, error,
+            first["parallax_factor_al"], first["scan_pos_angle"],
+            first["field_of_view"], len(ccd),
+        ))
+
+    output = Table(
+        rows=rows,
+        names=(
+            "source_id", "transit_id", "obs_time_tcb", "centroid_pos_al",
+            "centroid_pos_error_al", "parallax_factor_al", "scan_pos_angle",
+            "field_of_view", "n_ccd",
+        ),
+    )
+    for name in (
+        "obs_time_tcb", "centroid_pos_al", "centroid_pos_error_al",
+        "parallax_factor_al", "scan_pos_angle",
+    ):
+        output[name].unit = data[name].unit
+
+    output.meta.update(data.meta, observation_level="transit")
+    return output
 
 def write_orbitize_input(table, output_filename, file_type="csv"):
     """Writes orbitize-readable input as an ASCII file
