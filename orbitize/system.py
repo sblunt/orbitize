@@ -543,9 +543,6 @@ class System(object):
                     )  # calculating stellar velocity due to ith companion
                     vz[:, 0, :] += vz0  # adding contribution from ith companion rv to stellar velocity
                     
-            # Secondary RVs are assumed to be *relative* to the primary, so for all companions,
-            # we need to subtract the RV of the primary
-            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
             
             # if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
@@ -576,7 +573,6 @@ class System(object):
                         if (body_num == other_body_num) | (body_num == 0):
                             continue
 
-                        ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
                         # this computes the perturbation on the other body due to the current body
 
                         # star is perturbed in opposite direction
@@ -587,7 +583,7 @@ class System(object):
                             dec_perturb[:, other_body_num, :] -= (
                                 masses[body_num] / mtots[body_num]
                             ) * dec_kepler[:, body_num, :]
-                            vz_perturb[:, other_body_num, :] += vz[:, body_num, :] * 0.0 # perturb on the stellar RV vz0 is already accounted for above when adding vz_i's together. so make these columns 0
+                            vz_perturb[:, other_body_num, :] += np.zeros_like(vz[:, body_num, :]) # perturb on the stellar RV vz0 is already accounted for above when adding vz_i's together. so make these columns 0
 
                         else:
                             ra_perturb[:, other_body_num, :] += (
@@ -600,9 +596,14 @@ class System(object):
                                 masses[body_num] / mtots[body_num]
                             ) * vz[:, body_num, :]
 
+
             raoff = ra_kepler + ra_perturb
             deoff = dec_kepler + dec_perturb
             vz = vz + vz_perturb
+            
+            # Secondary RVs are assumed to be *relative* to the primary, so for all companions,
+            # we need to subtract the RV of the primary
+            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits)) # TODO: move this to the end?
 
         if self.fitting_basis == "XYZ":
             
