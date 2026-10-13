@@ -44,8 +44,9 @@ def test_1planet():
 
     ra_model, dec_model, vz_st_model, _ = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch
+>>>>>>>>> Temporary merge branch 2
     )
-    ra_model, dec_model, vz_pl_model = kepler.calc_orbit(
+    ra_model, dec_model, vz_pl_model, _ = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=m0
     )
     vz_pl_model *= -1 # orbitize coordinate system (compute_model does this automatically)
