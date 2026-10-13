@@ -225,7 +225,7 @@ def test_hgca():
     gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
     astrometry_filepath = os.path.join(DATADIR, "betaPic.csv")
 
-    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, 27321, 1)
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1)
     hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
 
     # test a few things were read in correctly

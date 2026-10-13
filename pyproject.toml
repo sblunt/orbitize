@@ -25,7 +25,10 @@ dependencies = [
     "pyerfa",
     "astroquery",
     "rebound",
-    "dynesty"
+    "dynesty",
+    "pymultinest",
+    "tk",
+    "nautilus-sampler"
 ]
 
 [tool.setuptools.dynamic]

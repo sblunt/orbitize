@@ -54,6 +54,40 @@ User Guide:
 
 Changelog:
 ++++++++++
+
+**4.0.0 (release date TBD)**
+
+- fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
+- implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
+- add an astrometry plotting utility function that folks can use to check if data were input correctly (@DTCupcakes)
+- Kepler solver optimization (@eshelDror)
+
+**3.4.0 (2026-7-20)**
+
+This is a breaking change for System.compute_all_orbits.
+
+- joint fitting for reflected-light photometry with Lambertian disk approx! (@farrmol)
+
+**3.3.3 (2026-7-8)**
+
+- hotfix for issue plotting datapoints with different RV instruments (@sblunt)
+- fix for plots with RVs that makes perfectly fine fits look incorrect, introduced in v3.0.0 (@sblunt)
+
+**3.3.2 (2026-6-2)**
+
+- fix for a flaky unit test with int HIP IAD inputs (they should be str; @sblunt)
+
+**3.3.1 (2026-6-1)**
+
+- results.print_results() now prints angles in degrees and displays units (issue 385; @chihchunhsu and @sblunt)
+
+**3.3.0 (2026-5-19)**
+
+- add support for multinest! (@tomasstolker)
+- bugfix for periodic saving in MCMC (@eshelDror)
+- bugfix for corner plot failing if any parameters are fixed (@tomasstolker)
+- quick fix for #402 (@ell-bogat)
+
 **3.2.2 (2026-4-12)**
 
 - fix a few bugs causing unit test failures (#400) (@sblunt)
@@ -65,6 +99,7 @@ Changelog:
 **3.2.0 (2025-7-18)**
 
 - modernize install: setup.py -> pyproject.toml (@sblunt)
+- proper motion anomaly visualization (@wbalmer)
 
 **3.1.0 (2024-9-09)**
 
