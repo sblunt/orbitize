@@ -55,6 +55,17 @@ User Guide:
 Changelog:
 ++++++++++
 
+**4.0.0 (release date TBD)**
+
+- fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
+- implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
+- add an astrometry plotting utility function that folks can use to check if data were input correctly (@DTCupcakes)
+- Kepler solver optimization (@eshelDror)
+- Major refresh and refactor of the plotting module (@eshelDror)
+- Fix compute_model crash due to brightness when use_rebound=True (@eshelDror)
+- Make tests deterministic (@eshelDror)
+- ptemcee and emcee implementations now cleanly use mp.Pool (@sblunt)
+
 **3.4.0 (2026-7-20)**
 
 This is a breaking change for System.compute_all_orbits.

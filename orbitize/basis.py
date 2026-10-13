@@ -1451,7 +1451,7 @@ class XYZ(Basis):
             2.0 * np.pi
         )
         # Eccentric anomaly
-        eanom = kepler._calc_ecc_anom(
+        eanom = kepler.calc_ecc_anom(
             manom, ecc, tolerance=tolerance, max_iter=max_iter
         )
         # if eanom.ndim == 1:
