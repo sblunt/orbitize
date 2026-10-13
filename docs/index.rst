@@ -63,6 +63,8 @@ Changelog:
 - Kepler solver optimization (@eshelDror)
 - Major refresh and refactor of the plotting module (@eshelDror)
 - Fix compute_model crash due to brightness when use_rebound=True (@eshelDror)
+- Make tests deterministic (@eshelDror)
+- ptemcee and emcee implementations now cleanly use mp.Pool (@sblunt)
 
 **3.4.0 (2026-7-20)**
 
