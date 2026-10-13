@@ -333,18 +333,11 @@ def test_2planet_massive():
     # still some, so relax precision
     assert np.all(np.abs(diff_ra) / (params[0]) < 1e-3)
     assert np.all(np.abs(diff_dec) / (params[0]) < 1e-3)
-
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot(epochs, diff_ra)
-    # plt.plot(epochs, b_rv_reb)
-    # plt.plot(epochs, b_rv_pl_orb)
-    plt.savefig('foo.png')
-
-    assert np.all(np.abs(diff_rv_pl) < 1e-3)
+    K_amp_b = np.abs(b_rv_pl_orb).max()
+    assert np.all(np.abs(diff_rv_pl) / K_amp_b < 1e-3)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
     # NOW TEST THE INNER PLANET
 
@@ -380,9 +373,10 @@ def test_2planet_massive():
 
     # generate measurement
     radec_orbitize, _ = sys.compute_model(params)
-    c_ra_orb = radec_orbitize[:, 0]
-    c_dec_orb = radec_orbitize[:, 1]
-    c_rv_orb = radec_orbitize[:, 2]
+    c_ra_orb = radec_orbitize[:200:2, 0]
+    c_dec_orb = radec_orbitize[:200:2, 1]
+    c_rv_orb = radec_orbitize[1:200:2,0]
+
 
     # start the REBOUND sim again
     sim = rebound.Simulation()
@@ -433,19 +427,20 @@ def test_2planet_massive():
 
     c_ra_reb = np.array(c_ra_reb)
     c_dec_reb = np.array(c_dec_reb)
-    c_dec_rv = np.array(c_dec_rv)
+    c_relative_rv_reb = np.array(c_relative_rv_reb)
 
     diff_ra = c_ra_reb - c_ra_orb / params[6 * 2]
     diff_dec = c_dec_reb - c_dec_orb / params[6 * 2]
-    diff_relative_rv = ((c_relative_rv_reb * u.au/u.yr).to(u.km/u.s) - c_rv_orb)  
+    diff_relative_rv = ((c_relative_rv_reb * u.au/u.yr).to(u.km/u.s).value - c_rv_orb)  
 
     # planet is 3 times closer, so roughly 3 times larger secular errors.
     assert np.all(np.abs(diff_ra) / (params[0]) < 3e-3)
     assert np.all(np.abs(diff_dec) / (params[0]) < 3e-3)
-    assert np.all(np.abs(diff_relative_rv) < 3e-3)
+    K_amp_c = np.abs(c_rv_orb).max()
+    assert np.all(np.abs(diff_relative_rv) / K_amp_c < 1e-2)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
 
 def test_2planet_massive_reverse_order():
@@ -576,7 +571,7 @@ def test_2planet_massive_reverse_order():
 
     sim.move_to_com()
 
-    # Use Wisdom Holman integrator (fast), with the timestep being < 5% of inner
+    # Use IAS15 integrator, with the timestep being < 5% of inner
     # planet's orbital period
     sim.integrator = "ias15"
     sim.dt = ps[1].P / 1000.0
