@@ -6,7 +6,6 @@ import orbitize
 import orbitize.read_input as read_input
 import orbitize.kepler as kepler
 import orbitize.system as system
-import orbitize.basis as basis
 
 # Skip this test on Windows since REBOUND doesn't work on Windows
 import sys
@@ -43,8 +42,8 @@ def test_1planet():
 
     epochs = np.linspace(0, 300, 100) + tau_ref_epoch  # nearly the full period, MJD
 
-    ra_model, dec_model, vz_st_model = kepler.calc_orbit(
-        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=mass_b
+    ra_model, dec_model, vz_st_model, _ = kepler.calc_orbit(
+        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch
     )
     ra_model, dec_model, vz_pl_model = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=m0
@@ -97,7 +96,7 @@ def test_1planet():
     rv_star_orb = modelpredict_orbitize[200:,0]
 
     # now project the orbit with rebound
-    manom = basis.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
+    manom = kepler.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
 
     sim = rebound.Simulation()
     sim.units = ("yr", "AU", "Msun")
@@ -208,7 +207,7 @@ def test_2planet_massive():
     # doesn't matter that this is right, just needs to be the same size. below doesn't
     # include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
+    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
         epochs,
         params[0],
         params[1],
@@ -264,10 +263,10 @@ def test_2planet_massive():
     assert np.all(b_ra_orb_noc != b_ra_orb)
 
     # now project the orbit with rebound
-    b_manom = basis.tau_to_manom(
+    b_manom = kepler.tau_to_manom(
         epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
     )
-    c_manom = basis.tau_to_manom(
+    c_manom = kepler.tau_to_manom(
         epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
     )
 
@@ -462,7 +461,7 @@ def test_2planet_massive_reverse_order():
     # doesn't matter that this is right, just needs to be the same size. below doesn't
     # include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
+    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
         epochs,
         params[6 + 0],
         params[6 + 1],
@@ -511,10 +510,10 @@ def test_2planet_massive_reverse_order():
     b_dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
-    c_manom = basis.tau_to_manom(
+    c_manom = kepler.tau_to_manom(
         epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
     )
-    b_manom = basis.tau_to_manom(
+    b_manom = kepler.tau_to_manom(
         epochs[0],
         params[0 + 6],
         params[-1] + params[-2] + params[-3],
@@ -619,7 +618,7 @@ def test_2planet_nomass():
     # doesn't matter that this is right, just needs to be the same size. below
     # doesn't include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model = kepler.calc_orbit(
+    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
         epochs,
         params[0],
         params[1],
@@ -666,10 +665,10 @@ def test_2planet_nomass():
     b_dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
-    b_manom = basis.tau_to_manom(
+    b_manom = kepler.tau_to_manom(
         epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
     )
-    c_manom = basis.tau_to_manom(
+    c_manom = kepler.tau_to_manom(
         epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
     )
 

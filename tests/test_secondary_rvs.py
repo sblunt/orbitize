@@ -31,7 +31,7 @@ def test_secondary_rv_lnlike_calc():
     epochs = Time(np.linspace(2005, 2025, int(1e1)), format="decimalyear").mjd
 
     # compute RV of planet
-    _, _, rv_p = calc_orbit(
+    _, _, rv_p, _ = calc_orbit(
         epochs, a, e, i, omega, Omega, tau, plx, m0 + m1, mass_for_Kamp=m0
     )
 
