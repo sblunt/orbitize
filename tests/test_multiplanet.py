@@ -37,7 +37,7 @@ def test_compute_model():
         np.linspace(0, period_c * 365.25, 100) + tau_ref_epoch
     )  # the full period of c, MJD
 
-    ra_model, dec_model, vz_model = kepler.calc_orbit(
+    ra_model, dec_model, vz_model, _ = kepler.calc_orbit(
         epochs,
         b_params[0],
         b_params[1],
@@ -147,7 +147,7 @@ def test_fit_selfconsist():
     )  # the full period of b, MJD
 
     # comptue Keplerian orbit of b
-    ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(
+    ra_model_b, dec_model_b, vz_model, _ = kepler.calc_orbit(
         epochs,
         b_params[0],
         b_params[1],
@@ -162,7 +162,7 @@ def test_fit_selfconsist():
     )
 
     # comptue Keplerian orbit of c
-    ra_model_c, dec_model_c, vz_model_c = kepler.calc_orbit(
+    ra_model_c, dec_model_c, vz_model_c, _ = kepler.calc_orbit(
         epochs,
         c_params[0],
         c_params[1],

@@ -2,6 +2,7 @@ import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
 from orbitize.read_input import read_file
+import matplotlib.pyplot as plt
 
 
 class System(object):
@@ -472,11 +473,17 @@ class System(object):
                     # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet.
                     # We need to select all planets with sma < this planet.
                     all_smas = params_arr[self.sma_indx]
-                    within_orbit = np.where(all_smas <= sma)
-                    outside_orbit = np.where(all_smas > sma)
+                    within_orbit = all_smas <= sma
                     all_pl_masses = params_arr[self.secondary_mass_indx]
-                    inside_masses = all_pl_masses[within_orbit]
-                    mtot = np.sum(inside_masses) + m0
+                    inside_masses = np.where(within_orbit, all_pl_masses, 0)
+                    if params_arr.ndim > 1: # Multi-orbit
+                        if inside_masses.ndim > 1: # Multi-(inner)planet
+                            mtot = np.sum(inside_masses, axis=0) + m0
+                        else: # No inner companions, only primary
+                            # In this case inside_masses = mass
+                            mtot = inside_masses + m0
+                    else: # Single orbit
+                        mtot = np.sum(inside_masses) + m0
 
                 else:
                     m_pl = np.zeros(self.num_secondary_bodies)
@@ -490,7 +497,7 @@ class System(object):
                     mtots[body_num] = mtot
 
                 # solve Kepler's equation
-                raoff, decoff, vz_i = kepler.calc_orbit(
+                raoff, decoff, vz_i, tanom = kepler.calc_orbit(
                     epochs,
                     sma,
                     ecc,
@@ -503,9 +510,6 @@ class System(object):
                     mass_for_Kamp=m0,
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
-
-                tanom, eanom = kepler.times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=self.tau_ref_epoch)
-                
 
                 R = (sma*(1-ecc**2))/(1+ecc*np.cos(tanom))
         
@@ -648,9 +652,9 @@ class System(object):
         to_convert = np.copy(params_arr)
         standard_params_arr = self.basis.to_standard_basis(to_convert)
 
-        if use_rebound:
-            raoff, decoff, vz = self.compute_all_orbits(
-                standard_params_arr, comp_rebound=True
+        if use_rebound or self.use_rebound:
+            raoff, decoff, vz, _ = self.compute_all_orbits(
+                standard_params_arr, comp_rebound=use_rebound
             )
         else:
             raoff, decoff, vz, brightness = self.compute_all_orbits(standard_params_arr)
@@ -776,6 +780,55 @@ class System(object):
             )
             self.seppa[body_num] = np.append(self.seppa[body_num], i)
 
+    def plot_astrometry(self):
+        """
+        Plot astrometry to ensure data is correct.
+        
+        Returns:
+            matplotlib.pyplot.figure object: figure of data plot.
+
+        Written: David Trevascus, 2024
+        """
+
+        if len(self.all_radec) + len(self.all_seppa) == 0: # no astrometry to plot
+            return None
+
+        self.convert_data_table_radec2seppa()
+        
+        # create figure
+        fig, ax = plt.subplots(2, self.num_secondary_bodies)
+        ax = ax.reshape((2, self.num_secondary_bodies))
+
+        # plot each object separately
+        for n in np.arange(self.num_secondary_bodies)+1:
+            
+            # plot seppa astrometry
+            ax[0, n-1].errorbar(
+                self.data_table['epoch'][self.seppa[n]],
+                self.data_table["quant1"][self.seppa[n]], 
+                yerr=self.data_table["quant1_err"][self.seppa[n]], 
+                linestyle='None',
+                marker='o',
+                capsize=3,
+            )
+            ax[1, n-1].errorbar(
+                self.data_table['epoch'][self.seppa[n]],
+                self.data_table["quant2"][self.seppa[n]], 
+                yerr=self.data_table["quant2_err"][self.seppa[n]], 
+                linestyle='None',
+                marker='o',
+                capsize=3,
+            )
+
+            # set axis labels
+            ax[1, n-1].set_xlabel('time [mjd]')
+            ax[0, 0].set_ylabel('sep [mas]')
+            ax[1, 0].set_ylabel('PA [deg]')
+
+        plt.suptitle('Check to make sure your astrometry looks correct:')
+        plt.tight_layout()
+
+        return fig
 
 def radec2seppa(ra, dec, mod180=False):
     """
@@ -906,7 +959,7 @@ def generate_synthetic_data(
 
     # calculate RA/Dec at three observation epochs
     # `num_obs` epochs between ~2000 and ~2003 [MJD]
-    ra, dec, _ = kepler.calc_orbit(
+    ra, dec, _, _ = kepler.calc_orbit(
         observation_epochs, sma, ecc, inc, argp, lan, tau, plx, mtot
     )
 
