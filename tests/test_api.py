@@ -23,13 +23,41 @@ def test_compute_model():
 
     params_arr = np.array([[1., 0.5], [0., 0.], [0., 0.], [0., 0.], [
                           0., 0.], [245000., 245000.], [10, 10], [10, 10]])
-    model, _ = testSystem_parsing.compute_model(params_arr)
-    assert model.shape == (4, 2, 2)
+    model_arr, _ = testSystem_parsing.compute_model(params_arr)
+    assert model_arr.shape == (4, 2, 2)
 
     params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 10])
     model, _ = testSystem_parsing.compute_model(params_arr)
 
     assert model.shape == (4, 2)
+
+    assert (model_arr[:3, :, 0] == model[:3, :]).all()
+    assert (model_arr[3, 0, 0] == model[3, 0]).all() # RV only has index 0, nan in index 1
+    assert not (model_arr[:3, :, 1] == model[:3, :]).all()
+
+def test_compute_model_mass():
+    """
+    Test basic functionality of ``System.compute_model()``
+    """
+    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    data_table = read_input.read_file(input_file)
+    testSystem_parsing = system.System(
+        1, data_table, 10., 10., fit_secondary_mass=True
+    )
+
+    params_arr = np.array([[1., 0.5], [0., 0.], [0., 0.], [0., 0.], [
+                          0., 0.], [245000., 245000.], [10, 10], [0., 0.], [1., 1.], [10., 10.], [0.5, 0.5]])
+    model_arr, _ = testSystem_parsing.compute_model(params_arr)
+    assert model_arr.shape == (4, 2, 2)
+
+    params_arr = np.array([1., 0., 0., 0., 0., 245000., 10, 0., 1., 10., 0.5])
+    model, _ = testSystem_parsing.compute_model(params_arr)
+
+    assert model.shape == (4, 2)
+
+    assert (model_arr[:3, :, 0] == model[:3, :]).all()
+    assert (model_arr[3, 0, 0] == model[3, 0]).all() # RV only has index 0, nan in index 1
+    assert not (model_arr[:3, :, 1] == model[:3, :]).all()
 
 
 def test_systeminit():
