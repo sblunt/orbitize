@@ -49,12 +49,75 @@ if fit_IAD:
     gaia_dr2_number = 4792774797545105664
     fit_secondary_mass = True
     hipparcos_filename = os.path.join(orbitize.DATADIR, "HIP027321.d")
+    # To Download HIP data:
+    # from astroquery.vizier import Vizier
+    # Vizier.ROW_LIMIT = -1
+    # hip_data_table = Vizier(
+    #     catalog="I/311/hip2",
+    #     columns=[
+    #         "RArad",
+    #         "e_RArad",
+    #         "DErad",
+    #         "e_DErad",
+    #         "Plx",
+    #         "e_Plx",
+    #         "pmRA",
+    #         "e_pmRA",
+    #         "pmDE",
+    #         "e_pmDE",
+    #         "F2",
+    #         "Sn",
+    #         "var",
+    #     ],
+    # ).query_constraints(HIP=hipparcos_number)[0]
+    # # Convert from astroquery table to dictionary
+    # hip_data = dict(hip_data_table[0])
+    hip_data = {
+        'RArad': 86.82118072,
+        'e_RArad': 0.1,
+        'DErad': -51.06671341,
+        'e_DErad': 0.11,
+        'Plx': 51.44,
+        'e_Plx': 0.12,
+        'pmRA': 4.65,
+        'e_pmRA': 0.11,
+        'pmDE': 83.1,
+        'e_pmDE': 0.15,
+        'F2': -1.63,
+        'Sn': 5,
+        'var': 0.0
+    }
     betaPic_Hip = HipparcosLogProb(
-        hipparcos_filename, hipparcos_number, num_secondary_bodies
+        hipparcos_filename, hipparcos_number, num_secondary_bodies, hip_data=hip_data
     )
-    betaPic_gaia = GaiaLogProb(gaia_dr2_number, betaPic_Hip, dr="dr2")
+    # To Download Gaia data:
+    # from astroquery.gaia import Gaia
+    # query = """SELECT
+    #     TOP 1
+    #     ra, dec, ra_error, dec_error
+    #     FROM gaia{}.gaia_source
+    #     WHERE source_id = {}
+    #     """.format(
+    #         "dr2", gaia_dr2_number
+    # #         "edr3", gaia_edr3_number
+    #     )
+    # job = Gaia.launch_job_async(query)
+    # gaia_data = job.get_results()
+    gaia_edr3_data = {
+        "ra": 86.82123452009108,
+        "ra_error": 0.13713108,
+        "dec": -51.066136257823345,
+        "dec_error": 0.13109376
+    }
+    gaia_dr2_data = {
+        "ra": 86.82123366090146,
+        "ra_error": 0.3136836085700656,
+        "dec": -51.06614803159093,
+        "dec_error": 0.34165541753173584
+    }
+    betaPic_gaia = GaiaLogProb(gaia_dr2_number, betaPic_Hip, gaia_dr2_data, dr="dr2")
     # betaPic_gaia = GaiaLogProb(
-    #     gaia_edr3_number, betaPic_Hip, dr='edr3'
+    #     gaia_edr3_number, betaPic_Hip, gaia_edr3_data, dr='edr3'
     # )
 else:
     fit_secondary_mass = False

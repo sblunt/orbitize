@@ -61,10 +61,11 @@ Changelog:
 - implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
 - add an astrometry plotting utility function that folks can use to check if data were input correctly (@DTCupcakes)
 - Kepler solver optimization (@eshelDror)
-- Major refresh and refactor of the plotting module (@eshelDror)
-- Fix compute_model crash due to brightness when use_rebound=True (@eshelDror)
-- Make tests deterministic (@eshelDror)
+- major refresh and refactor of the plotting module (@eshelDror)
+- fix compute_model crash due to brightness when use_rebound=True (@eshelDror)
+- make tests deterministic (@eshelDror)
 - ptemcee and emcee implementations now cleanly use mp.Pool (@sblunt)
+- remove functionality that requires an internet connection (this was making several tests flaky; @eshelDror)
 
 **3.4.0 (2026-7-20)**
 
