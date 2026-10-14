@@ -549,10 +549,7 @@ class System(object):
                         vz_i * -(mass / m_interior), (n_epochs, n_orbits)
                     )  # calculating stellar velocity due to ith companion
                     vz[:, 0, :] += vz0  # adding contribution from ith companion rv to stellar velocity
-                    
-            # Secondary RVs are assumed to be *relative* to the primary, so for all companions,
-            # we need to subtract the RV of the primary
-            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
+                
             
             # if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
