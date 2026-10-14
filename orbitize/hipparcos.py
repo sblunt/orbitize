@@ -163,13 +163,13 @@ class HipparcosLogProb(object):
             should be False, but it's helpful for testing. Check out
             `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
+        brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
+            to the residuals, following Brandt+ 2023.
         hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
             (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
             "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
             "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
-            or int as appropriate (default: None)        brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
-            to the residuals, following Brandt+ 2023.
-
+            or int as appropriate (default: None)
     Written: Sarah Blunt & Rob de Rosa, 2021
     """
 
@@ -180,8 +180,8 @@ class HipparcosLogProb(object):
         num_secondary_bodies,
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
-        hip_data=None
         brandt_correction=False,
+        hip_data=None
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
