@@ -267,7 +267,7 @@ def test_hgca():
         ]
     )
 
-    chi2 = this_sampler._logl(params)
+    chi2, *_ = this_sampler._logl(params)
 
     assert np.isfinite(chi2)
 

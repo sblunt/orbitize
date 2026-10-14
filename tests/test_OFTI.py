@@ -138,7 +138,7 @@ def test_run_sampler():
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
-    computed_lnlike_test = s._logl(orbits[0])
+    computed_lnlike_test, *_ = s._logl(orbits[0])
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
     seppa_lnprob_compare = (
@@ -370,12 +370,12 @@ def test_OFTI_covariances():
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
-    computed_lnlike_test = s._logl(orbits[0])
+    computed_lnlike_test, *_ = s._logl(orbits[0])
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
     # test that the lnlike is very similar to the values computed in seppa space
     ref_params, ref_lnlike = seppa_lnprob_compare
-    computed_lnlike_ref = s._logl(ref_params)
+    computed_lnlike_ref, *_ = s._logl(ref_params)
     assert ref_lnlike == pytest.approx(
         computed_lnlike_ref, abs=0.05
     )  # 5% differencesin lnprob is allowable.

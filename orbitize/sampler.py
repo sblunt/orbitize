@@ -113,7 +113,7 @@ class Sampler(abc.ABC):
 
         """
         input_shape = fitted_params.shape
-        assert input_shape[0] == len(self.fitted_param_sys_idx)
+        assert input_shape[0] == len(self.fitted_param_sys_idx), (input_shape[0], len(self.fitted_param_sys_idx))
         if len(input_shape) == 1:
             num_orbits = 1
             params = np.full((self.total_param_num,), np.nan)
@@ -279,7 +279,7 @@ class OFTI(
         self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
     ):
         super(OFTI, self).__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike
+            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=[]
         )
 
         if (self.system.hipparcos_IAD is not None) or (len(self.system.rv[0] > 0)):
@@ -537,7 +537,7 @@ class OFTI(
 
         """
 
-        lnp = self._logl(samples)
+        lnp, *_ = self._logl(samples)
 
         # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array(
@@ -1496,12 +1496,14 @@ class NestedSampler(BaseNestedSampler):
         chi2_type="standard",
         like="chi2_lnlike",
         custom_lnlike=None,
+        marginalizers=None
     ):
         super(NestedSampler, self).__init__(
             system,
             like=like,
             chi2_type=chi2_type,
             custom_lnlike=custom_lnlike,
+            marginalizers=marginalizers
         )
 
         # create an empty results object
@@ -1514,6 +1516,10 @@ class NestedSampler(BaseNestedSampler):
         )
         self.start = time.time()
         self.dynesty_sampler = None
+
+    def _logl(self, params):
+        lnlike, *blobs = super(NestedSampler, self)._logl(params)
+        return lnlike, blobs
 
     def run_sampler(
         self,
@@ -1575,6 +1581,7 @@ class NestedSampler(BaseNestedSampler):
                         bound=bound,
                         bootstrap=False,
                         nlive=nlive,
+                        blob=True,
                     )
                 else:
                     self.dynesty_sampler = dynesty.DynamicNestedSampler(
@@ -1584,7 +1591,8 @@ class NestedSampler(BaseNestedSampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
-                        nlive=nlive
+                        nlive=nlive,
+                        blob=True
                     )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
@@ -1596,6 +1604,7 @@ class NestedSampler(BaseNestedSampler):
                     len(self.system.sys_priors),
                     bound=bound,
                     nlive=nlive,
+                    blob=True,
                 )
             else:
                 self.dynesty_sampler = dynesty.DynamicNestedSampler(
@@ -1604,12 +1613,23 @@ class NestedSampler(BaseNestedSampler):
                     len(self.system.sys_priors),
                     bound=bound,
                     nlive=nlive,
+                    blob=True,
                 )
             self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
+        blobs = self.dynesty_sampler.results["blob"]
+        samples = self.dynesty_sampler.results["samples"]
+        marginalized_params = blobs[:, 1:]
+        logl = self.dynesty_sampler.results["logl"]
+        num_orbits = len(logl)
+        assert (logl == blobs[:, 0]).all(), (np.shape(logl), len(logl), np.shape(blobs[:, 0]))
+        full_post = np.full((num_orbits, self.total_param_num), np.nan)
+        full_post[:, self.fitted_param_sys_idx] = samples
+        full_post[:, self.marg_param_sys_idx] = marginalized_params
+
         self.results.add_samples(
-            self.dynesty_sampler.results["samples"],
-            self.dynesty_sampler.results["logl"],
+            full_post,
+            logl
         )
 
         self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
@@ -1864,7 +1884,8 @@ class NautilusSampler(BaseNestedSampler):
         return self.ptform(u.T).T
     
     def nautilus_logl(self, u: np.ndarray):
-        return self._logl(u.T).T
+        lnlike, *blobs = self._logl(u.T)
+        return lnlike, blobs
     
     def run_sampler(
         self,
