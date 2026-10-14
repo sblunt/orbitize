@@ -306,8 +306,23 @@ def test_save_and_load_hipparcos_only():
     hip_num = "027321"
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    hip_data = {
+        'RArad': 86.82118072,
+        'e_RArad': 0.1,
+        'DErad': -51.06671341,
+        'e_DErad': 0.11,
+        'Plx': 51.44,
+        'e_Plx': 0.12,
+        'pmRA': 4.65,
+        'e_pmRA': 0.11,
+        'pmDE': 83.1,
+        'e_pmDE': 0.15,
+        'F2': -1.63,
+        'Sn': 5,
+        'var': 0.0
+    }
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
     data_table_with_rvs = read_input.read_file(input_file)
@@ -349,9 +364,30 @@ def test_save_and_load_gaia_and_hipparcos():
     gaia_num = 4792774797545105664
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    hip_data = {
+        'RArad': 86.82118072,
+        'e_RArad': 0.1,
+        'DErad': -51.06671341,
+        'e_DErad': 0.11,
+        'Plx': 51.44,
+        'e_Plx': 0.12,
+        'pmRA': 4.65,
+        'e_pmRA': 0.11,
+        'pmDE': 83.1,
+        'e_pmDE': 0.15,
+        'F2': -1.63,
+        'Sn': 5,
+        'var': 0.0
+    }
+    gaia_dr2_data = {
+        "ra": 86.82123366090146,
+        "ra_error": 0.3136836085700656,
+        "dec": -51.06614803159093,
+        "dec_error": 0.34165541753173584
+    }
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(gaia_num, myHip)
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myGaia = gaia.GaiaLogProb(gaia_num, myHip, gaia_dr2_data, dr="dr2")
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
     data_table_with_rvs = read_input.read_file(input_file)

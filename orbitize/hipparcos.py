@@ -8,7 +8,6 @@ import h5py
 
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
-from astroquery.vizier import Vizier
 
 
 class PMPlx_Motion(object):
@@ -166,7 +165,11 @@ class HipparcosLogProb(object):
             using this renormalization.
         brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
             to the residuals, following Brandt+ 2023.
-
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
+            (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
+            "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
+            "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
+            or int as appropriate (default: None)
     Written: Sarah Blunt & Rob de Rosa, 2021
     """
 
@@ -178,6 +181,7 @@ class HipparcosLogProb(object):
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
         brandt_correction=False,
+        hip_data=None
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
@@ -196,46 +200,28 @@ class HipparcosLogProb(object):
         self.num_secondary_bodies = num_secondary_bodies
         self.alphadec0_epoch = alphadec0_epoch
 
+        self.hip_data = hip_data
+
         # dvd files don't contain the Hipparcos astrometric solution, so
         # we need to look it up
         if dvd_file:
-            # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
-            # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
-            Vizier.ROW_LIMIT = -1
-            hip_cat = Vizier(
-                catalog="I/311/hip2",
-                columns=[
-                    "RArad",
-                    "e_RArad",
-                    "DErad",
-                    "e_DErad",
-                    "Plx",
-                    "e_Plx",
-                    "pmRA",
-                    "e_pmRA",
-                    "pmDE",
-                    "e_pmDE",
-                    "F2",
-                    "Sn",
-                    "var",
-                ],
-            ).query_constraints(HIP=self.hip_num)[0]
+            if not isinstance(hip_data, dict):
+                raise TypeError("Expected kwarg `hip_data` to be a dict but encountered {} instead".format(type(hip_data)))
+            self.plx0 = hip_data["Plx"]  # [mas]
+            self.pm_ra0 = hip_data["pmRA"]  # [mas/yr]
+            self.pm_dec0 = hip_data["pmDE"]  # [mas/yr]
+            self.alpha0 = hip_data["RArad"]  # [deg]
+            self.delta0 = hip_data["DErad"]  # [deg]
+            self.plx0_err = hip_data["e_Plx"]  # [mas]
+            self.pm_ra0_err = hip_data["e_pmRA"]  # [mas/yr]
+            self.pm_dec0_err = hip_data["e_pmDE"]  # [mas/yr]
+            self.alpha0_err = hip_data["e_RArad"]  # [mas]
+            self.delta0_err = hip_data["e_DErad"]  # [mas]
 
-            self.plx0 = hip_cat["Plx"][0]  # [mas]
-            self.pm_ra0 = hip_cat["pmRA"][0]  # [mas/yr]
-            self.pm_dec0 = hip_cat["pmDE"][0]  # [mas/yr]
-            self.alpha0 = hip_cat["RArad"][0]  # [deg]
-            self.delta0 = hip_cat["DErad"][0]  # [deg]
-            self.plx0_err = hip_cat["e_Plx"][0]  # [mas]
-            self.pm_ra0_err = hip_cat["e_pmRA"][0]  # [mas/yr]
-            self.pm_dec0_err = hip_cat["e_pmDE"][0]  # [mas/yr]
-            self.alpha0_err = hip_cat["e_RArad"][0]  # [mas]
-            self.delta0_err = hip_cat["e_DErad"][0]  # [mas]
-
-            self.solution_type = hip_cat["Sn"][0]
-            f2 = hip_cat["F2"][0]
+            self.solution_type = hip_data["Sn"]
+            f2 = hip_data["F2"]
             if self.solution_type == 1:
-                self.var = hip_cat["var"][0]  # [mas]
+                self.var = hip_data["var"]  # [mas]
             else:
                 self.var = 0
 
@@ -382,6 +368,10 @@ class HipparcosLogProb(object):
         hf.attrs["alphadec0_epoch"] = self.alphadec0_epoch
         hf.attrs["renormalize_errors"] = self.renormalize_errors
 
+        if self.hip_data is not None:
+            hip_data_group = hf.create_group("hip_data")
+            hip_data_group.update(self.hip_data)
+
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
         Computes the log likelihood of an orbit model with respect to the
@@ -450,6 +440,7 @@ def nielsen_iad_refitting_test(
     saveplot="bPic_IADrefit.png",
     burn_steps=100,
     mcmc_steps=5000,
+    hip_data=None,
 ):
     """
     Reproduce the IAD refitting test from Nielsen+ 2020 (end of Section 3.1).
@@ -465,6 +456,11 @@ def nielsen_iad_refitting_test(
             plot
         burn_steps (int): number of MCMC burn-in steps to run.
         mcmc_steps (int): number of MCMC production steps to run.
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
+            (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
+            "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
+            "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
+            or int as appropriate (default: None)
 
     Returns:
         tuple:
@@ -478,7 +474,7 @@ def nielsen_iad_refitting_test(
     num_secondary_bodies = 0
 
     myHipLogProb = HipparcosLogProb(
-        iad_file, hip_num, num_secondary_bodies, renormalize_errors=True
+        iad_file, hip_num, num_secondary_bodies, renormalize_errors=True, hip_data=hip_data
     )
     n_epochs = len(myHipLogProb.epochs)
 
