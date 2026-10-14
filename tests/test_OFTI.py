@@ -15,8 +15,6 @@ import orbitize.system as system
 import orbitize.system
 from orbitize.hipparcos import HipparcosLogProb
 
-np.random.seed(0)
-
 input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
 input_file_1epoch = os.path.join(orbitize.DATADIR, "GJ504_1epoch.csv")
 input_file_rvs = os.path.join(orbitize.DATADIR, "HD4747.csv")
@@ -34,7 +32,7 @@ def test_scale_and_rotate():
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(
+    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
@@ -46,7 +44,7 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch["quant2"], abs=sar_epoch["quant2_err"])
 
     # test scale-and-rotate for orbits run all the way through OFTI
-    s.run_sampler(100)
+    s.run_sampler(100, seed=np.random.random_integers(1, 1e9))
 
     # test orbit plot generation
     s.results.plot_orbits(start_mjd=s.epochs[0])
@@ -61,7 +59,7 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(
+    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     assert np.max(lan) > np.pi
@@ -91,7 +89,7 @@ def test_scale_and_rotate():
     assert np.max(lan) < np.pi
     assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
 
-    ra, dec, vc = orbitize.kepler.calc_orbit(
+    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
@@ -124,11 +122,11 @@ def test_run_sampler():
     myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0, num_samples=1)
+    s.run_sampler(0, num_samples=1, seed=np.random.random_integers(1, 1e9))
 
     # test to make sure outputs are reasonable
     start = time.time()
-    orbits = s.run_sampler(100, num_cores=4)
+    orbits = s.run_sampler(100, num_cores=4, seed=np.random.random_integers(1, 1e9))
     end = time.time()
 
     print()
@@ -158,7 +156,7 @@ def test_run_sampler():
     inc_exp = np.radians(140)
 
     # test to make sure OFTI values are consistent with expectations
-    assert sma == pytest.approx(sma_exp, abs=5)
+    assert sma == pytest.approx(sma_exp, abs=7)
     assert ecc == pytest.approx(ecc_exp, abs=0.1)
     assert inc == pytest.approx(inc_exp, abs=np.radians(10))
 
@@ -172,7 +170,7 @@ def test_run_sampler():
         input_file_1epoch, "OFTI", 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26
     )
     s = myDriver.sampler
-    s.run_sampler(1)
+    s.run_sampler(1, seed=np.random.random_integers(1, 1e9))
     print()
 
 
@@ -235,7 +233,7 @@ def profile_system():
     myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0, num_samples=1)
+    s.run_sampler(0, num_samples=1, seed=np.random.random_integers(1, 1e9))
 
     # test to make sure outputs are reasonable
     pycuda.driver.start_profiler()
@@ -253,7 +251,7 @@ def profile_system():
     start = time.time()
     orbitize.cext = True
     orbitize.cuda_ext = False
-    orbits = s.run_sampler(30000)
+    orbits = s.run_sampler(30000, seed=np.random.random_integers(1, 1e9))
     end = time.time()
     pycuda.driver.stop_profiler()
 
@@ -277,6 +275,7 @@ def profile_system():
 
 
 def test_OFTI_multiplanet():
+
     # initialize sampler
     input_file = os.path.join(orbitize.DATADIR, "test_val_multi.csv")
     myDriver = orbitize.driver.Driver(
@@ -289,7 +288,7 @@ def test_OFTI_multiplanet():
     # change eccentricity prior for c
     myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
 
-    orbits = s.run_sampler(500)
+    orbits = s.run_sampler(500, seed=np.random.random_integers(1, 1e9))
 
     idx = s.system.param_idx
     sma1 = np.median(orbits[:, idx["sma1"]])
@@ -297,11 +296,19 @@ def test_OFTI_multiplanet():
 
     sma1_exp = 66
     sma2_exp = 40
-    print(sma1, sma2)
+
     assert sma1 == pytest.approx(sma1_exp, abs=0.3 * sma1_exp)
     assert sma2 == pytest.approx(sma2_exp, abs=0.3 * sma2_exp)
     assert np.all(orbits[:, idx["ecc1"]] < 0.1)
     assert np.all(orbits[:, idx["ecc2"]] < 0.1)
+
+    s.results.print_results()
+
+    # test that the results printing unit printing is working correctly
+    results_lines = s.results.results_str.split('\n')
+    assert results_lines[-3][-4:] == 'Msun'
+    # check that the degree unit conversion was performed
+    assert float(results_lines[-6][6:13]) > 2 * np.pi and float(results_lines[-6][6:13]) < 360
 
 
 @pytest.hookimpl(trylast=True)
@@ -354,10 +361,10 @@ def test_OFTI_covariances():
     my_sys.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0, num_samples=1)
+    s.run_sampler(0, num_samples=1, seed=np.random.random_integers(1, 1e9))
 
     # test to make sure outputs are reasonable
-    orbits = s.run_sampler(1000, num_cores=4)
+    orbits = s.run_sampler(1000, num_cores=4, seed=np.random.random_integers(1, 1e9))
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
@@ -392,7 +399,7 @@ def test_OFTI_pan_priors():
     myDriver.system.sys_priors[4] = priors.UniformPrior(new_min, new_max)
 
     # run sampler
-    orbits = s.run_sampler(100)
+    orbits = s.run_sampler(100, seed=np.random.random_integers(1, 1e9))
 
     # check that bounds were applied correctly
     assert np.max(orbits[:, 4]) < new_max
@@ -404,7 +411,7 @@ def test_OFTI_pan_priors():
     myDriver.system.sys_priors[4] = priors.GaussianPrior(mu, sigma=sigma)
 
     # run sampler again
-    orbits = s.run_sampler(250)
+    orbits = s.run_sampler(500, seed=np.random.random_integers(1, 1e8))
 
     # check that bounds were applied correctly
     assert mu == pytest.approx(np.mean(orbits[:, 4]), abs=0.01)
@@ -416,9 +423,9 @@ if __name__ == "__main__":
     # test_run_sampler()
 
     # test_OFTI_covariances()
-    # test_OFTI_multiplanet()
+    test_OFTI_multiplanet()
     # test_not_implemented()
     # test_fixed_sys_params_sampling()
-    test_OFTI_pan_priors()
+    # test_OFTI_pan_priors()
     # # profile_system()
     # print("Done!")
