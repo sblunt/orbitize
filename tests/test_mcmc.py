@@ -199,8 +199,8 @@ def test_mcmc_param_idx():
 
 def test_mcmc_runs():
     # Parallel Tempering tests (only test corner plot once)
-    # do_mcmc_runs(num_temps=2, num_threads=1, make_corner_plot=True)
-    # do_mcmc_runs(num_temps=2, num_threads=4)
+    do_mcmc_runs(num_temps=2, num_threads=1, make_corner_plot=True)
+    do_mcmc_runs(num_temps=2, num_threads=4)
     # Ensemble MCMC tests
     do_mcmc_runs(num_temps=0, num_threads=1)
     do_mcmc_runs(num_temps=0, num_threads=8)

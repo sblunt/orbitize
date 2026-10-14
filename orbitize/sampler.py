@@ -87,6 +87,7 @@ class Sampler(abc.ABC):
         self.blob_labels = ["lnlike"] + self.marg_param_labels
         
         self.non_marg_quants = list(quants - marg_quants)
+        self.force_valid_marg = False
 
         if not orbitize.marginalizer.compatible_params(self.marginalizers, self.fitted_param_labels):
             raise ValueError("Marginalizers and basis are incompatible")
@@ -125,21 +126,26 @@ class Sampler(abc.ABC):
         total_lnlike = 0
         total_lnprob = 0
         all_calculated_values = {}
-        for marg in self.marginalizers:
-            req_param_idx = [self.system.param_idx[label] for label in marg.REQ_PARAMS]
-            jitter_param_idx = [self.system.param_idx[label] for label in marg.JITTER_PARAMS]
-            marg_param_idx = [self.system.param_idx[label] for label in marg.MARG_PARAMS]
-            req_params = params[req_param_idx]
-            jitter = params[jitter_param_idx]
-            partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, jitter, all_calculated_values)
-            total_lnprob += partial_lnprob
-            total_lnlike += partial_lnlike
-            params[marg_param_idx] = marg_params
-            all_calculated_values.update(calculated_values) # i.e. astr_tanom, rv_eanom
-        assert not np.isnan(params).any(), (marg_params, params.shape, marg_param_idx)
+        if self.force_valid_marg:
+            samples = [np.squeeze(prior.draw_samples(num_orbits)) for prior in self.marg_priors]
+            params[self.marg_param_sys_idx] = samples
+            assert not np.isnan(params).any()
+        else:
+            for marg in self.marginalizers:
+                req_param_idx = [self.system.param_idx[label] for label in marg.REQ_PARAMS]
+                jitter_param_idx = [self.system.param_idx[label] for label in marg.JITTER_PARAMS]
+                marg_param_idx = [self.system.param_idx[label] for label in marg.MARG_PARAMS]
+                req_params = params[req_param_idx]
+                jitter = params[jitter_param_idx]
+                partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, jitter, all_calculated_values)
+                total_lnprob += partial_lnprob
+                total_lnlike += partial_lnlike
+                params[marg_param_idx] = marg_params
+                all_calculated_values.update(calculated_values) # i.e. astr_tanom, rv_eanom
+            assert not np.isnan(params).any(), (marg_params, params.shape, marg_param_idx)
 
         lnlikes_sum = 0
-        if len(self.non_marg_quants) > 0:
+        if self.force_valid_marg or len(self.non_marg_quants) > 0:
 
             # compute the model based on system params
             model, jitter = self.system.compute_model(params)
@@ -165,15 +171,22 @@ class Sampler(abc.ABC):
                 seppa_indices = self.system.all_seppa
             else:
                 seppa_indices = ()
-            non_marg_mask = np.isin(np.astype(self.system.data_table["quant_type"], str), self.non_marg_quants)
-            non_marg_data = data[non_marg_mask]
-            non_marg_errs = errs[non_marg_mask]
-            if corrs is not None:
-                non_marg_corrs = corrs[non_marg_mask]
+            if self.force_valid_marg:
+                non_marg_data = data
+                non_marg_errs = errs
+                non_marg_corrs = corrs
+                non_marg_model = model
+                non_marg_jitter = jitter
             else:
-                non_marg_corrs = None
-            non_marg_model = model[non_marg_mask]
-            non_marg_jitter = jitter[non_marg_mask]
+                non_marg_mask = np.isin(np.astype(self.system.data_table["quant_type"], str), self.non_marg_quants)
+                non_marg_data = data[non_marg_mask]
+                non_marg_errs = errs[non_marg_mask]
+                if corrs is not None:
+                    non_marg_corrs = corrs[non_marg_mask]
+                else:
+                    non_marg_corrs = None
+                non_marg_model = model[non_marg_mask]
+                non_marg_jitter = jitter[non_marg_mask]
 
             # compute lnlike
             lnlikes = self.lnlike(
@@ -818,6 +831,7 @@ class MCMC(Sampler):
 
         if self.num_temps > 1:
             self.use_pt = True
+            self.force_valid_marg = True
         else:
             self.use_pt = False
             self.num_temps = 1
@@ -983,11 +997,18 @@ class MCMC(Sampler):
         self.post = self._fill_in_fixed_params(self.post)
 
         if self.use_pt:
-            assert False, "need to implement blobs for ptemcee" # TODO
+            # Ntemp x Nwalkers x Nsteps x Nblobs
+            self.blobs = sampler.blobs[0, :, :num_steps, :].reshape(-1, len(self.blob_labels))
+            assert len(self.blobs) == len(self.lnlikes)
+            no_diff = ((self.lnlikes == self.blobs[:, 0]) | (np.abs(self.lnlikes - self.blobs[:, 0]) < 0.001))
+            assert (no_diff).all(), (self.lnlikes[~no_diff][:10], self.blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
+            # assert (no_diff).all(), (sampler.loglikelihood[:, :, :num_steps], sampler.blobs[:, :, :num_steps, 0], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
+            self.marginalized_param_blobs = self.blobs[:, 1:]
+            assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[:5, :10]
         else:
             self.blobs = sampler.blobs[:num_steps, :].T.reshape(len(self.blob_labels), -1).T
             no_diff = ((self.lnlikes == self.blobs[:, 0]) | (np.abs(self.lnlikes - self.blobs[:, 0]) < 0.001))
-            assert (no_diff).all(), (self.lnlikes[~no_diff], self.blobs[:, 0][~no_diff], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
+            assert (no_diff).all(), (self.lnlikes[~no_diff][:10], self.blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
             self.marginalized_param_blobs = self.blobs[:, 1:]
             assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[:5, :10]
         num_orbits = self.post.shape[0]
@@ -1117,7 +1138,8 @@ class MCMC(Sampler):
                     logpargs=[
                         self.priors,
                     ],
-                    pool=pool
+                    pool=pool,
+                    nblobs=len(self.blob_labels)
                 )
             else:
                 sampler = emcee.EnsembleSampler(
@@ -1134,6 +1156,7 @@ class MCMC(Sampler):
             ):
                 if self.use_pt:
                     self.curr_pos = state[0]
+                    self.force_valid_marg = False
                 else:
                     self.curr_pos = state.coords
 
@@ -1154,6 +1177,7 @@ class MCMC(Sampler):
             sampler.reset()
             print("")
             print("Burn in complete. Sampling posterior now.")
+            self.force_valid_marg = self.use_pt
 
             saved_upto = 0  # keep track of how many steps of this chain we've saved. this is the next index that needs to be saved
             for i, state in enumerate(
@@ -1161,6 +1185,7 @@ class MCMC(Sampler):
             ):
                 if self.use_pt:
                     self.curr_pos = state[0]
+                    self.force_valid_marg = False
                 else:
                     self.curr_pos = state.coords
 

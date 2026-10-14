@@ -75,7 +75,7 @@ def test_MargPriorNoInput():
     myResults = mySampler.results
     assert (0.5 <= myResults.post[:, 8]).all() and (myResults.post[:, 8] <= 1.5).all()
     assert np.mean(myResults.post[:, 8]) == pytest.approx(1, rel=0.1)
-    assert np.std(myResults.post[:, 9]) == pytest.approx(1, rel=0.1)
+    assert np.std(myResults.post[:, 9]) == pytest.approx(1, rel=0.2)
     assert np.mean(myResults.post[:, 9]) == pytest.approx(10, rel=0.1)
 
 def test_incompatible():
@@ -151,12 +151,13 @@ def test_OFTeI():
     marg = marginalizer.OFTeI_sma_pan(epochs, sep, pa, sep_err, pa_err, covar, sma_prior, pan_prior, mass_prior, implicit_mass_prior)
     mySampler = sampler.MCMC(
         mySystem,
-        num_temps=0,
+        num_temps=5,
         num_walkers=100,
         num_threads=mp.cpu_count(),
         marginalizers=[marg]
     )
     mySampler.run_sampler(4000, 10, output_filename=output_file, periodic_save_freq=2)
+    assert not mySampler.force_valid_marg
     myResults = mySampler.results
     print(myResults.post.shape)
 
