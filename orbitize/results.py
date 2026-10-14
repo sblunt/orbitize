@@ -477,9 +477,7 @@ class Results(object):
         """
         Wrapper for orbitize.plot.plot_corner
         """
-        return orbitize.plot.plot_corner(
-            self, param_list=param_list, downsample=downsample, **corner_kwargs
-        )
+        return orbitize.plot.plot_corner(self, param_list, downsample, **corner_kwargs)
 
     def plot_orbits(self, object_to_plot=1, start_mjd=51544.,
         num_orbits_to_plot=100, num_epochs_to_plot=100,
