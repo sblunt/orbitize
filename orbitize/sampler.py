@@ -89,6 +89,10 @@ class Sampler(abc.ABC):
         seppa_indices = self.system.all_seppa
 
         # compute lnlike
+        # NOTE: this won't work if we're fitting more than just astrometry. This is a hack for betelgeuse.
+        if "sigma_ast" in self.system.param_idx:
+            jitter = np.ones_like(model) * params[self.system.param_idx["sigma_ast"]]
+
         lnlikes = self.lnlike(
             data, errs, corrs, model, jitter, seppa_indices, chi2_type=self.chi2_type
         )
@@ -113,17 +117,17 @@ class Sampler(abc.ABC):
                 params, epochs=Time([1991.25], format="decimalyear").mjd
             )
 
-            # subtract off position of star at reference Hipparcos epoch
-            raoff_model[:, 0, :] -= raoff_model_hip_epoch[:, 0, :]
-            deoff_model[:, 0, :] -= deoff_model_hip_epoch[:, 0, :]
+                # subtract off position of star at reference Hipparcos epoch
+                raoff_model[:, 0, :] -= raoff_model_hip_epoch[:, 0, :]
+                deoff_model[:, 0, :] -= deoff_model_hip_epoch[:, 0, :]
 
-            # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
-            lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
-                raoff_model[:, 0, :],
-                deoff_model[:, 0, :],
-                params,
-                self.system.param_idx,
-            )
+                # select body 0 raoff/deoff predictions & feed into Hip IAD lnlike fn
+                lnlikes_sum += self.system.hipparcos_IAD.compute_lnlike(
+                    raoff_model[:, 0, :],
+                    deoff_model[:, 0, :],
+                    params,
+                    self.system.param_idx,
+                )
 
         if self.system.gaia is not None:
             gaiahip_epochs = Time(
@@ -138,13 +142,13 @@ class Sampler(abc.ABC):
                 params, epochs=gaiahip_epochs
             )
 
-        # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
-        lnlikes_sum += self.system.gaia.compute_lnlike(
-            raoff_model[:, 0, :],
-            deoff_model[:, 0, :],
-            params,
-            self.system.param_idx,
-        )
+            # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
+            lnlikes_sum += self.system.gaia.compute_lnlike(
+                raoff_model[:, 0, :],
+                deoff_model[:, 0, :],
+                params,
+                self.system.param_idx,
+            )
         return lnlikes_sum
 
 
