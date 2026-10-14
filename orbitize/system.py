@@ -495,6 +495,14 @@ class System(object):
                     masses[body_num] = mass
                     mtots[body_num] = mtot
 
+                # mass interior to this body's orbit (primary + inner companions). In Jacobi
+                # coordinates, this body's velocity relative to the system barycenter is
+                # scaled by (interior mass / mtot)
+                if self.fit_secondary_mass:
+                    m_interior = mtot - mass
+                else:
+                    m_interior = None
+
                 # solve Kepler's equation
                 raoff, decoff, vz_i, tanom = kepler.calc_orbit(
                     epochs,
@@ -506,7 +514,7 @@ class System(object):
                     tau,
                     plx,
                     mtot,
-                    mass_for_Kamp=m0,
+                    mass_for_Kamp=m_interior,
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
 
@@ -538,13 +546,10 @@ class System(object):
                 # vz_i is the ith companion radial velocity
                 if self.fit_secondary_mass:
                     vz0 = np.reshape(
-                        vz_i * -(mass / m0), (n_epochs, n_orbits)
+                        vz_i * -(mass / m_interior), (n_epochs, n_orbits)
                     )  # calculating stellar velocity due to ith companion
                     vz[:, 0, :] += vz0  # adding contribution from ith companion rv to stellar velocity
-                    
-            # Secondary RVs are assumed to be *relative* to the primary, so for all companions,
-            # we need to subtract the RV of the primary
-            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
+                
             
             # if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
@@ -575,7 +580,6 @@ class System(object):
                         if (body_num == other_body_num) | (body_num == 0):
                             continue
 
-                        ## NOTE: we are only handling astrometry right now (TODO: integrate RV into this)
                         # this computes the perturbation on the other body due to the current body
 
                         # star is perturbed in opposite direction
@@ -595,8 +599,15 @@ class System(object):
                                 masses[body_num] / mtots[body_num]
                             ) * dec_kepler[:, body_num, :]
 
+
             raoff = ra_kepler + ra_perturb
             deoff = dec_kepler + dec_perturb
+
+            # Secondary RVs are assumed to be *relative* to the primary, so for all companions,
+            # we need to subtract the RV of the primary. Because the primary's RV already includes
+            # the reflex motion due to every companion, this subtraction also accounts for the
+            # Jacobi offset of interior companions, so no RV perturbation term is needed above.
+            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
 
         if self.fitting_basis == "XYZ":
             
