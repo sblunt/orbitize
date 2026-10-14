@@ -132,6 +132,21 @@ def test_with_hip_iad():
 	filename = "{}/betaPic.csv".format(DATADIR)
 	hip_num = '027321'
 	hipp_filename = "{}/HIP{}.d".format(DATADIR, hip_num)
+	hip_data = { # 027321 beta pic
+		'RArad': 86.82118072,
+		'e_RArad': 0.1,
+		'DErad': -51.06671341,
+		'e_DErad': 0.11,
+		'Plx': 51.44,
+		'e_Plx': 0.12,
+		'pmRA': 4.65,
+		'e_pmRA': 0.11,
+		'pmDE': 83.1,
+		'e_pmDE': 0.15,
+		'F2': -1.63,
+		'Sn': 5,
+		'var': 0.0
+	}
 
 	num_secondary_bodies = 1
 	system_mass = 1.75
@@ -139,7 +154,7 @@ def test_with_hip_iad():
 	plx = 51.44
 	plx_err = 0.12
 
-	myHip = hipparcos.HipparcosLogProb(hipp_filename, hip_num, num_secondary_bodies)
+	myHip = hipparcos.HipparcosLogProb(hipp_filename, hip_num, num_secondary_bodies, hip_data=hip_data)
 
 	hip_labels = ['pm_ra', 'pm_dec', 'alpha0', 'delta0']
 
