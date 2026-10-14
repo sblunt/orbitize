@@ -1,8 +1,38 @@
 import numpy as np
 import os
 from orbitize import DATADIR
-from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results, priors
 from astropy.table import Table
+from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results, priors
+
+gaia_edr3_data = {
+    "ra": 86.82123452009108,
+    "ra_error": 0.13713108,
+    "dec": -51.066136257823345,
+    "dec_error": 0.13109376
+}
+
+gaia_dr2_data = {
+    "ra": 86.82123366090146,
+    "ra_error": 0.3136836085700656,
+    "dec": -51.06614803159093,
+    "dec_error": 0.34165541753173584
+}
+
+hip_data = {
+    'RArad': 86.82118072,
+    'e_RArad': 0.1,
+    'DErad': -51.06671341,
+    'e_DErad': 0.11,
+    'Plx': 51.44,
+    'e_Plx': 0.12,
+    'pmRA': 4.65,
+    'e_pmRA': 0.11,
+    'pmDE': 83.1,
+    'e_pmDE': 0.15,
+    'F2': -1.63,
+    'Sn': 5,
+    'var': 0.0
+}
 
 def test_dr2_edr3():
     """
@@ -16,10 +46,10 @@ def test_dr2_edr3():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
 
-    dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
-    dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, dr="dr2")
+    dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
+    dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, gaia_dr2_data, dr="dr2")
 
     assert np.isclose(dr2Gaia.ra, dr3Gaia.ra, atol=0.1)  # abs tolerance in degrees
 
@@ -33,8 +63,8 @@ def test_system_setup():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
     plx = 51.5
@@ -83,9 +113,9 @@ def test_valueerror():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
     try:
-        myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="dr3")
+        myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
         assert False, "Test failed!"
     except ValueError:
         pass
@@ -126,8 +156,8 @@ def test_orbit_calculation():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
 
     param_idx = {
         "sma1": 0,
@@ -224,9 +254,10 @@ def test_hgca():
     iad_filepath = os.path.join(DATADIR, "HIP027321.d")
     gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
     astrometry_filepath = os.path.join(DATADIR, "betaPic.csv")
+    hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3_betapic.fits")
 
-    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1)
-    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1, hip_data=hip_data)
+    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath, hgca_filepath)
 
     # test a few things were read in correctly
     assert np.all(np.isfinite(hgca_lnprob.hip_pm))
@@ -284,27 +315,6 @@ def test_hgca():
 
     os.remove("hgca_test.hdf5")
 
-
-def test_nointernet():
-    """
-    Test that the internet-less object setup works
-    """
-    hip_num = "027321"  # beta Pic
-    dr2_number = 4792774797545105664
-
-    num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
-
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-
-    _ = gaia.GaiaLogProb(
-        dr2_number,
-        myHip,
-        dr="dr2",
-        query=False,
-        gaia_data={"ra": 0, "dec": 0, "ra_error": 0, "dec_error": 0},
-    )
-
 def test_dr4_likelihood():
     """Check the AL model and Gaussian likelihood with sampled jitter."""
     # make mock data
@@ -348,7 +358,6 @@ def test_dr4_likelihood():
             actual, expected, rtol=0, atol=1e-12
         )
 if __name__ == "__main__":
-    test_nointernet()
     # test_dr2_edr3()
     # test_system_setup()
     # test_valueerror()
