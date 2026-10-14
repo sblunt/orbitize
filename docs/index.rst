@@ -66,6 +66,9 @@ Changelog:
 - make tests deterministic (@eshelDror)
 - ptemcee and emcee implementations now cleanly use mp.Pool (@sblunt)
 - remove functionality that requires an internet connection (this was making several tests flaky; @eshelDror)
+- corrected bug with scaling of astrometric variance for non-DVD Hipparcos solutions (@sblunt)
+- addition of the "Brandt correction," kwarg in hipparcos.HipparcosLogProb, based on Brandt+ 23 (@sblunt)
+- some aesthetic improvements to the Nielsen test output plots (@sblunt)
 
 **3.4.0 (2026-7-20)**
 
