@@ -18,6 +18,7 @@ import orbitize.kepler
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.results
+import orbitize.marginalizer
 
 import sys
 
@@ -31,7 +32,7 @@ class Sampler(abc.ABC):
     """
 
     def __init__(
-        self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
+        self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard", marginalizers=None
     ):
         self.system = system
 
@@ -46,11 +47,51 @@ class Sampler(abc.ABC):
         # check if need to handle covariances
         self.has_corr = np.any(~np.isnan(self.system.data_table["quant12_corr"]))
 
+        if marginalizers is None:
+            self.marginalizers = []
+        else:
+            # TODO: Construct if not empty list
+            self.marginalizers = marginalizers
+
+        # TODO: multiplanet
+        marginalized_param_labels_set = set(label for marg in self.marginalizers for label in marg.MARG_PARAMS)
+        fitted_param_labels_set = set(system.labels) - marginalized_param_labels_set
+
+        self.fitted_param_labels = []
+        self.marg_param_labels = []
+        self.fitted_param_sys_idx = []
+        self.marg_param_sys_idx = []
+        self.fitted_priors = []
+        self.marg_priors = []
+        self.fitted_param_idx = {}
+        self.marg_param_idx = {}
+        fitted_param_counter = 0
+        marg_param_counter = 0
+        for i, (label, prior) in enumerate(zip(self.system.labels, self.system.sys_priors)):
+            if label in fitted_param_labels_set:
+                self.fitted_priors.append(prior)
+                self.fitted_param_labels.append(label)
+                self.fitted_param_sys_idx.append(i)
+                self.fitted_param_idx[label] = fitted_param_counter
+                fitted_param_counter += 1
+            else:
+                self.marg_priors.append(prior)
+                self.marg_param_labels.append(label)
+                self.marg_param_sys_idx.append(i)
+                self.marg_param_idx[label] = marg_param_counter
+                marg_param_counter += 1
+        self.total_param_num = len(self.system.sys_priors)
+        quants = set(np.unique(self.system.data_table["quant_type"]))
+        marg_quants = {(quant_type for quant_type in marg.QUANT_TYPES) for marg in self.marginalizers}
+        self.blob_labels = ["lnlike"] + self.marg_param_labels
+
+        self.non_marg_quants = list(quants - marg_quants)
+
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
         pass
 
-    def _logl(self, params):
+    def _logl(self, fitted_params):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -66,35 +107,77 @@ class Sampler(abc.ABC):
             float: sum of all log likelihoods of the data given input model
 
         """
-        # compute the model based on system params
-        model, jitter = self.system.compute_model(params)
-
-        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
-        data = np.array(
-            [self.system.data_table["quant1"], self.system.data_table["quant2"]]
-        ).T
-
-        # errors below required for lnlike function below
-        errs = np.array(
-            [self.system.data_table["quant1_err"], self.system.data_table["quant2_err"]]
-        ).T
-        # covariances/correlations, if applicable
-        # we're doing this check now because the likelihood computation is much faster if we can skip it.
-        if self.has_corr:
-            corrs = self.system.data_table["quant12_corr"]
+        input_shape = fitted_params.shape
+        assert input_shape[0] == len(self.fitted_param_sys_idx)
+        if len(input_shape) == 1:
+            num_orbits = 1
+            params = np.full((self.total_param_num,), np.nan)
         else:
-            corrs = None
+            num_orbits = input_shape[1]
+            params = np.full((self.total_param_num, num_orbits), np.nan)
+        assert len(self.fitted_param_sys_idx) == len(fitted_params), (self.fitted_param_sys_idx, fitted_params)
+        params[self.fitted_param_sys_idx] = fitted_params
 
-        # grab all seppa indices
-        seppa_indices = self.system.all_seppa
+        total_lnlike = 0
+        total_lnprob = 0
+        all_calculated_values = {}
+        for marg in self.marginalizers:
+            req_param_idx = [self.system.param_idx[label] for label in marg.REQ_PARAMS]
+            jitter_param_idx = [self.system.param_idx[label] for label in marg.JITTER_PARAMS]
+            marg_param_idx = [self.system.param_idx[label] for label in marg.MARG_PARAMS]
+            req_params = params[req_param_idx]
+            jitter = params[jitter_param_idx]
+            partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, jitter, all_calculated_values)
+            total_lnprob += partial_lnprob
+            total_lnlike += partial_lnlike
+            params[marg_param_idx] = marg_params
+            all_calculated_values.update(calculated_values) # i.e. astr_tanom, rv_eanom
+        assert not np.isnan(params).any(), (marg_params, params.shape, marg_param_idx)
 
-        # compute lnlike
-        lnlikes = self.lnlike(
-            data, errs, corrs, model, jitter, seppa_indices, chi2_type=self.chi2_type
-        )
+        lnlikes_sum = 0
+        if len(self.non_marg_quants) > 0:
 
-        # return sum of lnlikes (aka product of likeliehoods)
-        lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
+            # compute the model based on system params
+            model, jitter = self.system.compute_model(params)
+
+            # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
+            data = np.array(
+                [self.system.data_table["quant1"], self.system.data_table["quant2"]]
+            ).T
+
+            # errors below required for lnlike function below
+            errs = np.array(
+                [self.system.data_table["quant1_err"], self.system.data_table["quant2_err"]]
+            ).T
+            # covariances/correlations, if applicable
+            # we're doing this check now because the likelihood computation is much faster if we can skip it.
+            if self.has_corr:
+                corrs = self.system.data_table["quant12_corr"]
+            else:
+                corrs = None
+
+            # grab all seppa indices
+            if "seppa" in self.non_marg_quants:
+                seppa_indices = self.system.all_seppa
+            else:
+                seppa_indices = ()
+            non_marg_mask = np.isin(np.astype(self.system.data_table["quant_type"], str), self.non_marg_quants)
+            non_marg_data = data[non_marg_mask]
+            non_marg_errs = errs[non_marg_mask]
+            if corrs is not None:
+                non_marg_corrs = corrs[non_marg_mask]
+            else:
+                non_marg_corrs = None
+            non_marg_model = model[non_marg_mask]
+            non_marg_jitter = jitter[non_marg_mask]
+
+            # compute lnlike
+            lnlikes = self.lnlike(
+                non_marg_data, non_marg_errs, non_marg_corrs, non_marg_model, non_marg_jitter, seppa_indices, chi2_type=self.chi2_type
+            )
+
+            # return sum of lnlikes (aka product of likeliehoods)
+            lnlikes_sum += np.nansum(lnlikes, axis=(0, 1))
 
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
@@ -145,7 +228,13 @@ class Sampler(abc.ABC):
                 params,
                 self.system.param_idx,
             )
-        return lnlikes_sum
+        total_lnprob += lnlikes_sum
+        total_lnlike += lnlikes_sum
+
+        marg_params = params[self.marg_param_sys_idx]
+        assert not np.isnan(marg_params).any(), marg_params
+
+        return total_lnprob, total_lnlike, *marg_params
 
 
 class OFTI(
@@ -712,9 +801,10 @@ class MCMC(Sampler):
         like="chi2_lnlike",
         custom_lnlike=None,
         prev_result_filename=None,
+        marginalizers=None
     ):
         super(MCMC, self).__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike
+            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=marginalizers
         )
 
         self.num_temps = num_temps
@@ -742,7 +832,7 @@ class MCMC(Sampler):
 
         self.sampled_param_idx = {}
         sampled_param_counter = 0
-        for i, prior in enumerate(system.sys_priors):
+        for i, prior in enumerate(self.fitted_priors):
             # check for fixed parameters
             if not hasattr(prior, "draw_samples"):
                 self.fixed_params.append((i, prior))
@@ -846,7 +936,7 @@ class MCMC(Sampler):
                 logp = orbitize.priors.all_lnpriors(params, self.priors)
                 # escape if logp == -np.inf
                 if np.isinf(logp):
-                    return -np.inf
+                    return -np.inf, *[0.0 for i in range(len(self.blob_labels))]
             else:
                 logp = np.array(
                     [orbitize.priors.all_lnpriors(pset, self.priors) for pset in params]
@@ -858,7 +948,8 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(MCMC, self)._logl(full_params) + logp
+        logprob, loglike, *marg_params = super(MCMC, self)._logl(full_params)
+        return logprob + logp, loglike, *marg_params
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
@@ -894,6 +985,20 @@ class MCMC(Sampler):
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
+
+        if self.use_pt:
+            assert False, "need to implement blobs for ptemcee" # TODO
+        else:
+            self.blobs = sampler.blobs[:num_steps, :].T.reshape(len(self.blob_labels), -1).T
+            assert (self.lnlikes == self.blobs[:, 0]).all(), (self.lnlikes, self.blobs[:, 0])
+            self.marginalized_param_blobs = self.blobs[:, 1:]
+            assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[:5, :10]
+        num_orbits = self.post.shape[0]
+        self.full_post = np.full((num_orbits, self.total_param_num), np.nan)
+        self.full_post[:, self.fitted_param_sys_idx] = self.post
+        self.full_post[:, self.marg_param_sys_idx] = self.marginalized_param_blobs
+        assert not np.isnan(self.full_post).any(), (self.fitted_param_sys_idx, self.marg_param_sys_idx)
+
 
     def validate_xyz_positions(self):
         """
@@ -1072,13 +1177,13 @@ class MCMC(Sampler):
 
                         # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
                         # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
-                        post_shape = self.post.shape
+                        post_shape = self.full_post.shape
                         curr_chain_shape = (
                             self.num_walkers,
                             post_shape[0] // self.num_walkers,
                             post_shape[-1],
                         )
-                        curr_chain = self.post.reshape(curr_chain_shape)
+                        curr_chain = self.full_post.reshape(curr_chain_shape)
                         curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
                         # use the reshaped arrays and find the new steps we computed
                         curr_chunk = curr_chain[:, saved_upto : i + 1]
@@ -1102,18 +1207,18 @@ class MCMC(Sampler):
             if periodic_save_freq is None:
                 # need to save everything
                 self.results.add_samples(
-                    self.post, self.lnlikes, curr_pos=self.curr_pos
+                    self.full_post, self.lnlikes, curr_pos=self.curr_pos
                 )
             elif saved_upto < nsteps:
                 # just need to save the last few
                 # same code as above except we just need to grab the last few
-                post_shape = self.post.shape
+                post_shape = self.full_post.shape
                 curr_chain_shape = (
                     self.num_walkers,
                     post_shape[0] // self.num_walkers,
                     post_shape[-1],
                 )
-                curr_chain = self.post.reshape(curr_chain_shape)
+                curr_chain = self.full_post.reshape(curr_chain_shape)
                 curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
                 curr_chunk = curr_chain[:, saved_upto:]
                 curr_chunk = curr_chunk.reshape(
