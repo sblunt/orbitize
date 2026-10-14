@@ -579,7 +579,7 @@ class OFTI(
         return saved_orbits, lnlikes
 
     def _sampler_process(
-        self, output, total_orbits, num_samples=10000, Value=0, lock=None
+        self, output, total_orbits, num_samples=10000, Value=0, lock=None, seed=None
     ):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
@@ -593,6 +593,8 @@ class OFTI(
             Value (mp.Value(int)): global counter for the orbits generated
             lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
+            seed (int): integer to initiate the random seed from, used for testing
+                (default: None)
         Returns:
             tuple:
 
@@ -604,7 +606,11 @@ class OFTI(
 
         """
 
-        np.random.seed()
+        if seed is not None:
+            np.random.seed(seed)
+        else:
+            np.random.seed()
+
 
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
@@ -636,7 +642,7 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0
+        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0, seed=None
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -650,6 +656,8 @@ class OFTI(
             OFTI_warning (float): if OFTI doesn't accept a single orbit before
                 this amount of time (in seconds), print a warning suggesting to
                 try MCMC. If None, don't print a warning.
+            seed (int): integer seed to initialize sampler process,
+                used for testing (Default: None)
         Return:
             np.array: array of accepted orbits. Size: total_orbits.
 
@@ -677,7 +685,7 @@ class OFTI(
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output, nrun_per_core, num_samples, orbits_saved, lock),
+                    args=(output, nrun_per_core, num_samples, orbits_saved, lock, seed),
                 )
                 for x in range(num_cores)
             ]

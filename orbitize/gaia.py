@@ -1,10 +1,6 @@
 import os
 import numpy as np
-import contextlib
-import requests
 
-with contextlib.redirect_stdout(None):
-    from astroquery.gaia import Gaia
 from astropy import units as u
 import astropy.io.fits as fits
 import astropy.time as time
@@ -19,8 +15,7 @@ import orbitize.lnlike
 class GaiaLogProb(object):
     """
     Class to compute the log probability of an orbit with respect to a single
-    astrometric position point from Gaia. Uses astroquery to look up Gaia
-    astrometric data, and computes log-likelihood. To be used in conjunction with
+    astrometric position point from Gaia. To be used in conjunction with
     orbitize.hipparcos.HipLogProb; see documentation for that object for more
     detail.
 
@@ -39,12 +34,8 @@ class GaiaLogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         dr (str): either 'dr2' or 'edr3'
-        query (bool): if True, queries the Gaia database for astrometry of the
-            target (requires an internet connection). If False, uses user-input
-            astrometric values (runs without internet).
-        gaia_data (dict): see `query` keyword above. If `query` set to False,
-            then user must supply a dictionary of Gaia astometry in the following
-            form:
+        gaia_data (dict): a dictionary of Gaia astometry in the
+            following form:
                 gaia_data = {
                     'ra': 139.4 # RA in degrees
                     'dec': 139.4 # Dec in degrees
@@ -55,10 +46,11 @@ class GaiaLogProb(object):
     Written: Sarah Blunt, 2021
     """
 
-    def __init__(self, gaia_num, hiplogprob, dr="dr2", query=True, gaia_data=None):
+    def __init__(self, gaia_num, hiplogprob, gaia_data, dr="dr2"):
         self.gaia_num = gaia_num
         self.hiplogprob = hiplogprob
         self.dr = dr
+        self.gaia_data = gaia_data
 
         if self.dr == "edr3":
             self.gaia_epoch = 2016.0
@@ -67,19 +59,6 @@ class GaiaLogProb(object):
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
         self.hipparcos_epoch = 1991.25
-
-        if query:
-            query = """SELECT
-            TOP 1
-            ra, dec, ra_error, dec_error
-            FROM gaia{}.gaia_source
-            WHERE source_id = {}
-            """.format(
-                self.dr, self.gaia_num
-            )
-
-            job = Gaia.launch_job_async(query)
-            gaia_data = job.get_results()
 
         self.ra = gaia_data["ra"]
         self.ra_err = gaia_data["ra_error"]
@@ -99,6 +78,8 @@ class GaiaLogProb(object):
         """
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = self.dr
+        gaia_data_group = hf.create_group("gaia_data")
+        gaia_data_group.update(self.gaia_data)
         self.hiplogprob._save(hf)
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
@@ -175,7 +156,7 @@ class GaiaLogProb(object):
         chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2
 
-        return lnlike
+        return np.sum(lnlike) # TODO: figure out what is adding a dimensions
 
 
 class HGCALogProb(object):
@@ -199,77 +180,75 @@ class HGCALogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
-        hgca_filepath (str): path to HGCA catalog FITS file.
-            If None, will download and store in orbitize.DATADIR
+        hgca_filepath (str): path to HGCA catalog FITS file
+            (can be downloaded from 
+            https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits).
+            If None, will check for the file in `orbitize.DATADIR` (default: None)
+        hgca_entry (dict): Dictionary of the HGCA catalog entry for this target.
+            Can be used to initialize without using the full HGCA catalog FITS file.
+            (default: None)
 
     Written: Jason Wang, 2022
     """
 
-    def __init__(self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None):
-        # use default HGCA catalog if not supplied
-        if hgca_filepath is None:
-            # check orbitize.DATAIDR and download if needed
-            hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
-            if not os.path.exists(hgca_filepath):
-                hgca_url = (
-                    "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits"
-                )
-                print(
-                    "No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(
-                        hgca_url, hgca_filepath
+    def __init__(self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None, hgca_entry=None):
+        if hgca_entry is None:
+            # use default HGCA catalog if not supplied
+            if hgca_filepath is None:
+                # check orbitize.DATAIDR
+                hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
+            # grab the entry from the HGCA
+            assert os.path.exists(hgca_filepath), "HGCA Catalog Not Found"
+            with fits.open(
+                hgca_filepath, ignore_missing_simple=True, ignore_missing_end=True
+            ) as hdulist:
+                hgtable = hdulist[1].data
+            entry_raw = hgtable[np.where(hgtable["hip_id"] == hip_id)]
+            # check we matched on a single target. mainly check if we typed hip id number incorrectly
+            if len(entry_raw) != 1:
+                raise ValueError(
+                    "HIP {0} encountered {1} matches. Expected 1 match.".format(
+                        hip_id, len(entry_raw)
                     )
                 )
-                hgca_file = requests.get(hgca_url, verify=False)
-                with open(hgca_filepath, "wb") as f:
-                    f.write(hgca_file.content)
-            else:
-                print("Using HGCA catalog stored in {0}".format(hgca_filepath))
-
-        # grab the entry from the HGCA
-        with fits.open(
-            hgca_filepath, ignore_missing_simple=True, ignore_missing_end=True
-        ) as hdulist:
-            hgtable = hdulist[1].data
-        entry = hgtable[np.where(hgtable["hip_id"] == hip_id)]
-        # check we matched on a single target. mainly check if we typed hip id number incorrectly
-        if len(entry) != 1:
-            raise ValueError(
-                "HIP {0} encountered {1} matches. Expected 1 match.".format(
-                    hip_id, len(entry)
-                )
-            )
-        #  self.hgca_entry = entry
+            cols = entry_raw.columns.names
+            entry = dict(zip(cols, entry_raw[0]))
+        else:
+            if not isinstance(hgca_entry, dict):
+                raise TypeError("hgca_entry must be a dict {}".format(hgca_entry))
+            entry = hgca_entry
+        self.hgca_entry = entry
         self.hip_id = hip_id
 
         # grab the relevant PM and uncertainties from HGCA
-        self.hip_pm = np.array([entry["pmra_hip"][0], entry["pmdec_hip"][0]])
+        self.hip_pm = np.array([entry["pmra_hip"], entry["pmdec_hip"]])
         self.hip_pm_err = np.array(
-            [entry["pmra_hip_error"][0], entry["pmdec_hip_error"][0]]
+            [entry["pmra_hip_error"], entry["pmdec_hip_error"]]
         )
         hip_radec_cov = (
-            entry["pmra_pmdec_hip"][0]
-            * entry["pmra_hip_error"][0]
-            * entry["pmdec_hip_error"][0]
+            entry["pmra_pmdec_hip"]
+            * entry["pmra_hip_error"]
+            * entry["pmdec_hip_error"]
         )
 
-        self.hg_pm = np.array([entry["pmra_hg"][0], entry["pmdec_hg"][0]])
+        self.hg_pm = np.array([entry["pmra_hg"], entry["pmdec_hg"]])
         self.hg_pm_err = np.array(
-            [entry["pmra_hg_error"][0], entry["pmdec_hg_error"][0]]
+            [entry["pmra_hg_error"], entry["pmdec_hg_error"]]
         )
         hg_radec_cov = (
-            entry["pmra_pmdec_hg"][0]
-            * entry["pmra_hg_error"][0]
-            * entry["pmdec_hg_error"][0]
+            entry["pmra_pmdec_hg"]
+            * entry["pmra_hg_error"]
+            * entry["pmdec_hg_error"]
         )
 
-        self.gaia_pm = np.array([entry["pmra_gaia"][0], entry["pmdec_gaia"][0]])
+        self.gaia_pm = np.array([entry["pmra_gaia"], entry["pmdec_gaia"]])
         self.gaia_pm_err = np.array(
-            [entry["pmra_gaia_error"][0], entry["pmdec_gaia_error"][0]]
+            [entry["pmra_gaia_error"], entry["pmdec_gaia_error"]]
         )
         gaia_radec_cov = (
-            entry["pmra_pmdec_gaia"][0]
-            * entry["pmra_gaia_error"][0]
-            * entry["pmdec_gaia_error"][0]
+            entry["pmra_pmdec_gaia"]
+            * entry["pmra_gaia_error"]
+            * entry["pmdec_gaia_error"]
         )
 
         # compute the differential PMs by subtracting Hip and Gaia from HG. Also propogate errors
@@ -292,8 +271,8 @@ class HGCALogProb(object):
         )
 
         # grab reference epochs for Gaia from HGCA so we can forward model it
-        self.gaia_epoch_ra = entry["epoch_ra_gaia"][0]
-        self.gaia_epoch_dec = entry["epoch_dec_gaia"][0]
+        self.gaia_epoch_ra = entry["epoch_ra_gaia"]
+        self.gaia_epoch_dec = entry["epoch_dec_gaia"]
         # read in the GOST file to get the estimated Gaia epochs and scan angles
         gost_dat = read(gost_filepath, converters={"*": [int, float, bytes]})
         self.gaia_epoch = time.Time(
@@ -309,8 +288,8 @@ class HGCALogProb(object):
         self.hipparcos_epoch = hiplogprob.epochs  # in decimal year
         self.hipparcos_cos_phi = hiplogprob.cos_phi
         self.hipparcos_sin_phi = hiplogprob.sin_phi
-        self.hipparcos_epoch_ra = entry["epoch_ra_hip"][0]
-        self.hipparcos_epoch_dec = entry["epoch_dec_hip"][0]
+        self.hipparcos_epoch_ra = entry["epoch_ra_hip"]
+        self.hipparcos_epoch_dec = entry["epoch_dec_hip"]
         self.hippaarcos_errs = hiplogprob.eps
         self.hiplogprob = hiplogprob  # save for saving
 
@@ -328,6 +307,9 @@ class HGCALogProb(object):
         # save Gaia GOST file. avoid unicode!!
         gost_dat = read(self.gost_filepath, converters={"*": [int, float, bytes]})
         hf.create_dataset("Gaia_GOST", data=gost_dat)
+
+        HGCA_entry_group = hf.create_group("HGCA_entry")
+        HGCA_entry_group.update(self.hgca_entry)
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
