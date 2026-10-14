@@ -83,7 +83,7 @@ class Sampler(abc.ABC):
                 marg_param_counter += 1
         self.total_param_num = len(self.system.sys_priors)
         quants = set(np.unique(self.system.data_table["quant_type"]))
-        marg_quants = {(quant_type for quant_type in marg.QUANT_TYPES) for marg in self.marginalizers}
+        marg_quants = set(quant_type for marg in self.marginalizers for quant_type in marg.QUANT_TYPES)
         self.blob_labels = ["lnlike"] + self.marg_param_labels
         
         self.non_marg_quants = list(quants - marg_quants)
