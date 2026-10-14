@@ -193,7 +193,43 @@ class Basis(abc.ABC):
         else:
             priors_arr.append(self.stellar_or_system_mass)
 
+#-------------------------------------------------------------
+    def set_acceleration_priors(self, priors_arr, labels_arr):
+        """
+        Adds the priors on the star's acceleration (``acc_ra``, ``acc_dec``)
+        for an acceleration-only fit to 'priors_arr' and updates 'labels_arr'
+        with the priors' corresponding labels. The position, proper motion
+        (from ``set_gaia_dr4_priors``) and parallax must already be in
+        'labels_arr'.
 
+        Args:
+            priors_arr (list of orbitize.priors.Prior objects): holds the prior
+                objects for each parameter to be fitted (updated here)
+            labels_arr (list of strings): holds the name of all the parameters
+                to be fitted (updated here)
+
+        Raises:
+            ValueError: if the Gaia DR4 priors (see ``set_gaia_dr4_priors``)
+                have not already been added to 'labels_arr'
+        """
+        gaia_dr4_labels = ["pm_ra", "pm_dec", "alpha0", "delta0"]
+        missing = [label for label in gaia_dr4_labels if label not in labels_arr]
+        if missing:
+            raise ValueError(
+                "Acceleration fits require the Gaia DR4 priors to be set first "
+                "(call set_gaia_dr4_priors); missing: {}".format(missing)
+            )
+
+        acc_priors = [
+            ("acc_ra", priors.UniformPrior(-1e4, 1e4)),  # [mas/yr^2]
+            ("acc_dec", priors.UniformPrior(-1e4, 1e4)),  # [mas/yr^2]
+        ]
+        for label, prior in acc_priors:
+            priors_arr.append(prior)
+            labels_arr.append(label)
+
+
+#--------------------------------------------------------------------------
 class ObsPriors(Basis):
     """
     Basis used in Kosmo O'Neil+ 2019, and implemented here for use with the
