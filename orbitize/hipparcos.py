@@ -164,8 +164,6 @@ class HipparcosLogProb(object):
             should be False, but it's helpful for testing. Check out
             `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
-        include_hip_iad_in_likelihood (bool): if False, then don't add the Hipparcos
-            log(likelihood) to the overall log(likelihood computed in sampler.py)
         brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
             to the residuals, following Brandt+ 2023.
 
@@ -179,12 +177,10 @@ class HipparcosLogProb(object):
         num_secondary_bodies,
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
-        include_hip_iad_in_likelihood=True,
         brandt_correction=False,
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
-        self.include_hip_iad_in_likelihood = include_hip_iad_in_likelihood
 
         # infer if the IAD file is an older DVD file or a new file
         with open(path_to_iad_file, "r") as f:
@@ -439,15 +435,11 @@ class HipparcosLogProb(object):
             )
 
         # compute chi2 (Nielsen+ 2020 Eq 7)
-        if "sigma_ast" in param_idx:
-            eps = np.sqrt(self.eps**2 + samples[param_idx["sigma_ast"]] ** 2)
-        else:
-            eps = self.eps
         chi2 = np.sum(
-            [(dist[:, i] / eps) ** 2 for i in np.arange(n_samples)],
+            [(dist[:, i] / self.eps) ** 2 for i in np.arange(n_samples)],
             axis=1,
         )
-        lnlike = -0.5 * chi2 - np.sum(np.log(np.sqrt(2 * np.pi * eps)))
+        lnlike = -0.5 * chi2
 
         return np.squeeze(lnlike)
 
