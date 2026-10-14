@@ -251,7 +251,7 @@ def test_fit_selfconsist():
     samp.curr_pos[0, 4] = mass_b
     samp.curr_pos[0, 5] = mass_c
 
-    samp.run_sampler(n_walkers * 150, burn_steps=125)
+    samp.run_sampler(n_walkers * 500, burn_steps=500)
 
     res = samp.results
 
