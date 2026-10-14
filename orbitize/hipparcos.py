@@ -203,7 +203,7 @@ class HipparcosLogProb(object):
         # we need to look it up
         if dvd_file:
             if not isinstance(hip_data, dict):
-                raise TypeError("Best-fit astrometric solutions required when using DVD file")
+                raise TypeError("Expected kwarg `hip_data` to be a dict but encountered {} instead".format(type(hip_data)))
             self.plx0 = hip_data["Plx"]  # [mas]
             self.pm_ra0 = hip_data["pmRA"]  # [mas/yr]
             self.pm_dec0 = hip_data["pmDE"]  # [mas/yr]

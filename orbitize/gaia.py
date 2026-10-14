@@ -156,7 +156,7 @@ class GaiaLogProb(object):
         chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2
 
-        return np.squeeze(lnlike) # TODO: figure out what is adding a dimensions
+        return np.sum(lnlike) # TODO: figure out what is adding a dimensions
 
 
 class HGCALogProb(object):
@@ -181,7 +181,8 @@ class HGCALogProb(object):
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
         hgca_filepath (str): path to HGCA catalog FITS file
-            (https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits).
+            (can be downloaded from 
+            https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits).
             If None, will check for the file in `orbitize.DATADIR` (default: None)
         hgca_entry (dict): Dictionary of the HGCA catalog entry for this target.
             Can be used to initialize without using the full HGCA catalog FITS file.
