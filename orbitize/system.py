@@ -223,10 +223,6 @@ class System(object):
             contains_rv = True
 
         contains_gaiadr4 = False
-        # we need to change this  code to make sure if thhe suer wants to do an accelertain fit, if they choose to then we need to ask what type fo datat set they 
-        # ahve and if it is gairdr4 or any other absoltue astromertry we need that dara set
-        # 
-        #
         if isinstance(self.gaia, DR4LogProb):
             contains_gaiadr4 = True
 
