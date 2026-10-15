@@ -8,7 +8,6 @@ import cProfile
 import os
 import numpy as np
 import orbitize.kepler as kepler
-from orbitize import cuda_ext
 from orbitize import cext
 
 solver_threshold = 1e-7 # max precision on true data
@@ -52,7 +51,6 @@ def test_c_ecc_anom_solver():
     if kepler.cext:
         test_iterative_ecc_anom_solver(use_c = True)
         test_analytical_ecc_anom_solver(use_c = True)
-
 
 def test_orbit_e03():
     """
@@ -302,14 +300,6 @@ def profile_all(n_orbits, print_profiles = False):
             print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
             s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
         d["Newton Python Solver"] = s.__dict__["total_tt"]
-
-        if cuda_ext:
-            cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = False)", globals(), locals(), profile_name)
-            s = pstats.Stats(profile_name)
-            if print_profiles:
-                print("Profiling Mikkola: CUDA with {} orbits".format(n_orbits**2))
-                s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
-            d["Mikkola GPU Solver"] = s.__dict__["total_tt"]
 
         if cext:
             cProfile.runctx("profile_mikkola_ecc_anom_solver(n_orbits = n_orbits, use_c = True)", globals(), locals(), profile_name)
