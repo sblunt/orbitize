@@ -79,7 +79,7 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    computed_lnlike_test, _, *_ = super(sampler.MCMC, myDriver.sampler)._logl(myDriver.sampler.results.post[0])
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 

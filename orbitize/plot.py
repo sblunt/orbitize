@@ -595,12 +595,7 @@ class Plotter(object):
             secondaries = np.arange(self.results.num_secondary_bodies) + 1
             sma_indexes = [self.results.standard_param_idx["sma{}".format(i)] for i in secondaries]
             smas = standard_post[:, sma_indexes]
-            if "mtot" in self.results.labels:
-                mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
-                periods = np.sqrt(
-                    4 * np.pi**2.0 * (smas.T * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
-                ).T
-            elif "m0" in self.results.labels:
+            if "m0" in self.results.labels:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1_indexes = [self.results.standard_param_idx["m{}".format(i)] for i in secondaries]
                 m1s = standard_post[:, m1_indexes]
@@ -608,20 +603,25 @@ class Plotter(object):
                 periods = np.sqrt(
                     4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
                 )
+            else:
+                mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
+                periods = np.sqrt(
+                    4 * np.pi**2.0 * (smas.T * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+                ).T
             periods = periods.to(u.day).value
             period = np.max(periods, axis=1)
         else:
             sma = standard_post[
                 :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
             ]
-            if "mtot" in self.results.labels:
-                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
-            elif "m0" in self.results.labels:
+            if "m0" in self.results.labels:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1 = standard_post[
                     :, self.results.standard_param_idx["m{}".format(object_to_plot)]
                 ]
                 mtot = m0 + m1
+            else:
+                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
             period = np.sqrt(
                 4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
             )
@@ -2044,6 +2044,7 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
         param_list = results.labels
 
     param_indices = []
+    sys_param_indices = []
     angle_indices = []
     secondary_mass_indices = []
     fixed_indices = []
@@ -2052,7 +2053,8 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
 
         # only plot non-fixed parameters
         if not np.isclose(0.0, np.std(results.post[:, index_num])):
-            param_indices.append(index_num)
+            param_indices.append(i)
+            sys_param_indices.append(index_num)
             if (
                 label_key.startswith("aop")
                 or label_key.startswith("pan")
@@ -2072,7 +2074,7 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
         weights = results.weights
 
     samples = np.copy(
-        post[:, param_indices]
+        post[:, sys_param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -2085,7 +2087,7 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in range(len(param_indices)):
+        for i in param_indices:
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
@@ -2116,8 +2118,8 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
 
     if plot_priors:
         axes = figure.axes
-        num_params = len(param_indices)
-        for i, param_i in enumerate(param_indices):
+        num_params = len(sys_param_indices)
+        for i, param_i in enumerate(sys_param_indices):
             prior = results.system.sys_priors[param_i]
             if not hasattr(prior, "compute_lnprob"):
                 continue

@@ -685,6 +685,70 @@ class Period(Basis):
 
         return param_arr
 
+class OftEiBasis(Basis):
+    def __init__(self,
+        stellar_or_system_mass,
+        mass_err,
+        plx,
+        plx_err,
+        num_secondary_bodies,
+        fit_secondary_mass,
+        angle_upperlim=2 * np.pi,
+        hipparcos_IAD=None,
+        rv=False,
+        rv_instruments=None,
+        gaia_dr4=None):
+
+        super(OftEiBasis, self).__init__(
+            stellar_or_system_mass,
+            mass_err,
+            plx,
+            plx_err,
+            num_secondary_bodies,
+            fit_secondary_mass,
+            angle_upperlim,
+            hipparcos_IAD,
+            rv,
+            rv_instruments,
+            gaia_dr4
+        )
+        assert not fit_secondary_mass, "Not supported yet"
+        assert gaia_dr4 is None, "Not supported yet"
+
+    def construct_priors(self, per_min=1e-5, per_max=1e6):
+        basis_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "per1"]
+        basis_priors = [
+            priors.LogUniformPrior(0.001, 1e4),
+            priors.UniformPrior(
+                0,
+                1,
+            ),
+            priors.SinPrior(),
+            priors.UniformPrior(0, 2 * np.pi),
+            priors.UniformPrior(0, 2 * np.pi), 
+            priors.UniformPrior(0, 1),
+            self.plx,
+            priors.LogUniformPrior(per_min, per_max),
+        ]
+
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(
+            zip(basis_labels[:-1], np.arange(len(basis_labels) - 1))
+        )
+        self.standard_basis_idx["mtot"] = 7
+
+        return basis_priors, basis_labels
+
+    def to_standard_basis(self, param_arr):
+        # everything is the same except the last param element goes from per to mtot
+        sma = param_arr[0]
+        per = param_arr[-1]
+
+        mtot = (sma**3) / (per**2)
+
+        param_arr[-1] = mtot
+        return param_arr
 
 class SemiAmp(Basis):
     """
@@ -1710,3 +1774,26 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
 
     return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)
+
+def angle_diff(ang1, ang2):
+    """
+    Difference between two angles (in degrees), account for angle wrapping around 360.
+    """
+    return (ang1 - ang2 + 180.0) % 360.0 - 180.0
+
+def return_quadrant(angle):
+    """
+    Return quadrant of a particular angle
+
+    Args:
+        angle (np.array of float): radians
+
+    Returns:
+        int: quadrant 1, 2, 3, or 4
+    """
+    angle %= 2 * np.pi  # [-360, 0] if negative, [0, 360] if positive
+    angle += 2 * np.pi
+    angle %= 2 * np.pi
+
+    quadrant = np.floor((angle / (np.pi / 2)) % 4 + 1).astype(int)
+    return quadrant

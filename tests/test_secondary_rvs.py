@@ -47,7 +47,7 @@ def test_secondary_rv_lnlike_calc():
         1, data_table, m0, plx, mass_err=0.1, plx_err=0.1, fit_secondary_mass=True
     )
     mySamp = sampler.MCMC(mySys)
-    computed_lnlike = mySamp._logl(orbitize_params_list)
+    computed_lnlike, *_ = mySamp._logl(orbitize_params_list)
 
     # residuals should be 0
     assert computed_lnlike == np.sum(

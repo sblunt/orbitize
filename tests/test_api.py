@@ -137,10 +137,10 @@ def test_custom_likelihood():
         orbit, 0, n_walkers, num_threads=1, custom_lnlike=my_likelihood
     )
 
-    param = np.array([2, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.01])
+    param = np.array([2, 0.5, 0.5, 0.5, 0.5, 0.5])
 
-    logl1 = mcmc1._logl(param)
-    logl2 = mcmc2._logl(param)
+    logl1, *_ = mcmc1._logl(param)
+    logl2, *_ = mcmc2._logl(param)
 
     assert logl1 == logl2 + 5
 
