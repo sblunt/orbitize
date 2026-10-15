@@ -53,7 +53,7 @@ def test_hipparcos_api():
 
     # just make sure it doesn't throw an error
     myFirstHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    assert myFirstHip.var == 0.15
+    assert myFirstHip.var == (10*0.15)**2
 
     # check that RV + Hip gives correct prior array labels
     hip_num = "027321"  # beta Pic
@@ -294,6 +294,6 @@ def test_save_load_2021():
 if __name__ == "__main__":
     # test_save_load_dvd()
     # test_save_load_2021()
-    # test_hipparcos_api()
-    test_iad_refitting()
+    test_hipparcos_api()
+    # test_iad_refitting()
     # test_dvd_vs_2021catalog()

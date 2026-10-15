@@ -163,6 +163,8 @@ class HipparcosLogProb(object):
             should be False, but it's helpful for testing. Check out
             `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
+        brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
+            to the residuals, following Brandt+ 2023.
         hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
             (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
             "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
@@ -178,6 +180,7 @@ class HipparcosLogProb(object):
         num_secondary_bodies,
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
+        brandt_correction=False,
         hip_data=None
     ):
         self.path_to_iad_file = path_to_iad_file
@@ -245,7 +248,9 @@ class HipparcosLogProb(object):
             self.solution_type = solution_details["isol_n"].values[0]
 
             if self.solution_type == 1:
-                self.var = astrometric_solution["var"].values[0]
+                self.var = (
+                    10 * astrometric_solution["var"].values[0]
+                ) ** 2  # N.B. input is different units than var from Vizier catalog!!
             else:
                 self.var = 0
 
@@ -268,13 +273,15 @@ class HipparcosLogProb(object):
         else:
             iad = np.transpose(np.loadtxt(path_to_iad_file))
 
-        n_lines = len(iad)
-
         times = iad[1] + 1991.25
         self.cos_phi = iad[3]  # scan direction
         self.sin_phi = iad[4]
         self.R = iad[5]  # abscissa residual [mas]
+        if brandt_correction:
+            self.R += 0.140  # [mas]
         self.eps = iad[6]  # error on abscissa residual [mas]
+
+        n_lines = len(self.eps)
 
         # reject negative errors (scans that were rejected by Hipparcos team)
         good_scans = np.where(self.eps > 0)[0]
@@ -289,6 +296,9 @@ class HipparcosLogProb(object):
 
         # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
         self.eps = np.sqrt(self.eps**2 - self.var**2)
+
+        if brandt_correction:
+            self.eps = np.sqrt(self.eps**2 + 2.25**2)
 
         epochs = Time(times, format="decimalyear")
         self.epochs = epochs.decimalyear
@@ -509,11 +519,11 @@ def nielsen_iad_refitting_test(
             myHipLogProb.plx0 + 3 * myHipLogProb.plx0_err,
             1000,
         )
-        axes[0].hist(sampler.flatchain[:, 0], bins=50, density=True, color="r")
+        axes[0].hist(sampler.flatchain[:, 0], bins=50, density=True, color="grey")
         axes[0].plot(
             xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), color="k"
         )
-        axes[0].set_xlabel("plx [mas]")
+        axes[0].set_xlabel("$\pi$ [mas]")
 
         # PM RA
         xs = np.linspace(
@@ -521,11 +531,11 @@ def nielsen_iad_refitting_test(
             myHipLogProb.pm_ra0 + 3 * myHipLogProb.pm_ra0_err,
             1000,
         )
-        axes[1].hist(sampler.flatchain[:, 1], bins=50, density=True, color="r")
+        axes[1].hist(sampler.flatchain[:, 1], bins=50, density=True, color="grey")
         axes[1].plot(
             xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), color="k"
         )
-        axes[1].set_xlabel("PM RA [mas/yr]")
+        axes[1].set_xlabel("$\mu_{{\\alpha_0^*}}$ [mas/yr]")
 
         # PM Dec
         xs = np.linspace(
@@ -533,27 +543,30 @@ def nielsen_iad_refitting_test(
             myHipLogProb.pm_dec0 + 3 * myHipLogProb.pm_dec0_err,
             1000,
         )
-        axes[2].hist(sampler.flatchain[:, 2], bins=50, density=True, color="r")
+        axes[2].hist(sampler.flatchain[:, 2], bins=50, density=True, color="grey")
         axes[2].plot(
             xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), color="k"
         )
-        axes[2].set_xlabel("PM Dec [mas/yr]")
+        axes[2].set_xlabel("$\mu_{{\\delta_0}}$ [mas/yr]")
 
         # RA offset
-        axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="r")
+        axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="grey")
         xs = np.linspace(
             -3 * myHipLogProb.alpha0_err, 3 * myHipLogProb.alpha0_err, 1000
         )
         axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color="k")
-        axes[3].set_xlabel("RA Offset [mas]")
+        axes[3].set_xlabel("$\\alpha_0^*$ [mas]")
 
         # Dec offset
         xs = np.linspace(
             -3 * myHipLogProb.delta0_err, 3 * myHipLogProb.delta0_err, 1000
         )
-        axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="r")
+        axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="grey")
         axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color="k")
-        axes[4].set_xlabel("Dec Offset [mas]")
+        axes[4].set_xlabel("$\delta_0$ [mas]")
+
+        for a in axes:
+            a.set_ylabel("relative prob.")
 
         plt.tight_layout()
         plt.savefig(saveplot, dpi=250)
