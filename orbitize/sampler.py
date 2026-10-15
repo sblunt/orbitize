@@ -88,8 +88,8 @@ class Sampler(abc.ABC):
         self.non_marg_quants = list(quants - marg_quants)
         self.force_valid_marg = False
 
-        if not orbitize.marginalizer.compatible_params(self.marginalizers, self.fitted_param_labels):
-            raise ValueError("Marginalizers and basis are incompatible")
+        if not orbitize.marginalizer.compatible_params(self.marginalizers, self.fitted_param_labels, quants):
+            raise ValueError("Marginalizers and basis or data are incompatible")
 
     @abc.abstractmethod
     def run_sampler(self, total_orbits):

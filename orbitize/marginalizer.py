@@ -300,13 +300,15 @@ class OFTeI_sma_pan(Marginalizer):
         return logprob, loglike, samples, calculated_values
 
 
-def compatible_params(marginalizers, input_params):
+def compatible_params(marginalizers, input_params, data_quants):
     # TODO: Multibody, quant_type
     params = set(input_params)
+    quants = set(data_quants)
     for marginalizer in marginalizers:
         req_params = set(marginalizer.REQ_PARAMS)
         marg_params = set(marginalizer.MARG_PARAMS)
-        if len(req_params - params) == 0 and len(marg_params & params) == 0:
+        marg_quants = set(marginalizer.QUANT_TYPES)
+        if len(req_params - params) == 0 and len(marg_params & params) == 0 and len(quants & marg_quants) > 0:
             params |= set(marginalizer.MARG_PARAMS)
         else:
             return False
