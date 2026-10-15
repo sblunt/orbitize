@@ -36,7 +36,7 @@ def test_compute_model():
         np.linspace(0, period_c * 365.25, 5) + tau_ref_epoch
     )  # the full period of c, MJD
 
-    ra_model, dec_model, vz_model = kepler.calc_orbit(
+    ra_model, dec_model, vz_model, _ = kepler.calc_orbit(
         epochs,
         b_params[0],
         b_params[1],
@@ -135,7 +135,7 @@ def test_fit_selfconsist():
     )  # the full period of b, MJD
 
     # comptue Keplerian orbit of b
-    ra_model_b, dec_model_b, vz_model = kepler.calc_orbit(
+    ra_model_b, dec_model_b, vz_model, _ = kepler.calc_orbit(
         epochs,
         b_params[0],
         b_params[1],
@@ -150,7 +150,7 @@ def test_fit_selfconsist():
     )
 
     # comptue Keplerian orbit of c
-    ra_model_c, dec_model_c, vz_model_c = kepler.calc_orbit(
+    ra_model_c, dec_model_c, vz_model_c, _ = kepler.calc_orbit(
         epochs,
         c_params[0],
         c_params[1],
@@ -224,20 +224,19 @@ def test_fit_selfconsist():
     assert samp.num_params == 6
 
     # start walkers near the true location for the orbital parameters
-    np.random.seed(123)
     # planet b
-    samp.curr_pos[:, 0] = np.random.normal(b_params[0], 0.01, n_walkers)  # sma
-    samp.curr_pos[:, 1] = np.random.normal(b_params[-1], 0.01, n_walkers)  # tau
+    samp.curr_pos[0, :, 0] = np.random.normal(b_params[0], 0.01, n_walkers)  # sma
+    samp.curr_pos[0, :, 1] = np.random.normal(b_params[-1], 0.01, n_walkers)  # tau
     # planet c
-    samp.curr_pos[:, 2] = np.random.normal(c_params[0], 0.01, n_walkers)  # sma
-    samp.curr_pos[:, 3] = np.random.normal(c_params[-1], 0.01, n_walkers)  # tau
+    samp.curr_pos[0, :, 2] = np.random.normal(c_params[0], 0.01, n_walkers)  # sma
+    samp.curr_pos[0, :, 3] = np.random.normal(c_params[-1], 0.01, n_walkers)  # tau
     # we will make a fairly broad mass starting position
-    samp.curr_pos[:, 4] = np.random.uniform(mass_b * 0.25, mass_b * 4, n_walkers)
-    samp.curr_pos[:, 5] = np.random.uniform(mass_c * 0.25, mass_c * 4, n_walkers)
-    samp.curr_pos[0, 4] = mass_b
-    samp.curr_pos[0, 5] = mass_c
+    samp.curr_pos[0, :, 4] = np.random.uniform(mass_b * 0.25, mass_b * 4, n_walkers)
+    samp.curr_pos[0, :, 5] = np.random.uniform(mass_c * 0.25, mass_c * 4, n_walkers)
+    samp.curr_pos[0, 0, 4] = mass_b
+    samp.curr_pos[0, 0, 5] = mass_c
 
-    samp.run_sampler(n_walkers * 50, burn_steps=50)
+    samp.run_sampler(n_walkers * 200, burn_steps=200)
 
     res = samp.results
 
@@ -259,5 +258,5 @@ def test_fit_selfconsist():
 
 
 if __name__ == "__main__":
-    # test_compute_model()
+    test_compute_model()
     test_fit_selfconsist()

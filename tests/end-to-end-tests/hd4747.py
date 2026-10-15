@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     # Run Sampler
     m = my_driver.sampler
-    m.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin)
+    m.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin, periodic_save_freq=1_000, output_filename='hd4747.hdf5')
     my_driver.sampler.results.save_results('hd4747_orbits.hdf5')
 
     my_results = results.Results()
