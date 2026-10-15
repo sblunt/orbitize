@@ -8,6 +8,7 @@ import orbitize.system
 import orbitize.basis
 import orbitize.plot
 import orbitize.gaia, orbitize.hipparcos
+from orbitize import DATADIR
 
 class Results(object):
     """
@@ -348,11 +349,16 @@ class Results(object):
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
                 hgca_entry_raw = hf.get("HGCA_entry")
+                hgca_entry = None
                 if hgca_entry_raw is None:
-                    raise KeyError("HGCA Entry not found in {} for initializing HGCALogProb".format(filename))
-                hgca_entry = {key : hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()}
+                    if os.path.exists(os.path.join(DATADIR, "HGCA_vEDR3.fits")):
+                        hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
+                    else:
+                        raise KeyError("HGCA Entry not found in {} for initializing HGCALogProb".format(filename))
+                else:
+                    hgca_entry = {key : hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()}
 
-                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile, hgca_entry=hgca_entry)
+                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile, hgca_filepath=hgca_filepath, hgca_entry=hgca_entry)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
 
