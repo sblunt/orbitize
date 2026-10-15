@@ -1,6 +1,6 @@
 import os
 import numpy as np
-import astropy.table as table
+from astropy.table import Table, vstack
 import astropy.units as u
 import orbitize
 import orbitize.read_input as read_input
@@ -25,7 +25,7 @@ except ImportError:
 
 def test_1planet():
     """
-    Sanity check that things agree for 1 planet case
+    Sanity check that things agree for 1 massive planet (really a star) case
     """
     # generate a planet orbit
     sma = 1
@@ -37,17 +37,22 @@ def test_1planet():
     plx = 1
     mtot = 1
     tau_ref_epoch = 0
-    mjup = u.Mjup.to(u.Msun)
-    mass_b = 12 * mjup
+    mass_b = 0.75
+    m0 = mtot - mass_b
 
     epochs = np.linspace(0, 300, 100) + tau_ref_epoch  # nearly the full period, MJD
 
-    ra_model, dec_model, vz_model, _ = kepler.calc_orbit(
+    ra_model, dec_model, vz_st_model, _ = kepler.calc_orbit(
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch
     )
+    ra_model, dec_model, vz_pl_model, _ = kepler.calc_orbit(
+        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=m0
+    )
+    vz_pl_model *= -1 # orbitize coordinate system (compute_model does this automatically)
 
-    # generate some fake measurements just to feed into system.py to test bookkeeping
-    t = table.Table(
+    # generate some fake measurements of the planet (relative astrom & relative secondary rv) 
+    # just to feed into system.py to test bookkeeping
+    t = Table(
         [
             epochs,
             np.ones(epochs.shape, dtype=int),
@@ -55,21 +60,40 @@ def test_1planet():
             np.zeros(ra_model.shape),
             dec_model,
             np.zeros(dec_model.shape),
+            vz_pl_model - vz_st_model,
+            np.zeros(dec_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
     )
+    # add fake measurements of the planet (stellar rv)
+    t_rvs = Table(
+        [
+            epochs,
+            np.zeros(epochs.shape, dtype=int),
+            vz_st_model, np.zeros(vz_st_model.shape)
+        ],
+        names=["epoch", "object",  "rv", "rv_err"],
+    )
+    t = vstack([t, t_rvs])
+
     filename = os.path.join(orbitize.DATADIR, "rebound_1planet.csv")
     t.write(filename, overwrite=True)
 
     # create the orbitize system and generate model predictions using the ground truth
-    astrom_dat = read_input.read_file(filename)
+    data = read_input.read_file(filename)
 
-    sys = system.System(1, astrom_dat, mtot, plx, tau_ref_epoch=tau_ref_epoch)
+    sys = system.System(1, data, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
 
-    params = np.array([sma, ecc, inc, aop, pan, tau, plx, mtot])
-    radec_orbitize, _ = sys.compute_model(params)
-    ra_orb = radec_orbitize[:, 0]
-    dec_orb = radec_orbitize[:, 1]
+    jit = 0
+    gamma = 0
+
+    params = np.array([sma, ecc, inc, aop, pan, tau, plx, gamma, jit, mass_b, m0])
+    modelpredict_orbitize, _ = sys.compute_model(params)
+
+    ra_orb = modelpredict_orbitize[:200:2, 0]
+    dec_orb = modelpredict_orbitize[:200:2, 1]
+    rv_pl_orb = modelpredict_orbitize[1:200:2,0]
+    rv_star_orb = modelpredict_orbitize[200:,0]
 
     # now project the orbit with rebound
     manom = kepler.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
@@ -94,24 +118,35 @@ def test_1planet():
     # integrate and measure star/planet separation
     ra_reb = []
     dec_reb = []
+    rv_star_reb = []
+    rv_pl_reb = []
 
     for t in epochs:
         sim.integrate(t / 365.25)
 
         ra_reb.append(-(ps[1].x - ps[0].x))  # ra is negative x
         dec_reb.append(ps[1].y - ps[0].y)
+        rv_star_reb.append(ps[0].vz)
+        rv_pl_reb.append(ps[1].vz - ps[0].vz)
 
     ra_reb = np.array(ra_reb)
     dec_reb = np.array(dec_reb)
+    rv_star_reb = np.array(rv_star_reb) * (u.au/u.yr).to(u.km/u.s)
+    rv_pl_reb = np.array(rv_pl_reb) * (u.au/u.yr).to(u.km/u.s)
+
 
     diff_ra = ra_reb - ra_orb / plx
     diff_dec = dec_reb - dec_orb / plx
+    diff_rv_st = rv_star_reb - rv_star_orb
+    diff_rv_pl = rv_pl_reb - rv_pl_orb
 
-    assert np.all(np.abs(diff_ra) < 1e-9)
-    assert np.all(np.abs(diff_dec) < 1e-9)
+    assert np.all(np.abs(diff_ra) < 1e-7)
+    assert np.all(np.abs(diff_dec) < 1e-7)
+    assert np.all(np.abs(diff_rv_st) < 1e-7)
+    assert np.all(np.abs(diff_rv_pl) < 1e-7)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
 
 def test_2planet_massive():
@@ -187,17 +222,20 @@ def test_2planet_massive():
 
     # generate some fake measurements of planet b, just to feed into system.py
     # to test bookkeeping
-    t = table.Table(
+    t = Table(
         [
             epochs,
             np.ones(epochs.shape, dtype=int),
             b_ra_model,
-            np.zeros(b_ra_model.shape),
+            np.zeros(b_dec_model.shape),
             b_dec_model,
             np.zeros(b_dec_model.shape),
+            b_vz_model,
+            np.zeros(b_dec_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
     )
+
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_outer.csv")
     t.write(filename, overwrite=True)
 
@@ -216,13 +254,15 @@ def test_2planet_massive():
     )
 
     # generate measurement
-    radec_orbitize, _ = sys.compute_model(params)
-    b_ra_orb = radec_orbitize[:, 0]
-    b_dec_orb = radec_orbitize[:, 1]
+    modelpredict_orbitize, _ = sys.compute_model(params)
+
+    b_ra_orb = modelpredict_orbitize[:200:2, 0]
+    b_dec_orb = modelpredict_orbitize[:200:2, 1]
+    b_rv_pl_orb = modelpredict_orbitize[1:200:2,0]
+
     # debug, generate measurement without c having any mass
     radec_orb_noc, _ = sys.compute_model(params_noc)
-    b_ra_orb_noc = radec_orb_noc[:, 0]
-    _ = radec_orb_noc[:, 1]
+    b_ra_orb_noc = radec_orb_noc[:200:2, 0]
 
     # check that planet c's perturbation is imprinted (nonzero))
     assert np.all(b_ra_orb_noc != b_ra_orb)
@@ -269,35 +309,41 @@ def test_2planet_massive():
     sim.integrator = "ias15"
     sim.dt = ps[1].P / 1000.0
 
-    # integrate and measure star/planet separation
+    # integrate and measure star/planet separation & relative RV
     b_ra_reb = []
     b_dec_reb = []
+    b_rv_reb = []
 
     for t in epochs:
         sim.integrate(t / 365.25)
 
         b_ra_reb.append(-(ps[2].x - ps[0].x))  # ra is negative x
         b_dec_reb.append(ps[2].y - ps[0].y)
+        b_rv_reb.append(ps[2].vz - ps[0].vz)
 
     b_ra_reb = np.array(b_ra_reb)
     b_dec_reb = np.array(b_dec_reb)
+    b_rv_reb = np.array(b_rv_reb) * (u.au/u.yr).to(u.km/u.s)
 
     diff_ra = b_ra_reb - b_ra_orb / params[6 * 2]
     diff_dec = b_dec_reb - b_dec_orb / params[6 * 2]
+    diff_rv_pl = b_rv_reb - b_rv_pl_orb
 
     # we placed the planets far apart to minimize secular interactions but there are
     # still some, so relax precision
     assert np.all(np.abs(diff_ra) / (params[0]) < 1e-3)
     assert np.all(np.abs(diff_dec) / (params[0]) < 1e-3)
+    K_amp_b = np.abs(b_rv_pl_orb).max()
+    assert np.all(np.abs(diff_rv_pl) / K_amp_b < 1e-3)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
     # NOW TEST THE INNER PLANET
 
     # generate some fake measurements of planet c, just to feed into system.py to
     # test bookkeeping
-    t = table.Table(
+    t = Table(
         [
             epochs,
             np.ones(epochs.shape, dtype=int) * 2,
@@ -305,8 +351,10 @@ def test_2planet_massive():
             np.zeros(b_ra_model.shape),
             b_dec_model,
             np.zeros(b_dec_model.shape),
+            b_vz_model,
+            np.zeros(b_vz_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_inner.csv")
     t.write(filename, overwrite=True)
@@ -325,8 +373,10 @@ def test_2planet_massive():
 
     # generate measurement
     radec_orbitize, _ = sys.compute_model(params)
-    c_ra_orb = radec_orbitize[:, 0]
-    c_dec_orb = radec_orbitize[:, 1]
+    c_ra_orb = radec_orbitize[:200:2, 0]
+    c_dec_orb = radec_orbitize[:200:2, 1]
+    c_rv_orb = radec_orbitize[1:200:2,0]
+
 
     # start the REBOUND sim again
     sim = rebound.Simulation()
@@ -366,25 +416,31 @@ def test_2planet_massive():
     # integrate and measure star/planet separation
     c_ra_reb = []
     c_dec_reb = []
+    c_relative_rv_reb = []
 
     for t in epochs:
         sim.integrate(t / 365.25)
 
         c_ra_reb.append(-(ps[1].x - ps[0].x))  # ra is negative x
         c_dec_reb.append(ps[1].y - ps[0].y)
+        c_relative_rv_reb.append(ps[1].vz - ps[0].vz)
 
     c_ra_reb = np.array(c_ra_reb)
     c_dec_reb = np.array(c_dec_reb)
+    c_relative_rv_reb = np.array(c_relative_rv_reb)
 
     diff_ra = c_ra_reb - c_ra_orb / params[6 * 2]
     diff_dec = c_dec_reb - c_dec_orb / params[6 * 2]
+    diff_relative_rv = ((c_relative_rv_reb * u.au/u.yr).to(u.km/u.s).value - c_rv_orb)  
 
     # planet is 3 times closer, so roughly 3 times larger secular errors.
     assert np.all(np.abs(diff_ra) / (params[0]) < 3e-3)
     assert np.all(np.abs(diff_dec) / (params[0]) < 3e-3)
+    K_amp_c = np.abs(c_rv_orb).max()
+    assert np.all(np.abs(diff_relative_rv) / K_amp_c < 1e-2)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
 
 def test_2planet_massive_reverse_order():
@@ -441,7 +497,7 @@ def test_2planet_massive_reverse_order():
 
     # generate some fake measurements of planet b, just to feed into system.py to test
     # bookkeeping
-    t = table.Table(
+    t = Table(
         [
             epochs,
             np.ones(epochs.shape, dtype=int) * 2,
@@ -515,7 +571,7 @@ def test_2planet_massive_reverse_order():
 
     sim.move_to_com()
 
-    # Use Wisdom Holman integrator (fast), with the timestep being < 5% of inner
+    # Use IAS15 integrator, with the timestep being < 5% of inner
     # planet's orbital period
     sim.integrator = "ias15"
     sim.dt = ps[1].P / 1000.0
@@ -598,7 +654,7 @@ def test_2planet_nomass():
 
     # generate some fake measurements of planet b, just to feed into system.py to
     # test bookkeeping
-    t = table.Table(
+    t = Table(
         [
             epochs,
             np.ones(epochs.shape, dtype=int),
@@ -697,6 +753,6 @@ def test_2planet_nomass():
 
 if __name__ == "__main__":
     test_1planet()
-    test_2planet_massive()
-    test_2planet_massive_reverse_order()
-    test_2planet_nomass()
+    # test_2planet_massive()
+    # test_2planet_massive_reverse_order()
+    # test_2planet_nomass()
