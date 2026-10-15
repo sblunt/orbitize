@@ -170,7 +170,7 @@ def test_dvd_vs_2021catalog():
         np.isclose(new_iadHipLogProb.sin_phi, old_iadHipLogProb.sin_phi, atol=1e-2)
     )
     assert np.all(
-        np.isclose(new_iadHipLogProb.epochs, old_iadHipLogProb.epochs, atol=1e-2)
+        np.isclose(new_iadHipLogProb.epochs.value, old_iadHipLogProb.epochs.value, atol=1e-2)
     )
 
 
