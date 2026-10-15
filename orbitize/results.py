@@ -315,6 +315,7 @@ class Results(object):
                 hip_data = {key : hip_data_raw[key][()] for key in hip_data_raw.keys()}
             else:
                 hip_data = None
+            brandt_correction = bool(hf.attrs.get("brandt_correction", False))
 
             hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
                 tmpfile,
@@ -322,7 +323,8 @@ class Results(object):
                 num_secondary_bodies,
                 alphadec0_epoch,
                 renormalize_errors,
-                hip_data,
+                hip_data=hip_data,
+                brandt_correction=brandt_correction
             )
 
             # load Gaia data
