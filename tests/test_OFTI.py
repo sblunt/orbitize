@@ -425,7 +425,7 @@ def test_OFTI_pan_priors():
     myDriver.system.sys_priors[4] = priors.GaussianPrior(mu, sigma=sigma)
 
     # run sampler again
-    orbits = s.run_sampler(500, seed=np.random.random_integers(1, 1e8))
+    orbits = s.run_sampler(1000, seed=np.random.random_integers(1, 1e9))
 
     # check that bounds were applied correctly
     assert mu == pytest.approx(np.mean(orbits[:, 4]), abs=0.01)

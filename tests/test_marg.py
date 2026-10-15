@@ -34,7 +34,7 @@ def test_MargConstNoInput():
     mySystem.labels.append("test")
     mySampler = sampler.MCMC(
         mySystem,
-        num_temps=0,
+        num_temps=1,
         num_walkers=100,
         num_threads=1,
         marginalizers=[marg]
@@ -66,7 +66,7 @@ def test_MargPriorNoInput():
     mySystem.labels.extend(marg.MARG_PARAMS)
     mySampler = sampler.MCMC(
         mySystem,
-        num_temps=0,
+        num_temps=1,
         num_walkers=100,
         num_threads=1,
         marginalizers=[marg]
@@ -100,7 +100,7 @@ def test_incompatible():
     try:
         mySampler = sampler.MCMC(
             mySystem,
-            num_temps=0,
+            num_temps=1,
             num_walkers=100,
             num_threads=1,
             marginalizers=[marg]
@@ -201,7 +201,7 @@ def test_OFTeI_RV():
     marg = marginalizer.OFTeI_sma_pan(epochs, sep, pa, sep_err, pa_err, covar, sma_prior, pan_prior, mass_prior, implicit_mass_prior)
     mySampler = sampler.MCMC(
         mySystem,
-        num_temps=0,
+        num_temps=2,
         num_walkers=100,
         num_threads=mp.cpu_count(),
         marginalizers=[marg]
