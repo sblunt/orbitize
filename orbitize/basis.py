@@ -28,6 +28,7 @@ class Basis(abc.ABC):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
+        gaia_dr4=None,
     ):
         self.stellar_or_system_mass = stellar_or_system_mass
         self.mass_err = mass_err
@@ -39,6 +40,7 @@ class Basis(abc.ABC):
         self.hipparcos_IAD = hipparcos_IAD
         self.rv = rv
         self.rv_instruments = rv_instruments
+        self.gaia_dr4 = gaia_dr4
 
         # Define dictionary of default priors to be updated as new basis sets are added
         self.default_priors = {
@@ -118,6 +120,31 @@ class Basis(abc.ABC):
         )
         labels_arr.append("delta0")
 
+
+    def set_gaia_dr4_priors(self, priors_arr, labels_arr):
+        """
+        Adds the necessary priors relevant to the Gaia DR4 data to 'priors_arr'
+        and updates 'labels_arr' with the priors' corresponding labels.
+
+        Args:
+            priors_arr (list of orbitize.priors.Prior objects): holds the prior
+                objects for each parameter to be fitted (updated here)
+            labels_arr (list of strings): holds the name of all the parameters
+                to be fitted (updated here)
+        """
+
+        priors_arr.append(priors.UniformPrior(-10000, 10000))  # mas/yr
+        labels_arr.append("pm_ra")
+
+        priors_arr.append(priors.UniformPrior(-10000, 10000))  # mas/yr
+        labels_arr.append("pm_dec")
+
+        priors_arr.append(priors.UniformPrior(-10000, 10000))  # mas
+        labels_arr.append("alpha0")
+
+        priors_arr.append(priors.UniformPrior(-10000, 10000))  # mas
+        labels_arr.append("delta0")
+
     def set_rv_priors(self, priors_arr, labels_arr):
         """
         Adds the necessary priors if radial velocity data is supplied to
@@ -187,6 +214,8 @@ class ObsPriors(Basis):
         angle_upperlim (float): either pi or 2pi, to restrict the prior range for 'pan' parameter (default: 2pi)
         tau_ref_epoch (float): reference epoch for defining tau. Default 58849,
             the same as it is elsewhere in the code.
+        gaia_dr4 (orbitize.gaia.DR4LogProb object): must be None; this basis does
+            not support absolute astrometry.
 
     Limiations:
         This basis cannot be used with RVs or absolute astrometry. It assumes
@@ -206,11 +235,17 @@ class ObsPriors(Basis):
         rv=False,
         rv_instruments=None,
         tau_ref_epoch=58849,
+        gaia_dr4=None,
     ):
 
         self.tau_ref_epoch = tau_ref_epoch
 
-        if hipparcos_IAD is not None or rv or len(rv_instruments) > 0:
+        if (
+            hipparcos_IAD is not None
+            or gaia_dr4 is not None
+            or rv
+            or len(rv_instruments) > 0
+        ):
             raise ValueError(
                 "This basis cannot be used with RVs or absolute astrometry."
             )
@@ -226,6 +261,7 @@ class ObsPriors(Basis):
             None,
             False,
             None,
+            gaia_dr4=gaia_dr4,
         )
 
     def construct_priors(self):
@@ -366,6 +402,8 @@ class Standard(Basis):
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
             is no radial velocity data and radial velocity priors are not assigned (default: False)
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
+        gaia_dr4 (orbitize.gaia.DR4LogProb object): if not None, add the Gaia DR4
+            astrometric priors (default: None).
     """
 
     def __init__(
@@ -380,6 +418,7 @@ class Standard(Basis):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
+        gaia_dr4=None,
     ):
 
         super(Standard, self).__init__(
@@ -393,6 +432,7 @@ class Standard(Basis):
             hipparcos_IAD,
             rv,
             rv_instruments,
+            gaia_dr4=gaia_dr4,
         )
 
     def construct_priors(self):
@@ -426,10 +466,17 @@ class Standard(Basis):
         else:
             basis_priors.append(self.plx)
 
-        # Add hippparcos priors if necessary
+        # Add hipparcos priors if necessary
         if self.hipparcos_IAD is not None:
             self.set_hip_iad_priors(basis_priors, basis_labels)
 
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -477,6 +524,8 @@ class Period(Basis):
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
             is no radial velocity data and radial velocity priors are not assigned (default: False)
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
+        gaia_dr4 (orbitize.gaia.DR4LogProb object): if not None, add the Gaia DR4
+            astrometric priors (default: None).
     """
 
     def __init__(
@@ -491,6 +540,7 @@ class Period(Basis):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
+        gaia_dr4=None,
     ):
 
         super(Period, self).__init__(
@@ -504,6 +554,7 @@ class Period(Basis):
             hipparcos_IAD,
             rv,
             rv_instruments,
+            gaia_dr4=gaia_dr4,
         )
 
     def construct_priors(self):
@@ -541,6 +592,13 @@ class Period(Basis):
         if self.hipparcos_IAD is not None:
             self.set_hip_iad_priors(basis_priors, basis_labels)
 
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -650,6 +708,8 @@ class SemiAmp(Basis):
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
             is no radial velocity data and radial velocity priors are not assigned (default: False)
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
+        gaia_dr4 (orbitize.gaia.DR4LogProb object): if not None, add the Gaia DR4
+            astrometric priors (default: None).
     """
 
     def __init__(
@@ -664,6 +724,7 @@ class SemiAmp(Basis):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
+        gaia_dr4=None,
     ):
         super(SemiAmp, self).__init__(
             stellar_or_system_mass,
@@ -676,6 +737,7 @@ class SemiAmp(Basis):
             hipparcos_IAD,
             rv,
             rv_instruments,
+            gaia_dr4=gaia_dr4,
         )
 
     def construct_priors(self):
@@ -714,7 +776,13 @@ class SemiAmp(Basis):
         # Add hip_iad priors if necessary
         if self.hipparcos_IAD is not None:
             self.set_hip_iad_priors(basis_priors, basis_labels)
-
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -945,6 +1013,8 @@ class XYZ(Basis):
         rv (bool): if True, then there is radial velocity data and assign radial velocity priors, if False, then there
             is no radial velocity data and radial velocity priors are not assigned (default: False)
         rv_instruments (np.array): array of unique rv instruments from the originally supplied data (default: None)
+        gaia_dr4 (orbitize.gaia.DR4LogProb object): if not None, add the Gaia DR4
+            astrometric priors (default: None).
 
     Author: Rodrigo
     """
@@ -964,6 +1034,7 @@ class XYZ(Basis):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
+        gaia_dr4=None,
     ):
 
         super(XYZ, self).__init__(
@@ -977,6 +1048,7 @@ class XYZ(Basis):
             hipparcos_IAD,
             rv,
             rv_instruments,
+            gaia_dr4=gaia_dr4,
         )
 
         self.data_table = data_table
@@ -1147,6 +1219,13 @@ class XYZ(Basis):
         if self.hipparcos_IAD is not None:
             self.set_hip_iad_priors(basis_priors, basis_labels)
 
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -1451,7 +1530,7 @@ class XYZ(Basis):
             2.0 * np.pi
         )
         # Eccentric anomaly
-        eanom = kepler._calc_ecc_anom(
+        eanom = kepler.calc_ecc_anom(
             manom, ecc, tolerance=tolerance, max_iter=max_iter
         )
         # if eanom.ndim == 1:

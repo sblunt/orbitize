@@ -7,6 +7,7 @@ import astropy.units as u
 import astropy.constants as consts
 import dynesty
 import matplotlib.pyplot as plt
+import nautilus
 import numpy as np
 import ptemcee
 
@@ -16,6 +17,8 @@ import orbitize.kepler
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.results
+
+import sys
 
 
 class Sampler(abc.ABC):
@@ -122,13 +125,19 @@ class Sampler(abc.ABC):
             )
 
         if self.system.gaia is not None:
-            gaiahip_epochs = np.append(
+            if hasattr(self.system.gaia, "epochs_mjd"):
+                # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
+                gaiahip_epochs = self.system.gaia.epochs_mjd
+            else:
+                gaiahip_epochs = np.append(
                 self.system.gaia.hipparcos_epoch.mjd, self.system.gaia.gaia_epoch.mjd
             )
 
-            # compute Ra/Dec predictions at the Gaia epoch
+            # System handles conversion from the active fitting basis.
             raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
-                params, epochs=gaiahip_epochs
+                params,
+                epochs=gaiahip_epochs,
+                params_basis="fitting",
             )
 
             # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
@@ -349,7 +358,7 @@ class OFTI(
             meananno = self.epochs[min_epoch] / period_prescale - tau
 
             # compute sep/PA of generated orbits
-            ra, dec, _ = orbitize.kepler.calc_orbit(
+            ra, dec, _, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch],
                 sma,
                 ecc,
@@ -466,7 +475,7 @@ class OFTI(
         return saved_orbits, lnlikes
 
     def _sampler_process(
-        self, output, total_orbits, num_samples=10000, Value=0, lock=None
+        self, output, total_orbits, num_samples=10000, Value=0, lock=None, seed=None
     ):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
@@ -480,6 +489,8 @@ class OFTI(
             Value (mp.Value(int)): global counter for the orbits generated
             lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
+            seed (int): integer to initiate the random seed from, used for testing
+                (default: None)
         Returns:
             tuple:
 
@@ -491,7 +502,11 @@ class OFTI(
 
         """
 
-        np.random.seed()
+        if seed is not None:
+            np.random.seed(seed)
+        else:
+            np.random.seed()
+
 
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
@@ -523,7 +538,7 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0
+        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0, seed=None
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -537,6 +552,8 @@ class OFTI(
             OFTI_warning (float): if OFTI doesn't accept a single orbit before
                 this amount of time (in seconds), print a warning suggesting to
                 try MCMC. If None, don't print a warning.
+            seed (int): integer seed to initialize sampler process,
+                used for testing (Default: None)
         Return:
             np.array: array of accepted orbits. Size: total_orbits.
 
@@ -564,7 +581,7 @@ class OFTI(
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output, nrun_per_core, num_samples, orbits_saved, lock),
+                    args=(output, nrun_per_core, num_samples, orbits_saved, lock, seed),
                 )
                 for x in range(num_cores)
             ]
@@ -831,32 +848,27 @@ class MCMC(Sampler):
 
         return super(MCMC, self)._logl(full_params) + logp
 
-    def _update_chains_from_sampler(self, sampler, num_steps=None, start_step=0):
+    def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
-        Updates self.post, self.chain, and self.lnlike from the MCMC sampler
+        Updates self.post and self.lnlike from the MCMC sampler
 
         Args:
             sampler (ptemcee.Sampler): sampler object.
             num_steps (int): if not None, only stores the first num_steps number of steps
-            start_step (int): if not 0, only (re)computes steps from this index
-                onwards, so self.post/self.lnlikes end up covering just the
-                ``[start_step, num_steps)`` chunk of the chain instead of the
-                full history. Used during periodic saving.
         """
         if num_steps is None:
             # use all the steps, grab total number of steps from dimension of chains
             num_steps = sampler.chain.shape[-2]
 
-        self.chain = sampler.chain
-        num_params = self.chain.shape[-1]
+        num_params = sampler.chain.shape[-1]
 
         # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
-        self.post = sampler.chain[0, :, start_step:num_steps].reshape(
+        self.post = sampler.chain[0, :, :num_steps].reshape(
             -1, num_params
         )  # the reshaping flattens the chain
         # pick out the lowest temperature loglikelihoods
-        self.lnlikes = sampler.loglikelihood[0, :, start_step:num_steps].flatten()
-        self.lnlikes_alltemps = sampler.loglikelihood[:, :, start_step:num_steps]
+        self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
+        self.lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
 
         # include fixed parameters in posterior
         self.post = self._fill_in_fixed_params(self.post)
@@ -908,7 +920,7 @@ class MCMC(Sampler):
         periodic_save_freq=None,
     ):
         """
-        Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
+        Runs PT MCMC sampler. Results are stored in ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
 
         .. Note:: Can be run multiple times if you want to pause and inspect things.
@@ -938,6 +950,10 @@ class MCMC(Sampler):
             )
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
+
+        if output_filename is not None:
+            if output_filename.endswith('.hdf5'):
+                output_filename = output_filename.split('.hdf5')[0]
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
@@ -976,13 +992,13 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self.results.curr_pos = self.curr_pos
-                        self.results.save_results(output_filename)
+                        self.results.save_results(f'{output_filename}_{i+1}burnsteps.hdf5')
 
             sampler.reset()
             print("")
             print("Burn in complete. Sampling posterior now.")
 
-            saved_upto = 0  # keep track of how many steps of this chain we've saved. this is the next index that needs to be saved
+            saved_upto = 0
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
@@ -993,43 +1009,69 @@ class MCMC(Sampler):
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
                 if periodic_save_freq is not None:
+                    
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
+                        self._update_chains_from_sampler(sampler, num_steps=i + 1)
 
-                        # only (re)compute the chunk of the chain since the last
-                        # save, not the full history
-                        self._update_chains_from_sampler(
-                            sampler, num_steps=i + 1, start_step=saved_upto
+                        # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
+                        # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
+                        post_shape = self.post.shape
+                        curr_chain_shape = (
+                            self.num_walkers,
+                            post_shape[0] // self.num_walkers,
+                            post_shape[-1],
                         )
+                        curr_chain = self.post.reshape(curr_chain_shape)
+                        curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                        # use the reshaped arrays and find the new steps we computed
+                        curr_chunk = curr_chain[:, saved_upto : i + 1]
+                        curr_chunk = curr_chunk.reshape(
+                            -1, curr_chunk.shape[-1]
+                        )  # flatten nwalkers x nsteps dim
+                        curr_lnlike_chunk = curr_lnlike_chain[
+                            :, saved_upto : i + 1
+                        ].flatten()
 
                         # add this current chunk to the results object (which already has all the previous chunks saved)
                         self.results.add_samples(
-                            self.post, self.lnlikes, curr_pos=self.curr_pos
+                            curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
                         )
                         self.results.save_results(output_filename)
                         saved_upto = i + 1
 
+
             print("")
+            self._update_chains_from_sampler(sampler)
 
             if periodic_save_freq is None:
-                # nothing has been processed/saved yet; need to do the whole chain
-                self._update_chains_from_sampler(sampler)
+                # need to save everything
                 self.results.add_samples(
                     self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
             elif saved_upto < nsteps:
-                # just need to process and save the leftover chunk since the last save
-                self._update_chains_from_sampler(sampler, start_step=saved_upto)
-                self.results.add_samples(
-                    self.post, self.lnlikes, curr_pos=self.curr_pos
+                # just need to save the last few
+                # same code as above except we just need to grab the last few
+                post_shape = self.post.shape
+                curr_chain_shape = (
+                    self.num_walkers,
+                    post_shape[0] // self.num_walkers,
+                    post_shape[-1],
                 )
-            else:
-                # everything has already been saved; still refresh self.chain,
-                # self.post, and self.lnlikes to reflect the full run in case
-                # the caller inspects them after run_sampler() returns
-                self._update_chains_from_sampler(sampler)
+                curr_chain = self.post.reshape(curr_chain_shape)
+                curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                curr_chunk = curr_chain[:, saved_upto:]
+                curr_chunk = curr_chunk.reshape(
+                    -1, curr_chunk.shape[-1]
+                )  # flatten nwalkers x nsteps dim
+                curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
+
+                self.results.add_samples(
+                    curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
+                )
+
 
             if output_filename is not None:
-                self.results.save_results(output_filename)
+                self.results.save_results(f'{output_filename}.hdf5')
 
             print("Run complete")
 
@@ -1223,7 +1265,32 @@ class MCMC(Sampler):
         return
 
 
-class NestedSampler(Sampler):
+class BaseNestedSampler(Sampler):
+    def ptform(self, u):
+        """
+        Prior transform function.
+
+        Args:
+            u (np.array of floats): RxM array of uniform
+                samples with values 0 < u < 1,
+                where R is the number of parameters
+                and M is the number of orbits
+
+        Returns:
+            numpy RxM array of floats: u samples transformed to
+                a chosen Prior Class distribution.
+        """
+        utform = np.zeros(u.shape)
+        for i in range(u.shape[0]):
+            if hasattr(self.system.sys_priors[i], 'transform_samples'):
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            else:
+                # prior is a fixed number
+                utform[i] = self.system.sys_priors[i]
+        return utform
+
+
+class NestedSampler(BaseNestedSampler):
     """
     Implements nested sampling using the Dynesty package.
 
@@ -1265,26 +1332,6 @@ class NestedSampler(Sampler):
         )
         self.start = time.time()
         self.dynesty_sampler = None
-
-    def ptform(self, u):
-        """
-        Prior transform function.
-
-        Args:
-            u (array of floats): list of samples with values 0 < u < 1.
-
-        Returns:
-            numpy array of floats: 1D u samples transformed to a chosen Prior
-                Class distribution.
-        """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
-            if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            else:
-                # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
-        return utform
 
     def run_sampler(
         self,
@@ -1589,3 +1636,133 @@ class MultiNest(Sampler):
             self.results.save_results(filename=hdf5_file)
 
         return post_samples[:, :-1]
+
+class NautilusSampler(BaseNestedSampler):
+    """
+    Implements nested sampling using the Nautilus-Sampler package.
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
+
+    Eshel Dror, Quinton Blackston, Aniruddh Chalagulla, & Niklas Naworal 2026
+    """
+    def __init__(self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super(NautilusSampler, self).__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+        )
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+        self.start = time.time()
+    
+    def nautilus_ptform(self, u):
+        return self.ptform(u.T).T
+    
+    def nautilus_logl(self, u: np.ndarray):
+        return self._logl(u.T).T
+    
+    def run_sampler(
+        self,
+        n_live = 2000,
+        n_update = None,
+        verbose = False,
+        num_threads = 1,
+        savefile = None,
+        sampler_kwargs = {},
+        run_kwargs = {}
+    ):
+        """Runs the nested sampler from the Nautilus package.
+
+        Args:
+            n_live (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 2000).
+            n_update (int): Number of points added to the live set before
+                creating a new shell. When None defaults to `n_live` (default: None).
+            verbose (bool): Print progress when running sampler (default: False).
+            num_threads (int, tuple, pool): number of threads to use for parallelization.
+                If a tuple of two integers, the number of threads for
+                likelihood evaluations and sampler calculations respectively. If a thread
+                pool, the pool used for parallelization (default=1).
+            savefile (str): File used by Nautilus to save progress.
+                If file already exists, resumes from saved progress.
+            sampler_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler,
+                such as `periodic`
+            run_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler.run,
+                such as `n_eff`
+
+
+        Returns:
+            numpy.array of float: equal-weighted posterior samples
+        """
+        if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
+            with mp.Pool(processes=num_threads) as pool:
+                self.naut_sampler = nautilus.Sampler(
+                    prior=self.nautilus_ptform,
+                    likelihood=self.nautilus_logl,
+                    n_dim=len(self.system.sys_priors),
+                    vectorized=True,
+                    n_live=n_live,
+                    n_update=n_update,
+                    pool=pool,
+                    filepath=savefile,
+                    **sampler_kwargs
+                    )
+
+                success = self.naut_sampler.run(
+                    verbose=verbose,
+                    **run_kwargs
+                )
+        else:
+            self.naut_sampler = nautilus.Sampler(
+                prior=self.nautilus_ptform,
+                likelihood=self.nautilus_logl,
+                n_dim=len(self.system.sys_priors),
+                vectorized=True,
+                n_live=n_live,
+                n_update=n_update,
+                pool=num_threads,
+                filepath=savefile,
+                **sampler_kwargs
+                )
+
+            success = self.naut_sampler.run(
+                verbose=verbose,
+                **run_kwargs
+            )
+        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+        weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
+
+        self.results.add_samples(
+            points,
+            log_l,
+            weighted_post=weighted_points,
+            weighted_lnlike=weighted_log_l,
+            lnweight=log_w
+        )
+
+        return points

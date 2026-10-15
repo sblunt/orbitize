@@ -1,26 +1,20 @@
 import os
 import numpy as np
-import contextlib
-import requests
-
-with contextlib.redirect_stdout(None):
-    from astroquery.gaia import Gaia
 from astropy import units as u
 import astropy.io.fits as fits
 from astropy.time import Time
 from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy.linalg
-
-from orbitize import DATADIR
+from orbitize import priors
+from orbitize import DATADIR, read_input
 import orbitize.lnlike
 
 
 class GaiaLogProb(object):
     """
     Class to compute the log probability of an orbit with respect to a single
-    astrometric position point from Gaia. Uses astroquery to look up Gaia
-    astrometric data, and computes log-likelihood. To be used in conjunction with
+    astrometric position point from Gaia. To be used in conjunction with
     orbitize.hipparcos.HipLogProb; see documentation for that object for more
     detail.
 
@@ -39,12 +33,8 @@ class GaiaLogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         dr (str): either 'dr2' or 'edr3'
-        query (bool): if True, queries the Gaia database for astrometry of the
-            target (requires an internet connection). If False, uses user-input
-            astrometric values (runs without internet).
-        gaia_data (dict): see `query` keyword above. If `query` set to False,
-            then user must supply a dictionary of Gaia astometry in the following
-            form:
+        gaia_data (dict): a dictionary of Gaia astometry in the
+            following form:
                 gaia_data = {
                     'ra': 139.4 # RA in degrees
                     'dec': 139.4 # Dec in degrees
@@ -55,10 +45,11 @@ class GaiaLogProb(object):
     Written: Sarah Blunt, 2021
     """
 
-    def __init__(self, gaia_num, hiplogprob, dr="dr2", query=True, gaia_data=None):
+    def __init__(self, gaia_num, hiplogprob, gaia_data, dr="dr2"):
         self.gaia_num = gaia_num
         self.hiplogprob = hiplogprob
         self.dr = dr
+        self.gaia_data = gaia_data
 
         if self.dr == "edr3":
             self.gaia_epoch = Time("J2016", format='jyear_str')
@@ -67,19 +58,6 @@ class GaiaLogProb(object):
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
         self.hipparcos_epoch = Time("J1991.25", format='jyear_str')
-
-        if query:
-            query = """SELECT
-            TOP 1
-            ra, dec, ra_error, dec_error
-            FROM gaia{}.gaia_source
-            WHERE source_id = {}
-            """.format(
-                self.dr, self.gaia_num
-            )
-
-            job = Gaia.launch_job_async(query)
-            gaia_data = job.get_results()
 
         self.ra = gaia_data["ra"]
         self.ra_err = gaia_data["ra_error"]
@@ -99,6 +77,8 @@ class GaiaLogProb(object):
         """
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = self.dr
+        gaia_data_group = hf.create_group("gaia_data")
+        gaia_data_group.update(self.gaia_data)
         self.hiplogprob._save(hf)
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
@@ -176,7 +156,7 @@ class GaiaLogProb(object):
         chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2
 
-        return lnlike
+        return np.sum(lnlike) # TODO: figure out what is adding a dimensions
 
 
 class HGCALogProb(object):
@@ -200,77 +180,75 @@ class HGCALogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
-        hgca_filepath (str): path to HGCA catalog FITS file.
-            If None, will download and store in orbitize.DATADIR
+        hgca_filepath (str): path to HGCA catalog FITS file
+            (can be downloaded from 
+            https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits).
+            If None, will check for the file in `orbitize.DATADIR` (default: None)
+        hgca_entry (dict): Dictionary of the HGCA catalog entry for this target.
+            Can be used to initialize without using the full HGCA catalog FITS file.
+            (default: None)
 
     Written: Jason Wang, 2022
     """
 
-    def __init__(self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None):
-        # use default HGCA catalog if not supplied
-        if hgca_filepath is None:
-            # check orbitize.DATAIDR and download if needed
-            hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
-            if not os.path.exists(hgca_filepath):
-                hgca_url = (
-                    "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits"
-                )
-                print(
-                    "No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(
-                        hgca_url, hgca_filepath
+    def __init__(self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None, hgca_entry=None):
+        if hgca_entry is None:
+            # use default HGCA catalog if not supplied
+            if hgca_filepath is None:
+                # check orbitize.DATAIDR
+                hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
+            # grab the entry from the HGCA
+            assert os.path.exists(hgca_filepath), "HGCA Catalog Not Found"
+            with fits.open(
+                hgca_filepath, ignore_missing_simple=True, ignore_missing_end=True
+            ) as hdulist:
+                hgtable = hdulist[1].data
+            entry_raw = hgtable[np.where(hgtable["hip_id"] == hip_id)]
+            # check we matched on a single target. mainly check if we typed hip id number incorrectly
+            if len(entry_raw) != 1:
+                raise ValueError(
+                    "HIP {0} encountered {1} matches. Expected 1 match.".format(
+                        hip_id, len(entry_raw)
                     )
                 )
-                hgca_file = requests.get(hgca_url, verify=False)
-                with open(hgca_filepath, "wb") as f:
-                    f.write(hgca_file.content)
-            else:
-                print("Using HGCA catalog stored in {0}".format(hgca_filepath))
-
-        # grab the entry from the HGCA
-        with fits.open(
-            hgca_filepath, ignore_missing_simple=True, ignore_missing_end=True
-        ) as hdulist:
-            hgtable = hdulist[1].data
-        entry = hgtable[np.where(hgtable["hip_id"] == hip_id)]
-        # check we matched on a single target. mainly check if we typed hip id number incorrectly
-        if len(entry) != 1:
-            raise ValueError(
-                "HIP {0} encountered {1} matches. Expected 1 match.".format(
-                    hip_id, len(entry)
-                )
-            )
-        #  self.hgca_entry = entry
+            cols = entry_raw.columns.names
+            entry = dict(zip(cols, entry_raw[0]))
+        else:
+            if not isinstance(hgca_entry, dict):
+                raise TypeError("hgca_entry must be a dict {}".format(hgca_entry))
+            entry = hgca_entry
+        self.hgca_entry = entry
         self.hip_id = hip_id
 
         # grab the relevant PM and uncertainties from HGCA
-        self.hip_pm = np.array([entry["pmra_hip"][0], entry["pmdec_hip"][0]])
+        self.hip_pm = np.array([entry["pmra_hip"], entry["pmdec_hip"]])
         self.hip_pm_err = np.array(
-            [entry["pmra_hip_error"][0], entry["pmdec_hip_error"][0]]
+            [entry["pmra_hip_error"], entry["pmdec_hip_error"]]
         )
         hip_radec_cov = (
-            entry["pmra_pmdec_hip"][0]
-            * entry["pmra_hip_error"][0]
-            * entry["pmdec_hip_error"][0]
+            entry["pmra_pmdec_hip"]
+            * entry["pmra_hip_error"]
+            * entry["pmdec_hip_error"]
         )
 
-        self.hg_pm = np.array([entry["pmra_hg"][0], entry["pmdec_hg"][0]])
+        self.hg_pm = np.array([entry["pmra_hg"], entry["pmdec_hg"]])
         self.hg_pm_err = np.array(
-            [entry["pmra_hg_error"][0], entry["pmdec_hg_error"][0]]
+            [entry["pmra_hg_error"], entry["pmdec_hg_error"]]
         )
         hg_radec_cov = (
-            entry["pmra_pmdec_hg"][0]
-            * entry["pmra_hg_error"][0]
-            * entry["pmdec_hg_error"][0]
+            entry["pmra_pmdec_hg"]
+            * entry["pmra_hg_error"]
+            * entry["pmdec_hg_error"]
         )
 
-        self.gaia_pm = np.array([entry["pmra_gaia"][0], entry["pmdec_gaia"][0]])
+        self.gaia_pm = np.array([entry["pmra_gaia"], entry["pmdec_gaia"]])
         self.gaia_pm_err = np.array(
-            [entry["pmra_gaia_error"][0], entry["pmdec_gaia_error"][0]]
+            [entry["pmra_gaia_error"], entry["pmdec_gaia_error"]]
         )
         gaia_radec_cov = (
-            entry["pmra_pmdec_gaia"][0]
-            * entry["pmra_gaia_error"][0]
-            * entry["pmdec_gaia_error"][0]
+            entry["pmra_pmdec_gaia"]
+            * entry["pmra_gaia_error"]
+            * entry["pmdec_gaia_error"]
         )
 
         # compute the differential PMs by subtracting Hip and Gaia from HG. Also propogate errors
@@ -293,8 +271,8 @@ class HGCALogProb(object):
         )
 
         # grab reference epochs for Gaia from HGCA so we can forward model it
-        self.gaia_epoch_ra = entry["epoch_ra_gaia"][0]
-        self.gaia_epoch_dec = entry["epoch_dec_gaia"][0]
+        self.gaia_epoch_ra = entry["epoch_ra_gaia"]
+        self.gaia_epoch_dec = entry["epoch_dec_gaia"]
         # read in the GOST file to get the estimated Gaia epochs and scan angles
         gost_dat = read(gost_filepath, converters={"*": [int, float, bytes]})
         self.gaia_epoch = Time(
@@ -310,8 +288,8 @@ class HGCALogProb(object):
         self.hipparcos_epoch = hiplogprob.epochs  # in decimal year
         self.hipparcos_cos_phi = hiplogprob.cos_phi
         self.hipparcos_sin_phi = hiplogprob.sin_phi
-        self.hipparcos_epoch_ra = entry["epoch_ra_hip"][0]
-        self.hipparcos_epoch_dec = entry["epoch_dec_hip"][0]
+        self.hipparcos_epoch_ra = entry["epoch_ra_hip"]
+        self.hipparcos_epoch_dec = entry["epoch_dec_hip"]
         self.hippaarcos_errs = hiplogprob.eps
         self.hiplogprob = hiplogprob  # save for saving
 
@@ -329,6 +307,9 @@ class HGCALogProb(object):
         # save Gaia GOST file. avoid unicode!!
         gost_dat = read(self.gost_filepath, converters={"*": [int, float, bytes]})
         hf.create_dataset("Gaia_GOST", data=gost_dat)
+
+        HGCA_entry_group = hf.create_group("HGCA_entry")
+        HGCA_entry_group.update(self.hgca_entry)
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
@@ -428,8 +409,8 @@ class HGCALogProb(object):
 
         return np.sum(lnlike)
 
+    @staticmethod
     def _linear_pm_fit(
-        self,
         epochs,
         raoff_planet,
         decoff_planet,
@@ -456,3 +437,209 @@ class HGCALogProb(object):
         x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
 
         return x
+
+class DR4LogProb(object):
+    r"""
+    Class to compute the log probability of an orbit with respect to Gaia DR4
+    astrometric measurements (epoch astrometry).
+    The four linear astrometric parameters (position and proper motion in
+    RA* and Dec) are fitted explicitly with uniform priors by default.
+    Users can customize these through system.sys_priors before constructing
+    the sampler.
+
+    The forward model for each scan at epoch i is:
+
+    .. math::
+
+        \eta_i =
+        (\alpha_0 + \mu_{\alpha*}\Delta t_i)\sin\psi_i
+        + (\delta_0 + \mu_\delta\Delta t_i)\cos\psi_i
+        + \varpi P_i + \eta_{\mathrm{orb},i}
+
+    where:
+
+    - :math:`\eta_i` is the predicted along-scan position [mas].
+    - :math:`\alpha_0` and :math:`\delta_0` are the position offsets
+      at the reference epoch: ``alpha0`` and ``delta0`` [mas].
+    - :math:`\mu_{\alpha*}` and :math:`\mu_\delta` are the proper
+      motions: ``pm_ra`` and ``pm_dec`` [mas/yr].
+    - :math:`\Delta t_i = (t_i-t_{\mathrm{ref}})/365.25` is the time
+      offset [Julian yr], with both epochs in MJD(TCB) and
+      ``t_ref = ref_epoch_mjd``.
+    - :math:`\psi_i` is the scan position angle [rad].
+    - :math:`\varpi` is ``plx`` [mas], and :math:`P_i` is the
+      dimensionless along-scan parallax factor.
+    - :math:`\eta_{\mathrm{orb},i}` is the orbital contribution [mas],
+      computed as ``-raoff_model[i, 0]*sin(psi_i)
+      - deoff_model[i, 0]*cos(psi_i)`` using the likelihood's
+      existing sign convention.
+
+    These parameters are added by the fitting basis when System is
+    constructed with gaia=dr4. Users can customize their priors through
+    system.sys_priors before constructing the sampler.
+
+    Pass this object into the gaia keyword of orbitize.system.System.
+    You must 'set fit_secondary_mass=True' so that the star's barycentric
+    wobble is computed.
+
+    Args:
+        gaia_num (int): Gaia source ID
+        dr4_filepath (str or astropy.table.Table): Raw OHP CSV (JD timestamps),
+            or a table returned by ``from_ohp_file`` / ``from_dl2``
+            (MJD timestamps). Times are normalized once to MJD(TCB).
+            Required columns: 'obs_time_tcb', 'centroid_pos_al',
+            'centroid_pos_error_al', 'parallax_factor_al', 'scan_pos_angle',
+            'field_of_view'. MJD tables must carry ``meta['time_format']='mjd'``.
+        ref_epoch_jd (float, optional): Legacy JD(TCB) reference epoch;
+            converted to MJD on input. Prefer ``ref_epoch_mjd`` for new code.
+        ref_epoch_mjd (float, optional): Reference epoch in MJD(TCB) for the
+            linear astrometric model. Default 57936.375 (J2017.5).
+        jitter (float): fixed along-scan jitter [mas] added in quadrature to
+            ``centroid_pos_error_al``. Default 0, preserving the original
+            likelihood.
+        jitter_prior (orbitize.priors.Prior, optional): prior for a fitted
+            along-scan jitter parameter [mas]. When supplied, ``dr4_jitter``
+            is registered as an additional System parameter. ``jitter`` must
+            remain zero when fitting the jitter.
+
+    Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
+    scale for joint fits. This class does not convert RV or relative-astrometry
+    timestamps whose time scale is unspecified.
+
+    Written: Clarissa Do O, 2026
+    """
+
+    def __init__(
+        self,
+        gaia_num,
+        dr4_filepath,
+        ref_epoch_jd=None,
+        jitter=0.0,
+        jitter_prior=None,
+        ref_epoch_mjd=None,
+    ):
+        if ref_epoch_jd is not None:
+            if ref_epoch_mjd is not None:
+                raise ValueError("Set only one of ref_epoch_mjd and ref_epoch_jd.")
+            ref_epoch_mjd = ref_epoch_jd - 2400000.5
+        if ref_epoch_mjd is None:
+            ref_epoch_mjd = 57936.375  # J2017.5 in MJD(TCB)
+        if not np.isfinite(jitter) or jitter < 0:
+            raise ValueError("jitter must be a finite, non-negative value in mas")
+        if jitter_prior is not None and jitter != 0:
+            raise ValueError("set either a fixed jitter or jitter_prior, not both")
+        if jitter_prior is not None and not isinstance(jitter_prior, priors.Prior):
+            raise TypeError("jitter_prior must be an orbitize.priors.Prior")
+
+        self.gaia_num = gaia_num
+        self.dr4_filepath = dr4_filepath
+        self.ref_epoch_mjd = ref_epoch_mjd
+        self.time_scale = "tcb"
+        self.jitter = float(jitter)
+        self.fit_jitter = jitter_prior is not None
+        self.jitter_prior = jitter_prior
+        # Normalize raw OHP files or already-read Gaia tables once to MJD(TCB).
+        self.data_table = read_input.from_ohp_file(dr4_filepath)
+        dr4_dat = self.data_table
+        self.epochs_mjd = np.array(dr4_dat["obs_time_tcb"])
+        self.n_obs = len(self.epochs_mjd)
+
+        # along scan measurements and errors [mas]
+        self.centroid_pos_al = np.array(dr4_dat["centroid_pos_al"])
+        self.centroid_pos_error_al = np.array(dr4_dat["centroid_pos_error_al"])
+
+        # parallax factors (pre-projected onto scan direction)
+        self.parallax_factor_al = np.array(dr4_dat["parallax_factor_al"])
+
+        # scan position angles [rad] and their sin/cos
+        scan_angle = np.array(dr4_dat["scan_pos_angle"])
+        self.sin_scan = np.sin(scan_angle)
+        self.cos_scan = np.cos(scan_angle)
+
+        # FOV identifier, currently not used but read in.
+        self.fov = np.array(dr4_dat["field_of_view"])
+
+        # time offsets from reference epoch [Julian yr]
+        self.dt_yr = (self.epochs_mjd - self.ref_epoch_mjd) / 365.25
+
+        # pre-compute scan projection of PM basis vectors
+        self.pm_ra_basis = self.dt_yr * self.sin_scan  # pmra, projected
+        self.pm_dec_basis = self.dt_yr * self.cos_scan  # pmdec, projected
+
+        # Decimal years are retained for display/legacy callers, not orbit times.
+        self.hipparcos_epoch = np.array([])  # empty
+        self.gaia_epoch = time.Time(
+            self.epochs_mjd, format="mjd", scale=self.time_scale
+        ).decimalyear
+
+    def _save(self, hf):
+        """Save to an open HDF5 file."""
+        hf.attrs["gaia_num"] = self.gaia_num
+        hf.attrs["dr"] = "dr4"
+        hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
+        hf.attrs["dr4_time_format"] = "mjd"
+        hf.attrs["dr4_time_scale"] = self.time_scale
+        hf.attrs["dr4_jitter"] = self.jitter
+        hf.attrs["dr4_fit_jitter"] = self.fit_jitter
+
+        dr4_dat = self.data_table.copy()
+        dr4_dat.convert_unicode_to_bytestring()
+        hf.create_dataset("Gaia_DR4", data=dr4_dat.as_array())
+
+    def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
+        """
+        Compute the Gaussian log-likelihood of the DR4 along-scan data.
+        The position offsets (``alpha0``, ``delta0``), proper motions
+        (``pm_ra``, ``pm_dec``), and parallax (``plx``) are read from
+        the parameter vector. Their priors are evaluated separately
+        by the sampler. If ``jitter_prior`` was supplied at construction, ``dr4_jitter``
+        is read from the parameter vector. Otherwise, the fixed jitter
+        is used. Jitter is added in quadrature to each AL uncertainty.
+
+        Args:
+            raoff_model (np.array): NxM primary RA offsets from the
+                barycenter due to orbital motion [mas].
+            deoff_model (np.array): NxM primary Dec offsets [mas].
+            samples (np.array): current parameter vector.
+            param_idx (dict): parameter-name to index mapping.
+
+        Returns:
+            float: log-likelihood summed over all scans.
+        """
+        # orbital parameters
+        plx = samples[param_idx["plx"]]
+
+        # sampled astrometric parameters
+        ra_off = samples[param_idx["alpha0"]]  # mas
+        dec_off = samples[param_idx["delta0"]]  # mas
+        pmra = samples[param_idx["pm_ra"]]  # mas/yr
+        pmdec = samples[param_idx["pm_dec"]]  # mas/yr
+        # project orbital perturbation onto along-scan direction
+        orbit_al = -(
+            raoff_model[:, 0] * self.sin_scan
+            + deoff_model[:, 0] * self.cos_scan
+        )
+
+        # full along-scan model: position + PM + parallax + orbit
+        model_al = (
+            ra_off * self.sin_scan  # position offset, projected
+            + dec_off * self.cos_scan  # position offset, projected
+            + pmra * self.pm_ra_basis  # proper motion, projected
+            + pmdec * self.pm_dec_basis  # proper motion, projected
+            + plx * self.parallax_factor_al  # plx and its factor
+            + orbit_al  # residual due to planet or companion
+        )
+
+        # Gaussian lnlike. The normalization must be recomputed when jitter is
+        # fitted because the effective uncertainties then vary between samples.
+        residuals = self.centroid_pos_al - model_al
+        if self.fit_jitter:
+            jitter = samples[param_idx["dr4_jitter"]]
+        else:
+            jitter = self.jitter
+
+        variance = self.centroid_pos_error_al**2 + jitter**2
+        chi2 = np.sum(residuals**2 / variance)
+        log_norm = np.sum(np.log(2.0 * np.pi * variance))
+
+        return float(-0.5 * (chi2 + log_norm))

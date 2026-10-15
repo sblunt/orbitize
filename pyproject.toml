@@ -14,6 +14,7 @@ dependencies = [
     "numpy",
     "astropy>=4",
     "scipy",
+    "emcee>=3",
     "ptemcee_for_orbitize",
     "matplotlib",
     "corner",
@@ -26,7 +27,9 @@ dependencies = [
     "rebound",
     "dynesty",
     "pymultinest",
-    "tk"
+    "tk",
+    "pytest-randomly",
+    "nautilus-sampler"
 ]
 
 [tool.setuptools.dynamic]
@@ -34,3 +37,6 @@ version = {attr = "orbitize.__version__"}
 
 [tool.setuptools.packages]
 find = {}
+
+[tool.pytest]
+addopts = ["--randomly-seed=6674", "--randomly-dont-reorganize"]
