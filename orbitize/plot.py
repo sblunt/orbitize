@@ -2013,7 +2013,6 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
 
     # Define array of default axis labels (overwritten if user specifies list)
     default_labels = {
-
         "sma": "$a_{0}$ [au]",
         "ecc": "$ecc_{0}$",
         "inc": "$inc_{0}$ [$^\\circ$]",
@@ -2027,11 +2026,10 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
         "mtot": "$M_T$ [M$_{{\\odot}}$]",
         "m0": "$M_0$ [M$_{{\\odot}}$]",
         "m": "$M_{0}$ [M$_{{\\rm Jup}}$]",
-        "pm_ra": "$\\mu_{{\\alpha}}$ [mas/yr]",
+        "pm_ra": "$\\mu_{{\\alpha^{{*}}}}$ [mas/yr]",
         "pm_dec": "$\\mu_{{\\delta}}$ [mas/yr]",
         "alpha0": "$\\alpha^{{*}}_{{0}}$ [mas]",
         "delta0": "$\\delta_0$ [mas]",
-        "m": "$M_{0}$ [M$_{{\\rm Jup}}$]",
         "per": "$P_{0}$ [yr]",
         "K": "$K_{0}$ [km/s]",
         "x": "$X_{0}$ [AU]",

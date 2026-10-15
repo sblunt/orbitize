@@ -190,37 +190,35 @@ class Results(object):
         API Update: Sarah Blunt, 2021
         """
 
-        hf = h5py.File(filename, 'w')  # Creates h5py file object
-        # Add sampler_name as attribute of the root group
+        with h5py.File(filename, 'w') as hf: # Creates h5py file object
+            # Add sampler_name as attribute of the root group
 
-        hf.attrs['sampler_name'] = self.sampler_name
-        hf.attrs['version_number'] = self.version_number
+            hf.attrs['sampler_name'] = self.sampler_name
+            hf.attrs['version_number'] = self.version_number
 
-        if self.ln_evidence is not None:
-            hf.attrs['ln_evidence'] = self.ln_evidence
+            if self.ln_evidence is not None:
+                hf.attrs['ln_evidence'] = self.ln_evidence
 
-        if self.ln_evidence_err is not None:
-            hf.attrs['ln_evidence_err'] = self.ln_evidence_err
+            if self.ln_evidence_err is not None:
+                hf.attrs['ln_evidence_err'] = self.ln_evidence_err
 
-        # Now add post and lnlike from the results object as datasets
-        if self.post is not None:
-            hf.create_dataset('post', data=self.post)
-        # hf.create_dataset('data', data=self.data)
-        if self.lnlike is not None:
-            hf.create_dataset('lnlike', data=self.lnlike)
+            # Now add post and lnlike from the results object as datasets
+            if self.post is not None:
+                hf.create_dataset('post', data=self.post)
+            # hf.create_dataset('data', data=self.data)
+            if self.lnlike is not None:
+                hf.create_dataset('lnlike', data=self.lnlike)
 
-        if self.curr_pos is not None:
-            hf.create_dataset("curr_pos", data=self.curr_pos)
+            if self.curr_pos is not None:
+                hf.create_dataset("curr_pos", data=self.curr_pos)
 
-        if self._weighted_post is not None and self._weighted_lnlike is not None and self.lnweight is not None:
-            hf.create_dataset("weighted_post", data=self._weighted_post)
-            hf.create_dataset("weighted_lnlike", data=self._weighted_lnlike)
-            hf.create_dataset("lnweight", data=self.lnweight)
+            if self._weighted_post is not None and self._weighted_lnlike is not None and self.lnweight is not None:
+                hf.create_dataset("weighted_post", data=self._weighted_post)
+                hf.create_dataset("weighted_lnlike", data=self._weighted_lnlike)
+                hf.create_dataset("lnweight", data=self.lnweight)
 
 
-        self.system.save(hf)
-
-        hf.close()  # Closes file object, which writes file to disk
+            self.system.save(hf)
 
     def load_results(self, filename, append=False):
         """
@@ -299,7 +297,7 @@ class Results(object):
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
 
-            tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
+            tmpfile = 'tmpfile_iad_OkToDeleteAfterFitFinishes'
             with open(tmpfile, 'w+') as f:
                 try:
                     for l in np.array(iad_data):
@@ -312,19 +310,30 @@ class Results(object):
             alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
             renormalize_errors = bool(hf.attrs['renormalize_errors'])
 
+            hip_data_raw = hf.get("hip_data", default=None)
+            if hip_data_raw is not None:
+                hip_data = {key : hip_data_raw[key][()] for key in hip_data_raw.keys()}
+            else:
+                hip_data = None
+
             hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
                 tmpfile,
                 hip_num,
                 num_secondary_bodies,
                 alphadec0_epoch,
                 renormalize_errors,
+                hip_data,
             )
 
             # load Gaia data
             try:
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
-                gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
+                gaia_data_raw = hf.get("gaia_data")
+                if gaia_data_raw is None:
+                    raise KeyError
+                gaia_data = {key : gaia_data_raw[key][()] for key in gaia_data_raw.keys()}
+                gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, gaia_data, dr)
             except KeyError:
                 gaia = None
 
@@ -332,11 +341,16 @@ class Results(object):
             gaiagost_data = hf.get("Gaia_GOST")
             if gaiagost_data is not None:
                 
-                tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
+                tmpfile = 'tmpfile_gost_OkToDeleteAfterFitFinishes'
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
-                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
+                hgca_entry_raw = hf.get("HGCA_entry")
+                if hgca_entry_raw is None:
+                    raise KeyError("HGCA Entry not found in {} for initializing HGCALogProb".format(filename))
+                hgca_entry = {key : hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()}
+
+                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile, hgca_entry=hgca_entry)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
 

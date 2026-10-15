@@ -8,6 +8,7 @@ from astropy.table import Table
 from astropy.io.ascii import read, write
 from astropy import units as u
 
+VALID_ATTRS = ["raoff", "decoff", "radec_corr", "sep", "pa", "seppa_corr", "rv", "brightness", "instrument"]
 
 def read_file(filename):
     """Reads data from any file for use in orbitize
@@ -20,11 +21,14 @@ def read_file(filename):
 
     Example of an orbitize-readable .csv input file::
 
-        epoch,object,raoff,raoff_err,decoff,decoff_err,radec_corr,sep,sep_err,pa,pa_err,rv,rv_err
-        1234,1,0.010,0.005,0.50,0.05,0.025,,,,,,
-        1235,1,,,,,,1.0,0.005,89.0,0.1,,
-        1236,1,,,,,,1.0,0.005,89.3,0.3,,
-        1237,0,,,,,,,,,,10,0.1
+        epoch,object,raoff,raoff_err,decoff,decoff_err,radec_corr,sep,sep_err,pa,pa_err,seppa_corr,rv,rv_err,brightness,brightness_err,instrument
+        1234,1,0.010,0.005,0.50,0.05,0.25,,,,,,,,,,
+        1235,1,,,,,,1.0,0.005,89.0,0.1,,,,0.9,0.1,
+        1236,1,,,,,,1.0,0.005,89.3,0.3,-0.5,,,0.6,0.2,
+        1237,0,,,,,,,,,,,10.0,0.1,,,A
+        1237,0,,,,,,,,,,,13.0,0.2,,,B
+        1238,0,,,,,,,,,,,10.2,0.2,,,A
+        1238,0,,,,,,,,,,,13.1,0.2,,,B
 
     Each row must have ``epoch`` (in MJD=JD-2400000.5) and ``object``.
     Objects are numbered with integers, where the primary/central object is ``0``.
@@ -36,7 +40,11 @@ def read_file(filename):
 
         - RA and DEC offsets [mas], or
         - sep [mas] and PA [degrees East of NCP], or
-        - RV measurement [km/s]
+        - RV measurement [km/s], or
+        - brightness
+
+    Each line may optionally have an ``instrument`` name. This is particularly important
+    if there are multiple RV instruments whose RV offsets need to be fitted separately.
 
     .. Note:: Columns with no data can be omitted (e.g. if only separation and PA
         are given, the raoff, deoff, and rv columns can be excluded).
@@ -75,13 +83,18 @@ def read_file(filename):
         astropy.Table: Table containing orbitize-readable input for given
         object. For the example input above::
 
-            epoch  object  quant1 quant1_err  quant2 quant2_err quant12_corr quant_type
-           float64  int   float64  float64   float64  float64     float64       str5
-           ------- ------ ------- ---------- ------- ---------- ------------ ----------
-           1234.0      1    0.01      0.005     0.5       0.05      0.025        radec
-           1235.0      1     1.0      0.005    89.0        0.1        nan        seppa
-           1236.0      1     1.0      0.005    89.3        0.3        nan        seppa
-           1237.0      0    10.0        0.1     nan        nan        nan           rv
+             epoch  object  quant1 quant1_err  quant2 quant2_err quant12_corr quant_type instrument
+            float64 int64  float64  float64   float64  float64     float64     bytes10     str20   
+            ------- ------ ------- ---------- ------- ---------- ------------ ---------- ----------
+             1234.0      1    0.01      0.005     0.5       0.05         0.25      radec      defrd
+             1235.0      1     1.0      0.005    89.0        0.1          nan      seppa      defsp
+             1235.0      1     0.9        0.1     nan        nan          nan brightness      defbr
+             1236.0      1     1.0      0.005    89.3        0.3         -0.5      seppa      defsp
+             1236.0      1     0.6        0.2     nan        nan          nan brightness      defbr
+             1237.0      0    10.0        0.1     nan        nan          nan         rv          A
+             1237.0      0    13.0        0.2     nan        nan          nan         rv          B
+             1238.0      0    10.2        0.2     nan        nan          nan         rv          A
+             1238.0      0    13.1        0.2     nan        nan          nan         rv          B
 
         where ``quant_type`` is one of "radec", "seppa", or "rv".
 
@@ -107,6 +120,9 @@ def read_file(filename):
         ),
         dtype=(float, int, float, float, float, float, float, "S5", "U20"),
     )
+
+    # dict string to array of bools of which rows have each input attribute
+    have = {}
 
     # read file
     try:
@@ -152,49 +168,11 @@ def read_file(filename):
         ):  # proper orbitize style should NEVER have masked entries (nan required)
             raise Exception("Input table in orbitize style may NOT have empty cells")
         else:  # Check for these things when not orbitize style
-            if "raoff" in input_table.columns:
-                have_ra = ~input_table["raoff"].mask
-            else:
-                have_ra = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "decoff" in input_table.columns:
-                have_dec = ~input_table["decoff"].mask
-            else:
-                have_dec = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "radec_corr" in input_table.columns:
-                have_radeccorr = ~input_table["radec_corr"].mask
-            else:
-                have_radeccorr = np.zeros(
-                    num_measurements, dtype=bool
-                )  # zeros are False
-            if "sep" in input_table.columns:
-                have_sep = ~input_table["sep"].mask
-            else:
-                have_sep = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "pa" in input_table.columns:
-                have_pa = ~input_table["pa"].mask
-            else:
-                have_pa = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "seppa_corr" in input_table.columns:
-                have_seppacorr = ~input_table["seppa_corr"].mask
-            else:
-                have_seppacorr = np.zeros(
-                    num_measurements, dtype=bool
-                )  # zeros are False
-            if "brightness" in input_table.columns:
-                have_brightness = ~input_table["brightness"].mask
-            else:
-                have_brightness = np.zeros(num_measurements, dtype=bool)
-            if "rv" in input_table.columns:
-                have_rv = ~input_table["rv"].mask
-            else:
-                have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
-
-            if "instrument" in input_table.columns:
-                # Vighnesh: establishes which rows have instrument names provided
-                have_inst = ~input_table["instrument"].mask
-            else:
-                have_inst = np.zeros(num_measurements, dtype=bool)  # zeros are false
-
+            for attr in VALID_ATTRS:
+                if attr in input_table.columns:
+                    have[attr] = ~input_table[attr].mask
+                else:
+                    have[attr] = np.zeros(num_measurements, dtype=bool) # zeros are False   
     else:  # no masked entries, just check for required columns
         if "epoch" not in input_table.columns:
             raise Exception("Input table MUST have epoch!")
@@ -203,47 +181,11 @@ def read_file(filename):
         if (
             not orbitize_style
         ):  # Set these flags only when not already in orbitize style
-            if "raoff" in input_table.columns:
-                have_ra = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_ra = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "decoff" in input_table.columns:
-                have_dec = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_dec = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "radec_corr" in input_table.columns:
-                have_radeccorr = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_radeccorr = np.zeros(
-                    num_measurements, dtype=bool
-                )  # zeros are False
-            if "sep" in input_table.columns:
-                have_sep = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_sep = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "pa" in input_table.columns:
-                have_pa = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_pa = np.zeros(num_measurements, dtype=bool)  # zeros are False
-            if "seppa_corr" in input_table.columns:
-                have_seppacorr = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_seppacorr = np.zeros(
-                    num_measurements, dtype=bool
-                )  # zeros are False
-            if "rv" in input_table.columns:
-                have_rv = np.ones(num_measurements, dtype=bool)  # ones are False
-            else:
-                have_rv = np.zeros(num_measurements, dtype=bool)  # zeros are False
-
-            if "instrument" in input_table.columns:
-                have_inst = np.ones(num_measurements, dtype=bool)
-            else:
-                have_inst = np.zeros(num_measurements, dtype=bool)
-            if "brightness" in input_table.columns:
-                have_brightness = np.ones(num_measurements, dtype=bool)
-            else:
-                have_brightness = np.zeros(num_measurements, dtype=bool)
+            for attr in VALID_ATTRS:
+                if attr in input_table.columns:
+                    have[attr] = np.ones(num_measurements, dtype=bool) # ones are True
+                else:
+                    have[attr] = np.zeros(num_measurements, dtype=bool) # zeros are False
 
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
@@ -341,9 +283,9 @@ def read_file(filename):
 
         else:  # When not in orbitize style
 
-            if have_ra[index] and have_dec[index]:
+            if have["raoff"][index] and have["decoff"][index]:
                 # check if there's a covariance term
-                if have_radeccorr[index]:
+                if have["radec_corr"][index]:
                     quant12_corr = row["radec_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
@@ -354,7 +296,7 @@ def read_file(filename):
                 else:
                     quant12_corr = None
 
-                if have_inst[index]:
+                if have["instrument"][index]:
                     this_inst = row["instrument"]
                 else:
                     # sets the row with a default instrument name if none is provided
@@ -374,9 +316,9 @@ def read_file(filename):
                     ]
                 )
 
-            elif have_sep[index] and have_pa[index]:
+            elif have["sep"][index] and have["pa"][index]:
                 # check if there's a covariance term
-                if have_seppacorr[index]:
+                if have["seppa_corr"][index]:
                     quant12_corr = row["seppa_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
@@ -387,7 +329,7 @@ def read_file(filename):
                 else:
                     quant12_corr = None
 
-                if have_inst[index]:
+                if have["instrument"][index]:
                     this_inst = row["instrument"]
                 else:
                     # sets the row with a default instrument name if none is provided
@@ -407,8 +349,8 @@ def read_file(filename):
                     ]
                 )
 
-            if have_rv[index]:
-                if have_inst[index]:
+            if have["rv"][index]:
+                if have["instrument"][index]:
                     output_table.add_row(
                         [
                             MJD,
@@ -437,7 +379,7 @@ def read_file(filename):
                             "defrv",
                         ]
                     )
-            if have_brightness[index]:
+            if have["brightness"][index]:
                 output_table.add_row(
                     [
                         MJD,
