@@ -306,6 +306,10 @@ class OFTI(
                     )
                     convert_warning_print = True
                 self.system.convert_data_table_radec2seppa(body_num=body_num)
+        if "radec" in self.non_marg_quants:
+            self.non_marg_quants.remove("radec")
+            if "seppa" not in self.non_marg_quants:
+                self.non_marg_quants.append("seppa")
 
         # these are of type astropy.table.column
         self.sep_observed = self.system.data_table[
