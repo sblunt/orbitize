@@ -177,6 +177,7 @@ def test_OFTeI_RV():
         data_table,
         mtot,
         plx,
+        plx_err=plx_err,
         tau_ref_epoch=tau_ref_epoch,
         fitting_basis="OftEiBasis"
     )

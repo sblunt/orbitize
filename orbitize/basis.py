@@ -712,42 +712,87 @@ class OftEiBasis(Basis):
             rv_instruments,
             gaia_dr4
         )
-        assert not fit_secondary_mass, "Not supported yet"
-        assert gaia_dr4 is None, "Not supported yet"
+        assert not fit_secondary_mass, "Secondary mass not supported yet"
+        assert num_secondary_bodies == 1, "Multiplanet not supported yet"
+        assert gaia_dr4 is None, "DR4 not supported yet"
 
-    def construct_priors(self, per_min=1e-5, per_max=1e6):
-        basis_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "per1"]
-        basis_priors = [
-            priors.LogUniformPrior(0.001, 1e4),
-            priors.UniformPrior(
-                0,
-                1,
-            ),
-            priors.SinPrior(),
-            priors.UniformPrior(0, 2 * np.pi),
-            priors.UniformPrior(0, 2 * np.pi), 
-            priors.UniformPrior(0, 1),
-            self.plx,
-            priors.LogUniformPrior(per_min, per_max),
-        ]
+    def construct_priors(self):
+        """
+        
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the standard basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
+
+        Returns:
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        """
+        base_labels = ["sma", "ecc", "inc", "aop", "pan", "tau", "per"]
+        basis_priors = []
+        basis_labels = []
+
+        # Define param label dictionary in current basis & standard basis
+        # self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        # self.standard_basis_idx = dict(
+        #     zip(basis_labels[:-1], np.arange(len(basis_labels) - 1))
+        # )
+        # self.standard_basis_idx["mtot"] = 7
+
+        # Add the priors common to each companion
+        for body in np.arange(self.num_secondary_bodies):
+            for elem in base_labels:
+                basis_priors.append(self.default_priors[elem])
+                basis_labels.append(elem + str(body + 1))
+
+        # Add parallax prior
+        basis_labels.append("plx")
+        if self.plx_err > 0:
+            basis_priors.append(priors.GaussianPrior(self.plx, self.plx_err))
+        else:
+            basis_priors.append(self.plx)
+
+        # Add hipparcos priors if necessary
+        if self.hipparcos_IAD is not None:
+            self.set_hip_iad_priors(basis_priors, basis_labels)
+
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
+        # Add rv priors
+        if self.rv and self.fit_secondary_mass:
+            self.set_rv_priors(basis_priors, basis_labels)
+
+        # Add mass priors TODO: Implicit mass prior
+        # self.set_default_mass_priors(basis_priors, basis_labels)
 
         # Define param label dictionary in current basis & standard basis
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
-        self.standard_basis_idx = dict(
-            zip(basis_labels[:-1], np.arange(len(basis_labels) - 1))
-        )
-        self.standard_basis_idx["mtot"] = 7
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        if not self.fit_secondary_mass and self.num_secondary_bodies == 1:
+            self.standard_basis_idx["mtot"] = self.param_idx["per1"]
+        else:
+            assert False
 
         return basis_priors, basis_labels
 
     def to_standard_basis(self, param_arr):
-        # everything is the same except the last param element goes from per to mtot
-        sma = param_arr[0]
-        per = param_arr[-1]
+        # everything is the same except per goes to mtot
+        sma = param_arr[self.param_idx["sma1"]]
+        per = param_arr[self.param_idx["per1"]]
 
         mtot = (sma**3) / (per**2)
 
-        param_arr[-1] = mtot
+        param_arr[self.standard_basis_idx["mtot"]] = mtot
+        
         return param_arr
 
 class SemiAmp(Basis):

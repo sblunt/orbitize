@@ -72,7 +72,7 @@ class OFTeI_sma_pan(Marginalizer):
 
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
     MARG_PARAMS = ["sma1", "pan1"]
-    QUANT_TYPES = ["seppa", "radec"]
+    QUANT_TYPES = ["seppa"]
     LNLIKE_TYPE = "chi2"
 
     def __init__(self, epochs, seps, pas, sigma_seps, sigma_pas, covar_seps_pas, sma_prior=None, pan_prior=None, mass_prior=None, implicit_mass_prior=None):
