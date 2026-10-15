@@ -1286,7 +1286,58 @@ class Plotter(object):
                 if plot_errorbars:
                     nitems += len(rv_err_grouping)
                 plt.legend(fontsize=20, ncol=((nitems-1)//5+1))
+    def plot_sky_orbits(
+        self, ax=None, show_colorbar=True, plot_astrometry=True, fontsize=20,
+    ):
+        """Plot the sky panel using orbitize's standard orbit renderer.
 
+        Args:
+            ax (matplotlib.axes.Axes, optional): target axes; created if None.
+            show_colorbar (bool): display the orbit colorbar.
+            plot_astrometry (bool): show companion astrometry, if available.
+            fontsize (int): axis-label font size.
+
+        Returns:
+            matplotlib.figure.Figure: figure containing the sky panel.
+        """
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(8, 8))
+            fig.subplots_adjust(right=0.82 if show_colorbar else 0.95)
+        else:
+            fig = ax.figure
+
+        symbols = itertools.cycle(self.ASTR_SYMBOLS)
+        styles = zip(
+            self.objects_to_plot,
+            itertools.cycle(self.ASTR_COLORS),
+            itertools.cycle(self.MODEL_COLORS),
+            itertools.cycle(self.RADEC_ERR_COLORS),
+        )
+        for object_i, style in enumerate(styles):
+            object_index, astr_color, model_color, err_color = style
+            self._plot_full_orbits(
+                ax=ax, plot_astrometry=plot_astrometry, cmap=self.CMAP,
+                plot_astrometry_insts=False, use_cmap=True,
+                n_std=1.0 if plot_astrometry else 0.0,
+                object_i=object_i, object_index=object_index,
+                astr_color=astr_color, astr_symbols=symbols,
+                model_color=model_color, err_color=err_color,
+            )
+
+        ax.plot(0, 0, "+", color="k", ms=15, mew=2, zorder=10)
+        ax.autoscale_view()
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel(r"$\Delta\alpha\cos\delta$ [mas]", fontsize=fontsize)
+        ax.set_ylabel(r"$\Delta\delta$ [mas]", fontsize=fontsize)
+        if not ax.xaxis_inverted():
+            ax.invert_xaxis()
+        ax.locator_params(axis="both", nbins=6)
+        ax.tick_params(axis="both", labelsize=fontsize - 5)
+        ax.minorticks_on()
+
+        if show_colorbar:
+            self._add_colorbar(ax, fig, [self.CMAP], 1)
+        return fig
     def plot_orbits(
         self,
         full_plot=True,
@@ -2262,11 +2313,12 @@ def _model_along_scan_dr4(params, system, dr4):
         + orbit_al
     )
 
-
+@plt.style.context("default")
 def plot_dr4_orbit(
     results, system, num_orbits_to_plot=100, num_epochs_to_plot=500,
     square_plot=True, show_colorbar=True, cbar_param="Epoch [year]",
-    fontsize=20, fig=None, data_params=None, include_jitter=False,plot_map=False,
+    fontsize=20, fig=None, data_params=None,
+    include_jitter=False, plot_map=False, include_planet=False, planet_to_plot=1,
 ):
     """
     Plot the sky-projected stellar orbit from a Gaia DR4 epoch astrometry fit.
@@ -2290,7 +2342,9 @@ def plot_dr4_orbit(
             quadrature with each stored AL uncertainty. Default: False.
         plot_map (bool): if True, plot only the stored sample with the
             highest posterior probability.
-
+        include_planet (bool): add a separate purple companion-orbit panel.
+            Default: False. Requires fig=None.
+        planet_to_plot (int): companion index, starting at 1. Default: 1.
     Returns:
         matplotlib.pyplot.Figure
 
@@ -2339,7 +2393,17 @@ def plot_dr4_orbit(
         vmin=t_fine_decyr.min(), vmax=t_fine_decyr.max()
     )
 
-    if fig is None:
+    if include_planet:
+        if not isinstance(planet_to_plot, (int, np.integer)) or not (
+            1 <= planet_to_plot <= system.num_secondary_bodies
+        ):
+            raise ValueError("planet_to_plot must identify a fitted companion.")
+        if fig is not None:
+            raise ValueError("include_planet=True requires fig=None.")
+
+        fig, (ax, planet_ax) = plt.subplots(1, 2, figsize=(16, 7))
+        fig.subplots_adjust(wspace=0.45, right=0.90)
+    elif fig is None:
         fig, ax = plt.subplots(1, 1, figsize=(9, 8))
         fig.subplots_adjust(right=0.82)
     else:
@@ -2415,4 +2479,22 @@ def plot_dr4_orbit(
         cbar.ax.tick_params(labelsize=fontsize - 5)
         cbar.set_label(label=cbar_param, size=fontsize)
 
+    if include_planet:
+        # Use exactly the same posterior draws selected for the stellar panel
+        selected_post = np.asarray(post)[choose].copy()
+        planet_plotter = Plotter(
+            results,
+            object_to_plot=planet_to_plot,
+            start=float(t_fine_mjd[0]),
+            end=float(t_fine_mjd[-1]),
+            time_format="mjd",
+            num_orbits_to_plot=len(selected_post),
+            num_epochs_to_plot=num_epochs_to_plot,
+            post_to_use=selected_post,
+        )
+        planet_plotter.plot_sky_orbits(
+            ax=planet_ax, show_colorbar=show_colorbar, fontsize=fontsize,
+        )
+        ax.set_title("Stellar reflex + Gaia")
+        planet_ax.set_title(f"Companion {planet_to_plot}: relative orbit")
     return fig

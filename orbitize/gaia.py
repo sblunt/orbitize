@@ -533,7 +533,6 @@ class DR4LogProb(object):
         ref_epoch_jd=None,
         jitter=0.0,
         jitter_prior=None,
-        *,
         ref_epoch_mjd=None,
     ):
         if ref_epoch_jd is not None:

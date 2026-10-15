@@ -367,7 +367,7 @@ class System(object):
         hf.attrs["use_rebound"] = self.use_rebound
 
     def compute_all_orbits(
-            self, params_arr, epochs=None, comp_rebound=False, *,
+            self, params_arr, epochs=None, comp_rebound=False,
             params_basis="standard",
     ):
         """

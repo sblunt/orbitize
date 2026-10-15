@@ -550,7 +550,7 @@ def from_ohp_file(filename):
     return output_table
 
 
-def from_dl2(filename, source_id, *, agis_only=True):
+def from_dl2(filename, source_id, agis_only=True):
     """Read native EAS prerelease XML (2026-06-26) for one star.
 
     Specify the star's integer Gaia ``source_id``.

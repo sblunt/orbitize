@@ -1,7 +1,7 @@
-import warnings
 import numpy as np
 from astropy.table import Table
-
+from astropy import units as u
+from orbitize import kepler
 # --- Constants & Configuration ---
 DR4_START_MJD = 56863.4375  # 2014-07-25
 DR4_END_MJD = 58868.9167    # 2020-01-20
@@ -21,7 +21,8 @@ def read_gost(gost_file_path):
     gost_mapping = {
         "ObservationTimeAtBarycentre[BarycentricJulianDateInTCB]": "obs_time_tcb",
         "scanAngle[rad]": "scan_pos_angle",
-        "parallaxFactorAlongScan": "parallax_factor_al"
+        "parallaxFactorAlongScan": "parallax_factor_al",
+        "Fov[FovP=preceding/FovF=following]": "field_of_view",
     }
     for old_name in list(raw_table.colnames):
         clean_name = old_name.strip()
@@ -45,8 +46,11 @@ def read_gost(gost_file_path):
     out["obs_time_tcb"] = clean_table["obs_time_tcb"]
     out["parallax_factor_al"] = clean_table["parallax_factor_al"]
     out["scan_pos_angle"] = clean_table["scan_pos_angle"]
-    out["field_of_view"] = np.zeros(len(clean_table), dtype=int)
-    
+    out["field_of_view"] = (
+        clean_table["field_of_view"]
+        if "field_of_view" in clean_table.colnames
+        else np.zeros(len(clean_table), dtype=int)
+    )
     return out
 
 def al_uncertainty(g_mag, n_ccd=8):
@@ -54,10 +58,8 @@ def al_uncertainty(g_mag, n_ccd=8):
     sigma_ccd = np.interp(g_mag, _G_GRID, _SIGMA_CCD_GRID_MAS)
     return float(sigma_ccd / np.sqrt(n_ccd))
 
-def simulate_dr4(gost_file_path, params, g_mag=4.2, seed=1):
+def simulate_dr4(gost_file_path, params, g_mag=4.2, seed=1, tau_ref_epoch=58849,):
     """Runs the astrometric forward model to generate fake DR4 points."""
-    np.random.seed(seed)
-    
     # 1. Load your observation timeline
     table = read_gost(gost_file_path)
     epochs = table["obs_time_tcb"]
@@ -73,19 +75,31 @@ def simulate_dr4(gost_file_path, params, g_mag=4.2, seed=1):
     pm_dec = params.get("pm_dec", 0.0)
     plx = params.get("plx", 0.0)
     
-    # 3. Handle orbital companions (using orbitize background functions if present)
+    # 3. Compute the relative orbit, then the star's reflex motion.
     ra_star = np.zeros(len(epochs))
     dec_star = np.zeros(len(epochs))
-    try:
-        from orbitize import kepler
-        # Compute multi-body orbit updates if system has companions
-        if "sma1" in params:
-            # Simple conversion proxy for demo purposes
-            for i, t in enumerate(epochs):
-                ra_star[i] = params["sma1"] * np.sin(2 * np.pi * t / 1956.5)
-                dec_star[i] = params["sma1"] * np.cos(2 * np.pi * t / 1956.5)
-    except ImportError:
-        pass # Fallback if Kepler module is not active
+
+    if "sma1" in params:
+        m0 = params["m0"]
+        m1 = params["m1"]
+
+        ra_relative, dec_relative, *_ = kepler.calc_orbit(
+            np.asarray(epochs, dtype=float),
+            params["sma1"],
+            params["ecc1"],
+            params["inc1"],
+            params["aop1"],
+            params["pan1"],
+            params["tau1"],
+            plx,
+            m0 + m1,
+            tau_ref_epoch=tau_ref_epoch,
+        )
+
+        # The star moves oppositely to the planet, scaled by its mass ratio.
+        reflex_scale = -m1 / (m0 + m1)
+        ra_star = reflex_scale * np.asarray(ra_relative).reshape(-1)
+        dec_star = reflex_scale * np.asarray(dec_relative).reshape(-1)
 
     # 4. Math: Run the transit forward model projection equation
     # Along-Scan Position = Position Offset + Proper Motion + Parallax + Companion Perturbation
@@ -101,10 +115,27 @@ def simulate_dr4(gost_file_path, params, g_mag=4.2, seed=1):
     noise = np.random.normal(0.0, sigma_al, size=len(epochs))
     
     # Attach generated data arrays directly onto Table rows
-    table["ra_offset_al"] = al_model + noise
-    table["quant_al"] = table["ra_offset_al"]  # Backwards compatibility key
-    table["sigma_al"] = np.full(len(epochs), sigma_al)
-    
+    table["centroid_pos_al"] = al_model + noise
+    table["centroid_pos_error_al"] = np.full(len(epochs), sigma_al)
+
+    # Keep the original names as aliases.
+    table["ra_offset_al"] = table["centroid_pos_al"]
+    table["quant_al"] = table["centroid_pos_al"]
+    table["sigma_al"] = table["centroid_pos_error_al"]
+
+    table["obs_time_tcb"].unit = u.day
+    table["centroid_pos_al"].unit = u.mas
+    table["centroid_pos_error_al"].unit = u.mas
+    table["parallax_factor_al"].unit = u.dimensionless_unscaled
+    table["scan_pos_angle"].unit = u.rad
+
+    table.meta.update(
+        time_format="mjd",
+        time_scale="tcb",
+        input_format="simulation",
+        observation_level="transit",
+    )
+
     return table
 
 # --- Instant Execution Driver Hook ---
