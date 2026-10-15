@@ -125,16 +125,22 @@ class Sampler(abc.ABC):
             )
 
         if self.system.gaia is not None:
-            gaiahip_epochs = Time(
-                np.append(
-                    self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch
-                ),
-                format="decimalyear",
-            ).mjd
+            if hasattr(self.system.gaia, "epochs_mjd"):
+                # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
+                gaiahip_epochs = self.system.gaia.epochs_mjd
+            else:
+                gaiahip_epochs = Time(
+                    np.append(
+                        self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch
+                    ),
+                    format="decimalyear",
+                ).mjd
 
-            # compute Ra/Dec predictions at the Gaia epoch
+            # System handles conversion from the active fitting basis.
             raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
-                params, epochs=gaiahip_epochs
+                params,
+                epochs=gaiahip_epochs,
+                params_basis="fitting",
             )
 
             # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn

@@ -2,8 +2,8 @@ import numpy as np
 from orbitize import nbody, kepler, basis, hipparcos
 from astropy import table
 from orbitize.read_input import read_file
+from orbitize.gaia import DR4LogProb
 import matplotlib.pyplot as plt
-
 
 class System(object):
     """
@@ -14,8 +14,9 @@ class System(object):
     Args:
         num_secondary_bodies (int): number of secondary bodies in the system.
             Should be at least 1.
-        data_table (astropy.table.Table): output from
-            ``orbitize.read_input.read_file()``
+        data_table (astropy.table.Table or None): output from
+            ``orbitize.read_input.read_file()``. Pass None for a fit
+            using only ``gaia`` or ``hipparcos_IAD`` observations.
         stellar_or_system_mass (float): mass of the primary star (if fitting for
             dynamical masses of both components, for example when you have both 
             astrometry and RVs) or total system mass (if fitting for total system 
@@ -70,6 +71,24 @@ class System(object):
         use_rebound=False,
     ):
         self.num_secondary_bodies = num_secondary_bodies
+        # Allow absolute astrometry fits without a separate data table.
+        if data_table is None:
+            if gaia is None and hipparcos_IAD is None:
+                raise ValueError(
+                    "Provide data_table, gaia, or hipparcos_IAD."
+                )
+
+            data_table = table.Table(
+                names=(
+                    "epoch", "object", "quant1", "quant1_err",
+                    "quant2", "quant2_err", "quant12_corr",
+                    "quant_type", "instrument",
+                ),
+                dtype=(
+                    float, int, float, float,
+                    float, float, float, "U5", "U20",
+                ),
+            )
         self.data_table = data_table
         self.stellar_or_system_mass = stellar_or_system_mass
         self.plx = plx
@@ -173,6 +192,10 @@ class System(object):
         if len(self.rv[0]) > 0:
             contains_rv = True
 
+        contains_gaiadr4 = False
+        if isinstance(self.gaia, DR4LogProb):
+            contains_gaiadr4 = True
+
         # Assign priors for the given basis set
         self.extra_basis_kwargs = {}
         basis_obj = getattr(basis, self.fitting_basis)
@@ -242,6 +265,7 @@ class System(object):
             hipparcos_IAD=self.hipparcos_IAD,
             rv=contains_rv,
             rv_instruments=self.rv_instruments,
+            gaia_dr4=self.gaia if contains_gaiadr4 else None,
             **self.extra_basis_kwargs
         )
 
@@ -308,8 +332,6 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
-
-
     def save(self, hf):
         """
         Saves the current object to an hdf5 file
@@ -344,7 +366,10 @@ class System(object):
         hf.attrs["fitting_basis"] = self.fitting_basis
         hf.attrs["use_rebound"] = self.use_rebound
 
-    def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
+    def compute_all_orbits(
+            self, params_arr, epochs=None, comp_rebound=False,
+            params_basis="standard",
+    ):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
         interactions. Also computes total quantities like RV (without jitter/gamma)
@@ -360,6 +385,10 @@ class System(object):
             comp_rebound (bool, optional): A secondary optional input for
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
+            params_basis (str, optional): Basis of the supplied parameters.
+                "standard" expects already converted parameters (default).
+                "fitting" converts from the system's fitting basis without
+                modifying the input array.
 
         Returns:
             tuple:
@@ -379,7 +408,12 @@ class System(object):
                     at maximum.
 
         """
-
+        if params_basis == "fitting":
+            params_arr = self.basis.to_standard_basis(np.copy(params_arr))
+        elif params_basis != "standard":
+            raise ValueError(
+                "params_basis must be 'standard' or 'fitting'."
+            )
         if epochs is None:
             epochs = self.data_table["epoch"]
 
