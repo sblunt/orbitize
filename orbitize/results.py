@@ -342,6 +342,7 @@ class Results(object):
 
             # alternatively load HGCA. Note requires hipparcos_IAD attribute
             gaiagost_data = hf.get("Gaia_GOST")
+            hgca_filepath = None
             if gaiagost_data is not None:
                 
                 tmpfile = 'tmpfile_gost_OkToDeleteAfterFitFinishes'
