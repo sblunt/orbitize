@@ -308,7 +308,8 @@ def compatible_params(marginalizers, input_params, data_quants):
         req_params = set(marginalizer.REQ_PARAMS)
         marg_params = set(marginalizer.MARG_PARAMS)
         marg_quants = set(marginalizer.QUANT_TYPES)
-        if len(req_params - params) == 0 and len(marg_params & params) == 0 and len(quants & marg_quants) > 0:
+        if len(req_params - params) == 0 and len(marg_params & params) == 0 and (len(marg_quants) == 0 or len(quants & marg_quants) > 0):
+            # TODO: differentiate between requiring all quant types vs any quant types
             params |= set(marginalizer.MARG_PARAMS)
         else:
             return False
