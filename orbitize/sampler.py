@@ -20,6 +20,7 @@ import orbitize.results
 import orbitize.marginalizer
 
 import sys
+import os
 
 
 class Sampler(abc.ABC):
@@ -839,15 +840,9 @@ class MCMC(Sampler):
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
+        self.prev_result_filename = prev_result_filename
 
-        # create an empty results object
-        self.results = orbitize.results.Results(
-            self.system,
-            sampler_name=self.__class__.__name__,
-            post=None,
-            lnlike=None,
-            version_number=orbitize.__version__,
-        )
+        self.results = None
 
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
@@ -886,6 +881,14 @@ class MCMC(Sampler):
             self.curr_pos = np.dstack(init_positions)
 
         else:
+            # create an empty results object
+            self.results = orbitize.results.Results(
+                self.system,
+                sampler_name=self.__class__.__name__,
+                post=None,
+                lnlike=None,
+                version_number=orbitize.__version__,
+            )
             # restart from previous walker positions
             self.results.load_results(prev_result_filename, append=True)
 
@@ -901,6 +904,7 @@ class MCMC(Sampler):
                 )
 
             self.curr_pos = prev_pos
+            self.results = None # Clear variable
 
     def _fill_in_fixed_params(self, sampled_params):
         """
@@ -969,7 +973,7 @@ class MCMC(Sampler):
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
-        Updates self.post and self.lnlike from the MCMC sampler
+        Updates fitted_post and self.lnlike from the MCMC sampler
 
         Args:
             sampler (ptemcee.Sampler): sampler object.
@@ -982,28 +986,28 @@ class MCMC(Sampler):
         num_params = sampler.chain.shape[-1]
 
         # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
-        self.post = sampler.chain[0, :, :num_steps].reshape(
+        fitted_post = sampler.chain[0, :, :num_steps].reshape(
             -1, num_params
         )  # the reshaping flattens the chain
         # pick out the lowest temperature loglikelihoods
         self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
-        self.lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
+        lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
 
         # include fixed parameters in posterior
-        self.post = self._fill_in_fixed_params(self.post)
+        fitted_post = self._fill_in_fixed_params(fitted_post)
 
         # Ntemp x Nwalkers x Nsteps x Nblobs
-        self.blobs = sampler.blobs[0, :, :num_steps, :].reshape(-1, len(self.blob_labels))
-        assert len(self.blobs) == len(self.lnlikes)
-        no_diff = ((self.lnlikes == self.blobs[:, 0]) | (np.abs(self.lnlikes - self.blobs[:, 0]) < 0.001))
-        assert (no_diff).all(), (self.lnlikes[~no_diff][:10], self.blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
+        blobs = sampler.blobs[0, :, :num_steps, :].reshape(-1, len(self.blob_labels))
+        assert len(blobs) == len(self.lnlikes)
+        no_diff = ((self.lnlikes == blobs[:, 0]) | (np.abs(self.lnlikes - blobs[:, 0]) < 0.001))
+        assert (no_diff).all(), (self.lnlikes[~no_diff][:10], blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
         # assert (no_diff).all(), (sampler.loglikelihood[:, :, :num_steps], sampler.blobs[:, :, :num_steps, 0], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
-        self.marginalized_param_blobs = self.blobs[:, 1:]
-        assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[:5, :10]
-        num_orbits = self.post.shape[0]
+        marginalized_param_blobs = blobs[:, 1:]
+        assert not np.isnan(marginalized_param_blobs).any(), sampler.blobs[:5, :10]
+        num_orbits = fitted_post.shape[0]
         self.full_post = np.full((num_orbits, self.total_param_num), np.nan)
-        self.full_post[:, self.fitted_param_sys_idx] = self.post
-        self.full_post[:, self.marg_param_sys_idx] = self.marginalized_param_blobs
+        self.full_post[:, self.fitted_param_sys_idx] = fitted_post
+        self.full_post[:, self.marg_param_sys_idx] = marginalized_param_blobs
         assert not np.isnan(self.full_post).any(), (self.fitted_param_sys_idx, self.marg_param_sys_idx)
 
 
@@ -1088,10 +1092,26 @@ class MCMC(Sampler):
         if output_filename is not None:
             if output_filename.endswith('.hdf5'):
                 output_filename = output_filename.split('.hdf5')[0]
+            if output_filename.endswith('.h5'):
+                output_filename = output_filename.split('.h5')[0]
+        
+        if self.prev_result_filename is not None and periodic_save_freq is not None and output_filename is not None:
+            if self.prev_result_filename.endswith('.hdf5') and self.prev_result_filename.startswith(output_filename):
+                raise ValueError(f"Output file {output_filename} may overwrite previous results {self.prev_result_filename} ")
+
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
+
+        # Initialize results object to save curr_pos
+        self.results = orbitize.results.Results(
+                self.system,
+                sampler_name=self.__class__.__name__,
+                post=None,
+                lnlike=None,
+                version_number=orbitize.__version__,
+            )
 
         with mp.Pool(processes=self.num_threads) as pool:
             sampler = ptemcee.Sampler(
@@ -1128,6 +1148,12 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self.results.curr_pos = self.curr_pos
+                        new_file = f"{output_filename}_{i+1}burnsteps.hdf5"
+                        self.results.save_results(new_file)
+                        assert os.path.exists(new_file)
+                        prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
+                        if os.path.exists(prev_file):
+                            os.remove(prev_file)
                         self.results.save_results(f'{output_filename}_{i+1}burnsteps.hdf5')
 
             sampler.reset()
@@ -1135,7 +1161,6 @@ class MCMC(Sampler):
             print("Burn in complete. Sampling posterior now.")
             self.force_valid_marg = True
 
-            saved_upto = 0
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
@@ -1150,63 +1175,58 @@ class MCMC(Sampler):
                     
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self._update_chains_from_sampler(sampler, num_steps=i + 1)
-
-                        # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
-                        # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
-                        post_shape = self.full_post.shape
-                        curr_chain_shape = (
-                            self.num_walkers,
-                            post_shape[0] // self.num_walkers,
-                            post_shape[-1],
-                        )
-                        curr_chain = self.full_post.reshape(curr_chain_shape)
-                        curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
-                        # use the reshaped arrays and find the new steps we computed
-                        curr_chunk = curr_chain[:, saved_upto : i + 1]
-                        curr_chunk = curr_chunk.reshape(
-                            -1, curr_chunk.shape[-1]
-                        )  # flatten nwalkers x nsteps dim
-                        curr_lnlike_chunk = curr_lnlike_chain[
-                            :, saved_upto : i + 1
-                        ].flatten()
-
-                        # add this current chunk to the results object (which already has all the previous chunks saved)
-                        self.results.add_samples(
-                            curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
-                        )
-                        self.results.save_results(output_filename)
-                        saved_upto = i + 1
+                        if self.prev_result_filename is None:
+                            self.results = orbitize.results.Results(
+                                self.system,
+                                sampler_name=self.__class__.__name__,
+                                post=self.full_post,
+                                lnlike=self.lnlikes,
+                                curr_pos = self.curr_pos,
+                                version_number=orbitize.__version__,
+                            )
+                        else:
+                            self.results = orbitize.results.Results(
+                                self.system,
+                                sampler_name=self.__class__.__name__,
+                                post=None,
+                                lnlike=None,
+                                version_number=orbitize.__version__,
+                            )
+                            self.results.load_results(self.prev_result_filename, append=True)
+                            self.results.add_samples(self.full_post, self.lnlikes)
+                            self.results.curr_pos = self.curr_pos
+                        new_file = f"{output_filename}_{i+1}steps.hdf5"
+                        self.results.save_results(new_file)
+                        assert os.path.exists(new_file)
+                        prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}steps.hdf5"
+                        if os.path.exists(prev_file):
+                            os.remove(prev_file)
+                        self.full_post = self.lnlikes = self.results = None # Clear large variables
 
 
             print("")
             self._update_chains_from_sampler(sampler)
 
-            if periodic_save_freq is None:
-                # need to save everything
-                self.results.add_samples(
-                    self.full_post, self.lnlikes, curr_pos=self.curr_pos
+            if self.prev_result_filename is None:
+                self.results = orbitize.results.Results(
+                    self.system,
+                    sampler_name=self.__class__.__name__,
+                    post=self.full_post,
+                    lnlike=self.lnlikes,
+                    curr_pos=self.curr_pos,
+                    version_number=orbitize.__version__,
                 )
-            elif saved_upto < nsteps:
-                # just need to save the last few
-                # same code as above except we just need to grab the last few
-                post_shape = self.full_post.shape
-                curr_chain_shape = (
-                    self.num_walkers,
-                    post_shape[0] // self.num_walkers,
-                    post_shape[-1],
+            else:
+                self.results = orbitize.results.Results(
+                    self.system,
+                    sampler_name=self.__class__.__name__,
+                    post=None,
+                    lnlike=None,
+                    version_number=orbitize.__version__,
                 )
-                curr_chain = self.full_post.reshape(curr_chain_shape)
-                curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
-                curr_chunk = curr_chain[:, saved_upto:]
-                curr_chunk = curr_chunk.reshape(
-                    -1, curr_chunk.shape[-1]
-                )  # flatten nwalkers x nsteps dim
-                curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
-
-                self.results.add_samples(
-                    curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
-                )
-
+                self.results.load_results(self.prev_result_filename, append=True)
+                self.results.add_samples(self.full_post, self.lnlikes)
+                self.results.curr_pos = self.curr_pos
 
             if output_filename is not None:
                 self.results.save_results(f'{output_filename}.hdf5')
