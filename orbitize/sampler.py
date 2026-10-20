@@ -1130,7 +1130,10 @@ class MCMC(Sampler):
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
         using_unsaved_results = self.results is not None
-        if not using_unsaved_results:
+        if using_unsaved_results:
+            warnings.warn("Calling `run_sampler` multiple times with the same MCMC sampler forces orbitize! to keep a large Results object in memory." \
+            " The fit will run much faster if you reinitialize the sampler and use the `prev_result_filename` kwarg to load the previous results.", stacklevel=2)
+        else:
             # Initialize results object to save curr_pos
             self.results = orbitize.results.Results(
                     self.system,
