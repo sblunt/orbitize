@@ -41,6 +41,7 @@ class Basis(abc.ABC):
         self.rv = rv
         self.rv_instruments = rv_instruments
         self.gaia_dr4 = gaia_dr4
+        self.acceleration_and_keplerian_fit = False
 
         # Define dictionary of default priors to be updated as new basis sets are added
         self.default_priors = {
@@ -193,7 +194,43 @@ class Basis(abc.ABC):
         else:
             priors_arr.append(self.stellar_or_system_mass)
 
+#-------------------------------------------------------------
+    def set_acceleration_priors(self, priors_arr, labels_arr):
+        """
+        Adds the priors on the star's acceleration (``acc_ra``, ``acc_dec``)
+        for an acceleration-only fit to 'priors_arr' and updates 'labels_arr'
+        with the priors' corresponding labels. The position, proper motion
+        (from ``set_gaia_dr4_priors``) and parallax must already be in
+        'labels_arr'.
 
+        Args:
+            priors_arr (list of orbitize.priors.Prior objects): holds the prior
+                objects for each parameter to be fitted (updated here)
+            labels_arr (list of strings): holds the name of all the parameters
+                to be fitted (updated here)
+
+        Raises:
+            ValueError: if the Gaia DR4 priors (see ``set_gaia_dr4_priors``)
+                have not already been added to 'labels_arr'
+        """
+        gaia_dr4_labels = ["pm_ra", "pm_dec", "alpha0", "delta0"]
+        missing = [label for label in gaia_dr4_labels if label not in labels_arr]
+        if missing:
+            raise ValueError(
+                "Acceleration fits require the Gaia DR4 priors to be set first "
+                "(call set_gaia_dr4_priors); missing: {}".format(missing)
+            )
+
+        acc_priors = [
+            ("acc_ra", priors.UniformPrior(-1e4, 1e4)),  # [mas/yr^2]
+            ("acc_dec", priors.UniformPrior(-1e4, 1e4)),  # [mas/yr^2]
+        ]
+        for label, prior in acc_priors:
+            priors_arr.append(prior)
+            labels_arr.append(label)
+
+
+#--------------------------------------------------------------------------
 class ObsPriors(Basis):
     """
     Basis used in Kosmo O'Neil+ 2019, and implemented here for use with the
@@ -477,6 +514,9 @@ class Standard(Basis):
         if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
             basis_priors.append(self.gaia_dr4.jitter_prior)
             basis_labels.append("dr4_jitter")
+        # Add acceleration priors for a Keplerian + acceleration fit
+        if self.acceleration_and_keplerian_fit:
+            self.set_acceleration_priors(basis_priors, basis_labels)
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -599,6 +639,9 @@ class Period(Basis):
         if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
             basis_priors.append(self.gaia_dr4.jitter_prior)
             basis_labels.append("dr4_jitter")
+        # Add acceleration priors for a Keplerian + acceleration fit
+        if self.acceleration_and_keplerian_fit:
+            self.set_acceleration_priors(basis_priors, basis_labels)
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -783,6 +826,9 @@ class SemiAmp(Basis):
         if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
             basis_priors.append(self.gaia_dr4.jitter_prior)
             basis_labels.append("dr4_jitter")
+        # Add acceleration priors for a Keplerian + acceleration fit
+        if self.acceleration_and_keplerian_fit:
+            self.set_acceleration_priors(basis_priors, basis_labels)
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
@@ -1226,6 +1272,9 @@ class XYZ(Basis):
         if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
             basis_priors.append(self.gaia_dr4.jitter_prior)
             basis_labels.append("dr4_jitter")
+        # Add acceleration priors for a Keplerian + acceleration fit
+        if self.acceleration_and_keplerian_fit:
+            self.set_acceleration_priors(basis_priors, basis_labels)
         # Add rv priors
         if self.rv and self.fit_secondary_mass:
             self.set_rv_priors(basis_priors, basis_labels)
