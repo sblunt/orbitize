@@ -49,7 +49,7 @@ class Sampler(abc.ABC):
 
         if marginalizers is None:
             self.marginalizers = []
-            start_quants = set(np.unique(self.system.data_table["quant_type"]))
+            start_quants = set(np.array(np.unique(self.system.data_table["quant_type"]), dtype=np.dtypes.StringDType))
             params = set(self.system.labels)
             if (self.system.num_secondary_bodies == 1 and
                 len({"radec", "seppa"} & start_quants) > 0 and
@@ -107,7 +107,7 @@ class Sampler(abc.ABC):
                 self.marg_param_idx[label] = marg_param_counter
                 marg_param_counter += 1
         self.total_param_num = len(self.system.sys_priors)
-        quants = set(np.unique(self.system.data_table["quant_type"]))
+        quants = set(np.array(np.unique(self.system.data_table["quant_type"]), dtype=np.dtypes.StringDType))
         marg_quants = set(quant_type for marg in self.marginalizers for quant_type in marg.QUANT_TYPES)
         self.blob_labels = ["lnlike"] + self.marg_param_labels
         
