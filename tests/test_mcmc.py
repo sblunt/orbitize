@@ -68,6 +68,7 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
     assert np.all(saved_results.curr_pos == myDriver.sampler.curr_pos)
     # also check it is consistent with the internal results object in myDriver
     assert myDriver.sampler.results.post.shape[0] == 1500 
+    end_pos = myDriver.sampler.results.curr_pos
 
     # run it a little more testing that everything gets saved even if prediodic_save_freq is not a multiple of the number of steps
     output_filename_2 = os.path.join(orbitize.DATADIR, 'test_mcmc_v1.hdf5')
@@ -79,15 +80,18 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    computed_lnlike_test, _, *_ = super(sampler.MCMC, myDriver.sampler)._logl(myDriver.sampler.results.post[0])
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
     # test resuming and restarting from a prevous save
     new_sampler = sampler.MCMC(myDriver.system, num_temps=num_temps, num_walkers=n_walkers, 
                                 num_threads=num_threads, prev_result_filename=output_filename)
-    assert new_sampler.results.post.shape[0] == 1500
+    # Check that the curr_pos was extracted and the results are not saved in memory
+    assert (new_sampler.curr_pos == end_pos).all()
+    assert new_sampler.results is None
     new_sampler.run_sampler(500, burn_steps=1)
+    # Results should be added on to previous ones
     assert new_sampler.results.post.shape[0] == 2000
     assert new_sampler.results.post[0,0] == myDriver.sampler.results.post[0,0]
 
