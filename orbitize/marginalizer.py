@@ -195,6 +195,9 @@ class OFTeI_sma_pan(Marginalizer):
             [sma_map, pan_map], cov_matrix
         )
 
+        pan_res = (pan_sample - pan_map + 180.0) % 360.0 - 180.0
+        pan_sample = pan_map + pan_res
+
         _, logabsdet_covmatrix = np.linalg.slogdet(
             cov_matrix
         )  # NOTE: the 2pi factor in the APW paper is constant; doesn't affect overall lnlike
