@@ -159,6 +159,20 @@ def test_OFTeI():
     mySampler.run_sampler(4000, 10, output_filename=output_file, periodic_save_freq=2)
     assert not mySampler.force_valid_marg
     myResults = mySampler.results
+
+    myNoMargSampler = sampler.MCMC(
+        mySystem,
+        marginalizers=[]
+    )
+
+    lnlike_true = []
+    for params, lnlike in zip(mySampler.results.post, mySampler.results.lnlike):
+        lnlike_true_i = super(sampler.MCMC, myNoMargSampler)._logl(params)[0]
+        # assert lnlike_true_i == pytest.approx(lnlike, abs=.01), (lnlike_true_i, lnlike)
+        lnlike_true.append(lnlike_true_i)
+    lnlike_true = np.array(lnlike_true)
+    assert (np.abs(lnlike_true - mySampler.results.lnlike) < .01).all(), np.where(np.abs(lnlike_true - mySampler.results.lnlike) < .01)
+
     print(myResults.post.shape)
 
 def test_OFTeI_RV():

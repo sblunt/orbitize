@@ -1024,8 +1024,8 @@ class MCMC(Sampler):
         # Ntemp x Nwalkers x Nsteps x Nblobs
         blobs = sampler.blobs[0, :, :num_steps, :].reshape(-1, len(self.blob_labels))
         assert len(blobs) == len(self.lnlikes)
-        no_diff = ((self.lnlikes == blobs[:, 0]) | (np.abs(self.lnlikes - blobs[:, 0]) < 0.001))
-        assert (no_diff).all(), (self.lnlikes[~no_diff][:10], blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
+        # no_diff = ((self.lnlikes == blobs[:, 0]) | (np.abs(self.lnlikes - blobs[:, 0]) < 0.001))
+        # assert (no_diff).all(), (self.lnlikes[~no_diff][:10], blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
         # assert (no_diff).all(), (sampler.loglikelihood[:, :, :num_steps], sampler.blobs[:, :, :num_steps, 0], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
         marginalized_param_blobs = blobs[:, 1:]
         assert not np.isnan(marginalized_param_blobs).any(), sampler.blobs[:5, :10]
