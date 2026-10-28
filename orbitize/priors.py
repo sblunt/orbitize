@@ -860,3 +860,53 @@ if __name__ == "__main__":
 
     plt.hist(samps, bins=50)
     plt.show()
+
+class OFTeIMassPrior(Prior):
+    def __init__(self, sma_min, sma_max, per_min, per_max):
+        """
+        Assuming loguniform priors on semimajor axis and orbital period,
+        this is the effective prior implicity applied to total mass
+
+        Args:
+            sma_min (float): minimum of the logUniform prior on semimajor axis [au]
+            sma_max (float): maximum of the logUniform prior on semimajor axis [au]
+            per_min (float): minimum of the logUniform prior on orbital period [yr]
+            per_max (float): maximum of the logUniform prior on orbital period [yr]
+        """
+        self.sma_min = sma_min
+        self.sma_max = sma_max
+        self.per_min = per_min
+        self.per_max = per_max
+
+        Wx = 3 * np.log(sma_max / sma_min)
+        Wy = 2 * np.log(per_max / per_min)
+        self.W1 = np.min([Wx, Wy])
+        self.W2 = np.max([Wx, Wy])
+
+        self.offset = 3 * np.log(sma_min) - 2 * np.log(per_max)
+
+    def draw_samples(self, num_samples):
+        sma_samples = np.exp(
+            np.random.uniform(np.log(self.sma_min), np.log(self.sma_max), num_samples)
+        )
+        per_samples = np.exp(
+            np.random.uniform(np.log(self.per_min), np.log(self.per_max), num_samples)
+        )
+        return sma_samples**3 / per_samples**2
+
+    def compute_lnprob(self, element_array):
+
+        element_array = np.asarray(element_array, dtype=float)
+
+        z = np.log(element_array) - self.offset
+
+        f_Z = np.zeros_like(element_array)
+        f_Z[z <= self.W1] = z[z <= self.W1] / (self.W1 * self.W2)
+        f_Z[(z >= self.W1) & (z <= self.W2)] = 1 / self.W2
+        f_Z[(z >= self.W2) & (z <= self.W1 + self.W2)] = (
+            self.W1 + self.W2 - z[(z >= self.W2) & (z <= self.W1 + self.W2)]
+        ) / (self.W1 * self.W2)
+        f_Z[(z < 0) | (z > self.W1 + self.W2)] = 0
+
+        with np.errstate(divide="ignore"):
+            return np.log(f_Z / element_array)

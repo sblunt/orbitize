@@ -135,7 +135,7 @@ def test_run_sampler():
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
-    computed_lnlike_test = s._logl(orbits[0])
+    computed_lnlike_test, *_ = s._logl(orbits[0])
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
     seppa_lnprob_compare = (
@@ -382,15 +382,15 @@ def test_OFTI_covariances():
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
-    computed_lnlike_test = s._logl(orbits[0])
+    computed_lnlike_test, *_ = s._logl(orbits[0])
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
     # test that the lnlike is very similar to the values computed in seppa space
     ref_params, ref_lnlike = seppa_lnprob_compare
-    computed_lnlike_ref = s._logl(ref_params)
+    computed_lnlike_ref, *_ = s._logl(ref_params)
     assert ref_lnlike == pytest.approx(
         computed_lnlike_ref, abs=0.05
-    )  # 5% differencesin lnprob is allowable.
+    ) # 5% differences in lnprob is allowable.
 
     idx = s.system.param_idx
     sma = np.median([x[idx["sma1"]] for x in orbits])
@@ -425,7 +425,7 @@ def test_OFTI_pan_priors():
     myDriver.system.sys_priors[4] = priors.GaussianPrior(mu, sigma=sigma)
 
     # run sampler again
-    orbits = s.run_sampler(500, seed=np.random.random_integers(1, 1e8))
+    orbits = s.run_sampler(1000, seed=np.random.random_integers(1, 1e9))
 
     # check that bounds were applied correctly
     assert mu == pytest.approx(np.mean(orbits[:, 4]), abs=0.01)
