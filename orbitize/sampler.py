@@ -53,6 +53,7 @@ class Sampler(abc.ABC):
             params = set(self.system.labels)
             if (self.system.num_secondary_bodies == 1 and
                 len({"radec", "seppa"} & start_quants) > 0 and
+                self.system.mass_err != 0 and
                 not (set(orbitize.marginalizer.OFTeI_sma_pan.MARG_PARAMS) - params) and
                 not (set(orbitize.marginalizer.OFTeI_sma_pan.REQ_PARAMS) - params)):
                 # OFTeI
@@ -82,6 +83,8 @@ class Sampler(abc.ABC):
         # TODO: multiplanet
         marginalized_param_labels_set = set(label for marg in self.marginalizers for label in marg.MARG_PARAMS)
         fitted_param_labels_set = set(system.labels) - marginalized_param_labels_set
+
+        self.gaia_marg = np.any(marg.GAIA for marg in self.marginalizers)
 
         self.fitted_param_labels = []
         self.marg_param_labels = []
@@ -167,6 +170,8 @@ class Sampler(abc.ABC):
                 req_params = params[req_param_idx]
                 jitter = params[jitter_param_idx]
                 partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, jitter, all_calculated_values)
+                if np.isneginf(partial_lnprob):
+                    return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
                 total_lnprob += partial_lnprob
                 total_lnlike += partial_lnlike
                 params[marg_param_idx] = marg_params
@@ -254,7 +259,7 @@ class Sampler(abc.ABC):
                 self.system.param_idx,
             )
 
-        if self.system.gaia is not None:
+        if self.system.gaia is not None and not self.gaia_marg:
             if hasattr(self.system.gaia, "epochs_mjd"):
                 # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
                 gaiahip_epochs = self.system.gaia.epochs_mjd

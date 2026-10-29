@@ -862,17 +862,17 @@ if __name__ == "__main__":
     plt.show()
 
 class OFTeIMassPrior(Prior):
-    def __init__(self, sma_min, sma_max, per_min, per_max):
-        """
-        Assuming loguniform priors on semimajor axis and orbital period,
-        this is the effective prior implicity applied to total mass
+    """
+    Assuming loguniform priors on semimajor axis and orbital period,
+    this is the effective prior implicity applied to total mass
 
-        Args:
-            sma_min (float): minimum of the logUniform prior on semimajor axis [au]
-            sma_max (float): maximum of the logUniform prior on semimajor axis [au]
-            per_min (float): minimum of the logUniform prior on orbital period [yr]
-            per_max (float): maximum of the logUniform prior on orbital period [yr]
-        """
+    Args:
+        sma_min (float): minimum of the logUniform prior on semimajor axis [au]
+        sma_max (float): maximum of the logUniform prior on semimajor axis [au]
+        per_min (float): minimum of the logUniform prior on orbital period [yr]
+        per_max (float): maximum of the logUniform prior on orbital period [yr]
+    """
+    def __init__(self, sma_min, sma_max, per_min, per_max):
         self.sma_min = sma_min
         self.sma_max = sma_max
         self.per_min = per_min

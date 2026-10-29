@@ -795,6 +795,127 @@ class OftEiBasis(Basis):
         
         return param_arr
 
+class OftEiGaiaBasis(Basis):
+    def __init__(self,
+        stellar_or_system_mass,
+        mass_err,
+        plx,
+        plx_err,
+        num_secondary_bodies,
+        fit_secondary_mass,
+        angle_upperlim=2 * np.pi,
+        hipparcos_IAD=None,
+        rv=False,
+        rv_instruments=None,
+        gaia_dr4=None):
+
+        super(OftEiGaiaBasis, self).__init__(
+            stellar_or_system_mass,
+            mass_err,
+            plx,
+            plx_err,
+            num_secondary_bodies,
+            fit_secondary_mass,
+            angle_upperlim,
+            hipparcos_IAD,
+            rv,
+            rv_instruments,
+            gaia_dr4
+        )
+        assert fit_secondary_mass, "Secondary mass must be used with Gaia"
+        assert num_secondary_bodies == 1, "Multiplanet not supported yet"
+        assert gaia_dr4 is not None, "DR4 must be used"
+
+    def construct_priors(self):
+        """
+        
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the standard basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
+
+        Returns:
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        """
+        base_labels = ["ecc", "inc", "aop", "pan", "tau", "per"]
+        basis_priors = []
+        basis_labels = []
+
+
+        # Add the priors common to each companion
+        for body in np.arange(self.num_secondary_bodies):
+            for elem in base_labels:
+                basis_priors.append(self.default_priors[elem])
+                basis_labels.append(elem + str(body + 1))
+
+        basis_labels.append("u")
+        basis_priors.append(priors.UniformPrior(-1e7, 1e7))
+        basis_labels.append("v")
+        basis_priors.append(priors.UniformPrior(-1e7, 1e7))
+
+
+        # Add parallax prior
+        basis_labels.append("plx")
+        if self.plx_err > 0:
+            basis_priors.append(priors.GaussianPrior(self.plx, self.plx_err))
+        else:
+            basis_priors.append(self.plx)
+
+        # Add hipparcos priors if necessary
+        if self.hipparcos_IAD is not None:
+            self.set_hip_iad_priors(basis_priors, basis_labels)
+
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
+        # Add rv priors
+        if self.rv and self.fit_secondary_mass:
+            self.set_rv_priors(basis_priors, basis_labels)
+
+        # Add mass priors TODO: Implicit mass prior
+        # self.set_default_mass_priors(basis_priors, basis_labels)
+        basis_labels.append("m1".format(body))
+        basis_priors.append(priors.LogUniformPrior(1e-6, 2))  # in Solar masses
+
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        self.standard_basis_idx["m0"] = self.param_idx["per1"]
+        self.standard_basis_idx["pan1"] = self.param_idx["u"]
+        self.standard_basis_idx["sma1"] = self.param_idx["v"]
+
+        return basis_priors, basis_labels
+
+    def to_standard_basis(self, param_arr):
+        u = param_arr[self.param_idx["u"]]
+        v = param_arr[self.param_idx["v"]]
+        plx = param_arr[self.param_idx["plx"]]
+        m1 = param_arr[self.param_idx["m1"]]
+        per = param_arr[self.param_idx["per1"]]
+        pan = np.atan(v/u)
+        if u < 0:
+            pan += np.pi
+        pan %= 2 * np.pi
+        param_arr[self.standard_basis_idx["pan1"]] = pan
+        sma_photo = u / np.cos(pan) / plx
+        sma = np.sqrt(m1 / sma_photo * per**2) # TODO: bright companion
+        mtot = (sma**3) / (per**2)
+        m0 = mtot - m1
+
+        param_arr[self.standard_basis_idx["m0"]] = m0
+        param_arr[self.standard_basis_idx["pan1"]] = pan
+        param_arr[self.standard_basis_idx["sma1"]] = sma
+        return param_arr
+
 class SemiAmp(Basis):
     """
     Modification of the standard basis, swapping our sma for period and additionally sampling in

@@ -1,6 +1,6 @@
 import abc
 import numpy as np
-from astropy import units as u
+from astropy import units
 import orbitize.basis as basis
 import orbitize.kepler as kepler
 
@@ -17,10 +17,41 @@ class Marginalizer(abc.ABC):
     MARG_PARAMS = []
     LNLIKE_TYPE = None
     MULTIBODY = False
+    GAIA = False
     
     @abc.abstractmethod
     def apply(self, param_arr, jitter_arr=None, calculated_values={}):
         pass
+
+    @staticmethod
+    def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
+        """
+        Compute log likelihood, excluding volume in marginalization integral (first two terms in \ref{eq:marg_like} in
+        PASP review):
+
+            -1/2 log|W| - 1/2 chi2_MAP
+
+        Args:
+            y: 2*n_obs array of observations (sep on top, PA-g on bottom)
+            X: 2*n_obs x 2 design matrix
+            beta_hat: length 2 array of conditional MAP values of sma and pan (respectively)
+            W: 2n x 2n covariance matrix corresponding to observations y
+            add_error_term: if True, include the -1/2 log|W| term (needed if fitting for jitter). Default False.as_integer_ratio
+
+        Returns:
+            float: loglikelihood
+        """
+        if W_inv is None:
+            W_inv = np.linalg.inv(W)
+        chi2_map = (y - X @ beta_hat).T @ W_inv @ (y - X @ beta_hat)
+
+        # NOTE: this term can be ignored unless we're fitting for jitter
+        if add_error_norm:
+            error_norm_term = -0.5 * np.linalg.slogdet(W)[1]
+        else:
+            error_norm_term = 0
+
+        return -0.5 * chi2_map + error_norm_term
 
 class Marg1(Marginalizer):
 
@@ -115,7 +146,7 @@ class OFTeI_sma_pan(Marginalizer):
         n_dates = np.size(manoms)
 
         # compute eccentric anomalies (size: n_dates)
-        eanom = kepler.calc_ecc_anom(manoms, ecc, use_c=False)
+        eanom = kepler.calc_ecc_anom(manoms, ecc)
 
         tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
 
@@ -151,7 +182,7 @@ class OFTeI_sma_pan(Marginalizer):
         return f, g
 
     @staticmethod
-    def calc_cov_matrix_det(seps, pas, fs, gs, W, W_inv=None):
+    def calc_cov_matrix_det(seps, pas, fs, gs, D, W, W_inv=None):
         """
         Calculate the MAP values of sma and pan and the determinant of the
         covariance matrix describing their conditional posterior uncertainties
@@ -172,18 +203,9 @@ class OFTeI_sma_pan(Marginalizer):
         # set up design matrix
         D = np.zeros((2 * n_obs, 2))
         D[:n_obs, 0] = fs
-        D[n_obs:, 1] = 1
+        D[n_obs:, 1] = 1 # TODO: move to self.apply
 
         Y = np.hstack((seps, basis.angle_diff(pas, gs)))
-
-        def solve_linear_eq(Y, A, C, C_inv=None):
-            if C_inv is None:
-                C_inv = np.linalg.inv(C)
-            cov_matrix = np.linalg.inv(
-                A.T @ C_inv @ A
-            )  # variance on diag, covar on off-diag
-            best_fit = cov_matrix @ (A.T @ C_inv @ Y)
-            return best_fit, cov_matrix
 
         map_fit, cov_matrix = solve_linear_eq(Y, D, W, W_inv)
         sma_map = map_fit[0]
@@ -196,45 +218,16 @@ class OFTeI_sma_pan(Marginalizer):
 
         _, logabsdet_covmatrix = np.linalg.slogdet(
             cov_matrix
-        )  # NOTE: the 2pi factor in the APW paper is constant; doesn't affect overall lnlike
+        )
+        logabsdet_covmatrix += 2 * np.log(2*np.pi)
 
         res = np.array([sma_sample - sma_map, basis.angle_diff(pan_sample, pan_map)])
 
-        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix - np.log(2*np.pi)
+        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix
 
         log_conditional_prob -= (n_obs) * np.log(2*np.pi)
 
         return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample, log_conditional_prob
-
-    @staticmethod
-    def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
-        """
-        Compute log likelihood, excluding volume in marginalization integral (first two terms in \ref{eq:marg_like} in
-        PASP review):
-
-            -1/2 log|W| - 1/2 chi2_MAP
-
-        Args:
-            y: 2*n_obs array of observations (sep on top, PA-g on bottom)
-            X: 2*n_obs x 2 design matrix
-            beta_hat: length 2 array of conditional MAP values of sma and pan (respectively)
-            W: 2n x 2n covariance matrix corresponding to observations y
-            add_error_term: if True, include the -1/2 log|W| term (needed if fitting for jitter). Default False.as_integer_ratio
-
-        Returns:
-            float: loglikelihood
-        """
-        if W_inv is None:
-            W_inv = np.linalg.inv(W)
-        chi2_map = (y - X @ beta_hat).T @ W_inv @ (y - X @ beta_hat)
-
-        # NOTE: this term can be ignored unless we're fitting for jitter
-        if add_error_norm:
-            error_norm_term = -0.5 * np.linalg.slogdet(W)[1] + np.log(2*np.pi)
-        else:
-            error_norm_term = 0
-
-        return -0.5 * chi2_map + error_norm_term
 
     def apply(self, param_arr, jitter_arr, calculated_values):
         assert jitter_arr.shape[0] == 0, "No jitter supported"
@@ -243,7 +236,7 @@ class OFTeI_sma_pan(Marginalizer):
             raise IndexError("Only support 1 orbit at a time")
         ecc, inc, aop, tau, plx, period_yr = param_arr
         assert period_yr > 0
-        frac_date = self.epochs / (period_yr * u.yr.to(u.day))
+        frac_date = self.epochs / (period_yr * units.yr.to(units.day))
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi
@@ -262,7 +255,7 @@ class OFTeI_sma_pan(Marginalizer):
                 self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W, W_inv)
             )
         except np.linalg.LinAlgError:
-            return -np.inf, None, None
+            return -np.inf, -np.inf, None, dict()
 
         # set up design matrix
         X = np.zeros((2 * self.n_obs, 2))
@@ -305,6 +298,169 @@ class OFTeI_sma_pan(Marginalizer):
 
         return logprob, loglike, samples, calculated_values
 
+class OFTeI_DR4_gaia(Marginalizer):
+
+    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "m1"]
+    MARG_PARAMS = ["pm_ra", "pm_dec", "alpha0", "delta0", "plx", "u", "v"]
+    LNLIKE_TYPE = "chi2"
+    QUANT_TYPES = []
+    GAIA = True
+
+    def __init__(self, gaia, sma_prior=None, pan_prior=None, plx_prior=None, m0_prior=None, implicit_mass_prior=None):
+        self.gaia = gaia
+        if self.gaia.fit_jitter:
+            self.REQ_PARAMS.append("dr4_jitter")
+
+        self.sma_prior = sma_prior
+        self.pan_prior = pan_prior
+        self.plx_prior = plx_prior
+        self.m0_prior = m0_prior
+        self.implicit_mass_prior = implicit_mass_prior
+
+    def calc_As_and_Bs(self, manoms, ecc, inc, aop):
+        
+        n_dates = np.size(manoms)
+
+        # compute eccentric anomalies (size: n_dates)
+        eanom = kepler.calc_ecc_anom(manoms, ecc)
+
+        tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
+
+        radius = (1.0 - ecc * np.cos(eanom))
+
+        aop_star = 180.0 + aop
+
+        As = radius * (
+            np.cos(tanom + aop_star) * self.gaia.cos_scan
+            + np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.sin_scan
+        )
+        Bs = radius * (
+            np.cos(tanom + aop_star) * self.gaia.sin_scan
+            - np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.cos_scan
+        )
+
+        return As, Bs
+
+    def calc_cov_matrix_det(self, Y, D, W):
+        n_obs = self.gaia.n_obs
+
+        map_fit, cov_matrix = solve_linear_eq(Y, D, W)
+
+        # Sample linear params
+        sample = np.random.multivariate_normal(map_fit, cov_matrix)
+
+        _, logabsdet_covmatrix = np.linalg.slogdet(
+            cov_matrix
+        )
+        logabsdet_covmatrix += 2 * np.log(2*np.pi)
+
+        res = sample - map_fit
+
+        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix
+
+        log_conditional_prob -= (n_obs/2) * np.log(2*np.pi) # Figure out if half n_obs is right
+
+        return map_fit, logabsdet_covmatrix, sample, log_conditional_prob
+
+    def apply(self, param_arr, jitter_arr, calculated_values):
+        assert jitter_arr.shape[0] == 0, "Jitter must be passed as dr4_jitter param"
+        shape = param_arr.shape
+        if len(shape) > 1:
+            raise IndexError("Only support 1 orbit at a time")
+        if self.gaia.fit_jitter:
+            ecc, inc, aop, tau, period_yr, m1, jitter = param_arr
+        else:
+            ecc, inc, aop, tau, period_yr, m1 = param_arr
+            jitter = self.gaia.jitter
+        assert period_yr > 0
+        frac_date = self.gaia.epochs_mjd / (period_yr * units.yr.to(units.day))
+        frac_date %= 1
+        manoms = (frac_date - tau) * 2 * np.pi
+        manoms %= 2 * np.pi
+        As, Bs = self.calc_As_and_Bs(
+            manoms,
+            ecc,
+            inc,
+            aop,
+        )
+        
+        W = np.diag(self.gaia.centroid_pos_error_al**2 + jitter**2)
+
+        n_obs = self.gaia.n_obs
+        
+        D = np.zeros((n_obs, 7))  
+        D[:, 0] = self.gaia.sin_scan     
+        D[:, 1] = self.gaia.pm_ra_basis     
+        D[:, 2] = self.gaia.cos_scan      
+        D[:, 3] = self.gaia.pm_dec_basis     
+        D[:, 4] = self.gaia.parallax_factor_al
+        D[:, 5] = As
+        D[:, 6] = Bs
+
+        Y = self.gaia.centroid_pos_al
+
+        try:
+            map_fit, logabsdet_covmatrix, samples, log_conditional_prob = (
+                self.calc_cov_matrix_det(Y, D, W)
+            )
+        except np.linalg.LinAlgError:
+            return -np.inf, -np.inf, None, {}
+
+        chi2lnlike = self.lnlike(Y, D, map_fit, W, add_error_norm=True)
+
+        logprob = (
+            chi2lnlike + 0.5 * logabsdet_covmatrix
+        )
+
+        loglike = logprob + log_conditional_prob
+
+
+        pm_ra, pm_dec, alpha0, delta0, plx_sample, u, v = samples
+        # undo the effective sma, pan, plx prior
+        # plx * sma_photo * cos_pan = u
+        # plx * sma_photo * sin_pan = v
+        # sma_photo = m1 / mtot * sma
+        # mtot = sma**3/per**2
+        # m1 / sma_photo * per**2 = sma**2
+        pan_sample = np.atan(v/u)
+        if u < 0:
+            pan_sample += np.pi
+        pan_sample %= 2 * np.pi
+        sma_photo_sample = u / np.cos(pan_sample) / plx_sample
+        logprob -= np.log(plx_sample**2 * sma_photo_sample) # TODO: test
+        sma_sample = np.sqrt(m1 / sma_photo_sample * period_yr**2)
+        if self.sma_prior is not None:
+            logprob += np.sum(self.sma_prior.compute_lnprob(np.array([sma_sample])))
+        if self.pan_prior is not None:
+            logprob += np.sum(self.pan_prior.compute_lnprob(np.array([pan_sample])))
+        if self.plx_prior is not None:
+            logprob += np.sum(self.plx_prior.compute_lnprob(np.array([plx_sample])))
+
+        # apply total mass prior
+        mtot_sample = sma_sample**3 / (period_yr) ** 2
+        m0_sample = mtot_sample - m1
+        if self.m0_prior is not None:
+            logprob -= np.sum(self.implicit_mass_prior.compute_lnprob(
+                np.array([mtot_sample])
+            ))  # "undo" the effective prior TODO: make correct
+            logprob += np.sum(self.m0_prior.compute_lnprob(
+                np.array([mtot_sample])
+            ))  # apply the user-defined prior
+
+        if not np.isfinite(logprob):
+            return -np.inf, -np.inf, samples, calculated_values
+
+        return logprob, loglike, samples, calculated_values
+
+
+def solve_linear_eq(Y, A, C, C_inv=None):
+    if C_inv is None:
+        C_inv = np.linalg.inv(C)
+    cov_matrix = np.linalg.inv(
+        A.T @ C_inv @ A
+    )  # variance on diag, covar on off-diag
+    best_fit = cov_matrix @ (A.T @ C_inv @ Y)
+    return best_fit, cov_matrix
 
 def compatible_params(marginalizers, input_params, data_quants):
     # TODO: Multibody, quant_type
