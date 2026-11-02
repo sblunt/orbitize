@@ -137,7 +137,9 @@ class Sampler(abc.ABC):
                 documented in System() above. If M=1, this can be a 1d array.
 
         Returns:
-            float: sum of all log likelihoods of the data given input model
+            float: sum of all log probablities of the data given input model and marginalized parameters
+            float: sum of all loglikelihoods of the data and sampled marginalized parameters given input model
+            *floats: sampled marginalized parameters
 
         """
         input_shape = fitted_params.shape
@@ -847,6 +849,9 @@ class MCMC(Sampler):
         prev_result_filename (str): if passed a filename to an HDF5 file
             containing a orbitize.Result data, MCMC will restart from where it
             left off.
+        marginalizers (list of orbitize.marginalizer.Marginalizer): list of marginalizers
+            to apply in order when fitting. If None, will attempt to automatically select
+            marginalizers (default: None).
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -1551,14 +1556,13 @@ class NestedSampler(BaseNestedSampler):
         chi2_type="standard",
         like="chi2_lnlike",
         custom_lnlike=None,
-        marginalizers=None
     ):
         super(NestedSampler, self).__init__(
             system,
             like=like,
             chi2_type=chi2_type,
             custom_lnlike=custom_lnlike,
-            marginalizers=marginalizers,
+            marginalizers=[],
         )
 
         # create an empty results object
