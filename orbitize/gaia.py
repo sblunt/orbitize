@@ -219,7 +219,7 @@ class HGCALogProb(object):
                         hgca_url, hgca_filepath
                     )
                 )
-                hgca_file = requests.get(hgca_url, verify=False)
+                hgca_file = requests.get(hgca_url)
                 with open(hgca_filepath, "wb") as f:
                     f.write(hgca_file.content)
             else:
