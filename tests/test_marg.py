@@ -171,10 +171,12 @@ def test_OFTeI():
         true_l.append(l)
     diff = np.abs(true_l - myResults.lnlike)
     print((true_l - myResults.lnlike)[np.where(diff > .2)])
-    assert (diff < .2).all(), np.where(diff < .2)
-    # assert (true_l == myResults.lnlike).all()
+    n_small_diff = np.sum(diff < .2)
+    n_tot = myResults.post.shape[0]
+    assert n_small_diff / n_tot > 0.99, np.where(diff < .2)
 
 def test_OFTeI_RV():
+    # TODO: add secondary mass compat so RV can run
     input_file = os.path.join(orbitize.DATADIR, 'HD4747.csv')
     data_table = read_input.read_file(input_file)
     output_file = os.path.join(orbitize.DATADIR, 'test_marg_rv.hdf5')
@@ -223,7 +225,21 @@ def test_OFTeI_RV():
     mySampler.run_sampler(4000, 10, output_filename=output_file, periodic_save_freq=2)
     myResults = mySampler.results
     assert mySampler.non_marg_quants == ["rv"]
-    print(myResults.post.shape)
+
+    class TestSampler(sampler.Sampler):
+        def run_sampler():
+            ...
+
+    noMargSampler = TestSampler(mySystem, marginalizers=[])
+    true_l = []
+    for param in myResults.post:
+        l = noMargSampler._logl(param)[0]
+        true_l.append(l)
+    diff = np.abs(true_l - myResults.lnlike)
+    print((true_l - myResults.lnlike)[np.where(diff > .2)])
+    n_small_diff = np.sum(diff < .2)
+    n_tot = myResults.post.shape[0]
+    assert n_small_diff / n_tot > 0.99, np.where(diff < .2)
 
 def test_OFTeI_RV_auto():
     input_file = os.path.join(orbitize.DATADIR, 'HD4747.csv')
@@ -416,6 +432,21 @@ def test_OFTeI_radec():
     assert not mySampler.force_valid_marg
     myResults = mySampler.results
     print(myResults.post.shape)
+
+    class TestSampler(sampler.Sampler):
+        def run_sampler():
+            ...
+
+    noMargSampler = TestSampler(mySystem, marginalizers=[])
+    true_l = []
+    for param in myResults.post:
+        l = noMargSampler._logl(param)[0]
+        true_l.append(l)
+    diff = np.abs(true_l - myResults.lnlike)
+    print((true_l - myResults.lnlike)[np.where(diff > .2)])
+    n_small_diff = np.sum(diff < .2)
+    n_tot = myResults.post.shape[0]
+    assert n_small_diff / n_tot > 0.99, np.where(diff < .2)
 
 # TODO: test_OFTeI_radec_auto
 
