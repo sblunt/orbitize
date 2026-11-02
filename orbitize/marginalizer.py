@@ -3,6 +3,7 @@ import numpy as np
 from astropy import units
 import orbitize.basis as basis
 import orbitize.kepler as kepler
+import warnings
 
 """
 This module defines marginalizations to draw
@@ -10,6 +11,12 @@ samples of non-marginalized parameters and compute appropriate probability
 """
 
 class Marginalizer(abc.ABC):
+    """
+    Abstract Base Class for marginalizer objects.
+    All marginalizer objects should inherit from this class.
+    
+    Written: Eshel Dror, 2026
+    """
 
     QUANT_TYPES = []
     JITTER_PARAMS = []
@@ -21,10 +28,28 @@ class Marginalizer(abc.ABC):
     
     @abc.abstractmethod
     def apply(self, param_arr, jitter_arr=None, calculated_values={}):
+        """
+        Apply the marginalization and get the calculated probabilities and sampled parameters.
+
+        Args:
+            param_arr (np.array of float): RxM array of fitting parameters. Where
+                R is the number of required parameters in the order of `self.REQ_PARAMS` and
+                M is the number of orbits. If M=1 this can be a 1d array.
+            calculated values (dict): Dictionary of calculated values passed through consecutive marginalizers.
+        
+        Returns:
+            float or np.array of float: log-probability of the likelihood of the parameters
+                in `param_arr` and the priors of the marginalized parameters.
+            float or np.array of float: log-likelihood of the parameters in `param_arr`
+                and the sampled marginalized parameters.
+            np.array of float: samples of shape PxM where P is the number of margainalized paramters
+                and M is the number of orbits. In the order of `self.MARG_PARAMS`. May be 1D if M=1.
+            dict: `calculated_values` including any updates.
+        """
         pass
 
     @staticmethod
-    def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
+    def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=True):
         """
         Compute log likelihood, excluding volume in marginalization integral (first two terms in \ref{eq:marg_like} in
         PASP review):
@@ -36,7 +61,9 @@ class Marginalizer(abc.ABC):
             X: 2*n_obs x 2 design matrix
             beta_hat: length 2 array of conditional MAP values of sma and pan (respectively)
             W: 2n x 2n covariance matrix corresponding to observations y
-            add_error_term: if True, include the -1/2 log|W| term (needed if fitting for jitter). Default False.as_integer_ratio
+            W_inv: 2n x 2n inverse of the covariance matrix W, if calculated previously. (default: None)
+            add_error_term: if True, include the -1/2 log|W| term (needed if fitting for jitter
+                or want a result consistent with other methods). (default: True).
 
         Returns:
             float: loglikelihood
@@ -45,7 +72,8 @@ class Marginalizer(abc.ABC):
             W_inv = np.linalg.inv(W)
         chi2_map = (y - X @ beta_hat).T @ W_inv @ (y - X @ beta_hat)
 
-        # NOTE: this term can be ignored unless we're fitting for jitter
+        # NOTE: this term can be ignored unless we're fitting
+        # for jitter or want a result consistend with other methods
         if add_error_norm:
             error_norm_term = -0.5 * np.linalg.slogdet(W)[1]
         else:
@@ -100,6 +128,25 @@ class MargPriorNoInput(Marginalizer):
             return 0, 0, samples, calculated_values
 
 class OFTeI_sma_pan(Marginalizer):
+    """
+    OFTeI marginalizer for relative astrometry.
+
+    Currently only applicable to 1 non-massive companion.
+    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
+    MARG_PARAMS = ["sma1", "pan1"]
+
+    Args:
+        epochs (np.array of float): epochs of seppa data
+        seps (np.array of float): Separation data
+        pas (np.array of float): Position Angle data
+        sigma_seps (np.array of float): Standard Deviation of the Separation data
+        sigma_pas (np.array of float): Standard Deviation of the Position Angle data
+        covar_seps_pas (np.array of float): Covariance of Separation and Position Angle data at the same epoch
+        sma_prior (orbitize.priors.Prior): Prior for the Semimajor Axis
+        pan_prior (orbitize.priors.Prior): Prior for the Position Angle of Nodes
+        mass_prior (orbitize.priors.Prior): Prior to apply for the total mass
+        implcit_mass_prior (orbitize.priors.Prior): Implicit prior to subtract for the total mass
+    """
 
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
     MARG_PARAMS = ["sma1", "pan1"]
@@ -138,8 +185,8 @@ class OFTeI_sma_pan(Marginalizer):
 
         Return:
             tuple of:
-                float: f (defined in \ref{eq:f_and_g} in PASP review)
-                float: g (defined in \ref{eq:f_and_g} in PASP review)
+                np.array of float: f (defined in \ref{eq:f_and_g} in PASP review)
+                np.array of float: g (defined in \ref{eq:f_and_g} in PASP review)
 
         """
 
@@ -182,32 +229,28 @@ class OFTeI_sma_pan(Marginalizer):
         return f, g
 
     @staticmethod
-    def calc_cov_matrix_det(seps, pas, fs, gs, D, W, W_inv=None):
+    def calc_cov_matrix_det(n_obs, Y, D, W, W_inv=None):
         """
         Calculate the MAP values of sma and pan and the determinant of the
         covariance matrix describing their conditional posterior uncertainties
 
         Args:
-            seps (np.array of float): separation measurements [mas]
-            pas (np.array of float): position angle measurements [deg]
-            fs (np.array of float): (defined in \ref{eq:f_and_g} in PASP review), values at observation epochs
-            gs (np.array of float): (defined in \ref{eq:f_and_g} in PASP review), values at observation epochs
-            W: 2n x 2n covariance matrix corresponding to observations y
+            n_obs (float): number of observations
+            Y (np.array of float): (2 * n_obs) array of observations (sep on top, PA-g on bottom)
+            D (np.array of float): (2 * n_obs) x 2 design matrix
+            W (np.array of float): 2n x 2n covariance matrix corresponding to observations Y
+            W_inv (np.array of float): inverse of `W` if calculated previously (default: None)
 
         Returns:
+            float: MAP Semimajor Axis
+            float: MAP Position-Angle of Nodes (Degrees)
             float: log(abs(determinant of cov matrix))
+            float: Sample of Semimajor Axis
+            float: Sample of Position Angle of Nodes
+            float: log(p(samples|data,params))
         """
 
-        n_obs = len(seps)
-
-        # set up design matrix
-        D = np.zeros((2 * n_obs, 2))
-        D[:n_obs, 0] = fs
-        D[n_obs:, 1] = 1 # TODO: move to self.apply
-
-        Y = np.hstack((seps, basis.angle_diff(pas, gs)))
-
-        map_fit, cov_matrix = solve_linear_eq(Y, D, W, W_inv)
+        map_fit, cov_matrix, precision_matrix = solve_linear_eq(Y, D, W, W_inv)
         sma_map = map_fit[0]
         pan_map = map_fit[1]
 
@@ -223,7 +266,7 @@ class OFTeI_sma_pan(Marginalizer):
 
         res = np.array([sma_sample - sma_map, basis.angle_diff(pan_sample, pan_map)])
 
-        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix
+        log_conditional_prob = -0.5 * res.T @ precision_matrix @ res - 0.5 * logabsdet_covmatrix
 
         log_conditional_prob -= (n_obs) * np.log(2*np.pi)
 
@@ -249,24 +292,24 @@ class OFTeI_sma_pan(Marginalizer):
         )
         W = self.W
         W_inv = self.W_inv
+        Y = np.hstack((self.seps, basis.angle_diff(self.pas, g_samples)))
+        # set up design matrix
+        D = np.zeros((2 * self.n_obs, 2))
+        D[:self.n_obs, 0] = f_samples
+        D[self.n_obs:, 1] = 1
 
         try:
             smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg, log_conditional_prob = (
-                self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W, W_inv)
+                self.calc_cov_matrix_det(self.n_obs, Y, D, W, W_inv)
             )
-        except np.linalg.LinAlgError:
+        except np.linalg.LinAlgError as e:
+            warnings.warn(f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0")
             return -np.inf, -np.inf, None, dict()
 
-        # set up design matrix
-        X = np.zeros((2 * self.n_obs, 2))
-        X[:self.n_obs, 0] = f_samples
-        X[self.n_obs:, 1] = 1
-
-        y = np.hstack((self.seps, basis.angle_diff(self.pas, g_samples)))
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
         # compute marginalized likelihood (e.g. Price-Whelan 2017 eq 11)
-        chi2lnlike = self.lnlike(y, X, beta_hat, W, W_inv, True)
+        chi2lnlike = self.lnlike(Y, D, beta_hat, W, W_inv, True)
 
         logprob = (
             chi2lnlike + 0.5 * logdet_covmatrix
@@ -300,6 +343,22 @@ class OFTeI_sma_pan(Marginalizer):
 
 class OFTeI_DR4_gaia(Marginalizer):
 
+    """
+    OFTeI marginalizer for Gaia DR4 absolute astrometry.
+
+    Currently only applicable to 1 massive companion.
+    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "m1"] + ["dr4_jitter"] if fitting jitter
+    MARG_PARAMS = ["pm_ra", "pm_dec", "alpha0", "delta0", "plx", "u", "v"]
+
+    Args:
+        gaia (orbitize.gaia.DR4LogProb): Gaia DR4 object
+        sma_prior (orbitize.priors.Prior): Prior for the Semimajor Axis
+        pan_prior (orbitize.priors.Prior): Prior for the Position Angle of Nodes
+        plx_prior (orbitize.priors.Prior): Prior for the Parallax
+        m0_prior (orbitize.priors.Prior): Prior to apply for the stellar mass
+        implcit_mass_prior (orbitize.priors.Prior): Implicit prior to subtract for the stellar mass
+    """
+
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "m1"]
     MARG_PARAMS = ["pm_ra", "pm_dec", "alpha0", "delta0", "plx", "u", "v"]
     LNLIKE_TYPE = "chi2"
@@ -318,6 +377,19 @@ class OFTeI_DR4_gaia(Marginalizer):
         self.implicit_mass_prior = implicit_mass_prior
 
     def calc_As_and_Bs(self, manoms, ecc, inc, aop):
+        """
+        Args:
+            manoms (np.array of float): array of mean anomalies [rad, 0-2pi]
+            ecc (float): eccentricity
+            inc (float): inclination [rad, 0-pi]
+            aop (float): argument of periastron [rad, 0-2pi]
+
+        Return:
+            tuple of:
+                np.array of float: A (defined in \ref{eq:gaia_matrix} in PASP review)
+                np.array of float: B (defined in \ref{eq:gaia_matrix} in PASP review)
+
+        """
         
         n_dates = np.size(manoms)
 
@@ -341,10 +413,26 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         return As, Bs
 
-    def calc_cov_matrix_det(self, Y, D, W):
+    def calc_cov_matrix_det(self, Y, D, W, W_inv=None):
+        """
+        Calculate the MAP values of the marginalized parameters and the determinant of the
+        covariance matrix describing their conditional posterior uncertainties
+
+        Args:
+            Y (np.array of float): (2 * n_obs) array of observations (sep on top, PA-g on bottom)
+            D (np.array of float): (2 * n_obs) x 2 design matrix
+            W (np.array of float): 2n x 2n covariance matrix corresponding to observations Y
+            W_inv (np.array of float): inverse of `W` if calculated previously (default: None)
+
+        Returns:
+            np.array of float: MAP of Marginalized Parameters
+            float: log(abs(determinant of cov matrix))
+            np.array of float: Samples of the Marginalized Parameters
+            float: log(p(samples|data,params))
+        """
         n_obs = self.gaia.n_obs
 
-        map_fit, cov_matrix = solve_linear_eq(Y, D, W)
+        map_fit, cov_matrix, precision_matrix = solve_linear_eq(Y, D, W, W_inv)
 
         # Sample linear params
         sample = np.random.multivariate_normal(map_fit, cov_matrix)
@@ -356,7 +444,7 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         res = sample - map_fit
 
-        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix
+        log_conditional_prob = -0.5 * res.T @ precision_matrix @ res - 0.5 * logabsdet_covmatrix
 
         log_conditional_prob -= (n_obs/2) * np.log(2*np.pi) # Figure out if half n_obs is right
 
@@ -385,6 +473,7 @@ class OFTeI_DR4_gaia(Marginalizer):
         )
         
         W = np.diag(self.gaia.centroid_pos_error_al**2 + jitter**2)
+        W_inv = np.diag(1/(self.gaia.centroid_pos_error_al**2 + jitter**2))
 
         n_obs = self.gaia.n_obs
         
@@ -401,12 +490,13 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         try:
             map_fit, logabsdet_covmatrix, samples, log_conditional_prob = (
-                self.calc_cov_matrix_det(Y, D, W)
+                self.calc_cov_matrix_det(Y, D, W, W_inv)
             )
-        except np.linalg.LinAlgError:
+        except np.linalg.LinAlgError as e:
+            warnings.warn(f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0")
             return -np.inf, -np.inf, None, {}
 
-        chi2lnlike = self.lnlike(Y, D, map_fit, W, add_error_norm=True)
+        chi2lnlike = self.lnlike(Y, D, map_fit, W, W_inv, add_error_norm=True)
 
         logprob = (
             chi2lnlike + 0.5 * logabsdet_covmatrix
@@ -454,13 +544,29 @@ class OFTeI_DR4_gaia(Marginalizer):
 
 
 def solve_linear_eq(Y, A, C, C_inv=None):
+    """
+    Solve for the MAP of beta with
+    Y - A @ beta ~ Norm(0,C)
+
+    Args:
+        Y: Data
+        A: Design Matrix
+        C: Covariance Matrix of the Data
+        C_inv: Inverse of C if calculated previously (default: None)
+    
+    Returns:
+        np.array: MAP beta
+        np.array: covariance matrix of p(beta|Y,A)
+        np.array: precision matrix (inverse of covariance matrix)
+    """
     if C_inv is None:
         C_inv = np.linalg.inv(C)
-    cov_matrix = np.linalg.inv(
+    prec_matrix = (
         A.T @ C_inv @ A
-    )  # variance on diag, covar on off-diag
+    ) 
+    cov_matrix = np.linalg.inv(prec_matrix) # variance on diag, covar on off-diag
     best_fit = cov_matrix @ (A.T @ C_inv @ Y)
-    return best_fit, cov_matrix
+    return best_fit, cov_matrix, prec_matrix
 
 def compatible_params(marginalizers, input_params, data_quants):
     # TODO: Multibody, quant_type
