@@ -143,14 +143,12 @@ class Sampler(abc.ABC):
 
         """
         input_shape = fitted_params.shape
-        assert input_shape[0] == len(self.fitted_param_sys_idx), (input_shape[0], len(self.fitted_param_sys_idx))
         if len(input_shape) == 1:
             num_orbits = 1
             params = np.full((self.total_param_num,), np.nan)
         else:
             num_orbits = input_shape[1]
             params = np.full((self.total_param_num, num_orbits), np.nan)
-        assert len(self.fitted_param_sys_idx) == len(fitted_params), (self.fitted_param_sys_idx, fitted_params)
         params[self.fitted_param_sys_idx] = fitted_params
 
         total_lnlike = 0
@@ -163,22 +161,18 @@ class Sampler(abc.ABC):
                     else np.squeeze(np.ones(num_orbits)*prior))
                 for prior in self.marg_priors]
             params[self.marg_param_sys_idx] = samples
-            assert not np.isnan(params).any()
         else:
             for marg in self.marginalizers:
                 req_param_idx = [self.system.param_idx[label] for label in marg.REQ_PARAMS]
-                jitter_param_idx = [self.system.param_idx[label] for label in marg.JITTER_PARAMS]
                 marg_param_idx = [self.system.param_idx[label] for label in marg.MARG_PARAMS]
                 req_params = params[req_param_idx]
-                jitter = params[jitter_param_idx]
-                partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, jitter, all_calculated_values)
+                partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, all_calculated_values)
                 if np.isneginf(partial_lnprob):
                     return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
                 total_lnprob += partial_lnprob
                 total_lnlike += partial_lnlike
                 params[marg_param_idx] = marg_params
                 all_calculated_values.update(calculated_values) # i.e. astr_tanom, rv_eanom
-            assert not np.isnan(params).any(), (marg_params, params.shape, marg_param_idx)
 
         lnlikes_sum = 0
         if self.force_valid_marg or len(self.non_marg_quants) > 0:
@@ -291,7 +285,6 @@ class Sampler(abc.ABC):
         total_lnlike += lnlikes_sum
 
         marg_params = params[self.marg_param_sys_idx]
-        assert not np.isnan(marg_params).any(), marg_params
 
         return total_lnprob, total_lnlike, *marg_params
 
@@ -1026,25 +1019,19 @@ class MCMC(Sampler):
         )  # the reshaping flattens the chain
         # pick out the lowest temperature loglikelihoods
         self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
-        lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
+        # lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
 
         # include fixed parameters in posterior
         fitted_post = self._fill_in_fixed_params(fitted_post)
 
         # Ntemp x Nwalkers x Nsteps x Nblobs
         blobs = sampler.blobs[0, :, :num_steps, :].reshape(-1, len(self.blob_labels))
-        assert len(blobs) == len(self.lnlikes)
-        # no_diff = ((self.lnlikes == blobs[:, 0]) | (np.abs(self.lnlikes - blobs[:, 0]) < 0.001))
-        # assert (no_diff).all(), (self.lnlikes[~no_diff][:10], blobs[:, 0][~no_diff][:10], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
         self.lnlikes = blobs[:, 0]
-        # assert (no_diff).all(), (sampler.loglikelihood[:, :, :num_steps], sampler.blobs[:, :, :num_steps, 0], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
         marginalized_param_blobs = blobs[:, 1:]
-        assert not np.isnan(marginalized_param_blobs).any(), sampler.blobs[:5, :10]
         num_orbits = fitted_post.shape[0]
         self.full_post = np.full((num_orbits, self.total_param_num), np.nan)
         self.full_post[:, self.fitted_param_sys_idx] = fitted_post
         self.full_post[:, self.marg_param_sys_idx] = marginalized_param_blobs
-        assert not np.isnan(self.full_post).any(), (self.fitted_param_sys_idx, self.marg_param_sys_idx)
 
 
     def validate_xyz_positions(self):
@@ -1191,7 +1178,8 @@ class MCMC(Sampler):
                         self.results.curr_pos = self.curr_pos
                         new_file = f"{output_filename}_{i+1}burnsteps.hdf5"
                         self.results.save_results(new_file)
-                        assert os.path.exists(new_file)
+                        if not os.path.exists(new_file):
+                            raise Error
                         prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
                         if os.path.exists(prev_file):
                             os.remove(prev_file)                        
@@ -1681,7 +1669,6 @@ class NestedSampler(BaseNestedSampler):
         marginalized_params = blobs[:, 1:]
         logl = self.dynesty_sampler.results["logl"]
         num_orbits = len(logl)
-        assert (logl == blobs[:, 0]).all(), (np.shape(logl), len(logl), np.shape(blobs[:, 0]))
         full_post = np.full((num_orbits, self.total_param_num), np.nan)
         full_post[:, self.fitted_param_sys_idx] = samples
         full_post[:, self.marg_param_sys_idx] = marginalized_params

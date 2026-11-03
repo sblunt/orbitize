@@ -19,7 +19,6 @@ class Marginalizer(abc.ABC):
     """
 
     QUANT_TYPES = []
-    JITTER_PARAMS = []
     REQ_PARAMS = []
     MARG_PARAMS = []
     LNLIKE_TYPE = None
@@ -27,7 +26,7 @@ class Marginalizer(abc.ABC):
     GAIA = False
     
     @abc.abstractmethod
-    def apply(self, param_arr, jitter_arr=None, calculated_values={}):
+    def apply(self, param_arr, calculated_values={}):
         """
         Apply the marginalization and get the calculated probabilities and sampled parameters.
 
@@ -95,7 +94,7 @@ class MargConstNoInput(Marginalizer):
 
     MARG_PARAMS = ["test"]
 
-    def apply(self, param_arr, jitter_arr, calculated_values):
+    def apply(self, param_arr, calculated_values):
         shape = param_arr.shape
         if len(shape) > 1:
             n_orbits = shape[1]
@@ -112,7 +111,7 @@ class MargPriorNoInput(Marginalizer):
         self.MARG_PARAMS = ["test{}".format(i) for i in range(self.dim)]
         self.priors = priors
 
-    def apply(self, param_arr, jitter_arr, calculated_values):
+    def apply(self, param_arr, calculated_values):
         shape = param_arr.shape
         if len(shape) > 1:
             n_orbits = shape[1]
@@ -272,8 +271,7 @@ class OFTeI_sma_pan(Marginalizer):
 
         return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample, log_conditional_prob
 
-    def apply(self, param_arr, jitter_arr, calculated_values):
-        assert jitter_arr.shape[0] == 0, "No jitter supported"
+    def apply(self, param_arr, calculated_values):
         shape = param_arr.shape
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
@@ -450,8 +448,7 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         return map_fit, logabsdet_covmatrix, sample, log_conditional_prob
 
-    def apply(self, param_arr, jitter_arr, calculated_values):
-        assert jitter_arr.shape[0] == 0, "Jitter must be passed as dr4_jitter param"
+    def apply(self, param_arr, calculated_values):
         shape = param_arr.shape
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
