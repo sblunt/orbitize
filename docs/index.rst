@@ -72,6 +72,7 @@ Changelog:
 - slowdown when using `periodic_save` kwarg in MCMC fixed (@sblunt)
 - Gaia DR4 fitting and visualization capability!! (@clarissardoo)
 - utility function for simulating Gaia DR4 data (@clarissardoo, @astrovidee)
+- use julian year instead of decimal year throughout; bug affected long-period datasets like HGCA (@seffal, @sblunt)
 
 **3.4.0 (2026-7-20)**
 
