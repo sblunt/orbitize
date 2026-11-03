@@ -109,14 +109,11 @@ def test_compute_model():
         mass_c / m0 * c_params[0] * plx, abs=0.01 * mass_c / m0 * b_params[0] * plx
     )
 
-    # rv_diff = rv_2body - rv_1body
-    # plt.figure()
-    # plt.plot(epochs, rv_diff)
-    # plt.savefig("test_multiplanet.png")
+    rv_diff = rv_2body - rv_1body
+    
 
     # clean up
     os.system("rm {}".format(filename))
-    # os.system("rm {}".format("test_multiplanet.png"))
 
 
 def test_fit_selfconsist():
