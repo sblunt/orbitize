@@ -231,12 +231,12 @@ def test_fit_selfconsist():
     samp.curr_pos[0, :, 2] = np.random.normal(c_params[0], 0.01, n_walkers)  # sma
     samp.curr_pos[0, :, 3] = np.random.normal(c_params[-1], 0.01, n_walkers)  # tau
     # we will make a fairly broad mass starting position
-    samp.curr_pos[0, :, 4] = np.random.uniform(mass_b * 0.25, mass_b * 4, n_walkers)
-    samp.curr_pos[0, :, 5] = np.random.uniform(mass_c * 0.25, mass_c * 4, n_walkers)
+    samp.curr_pos[0, :, 4] = np.random.uniform(mass_b * 0.5, mass_b * 2, n_walkers)
+    samp.curr_pos[0, :, 5] = np.random.uniform(mass_c * 0.5, mass_c * 2, n_walkers)
     samp.curr_pos[0, 0, 4] = mass_b
     samp.curr_pos[0, 0, 5] = mass_c
 
-    samp.run_sampler(n_walkers * 200, burn_steps=200)
+    samp.run_sampler(n_walkers * 1000, burn_steps=1000)
 
     res = samp.results
 

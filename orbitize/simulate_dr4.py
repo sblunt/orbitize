@@ -137,19 +137,3 @@ def simulate_dr4(gost_file_path, params, g_mag=4.2, seed=1, tau_ref_epoch=58849,
     )
 
     return table
-
-# --- Instant Execution Driver Hook ---
-if __name__ == "__main__":
-    test_params = {
-        "plx": 16.123, "alpha0": -0.00154, "delta0": 0.0019354,
-        "pm_ra": 5.421, "pm_dec": -24.121, "m0": 1.0,
-        "sma1": 0.354, "ecc1": 0.345, "inc1": 73.5587,
-        "aop1": 6.445, "pan1": 32.54, "m1": 0.0075, "tau1": 0.88,
-    }
-    
-    try:
-        res = simulate_dr4("eps_eri_gost.csv", test_params, g_mag=4.2)
-        print(f"\nSuccessfully generated {len(res)} fake DR4 points:")
-        print(res["source_id", "transit_id", "obs_time_tcb", "parallax_factor_al", "scan_pos_angle"][:5])
-    except FileNotFoundError:
-        print("\nReady! Just place your 'eps_eri_gost.csv' file in this folder to run.")
