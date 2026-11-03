@@ -73,6 +73,8 @@ Changelog:
 - Gaia DR4 fitting and visualization capability!! (@clarissardoo)
 - utility function for simulating Gaia DR4 data (@clarissardoo, @astrovidee)
 - use julian year instead of decimal year throughout; bug affected long-period datasets like HGCA (@seffal, @sblunt)
+- bugfix for relative RVs with massive secondary (@sblunt)
+- relative and stellar RVs now correctly implement the epicycle/Jacobi approximation (@wbalmer, @sblunt)
 
 **3.4.0 (2026-7-20)**
 
