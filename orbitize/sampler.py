@@ -1014,7 +1014,13 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
-                        self._update_chains_from_sampler(sampler, num_steps=i + 1)
+                        # The chain stores only every `thin` raw iteration.
+                        stored_steps = (i + 1) // thin
+                        if stored_steps == 0:
+                            self.results.curr_pos = self.curr_pos
+                            self.results.save_results(output_filename)
+                            continue
+                        self._update_chains_from_sampler(sampler, num_steps=stored_steps)
 
                         # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
                         # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
@@ -1027,12 +1033,12 @@ class MCMC(Sampler):
                         curr_chain = self.post.reshape(curr_chain_shape)
                         curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
                         # use the reshaped arrays and find the new steps we computed
-                        curr_chunk = curr_chain[:, saved_upto : i + 1]
+                        curr_chunk = curr_chain[:, saved_upto : stored_steps]
                         curr_chunk = curr_chunk.reshape(
                             -1, curr_chunk.shape[-1]
                         )  # flatten nwalkers x nsteps dim
                         curr_lnlike_chunk = curr_lnlike_chain[
-                            :, saved_upto : i + 1
+                            :, saved_upto : stored_steps
                         ].flatten()
 
                         # add this current chunk to the results object (which already has all the previous chunks saved)
@@ -1040,7 +1046,7 @@ class MCMC(Sampler):
                             curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
                         )
                         self.results.save_results(output_filename)
-                        saved_upto = i + 1
+                        saved_upto = stored_steps
 
 
             print("")
@@ -1051,7 +1057,7 @@ class MCMC(Sampler):
                 self.results.add_samples(
                     self.post, self.lnlikes, curr_pos=self.curr_pos
                 )
-            elif saved_upto < nsteps:
+            elif saved_upto < nsteps // thin:
                 # just need to save the last few
                 # same code as above except we just need to grab the last few
                 post_shape = self.post.shape
@@ -1073,6 +1079,7 @@ class MCMC(Sampler):
                 )
 
 
+            self.results.curr_pos = self.curr_pos
             if output_filename is not None:
                 self.results.save_results(f'{output_filename}.hdf5')
 
