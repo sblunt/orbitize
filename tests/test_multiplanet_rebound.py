@@ -140,8 +140,8 @@ def test_1planet():
     diff_rv_st = rv_star_reb - rv_star_orb
     diff_rv_pl = rv_pl_reb - rv_pl_orb
 
-    assert np.all(np.abs(diff_ra) < 1e-7)
-    assert np.all(np.abs(diff_dec) < 1e-7)
+    assert np.all(np.abs(diff_ra) < 1e-9)
+    assert np.all(np.abs(diff_dec) < 1e-9)
     assert np.all(np.abs(diff_rv_st) < 1e-7)
     assert np.all(np.abs(diff_rv_pl) < 1e-7)
 
@@ -441,6 +441,139 @@ def test_2planet_massive():
 
     # clean up
     os.system("rm {}".format(filename))
+
+def test_2planet_massive_stellar_rv():
+    """
+    Check that our RV computation for the epicycle approx agrees with 
+    rebound.
+    """
+
+    # generate a planet orbit
+    mjup = u.Mjup.to(u.Msun)
+    mass_b = 12 * mjup
+    mass_c = 9 * mjup
+
+    params = np.array(
+        [
+            10,
+            0.1,
+            np.radians(45),
+            np.radians(45),
+            np.radians(45),
+            0.5,
+            3,
+            0.1,
+            np.radians(45),
+            np.radians(190),
+            np.radians(45),
+            0.2,
+            50,
+            0, # gamma
+            0, # jitter
+            mass_b,
+            mass_c,
+            1.5 - mass_b - mass_c,
+        ]
+    )
+
+    tau_ref_epoch = 0
+
+    epochs = (
+        np.linspace(0, 365.25 * 10, 100) + tau_ref_epoch
+    )  # nearly the full period, MJD
+
+    # generate some fake stellar RV measurements to feed into system.py
+    # to test bookkeeping
+    t = Table(
+        [
+            epochs,
+            np.zeros(epochs.shape, dtype=int),
+            np.zeros(epochs.shape),
+            np.zeros(epochs.shape),
+        ],
+        names=["epoch", "object", "rv", "rv_err"],
+    )
+
+    filename = os.path.join(orbitize.DATADIR, "rebound_2planet_st_rvs.csv")
+    t.write(filename, overwrite=True)
+
+    # TEST THE OUTER PLANET
+
+    # create the orbitize system and generate model predictions using the ground truth
+    astrom_dat = read_input.read_file(filename)
+
+    sys = system.System(
+        2,
+        astrom_dat,
+        params[-1],
+        params[-4],
+        tau_ref_epoch=tau_ref_epoch,
+        fit_secondary_mass=True,
+    )
+
+    # generate measurement
+    modelpredict_orbitize, _ = sys.compute_model(params)
+
+    st_rv_orb = modelpredict_orbitize[:, 0]
+
+    # now project the orbit with rebound
+    b_manom = kepler.tau_to_manom(
+        epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
+    )
+    c_manom = kepler.tau_to_manom(
+        epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
+    )
+
+    sim = rebound.Simulation()
+    sim.units = ("yr", "AU", "Msun")
+
+    # add star
+    sim.add(m=params[-1])
+
+    # add two planets
+    sim.add(
+        m=mass_c,
+        a=params[0 + 6],
+        e=params[1 + 6],
+        M=c_manom,
+        omega=params[3 + 6],
+        Omega=params[4 + 6] + np.pi / 2,
+        inc=params[2 + 6],
+    )
+    sim.add(
+        m=mass_b,
+        a=params[0],
+        e=params[1],
+        M=b_manom,
+        omega=params[3],
+        Omega=params[4] + np.pi / 2,
+        inc=params[2],
+    )
+    ps = sim.particles
+
+    sim.move_to_com()
+
+    # Use Wisdom Holman integrator (fast), with the timestep being < 5% of inner
+    # planet's orbital period
+    sim.integrator = "ias15"
+    sim.dt = ps[1].P / 1000.0
+
+    # integrate and measure star/planet separation & relative RV
+    rv_st = []
+
+    for t in epochs:
+        sim.integrate(t / 365.25)
+        rv_st.append(ps[0].vz)
+
+    rv_st = np.array(rv_st) * (u.au/u.yr).to(u.km/u.s)
+
+    diff_relative_rv = (rv_st - st_rv_orb)  
+    K_amp_st = np.abs(np.max(rv_st))
+    assert np.all(np.abs(diff_relative_rv) / K_amp_st < 1e-2)
+
+    # clean up
+    os.system("rm {}".format(filename))
+
 
 
 def test_2planet_massive_reverse_order():
@@ -752,7 +885,8 @@ def test_2planet_nomass():
 
 
 if __name__ == "__main__":
-    test_1planet()
+    test_2planet_massive_stellar_rv()
+    # test_1planet()
     # test_2planet_massive()
     # test_2planet_massive_reverse_order()
     # test_2planet_nomass()
