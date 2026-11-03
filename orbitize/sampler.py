@@ -1178,8 +1178,7 @@ class MCMC(Sampler):
                         self.results.curr_pos = self.curr_pos
                         new_file = f"{output_filename}_{i+1}burnsteps.hdf5"
                         self.results.save_results(new_file)
-                        if not os.path.exists(new_file):
-                            raise Error
+                        assert os.path.exists(new_file)
                         prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
                         if os.path.exists(prev_file):
                             os.remove(prev_file)                        

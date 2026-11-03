@@ -48,7 +48,7 @@ class Marginalizer(abc.ABC):
         pass
 
     @staticmethod
-    def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=True):
+    def lnlike(y, X, beta_hat, W, W_inv=None, W_absdet=None, add_error_norm=True):
         """
         Compute log likelihood, excluding volume in marginalization integral (first two terms in \ref{eq:marg_like} in
         PASP review):
@@ -72,9 +72,12 @@ class Marginalizer(abc.ABC):
         chi2_map = (y - X @ beta_hat).T @ W_inv @ (y - X @ beta_hat)
 
         # NOTE: this term can be ignored unless we're fitting
-        # for jitter or want a result consistend with other methods
+        # for jitter or want a result consistent with other methods
         if add_error_norm:
-            error_norm_term = -0.5 * np.linalg.slogdet(W)[1]
+            if W_absdet is None:
+                error_norm_term = -0.5 * np.linalg.slogdet(W)[1]
+            else:
+                error_norm_term = -0.5 * np.log(W_absdet)
         else:
             error_norm_term = 0
 
@@ -307,7 +310,7 @@ class OFTeI_sma_pan(Marginalizer):
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
         # compute marginalized likelihood (e.g. Price-Whelan 2017 eq 11)
-        chi2lnlike = self.lnlike(Y, D, beta_hat, W, W_inv, True)
+        chi2lnlike = self.lnlike(Y, D, beta_hat, W, W_inv, add_error_norm=True)
 
         logprob = (
             chi2lnlike + 0.5 * logdet_covmatrix
@@ -468,9 +471,11 @@ class OFTeI_DR4_gaia(Marginalizer):
             inc,
             aop,
         )
-        
-        W = np.diag(self.gaia.centroid_pos_error_al**2 + jitter**2)
-        W_inv = np.diag(1/(self.gaia.centroid_pos_error_al**2 + jitter**2))
+
+        variances = self.gaia.centroid_pos_error_al**2 + jitter**2
+        W = np.diag(variances)
+        W_inv = np.diag(1/variances)
+        W_det = np.prod(variances)
 
         n_obs = self.gaia.n_obs
         
@@ -493,7 +498,7 @@ class OFTeI_DR4_gaia(Marginalizer):
             warnings.warn(f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0")
             return -np.inf, -np.inf, None, {}
 
-        chi2lnlike = self.lnlike(Y, D, map_fit, W, W_inv, add_error_norm=True)
+        chi2lnlike = self.lnlike(Y, D, map_fit, W, W_inv, W_det, add_error_norm=True)
 
         logprob = (
             chi2lnlike + 0.5 * logabsdet_covmatrix
