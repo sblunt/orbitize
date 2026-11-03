@@ -533,7 +533,7 @@ class System(object):
                 # coordinates, this body's velocity relative to the system barycenter is
                 # scaled by (interior mass / mtot)
                 if self.fit_secondary_mass:
-                    m_interior = mtot - mass
+                    m_interior = mtot - mass # mtot is mass of all bodies <= semimajor axis of companion body_num
                 else:
                     m_interior = None
 
@@ -548,7 +548,7 @@ class System(object):
                     tau,
                     plx,
                     mtot,
-                    mass_for_Kamp=m_interior,
+                    mass_for_Kamp=m_interior, # using m_interior yields RV relative to the barycenter of companion body_num
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
 
