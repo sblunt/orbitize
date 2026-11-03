@@ -201,6 +201,7 @@ class HipparcosLogProb(object):
         self.alphadec0_epoch = alphadec0_epoch
 
         self.hip_data = hip_data
+        self.brandt_correction = brandt_correction
 
         # dvd files don't contain the Hipparcos astrometric solution, so
         # we need to look it up
@@ -371,6 +372,7 @@ class HipparcosLogProb(object):
         if self.hip_data is not None:
             hip_data_group = hf.create_group("hip_data")
             hip_data_group.update(self.hip_data)
+        hf.attrs["brandt_correction"] = self.brandt_correction
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
