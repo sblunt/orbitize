@@ -568,7 +568,7 @@ class DR4LogProb(object):
 
         # Decimal years are retained for display/legacy callers, not orbit times.
         self.hipparcos_epoch = np.array([])  # empty
-        self.gaia_epoch = time.Time(
+        self.gaia_epoch = Time(
             self.epochs_mjd, format="mjd", scale=self.time_scale
         ).decimalyear
 
