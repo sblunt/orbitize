@@ -36,7 +36,7 @@ def test_pt_mcmc_runs(num_threads=1):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(clean_params)
+    computed_lnlike_test, *_ = myDriver.sampler._logl(clean_params)
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
@@ -69,7 +69,7 @@ def test_ensemble_mcmc_runs(num_threads=1):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(clean_params)
+    computed_lnlike_test, *_ = myDriver.sampler._logl(clean_params)
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 

@@ -108,8 +108,8 @@ def test_chi2_log():
         chi2_type="log",
     )
     s = myDriver.sampler
-    params = [44, 0, 45 * np.pi / 180, 0, 325 * np.pi / 180, 0, 56.95, 1.22]
-    log_chi2 = s._logl(params)
+    params = np.array([44, 0, 45 * np.pi / 180, 0, 325 * np.pi / 180, 0, 56.95, 1.22])
+    log_chi2, *_ = s._logl(params)
 
     sys = myDriver.system
     data = np.array([sys.data_table["quant1"], sys.data_table["quant2"]]).T
