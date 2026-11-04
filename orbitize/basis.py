@@ -902,8 +902,7 @@ class OftEiGaiaBasis(Basis):
         m1 = param_arr[self.param_idx["m1"]]
         per = param_arr[self.param_idx["per1"]]
         pan = np.atan(v/u)
-        if u < 0:
-            pan += np.pi
+        pan[u < 0] += np.pi
         pan %= 2 * np.pi
         param_arr[self.standard_basis_idx["pan1"]] = pan
         sma_photo = u / np.cos(pan) / plx
