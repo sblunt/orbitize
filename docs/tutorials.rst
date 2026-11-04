@@ -61,5 +61,13 @@ us if you are still confused).
    tutorials/abs_astrometry.ipynb
    tutorials/ONeil-ObsPriors.ipynb
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Gaia DR4 Tutorials
+   tutorials/acceleration_only_fit.ipynb
+   tutorials/Eps_Eri_Joint_Fit.ipynb
+   tutorials/Gaia_DR4_EAS.ipynb
+   tutorials/Gaia_DR$_OHP.ipynb
+   
 
 
