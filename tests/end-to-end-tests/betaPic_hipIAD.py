@@ -73,19 +73,19 @@ if fit_IAD:
     # # Convert from astroquery table to dictionary
     # hip_data = dict(hip_data_table[0])
     hip_data = {
-        'RArad': 86.82118072,
-        'e_RArad': 0.1,
-        'DErad': -51.06671341,
-        'e_DErad': 0.11,
-        'Plx': 51.44,
-        'e_Plx': 0.12,
-        'pmRA': 4.65,
-        'e_pmRA': 0.11,
-        'pmDE': 83.1,
-        'e_pmDE': 0.15,
-        'F2': -1.63,
-        'Sn': 5,
-        'var': 0.0
+        "RArad": 86.82118072,
+        "e_RArad": 0.1,
+        "DErad": -51.06671341,
+        "e_DErad": 0.11,
+        "Plx": 51.44,
+        "e_Plx": 0.12,
+        "pmRA": 4.65,
+        "e_pmRA": 0.11,
+        "pmDE": 83.1,
+        "e_pmDE": 0.15,
+        "F2": -1.63,
+        "Sn": 5,
+        "var": 0.0,
     }
     betaPic_Hip = HipparcosLogProb(
         hipparcos_filename, hipparcos_number, num_secondary_bodies, hip_data=hip_data
@@ -107,13 +107,13 @@ if fit_IAD:
         "ra": 86.82123452009108,
         "ra_error": 0.13713108,
         "dec": -51.066136257823345,
-        "dec_error": 0.13109376
+        "dec_error": 0.13109376,
     }
     gaia_dr2_data = {
         "ra": 86.82123366090146,
         "ra_error": 0.3136836085700656,
         "dec": -51.06614803159093,
-        "dec_error": 0.34165541753173584
+        "dec_error": 0.34165541753173584,
     }
     betaPic_gaia = GaiaLogProb(gaia_dr2_number, betaPic_Hip, gaia_dr2_data, dr="dr2")
     # betaPic_gaia = GaiaLogProb(
@@ -133,11 +133,11 @@ betaPic_system = system.System(
     gaia=betaPic_gaia,
     fit_secondary_mass=fit_secondary_mass,
     mass_err=0.01,
-    plx_err=0.01
+    plx_err=0.01,
 )
 
 astrom_figure = betaPic_system.plot_astrometry()
-plt.savefig('betaPic_astrometry_data.png')
+plt.savefig("betaPic_astrometry_data.png")
 
 m0_or_mtot_prior = priors.UniformPrior(1.5, 2.0)
 

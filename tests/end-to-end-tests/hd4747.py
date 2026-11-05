@@ -1,6 +1,7 @@
 """
 Stellar RVs + astrometry, using data for HD 4747.
 """
+
 import matplotlib.pyplot as plt
 from orbitize import DATADIR, driver, plot, results
 import numpy as np
@@ -38,8 +39,8 @@ my_driver = driver.Driver(
 # values from Xuan et al 2022
 sma_cen = 10.0
 sma_sig = 0.2
-ecc_cen = .7317
-ecc_sig = .0014
+ecc_cen = 0.7317
+ecc_sig = 0.0014
 inc_cen = np.radians(48)
 inc_sig = np.radians(1.1)
 aop_cen = np.radians(267.2)
@@ -49,24 +50,27 @@ pan_sig = np.radians(1.1)
 tau_cen = ((2462615 - my_driver.system.tau_ref_epoch) / (33.2 * 365.25)) % 1
 tau_sig = 0.01
 
-assert my_driver.system.param_idx['sma1'] == 0
-assert my_driver.system.param_idx['ecc1'] == 1
-assert my_driver.system.param_idx['inc1'] == 2
-assert my_driver.system.param_idx['aop1'] == 3
-assert my_driver.system.param_idx['pan1'] == 4
-assert my_driver.system.param_idx['tau1'] == 5
+assert my_driver.system.param_idx["sma1"] == 0
+assert my_driver.system.param_idx["ecc1"] == 1
+assert my_driver.system.param_idx["inc1"] == 2
+assert my_driver.system.param_idx["aop1"] == 3
+assert my_driver.system.param_idx["pan1"] == 4
+assert my_driver.system.param_idx["tau1"] == 5
 
-walker_centres = np.array(
-    [sma_cen, ecc_cen, inc_cen, aop_cen, pan_cen, tau_cen]
+walker_centres = np.array([sma_cen, ecc_cen, inc_cen, aop_cen, pan_cen, tau_cen])
+walker_1sigmas = np.array([sma_sig, ecc_sig, inc_sig, aop_sig, pan_sig, tau_sig])
+
+new_pos = (
+    np.random.standard_normal((num_temps, num_walkers, 6)) * walker_1sigmas
+    + walker_centres
 )
-walker_1sigmas = np.array(
-    [sma_sig, ecc_sig, inc_sig, aop_sig, pan_sig, tau_sig]
+
+my_driver.sampler.curr_pos[:, :, :6] = np.copy(new_pos)
+my_driver.sampler.curr_pos[:, :, my_driver.system.param_idx["m1"]] = np.random.normal(
+    loc=(67.2 * u.M_jup / u.M_sun).to("").value,
+    scale=0.01,
+    size=(num_temps, num_walkers),
 )
-
-new_pos = np.random.standard_normal((num_temps, num_walkers, 6)) * walker_1sigmas + walker_centres
-
-my_driver.sampler.curr_pos[:,:,:6] = np.copy(new_pos)
-my_driver.sampler.curr_pos[:,:,my_driver.system.param_idx['m1']] = np.random.normal(loc=(67.2*u.M_jup/u.M_sun).to('').value, scale=0.01, size=(num_temps, num_walkers))
 
 my_driver.sampler.check_prior_support()
 
@@ -76,20 +80,23 @@ total_orbits = 10_00_000
 burn_steps = 10_000
 thin = 10
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # Run Sampler
     m = my_driver.sampler
-    m.run_sampler(total_orbits, burn_steps=burn_steps, thin=thin, periodic_save_freq=1_000, output_filename='hd4747.hdf5')
-    my_driver.sampler.results.save_results('hd4747_orbits.hdf5')
+    m.run_sampler(
+        total_orbits,
+        burn_steps=burn_steps,
+        thin=thin,
+        periodic_save_freq=1_000,
+        output_filename="hd4747.hdf5",
+    )
+    my_driver.sampler.results.save_results("hd4747_orbits.hdf5")
 
     my_results = results.Results()
-    my_results.load_results('hd4747_orbits.hdf5')
+    my_results.load_results("hd4747_orbits.hdf5")
 
     plot.plot_corner(my_results)
-    plt.savefig('hd4747_corner.png')
+    plt.savefig("hd4747_corner.png")
 
     plot.plot_orbits(my_results, rv_time_series=True, start_mjd=51044.0)
-    plt.savefig('hd4747_orbit.png')
-
-
+    plt.savefig("hd4747_orbit.png")

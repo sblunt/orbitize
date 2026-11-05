@@ -270,7 +270,7 @@ class GaussianPrior(Prior):
         self.mu = mu
         self.sigma = sigma
         self.no_negatives = no_negatives
-        self.lnnorm = -(np.log(sigma)+0.5*np.log(2*np.pi))
+        self.lnnorm = -(np.log(sigma) + 0.5 * np.log(2 * np.pi))
 
     def __repr__(self):
         return "Gaussian"
@@ -421,9 +421,9 @@ class LogUniformPrior(Prior):
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
         else:
-            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-                -np.inf
-            )
+            lnprob[
+                (element_array > self.maxval) | (element_array < self.minval)
+            ] = -np.inf
 
         return lnprob
 
@@ -495,12 +495,10 @@ class UniformPrior(Prior):
                 return -np.inf
             else:
                 return self.lnprob
-            
-        lnprob = np.ones(size)*self.lnprob
 
-        lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-            -np.inf
-        )
+        lnprob = np.ones(size) * self.lnprob
+
+        lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
 
@@ -764,7 +762,6 @@ class ObsPrior(Prior):
             )
 
         if self.param_num == (self.total_params - 1):
-
             period = self.correlated_input_samples[0]
             ecc = self.correlated_input_samples[1]
             tp = self.correlated_input_samples[2]
@@ -777,7 +774,6 @@ class ObsPrior(Prior):
                 or (tp < self.tp_lims[0])
                 or (tp > self.tp_lims[1])
             ):
-
                 self.increment_param_num()
                 return -np.inf
 
@@ -812,7 +808,6 @@ class ObsPrior(Prior):
             return lnprob
 
         else:
-
             self.increment_param_num()
             return 0
 
@@ -830,7 +825,9 @@ def all_lnpriors(params, priors):
     """
     logp = np.array(0.0)
 
-    params_2d = params.reshape((-1,1)) # Make each item an array of size 1, i.e. [[1],[2],[3],...]
+    params_2d = params.reshape(
+        (-1, 1)
+    )  # Make each item an array of size 1, i.e. [[1],[2],[3],...]
     for param, prior in zip(params_2d, priors):
         logp = logp + prior.compute_lnprob(param)
 
@@ -861,6 +858,7 @@ if __name__ == "__main__":
     plt.hist(samps, bins=50)
     plt.show()
 
+
 class OFTeIMassPrior(Prior):
     """
     Assuming loguniform priors on semimajor axis and orbital period,
@@ -872,6 +870,7 @@ class OFTeIMassPrior(Prior):
         per_min (float): minimum of the logUniform prior on orbital period [yr]
         per_max (float): maximum of the logUniform prior on orbital period [yr]
     """
+
     def __init__(self, sma_min, sma_max, per_min, per_max):
         self.sma_min = sma_min
         self.sma_max = sma_max
