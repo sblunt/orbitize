@@ -9,31 +9,31 @@ This module defines marginalizations to draw
 samples of non-marginalized parameters and compute appropriate probability
 """
 
-class Marginalizer(abc.ABC):
 
+class Marginalizer(abc.ABC):
     QUANT_TYPES = []
     JITTER_PARAMS = []
     REQ_PARAMS = []
     MARG_PARAMS = []
     LNLIKE_TYPE = None
     MULTIBODY = False
-    
+
     @abc.abstractmethod
     def apply(self, param_arr, jitter_arr=None, calculated_values={}):
         pass
 
-class Marg1(Marginalizer):
 
+class Marg1(Marginalizer):
     REQ_PARAMS = ["tau", "per"]
     MARG_PARAMS = ["sma", "pan"]
 
-class Marg2(Marginalizer):
 
+class Marg2(Marginalizer):
     REQ_PARAMS = ["tau", "sma", "pan"]
     MARG_PARAMS = ["gamma"]
 
-class MargConstNoInput(Marginalizer):
 
+class MargConstNoInput(Marginalizer):
     MARG_PARAMS = ["test"]
 
     def apply(self, param_arr, jitter_arr, calculated_values):
@@ -43,9 +43,9 @@ class MargConstNoInput(Marginalizer):
             return 0, np.zeros((n_orbits)), np.ones((n_orbits)), calculated_values
         else:
             return 0, 0, 1, calculated_values
-        
-class MargPriorNoInput(Marginalizer):
 
+
+class MargPriorNoInput(Marginalizer):
     MARG_PARAMS = ["test"]
 
     def __init__(self, priors):
@@ -58,8 +58,13 @@ class MargPriorNoInput(Marginalizer):
         if len(shape) > 1:
             n_orbits = shape[1]
             assert n_orbits > 1
-            samples = np.array([[prior.draw_samples(1).item() for i in range(n_orbits)] for prior in self.priors])  
-            assert samples.shape == (self.dim, n_orbits)  
+            samples = np.array(
+                [
+                    [prior.draw_samples(1).item() for i in range(n_orbits)]
+                    for prior in self.priors
+                ]
+            )
+            assert samples.shape == (self.dim, n_orbits)
             assert not np.isnan(samples).any(), samples
             return 0, np.zeros((n_orbits)), samples, calculated_values
         else:
@@ -68,14 +73,26 @@ class MargPriorNoInput(Marginalizer):
             assert not np.isnan(samples).any(), samples
             return 0, 0, samples, calculated_values
 
-class OFTeI_sma_pan(Marginalizer):
 
+class OFTeI_sma_pan(Marginalizer):
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
     MARG_PARAMS = ["sma1", "pan1"]
     QUANT_TYPES = ["seppa"]
     LNLIKE_TYPE = "chi2"
 
-    def __init__(self, epochs, seps, pas, sigma_seps, sigma_pas, covar_seps_pas, sma_prior=None, pan_prior=None, mass_prior=None, implicit_mass_prior=None):
+    def __init__(
+        self,
+        epochs,
+        seps,
+        pas,
+        sigma_seps,
+        sigma_pas,
+        covar_seps_pas,
+        sma_prior=None,
+        pan_prior=None,
+        mass_prior=None,
+        implicit_mass_prior=None,
+    ):
         self.sma_prior = sma_prior
         self.pan_prior = pan_prior
         self.mass_prior = mass_prior
@@ -117,7 +134,9 @@ class OFTeI_sma_pan(Marginalizer):
         # compute eccentric anomalies (size: n_dates)
         eanom = kepler.calc_ecc_anom(manoms, ecc, use_c=False)
 
-        tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
+        tanom = 2.0 * np.arctan(
+            np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom)
+        )
 
         radius = (1.0 - ecc * np.cos(eanom)) * plx
 
@@ -200,11 +219,22 @@ class OFTeI_sma_pan(Marginalizer):
 
         res = np.array([sma_sample - sma_map, basis.angle_diff(pan_sample, pan_map)])
 
-        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix - np.log(2*np.pi)
+        log_conditional_prob = (
+            -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res
+            - 0.5 * logabsdet_covmatrix
+            - np.log(2 * np.pi)
+        )
 
-        log_conditional_prob -= (n_obs) * np.log(2*np.pi)
+        log_conditional_prob -= (n_obs) * np.log(2 * np.pi)
 
-        return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample, log_conditional_prob
+        return (
+            sma_map,
+            pan_map,
+            logabsdet_covmatrix,
+            sma_sample,
+            pan_sample,
+            log_conditional_prob,
+        )
 
     @staticmethod
     def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
@@ -230,7 +260,7 @@ class OFTeI_sma_pan(Marginalizer):
 
         # NOTE: this term can be ignored unless we're fitting for jitter
         if add_error_norm:
-            error_norm_term = -0.5 * np.linalg.slogdet(W)[1] + np.log(2*np.pi)
+            error_norm_term = -0.5 * np.linalg.slogdet(W)[1] + np.log(2 * np.pi)
         else:
             error_norm_term = 0
 
@@ -258,16 +288,23 @@ class OFTeI_sma_pan(Marginalizer):
         W_inv = self.W_inv
 
         try:
-            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg, log_conditional_prob = (
-                self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W, W_inv)
+            (
+                smas_map,
+                pans_map_degrees,
+                logdet_covmatrix,
+                sma_sample,
+                pan_sample_deg,
+                log_conditional_prob,
+            ) = self.calc_cov_matrix_det(
+                self.seps, self.pas, f_samples, g_samples, W, W_inv
             )
         except np.linalg.LinAlgError:
             return -np.inf, None, None
 
         # set up design matrix
         X = np.zeros((2 * self.n_obs, 2))
-        X[:self.n_obs, 0] = f_samples
-        X[self.n_obs:, 1] = 1
+        X[: self.n_obs, 0] = f_samples
+        X[self.n_obs :, 1] = 1
 
         y = np.hstack((self.seps, basis.angle_diff(self.pas, g_samples)))
         beta_hat = np.hstack((smas_map, pans_map_degrees))
@@ -291,12 +328,12 @@ class OFTeI_sma_pan(Marginalizer):
         # apply total mass prior
         mtot_sample = sma_sample**3 / (period_yr) ** 2
         if self.mass_prior is not None:
-            logprob -= np.sum(self.implicit_mass_prior.compute_lnprob(
-                np.array([mtot_sample])
-            ))  # "undo" the effective prior
-            logprob += np.sum(self.mass_prior.compute_lnprob(
-                np.array([mtot_sample])
-            ))  # apply the user-defined prior
+            logprob -= np.sum(
+                self.implicit_mass_prior.compute_lnprob(np.array([mtot_sample]))
+            )  # "undo" the effective prior
+            logprob += np.sum(
+                self.mass_prior.compute_lnprob(np.array([mtot_sample]))
+            )  # apply the user-defined prior
 
         samples = np.array([sma_sample, pan_sample])
 
@@ -314,7 +351,11 @@ def compatible_params(marginalizers, input_params, data_quants):
         req_params = set(marginalizer.REQ_PARAMS)
         marg_params = set(marginalizer.MARG_PARAMS)
         marg_quants = set(marginalizer.QUANT_TYPES)
-        if not (req_params - params) and not (marg_params & params) and (not (marg_quants) or (quants & marg_quants)):
+        if (
+            not (req_params - params)
+            and not (marg_params & params)
+            and (not (marg_quants) or (quants & marg_quants))
+        ):
             # TODO: differentiate between requiring all quant types vs any quant types
             params |= set(marginalizer.MARG_PARAMS)
         else:

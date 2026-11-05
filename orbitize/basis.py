@@ -120,7 +120,6 @@ class Basis(abc.ABC):
         )
         labels_arr.append("delta0")
 
-
     def set_gaia_dr4_priors(self, priors_arr, labels_arr):
         """
         Adds the necessary priors relevant to the Gaia DR4 data to 'priors_arr'
@@ -685,8 +684,10 @@ class Period(Basis):
 
         return param_arr
 
+
 class OftEiBasis(Basis):
-    def __init__(self,
+    def __init__(
+        self,
         stellar_or_system_mass,
         mass_err,
         plx,
@@ -697,7 +698,8 @@ class OftEiBasis(Basis):
         hipparcos_IAD=None,
         rv=False,
         rv_instruments=None,
-        gaia_dr4=None):
+        gaia_dr4=None,
+    ):
 
         super(OftEiBasis, self).__init__(
             stellar_or_system_mass,
@@ -710,7 +712,7 @@ class OftEiBasis(Basis):
             hipparcos_IAD,
             rv,
             rv_instruments,
-            gaia_dr4
+            gaia_dr4,
         )
         assert not fit_secondary_mass, "Secondary mass not supported yet"
         assert num_secondary_bodies == 1, "Multiplanet not supported yet"
@@ -718,7 +720,7 @@ class OftEiBasis(Basis):
 
     def construct_priors(self):
         """
-        
+
         Generates the parameter label array and initializes the corresponding priors for each
         parameter that's to be sampled. For the standard basis, the parameters common to each
         companion are: per, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
@@ -792,8 +794,9 @@ class OftEiBasis(Basis):
         mtot = (sma**3) / (per**2)
 
         param_arr[self.standard_basis_idx["mtot"]] = mtot
-        
+
         return param_arr
+
 
 class SemiAmp(Basis):
     """
@@ -1025,8 +1028,7 @@ class SemiAmp(Basis):
             np.array of float: the semi-major axis values for each orbit
         """
         sma = np.cbrt(
-            (consts.G * ((m0 + m_n) * u.Msun) * ((period * u.yr) ** 2))
-            / (4 * np.pi**2)
+            (consts.G * ((m0 + m_n) * u.Msun) * ((period * u.yr) ** 2)) / (4 * np.pi**2)
         )
         sma = sma.to(u.AU).value
 
@@ -1408,24 +1410,24 @@ class XYZ(Basis):
             standard_params = self.xyz_to_standard(constrained_epoch, to_convert)
 
             # Update param_arr to hold standard parameters
-            param_arr[
-                self.standard_basis_idx["sma{}".format(body_num)]
-            ] = standard_params[0]
-            param_arr[
-                self.standard_basis_idx["ecc{}".format(body_num)]
-            ] = standard_params[1]
-            param_arr[
-                self.standard_basis_idx["inc{}".format(body_num)]
-            ] = standard_params[2]
-            param_arr[
-                self.standard_basis_idx["aop{}".format(body_num)]
-            ] = standard_params[3]
-            param_arr[
-                self.standard_basis_idx["pan{}".format(body_num)]
-            ] = standard_params[4]
-            param_arr[
-                self.standard_basis_idx["tau{}".format(body_num)]
-            ] = standard_params[5]
+            param_arr[self.standard_basis_idx["sma{}".format(body_num)]] = (
+                standard_params[0]
+            )
+            param_arr[self.standard_basis_idx["ecc{}".format(body_num)]] = (
+                standard_params[1]
+            )
+            param_arr[self.standard_basis_idx["inc{}".format(body_num)]] = (
+                standard_params[2]
+            )
+            param_arr[self.standard_basis_idx["aop{}".format(body_num)]] = (
+                standard_params[3]
+            )
+            param_arr[self.standard_basis_idx["pan{}".format(body_num)]] = (
+                standard_params[4]
+            )
+            param_arr[self.standard_basis_idx["tau{}".format(body_num)]] = (
+                standard_params[5]
+            )
             param_arr[self.standard_basis_idx["plx"]] = standard_params[6]
             param_arr[self.standard_basis_idx["mtot"]] = standard_params[7]
 
@@ -1639,9 +1641,7 @@ class XYZ(Basis):
             2.0 * np.pi
         )
         # Eccentric anomaly
-        eanom = kepler.calc_ecc_anom(
-            manom, ecc, tolerance=tolerance, max_iter=max_iter
-        )
+        eanom = kepler.calc_ecc_anom(manom, ecc, tolerance=tolerance, max_iter=max_iter)
         # if eanom.ndim == 1:
         #     eanom = eanom[np.newaxis, :]
         # Magnitude of angular momentum:
@@ -1820,11 +1820,13 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
 
     return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)
 
+
 def angle_diff(ang1, ang2):
     """
     Difference between two angles (in degrees), account for angle wrapping around 360.
     """
     return (ang1 - ang2 + 180.0) % 360.0 - 180.0
+
 
 def return_quadrant(angle):
     """

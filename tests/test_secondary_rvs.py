@@ -64,15 +64,19 @@ def test_secondary_rv_lnlike_calc():
 
     assert np.all(rv0 == -m1 / m0 * rv1)
 
+
 def test_read_input():
     """
     Test that reading in a data file with only a companion RV and relative astrometry
     works. Added in response to issue #351.
     """
 
-    input_data = read_input.read_file('{}/HD4747.csv'.format(DATADIR)) 
-    input_data['object'] = 1 # make sure all astrometry and RV is marked as of the secondary
+    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data["object"] = (
+        1  # make sure all astrometry and RV is marked as of the secondary
+    )
     mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
+
 
 if __name__ == "__main__":
     test_secondary_rv_lnlike_calc()

@@ -42,15 +42,19 @@ mySystem = system.System(
     system_mass,
     plx,
     tau_ref_epoch=tau_ref_epoch,
-    fitting_basis="OftEiBasis"
+    fitting_basis="OftEiBasis",
 )
 
 sma_prior_min = 0.1  # au
 sma_prior_max = 500  # au
 period_prior_min_yr = np.sqrt(sma_prior_min**3 / system_mass)  # [yr]
 period_prior_max_yr = np.sqrt(sma_prior_max**3 / system_mass)  # [yr]
-mySystem.sys_priors[mySystem.param_idx["sma1"]] = priors.LogUniformPrior(sma_prior_min, sma_prior_max)
-mySystem.sys_priors[mySystem.param_idx["per1"]] = priors.LogUniformPrior(period_prior_min_yr, period_prior_max_yr)
+mySystem.sys_priors[mySystem.param_idx["sma1"]] = priors.LogUniformPrior(
+    sma_prior_min, sma_prior_max
+)
+mySystem.sys_priors[mySystem.param_idx["per1"]] = priors.LogUniformPrior(
+    period_prior_min_yr, period_prior_max_yr
+)
 
 ind = data_table["quant_type"] == "seppa"
 epochs = data_table["epoch"][ind]
@@ -63,21 +67,36 @@ sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
 pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
 mass_prior = priors.GaussianPrior(system_mass, mass_err)
 per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
-implicit_mass_prior = priors.OFTeIMassPrior(sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval)
-marg = marginalizer.OFTeI_sma_pan(epochs, sep, pa, sep_err, pa_err, covar, sma_prior, pan_prior, mass_prior, implicit_mass_prior)
+implicit_mass_prior = priors.OFTeIMassPrior(
+    sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
+)
+marg = marginalizer.OFTeI_sma_pan(
+    epochs,
+    sep,
+    pa,
+    sep_err,
+    pa_err,
+    covar,
+    sma_prior,
+    pan_prior,
+    mass_prior,
+    implicit_mass_prior,
+)
 mySampler = sampler.MCMC(
     mySystem,
     num_temps=num_temps,
     num_walkers=num_walkers,
     num_threads=num_threads,
-    marginalizers=[marg]
+    marginalizers=[marg],
 )
 
-mySampler.run_sampler(num_steps, burn_steps, output_filename=savefile, periodic_save_freq=None)
+mySampler.run_sampler(
+    num_steps, burn_steps, output_filename=savefile, periodic_save_freq=None
+)
 myResults = mySampler.results
 
 end = time.time()
-print(f"Processing time: {end} - {start} = {(end-start) / 60} minutes")
+print(f"Processing time: {end} - {start} = {(end - start) / 60} minutes")
 
 # make corner plot
 p = plot.Plotter(myResults, num_orbits_to_plot=10000)

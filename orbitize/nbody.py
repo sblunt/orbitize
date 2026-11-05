@@ -135,7 +135,7 @@ def calc_orbit(
     # adjusting for parallax
     raoff = plx * ra_reb
     deoff = plx * dec_reb
-    vz = (vz_reb * (u.au / (365.25 * u.day))).to(u.km/u.s).value # au/jyear -> km/s
+    vz = (vz_reb * (u.au / (365.25 * u.day))).to(u.km / u.s).value  # au/jyear -> km/s
 
     # always assume we're using MCMC (i.e. n_orbits = 1)
     raoff = raoff.reshape((tx, indv + 1, 1))
