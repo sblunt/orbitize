@@ -48,7 +48,7 @@ def test_compute_model():
         plx,
         mtot,
         tau_ref_epoch=tau_ref_epoch,
-        mass_for_Kamp=m0
+        mass_for_Kamp=m0,
     )
 
     # generate some fake measurements just to feed into system.py to test bookkeeping
@@ -64,7 +64,16 @@ def test_compute_model():
             vz_model,
             np.zeros(vz_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
+        names=[
+            "epoch",
+            "object",
+            "raoff",
+            "raoff_err",
+            "decoff",
+            "decoff_err",
+            "rv",
+            "rv_err",
+        ],
     )
     filename = os.path.join(orbitize.DATADIR, "multiplanet_fake_1planettest.csv")
     t.write(filename, overwrite=True)
@@ -110,7 +119,6 @@ def test_compute_model():
     )
 
     rv_diff = rv_2body - rv_1body
-    
 
     # clean up
     os.system("rm {}".format(filename))
@@ -196,7 +204,16 @@ def test_fit_selfconsist():
             vz_model,
             0.00001 * np.ones(epochs.shape, dtype=int),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
+        names=[
+            "epoch",
+            "object",
+            "raoff",
+            "raoff_err",
+            "decoff",
+            "decoff_err",
+            "rv",
+            "rv_err",
+        ],
     )
     # add c
     for eps, ra, dec, rv in zip(epochs, ra_model_c, dec_model_c, vz_model_c):

@@ -52,12 +52,12 @@ class GaiaLogProb(object):
         self.gaia_data = gaia_data
 
         if self.dr == "edr3":
-            self.gaia_epoch = Time("J2016", format='jyear_str')
+            self.gaia_epoch = Time("J2016", format="jyear_str")
         elif self.dr == "dr2":
-            self.gaia_epoch = Time("J2015.5", format='jyear_str')
+            self.gaia_epoch = Time("J2015.5", format="jyear_str")
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
-        self.hipparcos_epoch = Time("J1991.25", format='jyear_str')
+        self.hipparcos_epoch = Time("J1991.25", format="jyear_str")
 
         self.ra = gaia_data["ra"]
         self.ra_err = gaia_data["ra_error"]
@@ -115,11 +115,15 @@ class GaiaLogProb(object):
 
         alpha_H0 = samples[param_idx["alpha0"]]  # [deg]
         pm_ra = samples[param_idx["pm_ra"]]  # [mas/jyr]
-        delta_alpha_from_pm = pm_ra * (self.gaia_epoch.jyear - self.hipparcos_epoch.jyear)  # [mas]
+        delta_alpha_from_pm = pm_ra * (
+            self.gaia_epoch.jyear - self.hipparcos_epoch.jyear
+        )  # [mas]
 
         delta_H0 = samples[param_idx["delta0"]]  # [deg]
         pm_dec = samples[param_idx["pm_dec"]]  # [mas/jyr]
-        delta_delta_from_pm = pm_dec * (self.gaia_epoch.jyear - self.hipparcos_epoch.jyear)  # [mas]
+        delta_delta_from_pm = pm_dec * (
+            self.gaia_epoch.jyear - self.hipparcos_epoch.jyear
+        )  # [mas]
 
         # difference in position due to orbital motion between Hipparcos & Gaia epochs
         alpha_diff_orbit = raoff_model[1, :] - raoff_model[0, :]  # [mas]
@@ -127,9 +131,7 @@ class GaiaLogProb(object):
 
         # RA model (not in tangent plane)
         alpha_model = self.hiplogprob.alpha0 + self.mas2deg * (  # [deg]
-            alpha_H0
-            + delta_alpha_from_pm
-            + alpha_diff_orbit
+            alpha_H0 + delta_alpha_from_pm + alpha_diff_orbit
             # divide by cos(dec) to undo projection onto tangent plane
         ) / np.cos(np.radians(self.hiplogprob.delta0))
         alpha_data = self.ra
@@ -156,7 +158,7 @@ class GaiaLogProb(object):
         chi2 = alpha_chi2 + delta_chi2
         lnlike = -0.5 * chi2
 
-        return np.sum(lnlike) # TODO: figure out what is adding a dimensions
+        return np.sum(lnlike)  # TODO: figure out what is adding a dimensions
 
 
 class HGCALogProb(object):
@@ -181,7 +183,7 @@ class HGCALogProb(object):
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
         hgca_filepath (str): path to HGCA catalog FITS file
-            (can be downloaded from 
+            (can be downloaded from
             https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits).
             If None, will check for the file in `orbitize.DATADIR` (default: None)
         hgca_entry (dict): Dictionary of the HGCA catalog entry for this target.
@@ -191,7 +193,9 @@ class HGCALogProb(object):
     Written: Jason Wang, 2022
     """
 
-    def __init__(self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None, hgca_entry=None):
+    def __init__(
+        self, hip_id, hiplogprob, gost_filepath, hgca_filepath=None, hgca_entry=None
+    ):
         if hgca_entry is None:
             # use default HGCA catalog if not supplied
             if hgca_filepath is None:
@@ -222,23 +226,15 @@ class HGCALogProb(object):
 
         # grab the relevant PM and uncertainties from HGCA
         self.hip_pm = np.array([entry["pmra_hip"], entry["pmdec_hip"]])
-        self.hip_pm_err = np.array(
-            [entry["pmra_hip_error"], entry["pmdec_hip_error"]]
-        )
+        self.hip_pm_err = np.array([entry["pmra_hip_error"], entry["pmdec_hip_error"]])
         hip_radec_cov = (
-            entry["pmra_pmdec_hip"]
-            * entry["pmra_hip_error"]
-            * entry["pmdec_hip_error"]
+            entry["pmra_pmdec_hip"] * entry["pmra_hip_error"] * entry["pmdec_hip_error"]
         )
 
         self.hg_pm = np.array([entry["pmra_hg"], entry["pmdec_hg"]])
-        self.hg_pm_err = np.array(
-            [entry["pmra_hg_error"], entry["pmdec_hg_error"]]
-        )
+        self.hg_pm_err = np.array([entry["pmra_hg_error"], entry["pmdec_hg_error"]])
         hg_radec_cov = (
-            entry["pmra_pmdec_hg"]
-            * entry["pmra_hg_error"]
-            * entry["pmdec_hg_error"]
+            entry["pmra_pmdec_hg"] * entry["pmra_hg_error"] * entry["pmdec_hg_error"]
         )
 
         self.gaia_pm = np.array([entry["pmra_gaia"], entry["pmdec_gaia"]])
@@ -275,9 +271,7 @@ class HGCALogProb(object):
         self.gaia_epoch_dec = entry["epoch_dec_gaia"]
         # read in the GOST file to get the estimated Gaia epochs and scan angles
         gost_dat = read(gost_filepath, converters={"*": [int, float, bytes]})
-        self.gaia_epoch = Time(
-            gost_dat["ObservationTimeAtGaia[UTC]"]
-        )  # in julian year
+        self.gaia_epoch = Time(gost_dat["ObservationTimeAtGaia[UTC]"])  # in julian year
         gaia_scan_theta = np.array(gost_dat["scanAngle[rad]"])
         gaia_scan_phi = gaia_scan_theta + np.pi / 2
         self.gaia_cos_phi = np.cos(gaia_scan_phi)
@@ -437,6 +431,7 @@ class HGCALogProb(object):
         x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
 
         return x
+
 
 class DR4LogProb(object):
     r"""
@@ -616,10 +611,7 @@ class DR4LogProb(object):
         pmra = samples[param_idx["pm_ra"]]  # mas/yr
         pmdec = samples[param_idx["pm_dec"]]  # mas/yr
         # project orbital perturbation onto along-scan direction
-        orbit_al = (
-            raoff_model[:, 0] * self.sin_scan
-            + deoff_model[:, 0] * self.cos_scan
-        )
+        orbit_al = raoff_model[:, 0] * self.sin_scan + deoff_model[:, 0] * self.cos_scan
 
         # full along-scan model: position + PM + parallax + orbit
         model_al = (

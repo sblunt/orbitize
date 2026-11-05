@@ -2,37 +2,47 @@ import numpy as np
 import os
 from orbitize import DATADIR
 from astropy.table import Table
-from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results, priors
+from orbitize import (
+    hipparcos,
+    gaia,
+    basis,
+    system,
+    read_input,
+    sampler,
+    results,
+    priors,
+)
 
 gaia_edr3_data = {
     "ra": 86.82123452009108,
     "ra_error": 0.13713108,
     "dec": -51.066136257823345,
-    "dec_error": 0.13109376
+    "dec_error": 0.13109376,
 }
 
 gaia_dr2_data = {
     "ra": 86.82123366090146,
     "ra_error": 0.3136836085700656,
     "dec": -51.06614803159093,
-    "dec_error": 0.34165541753173584
+    "dec_error": 0.34165541753173584,
 }
 
 hip_data = {
-    'RArad': 86.82118072,
-    'e_RArad': 0.1,
-    'DErad': -51.06671341,
-    'e_DErad': 0.11,
-    'Plx': 51.44,
-    'e_Plx': 0.12,
-    'pmRA': 4.65,
-    'e_pmRA': 0.11,
-    'pmDE': 83.1,
-    'e_pmDE': 0.15,
-    'F2': -1.63,
-    'Sn': 5,
-    'var': 0.0
+    "RArad": 86.82118072,
+    "e_RArad": 0.1,
+    "DErad": -51.06671341,
+    "e_DErad": 0.11,
+    "Plx": 51.44,
+    "e_Plx": 0.12,
+    "pmRA": 4.65,
+    "e_pmRA": 0.11,
+    "pmDE": 83.1,
+    "e_pmDE": 0.15,
+    "F2": -1.63,
+    "Sn": 5,
+    "var": 0.0,
 }
+
 
 def test_dr2_edr3():
     """
@@ -46,7 +56,9 @@ def test_dr2_edr3():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
 
     dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
     dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, gaia_dr2_data, dr="dr2")
@@ -63,7 +75,9 @@ def test_system_setup():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
     myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
@@ -113,7 +127,9 @@ def test_valueerror():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
     try:
         myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
         assert False, "Test failed!"
@@ -156,7 +172,9 @@ def test_orbit_calculation():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
     myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
 
     param_idx = {
@@ -256,8 +274,12 @@ def test_hgca():
     astrometry_filepath = os.path.join(DATADIR, "betaPic.csv")
     hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3_betapic.fits")
 
-    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1, hip_data=hip_data)
-    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath, hgca_filepath)
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(
+        iad_filepath, "027321", 1, hip_data=hip_data
+    )
+    hgca_lnprob = gaia.HGCALogProb(
+        27321, hipparcos_lnprob, gost_filepath, hgca_filepath
+    )
 
     # test a few things were read in correctly
     assert np.all(np.isfinite(hgca_lnprob.hip_pm))
@@ -315,30 +337,36 @@ def test_hgca():
 
     os.remove("hgca_test.hdf5")
 
+
 def test_dr4_likelihood():
     """Check the AL model and Gaussian likelihood with sampled jitter."""
     # make mock data
     ref_epoch = 57936.375
-    data = Table({
-        "obs_time_tcb": [ref_epoch + 365.25, ref_epoch + 2 * 365.25],
-        "centroid_pos_al": [22.0, 5.0],
-        "centroid_pos_error_al": [1.0, 2.0],
-        "scan_pos_angle": [0.0, np.pi / 2],
-        "parallax_factor_al": [1.0, -1.0],
-        "field_of_view": [0, 1],
-    })
+    data = Table(
+        {
+            "obs_time_tcb": [ref_epoch + 365.25, ref_epoch + 2 * 365.25],
+            "centroid_pos_al": [22.0, 5.0],
+            "centroid_pos_error_al": [1.0, 2.0],
+            "scan_pos_angle": [0.0, np.pi / 2],
+            "parallax_factor_al": [1.0, -1.0],
+            "field_of_view": [0, 1],
+        }
+    )
     data.meta.update(time_format="mjd", time_scale="tcb")
 
-    #buile dr4 likelihood
+    # buile dr4 likelihood
     dr4 = gaia.DR4LogProb(
-        0, data,
+        0,
+        data,
         ref_epoch_mjd=ref_epoch,
         jitter_prior=priors.UniformPrior(0.0, 2.0),
     )
-    param_idx = dict(zip(
-        ["plx", "alpha0", "delta0", "pm_ra", "pm_dec", "dr4_jitter"],
-        range(6),
-    ))
+    param_idx = dict(
+        zip(
+            ["plx", "alpha0", "delta0", "pm_ra", "pm_dec", "dr4_jitter"],
+            range(6),
+        )
+    )
 
     samples = np.array([5.0, 10.0, 20.0, 2.0, -1.0, 0.0])
     raoff = np.array([[1.0], [2.0]])
@@ -351,12 +379,10 @@ def test_dr4_likelihood():
         (1.0, -12.83916961290637),
     ]:
         samples[param_idx["dr4_jitter"]] = jitter
-        actual = dr4.compute_lnlike(
-            raoff, decoff, samples, param_idx
-        )
-        np.testing.assert_allclose(
-            actual, expected, rtol=0, atol=1e-12
-        )
+        actual = dr4.compute_lnlike(raoff, decoff, samples, param_idx)
+        np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
+
+
 if __name__ == "__main__":
     # test_dr2_edr3()
     # test_system_setup()

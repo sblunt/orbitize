@@ -46,11 +46,23 @@ def test_1planet():
         epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch
     )
     ra_model, dec_model, vz_pl_model, _ = kepler.calc_orbit(
-        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, tau_ref_epoch=tau_ref_epoch, mass_for_Kamp=m0
+        epochs,
+        sma,
+        ecc,
+        inc,
+        aop,
+        pan,
+        tau,
+        plx,
+        mtot,
+        tau_ref_epoch=tau_ref_epoch,
+        mass_for_Kamp=m0,
     )
-    vz_pl_model *= -1 # orbitize coordinate system (compute_model does this automatically)
+    vz_pl_model *= (
+        -1
+    )  # orbitize coordinate system (compute_model does this automatically)
 
-    # generate some fake measurements of the planet (relative astrom & relative secondary rv) 
+    # generate some fake measurements of the planet (relative astrom & relative secondary rv)
     # just to feed into system.py to test bookkeeping
     t = Table(
         [
@@ -63,16 +75,26 @@ def test_1planet():
             vz_pl_model - vz_st_model,
             np.zeros(dec_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
+        names=[
+            "epoch",
+            "object",
+            "raoff",
+            "raoff_err",
+            "decoff",
+            "decoff_err",
+            "rv",
+            "rv_err",
+        ],
     )
     # add fake measurements of the planet (stellar rv)
     t_rvs = Table(
         [
             epochs,
             np.zeros(epochs.shape, dtype=int),
-            vz_st_model, np.zeros(vz_st_model.shape)
+            vz_st_model,
+            np.zeros(vz_st_model.shape),
         ],
-        names=["epoch", "object",  "rv", "rv_err"],
+        names=["epoch", "object", "rv", "rv_err"],
     )
     t = vstack([t, t_rvs])
 
@@ -82,7 +104,9 @@ def test_1planet():
     # create the orbitize system and generate model predictions using the ground truth
     data = read_input.read_file(filename)
 
-    sys = system.System(1, data, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True)
+    sys = system.System(
+        1, data, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True
+    )
 
     jit = 0
     gamma = 0
@@ -92,8 +116,8 @@ def test_1planet():
 
     ra_orb = modelpredict_orbitize[:200:2, 0]
     dec_orb = modelpredict_orbitize[:200:2, 1]
-    rv_pl_orb = modelpredict_orbitize[1:200:2,0]
-    rv_star_orb = modelpredict_orbitize[200:,0]
+    rv_pl_orb = modelpredict_orbitize[1:200:2, 0]
+    rv_star_orb = modelpredict_orbitize[200:, 0]
 
     # now project the orbit with rebound
     manom = kepler.tau_to_manom(epochs[0], sma, mtot, tau, tau_ref_epoch)
@@ -131,9 +155,8 @@ def test_1planet():
 
     ra_reb = np.array(ra_reb)
     dec_reb = np.array(dec_reb)
-    rv_star_reb = np.array(rv_star_reb) * (u.au/u.yr).to(u.km/u.s)
-    rv_pl_reb = np.array(rv_pl_reb) * (u.au/u.yr).to(u.km/u.s)
-
+    rv_star_reb = np.array(rv_star_reb) * (u.au / u.yr).to(u.km / u.s)
+    rv_pl_reb = np.array(rv_pl_reb) * (u.au / u.yr).to(u.km / u.s)
 
     diff_ra = ra_reb - ra_orb / plx
     diff_dec = dec_reb - dec_orb / plx
@@ -233,7 +256,16 @@ def test_2planet_massive():
             b_vz_model,
             np.zeros(b_dec_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
+        names=[
+            "epoch",
+            "object",
+            "raoff",
+            "raoff_err",
+            "decoff",
+            "decoff_err",
+            "rv",
+            "rv_err",
+        ],
     )
 
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_outer.csv")
@@ -258,7 +290,7 @@ def test_2planet_massive():
 
     b_ra_orb = modelpredict_orbitize[:200:2, 0]
     b_dec_orb = modelpredict_orbitize[:200:2, 1]
-    b_rv_pl_orb = modelpredict_orbitize[1:200:2,0]
+    b_rv_pl_orb = modelpredict_orbitize[1:200:2, 0]
 
     # debug, generate measurement without c having any mass
     radec_orb_noc, _ = sys.compute_model(params_noc)
@@ -323,7 +355,7 @@ def test_2planet_massive():
 
     b_ra_reb = np.array(b_ra_reb)
     b_dec_reb = np.array(b_dec_reb)
-    b_rv_reb = np.array(b_rv_reb) * (u.au/u.yr).to(u.km/u.s)
+    b_rv_reb = np.array(b_rv_reb) * (u.au / u.yr).to(u.km / u.s)
 
     diff_ra = b_ra_reb - b_ra_orb / params[6 * 2]
     diff_dec = b_dec_reb - b_dec_orb / params[6 * 2]
@@ -354,7 +386,16 @@ def test_2planet_massive():
             b_vz_model,
             np.zeros(b_vz_model.shape),
         ],
-        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err", "rv", "rv_err"],
+        names=[
+            "epoch",
+            "object",
+            "raoff",
+            "raoff_err",
+            "decoff",
+            "decoff_err",
+            "rv",
+            "rv_err",
+        ],
     )
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_inner.csv")
     t.write(filename, overwrite=True)
@@ -375,8 +416,7 @@ def test_2planet_massive():
     radec_orbitize, _ = sys.compute_model(params)
     c_ra_orb = radec_orbitize[:200:2, 0]
     c_dec_orb = radec_orbitize[:200:2, 1]
-    c_rv_orb = radec_orbitize[1:200:2,0]
-
+    c_rv_orb = radec_orbitize[1:200:2, 0]
 
     # start the REBOUND sim again
     sim = rebound.Simulation()
@@ -431,7 +471,7 @@ def test_2planet_massive():
 
     diff_ra = c_ra_reb - c_ra_orb / params[6 * 2]
     diff_dec = c_dec_reb - c_dec_orb / params[6 * 2]
-    diff_relative_rv = ((c_relative_rv_reb * u.au/u.yr).to(u.km/u.s).value - c_rv_orb)  
+    diff_relative_rv = (c_relative_rv_reb * u.au / u.yr).to(u.km / u.s).value - c_rv_orb
 
     # planet is 3 times closer, so roughly 3 times larger secular errors.
     assert np.all(np.abs(diff_ra) / (params[0]) < 3e-3)
@@ -442,9 +482,10 @@ def test_2planet_massive():
     # clean up
     os.system("rm {}".format(filename))
 
+
 def test_2planet_massive_stellar_rv():
     """
-    Check that our RV computation for the epicycle approx agrees with 
+    Check that our RV computation for the epicycle approx agrees with
     rebound.
     """
 
@@ -468,8 +509,8 @@ def test_2planet_massive_stellar_rv():
             np.radians(45),
             0.2,
             50,
-            0, # gamma
-            0, # jitter
+            0,  # gamma
+            0,  # jitter
             mass_b,
             mass_c,
             1.5 - mass_b - mass_c,
@@ -565,15 +606,14 @@ def test_2planet_massive_stellar_rv():
         sim.integrate(t / 365.25)
         rv_st.append(ps[0].vz)
 
-    rv_st = np.array(rv_st) * (u.au/u.yr).to(u.km/u.s)
+    rv_st = np.array(rv_st) * (u.au / u.yr).to(u.km / u.s)
 
-    diff_relative_rv = (rv_st - st_rv_orb)  
+    diff_relative_rv = rv_st - st_rv_orb
     K_amp_st = np.abs(np.max(rv_st))
     assert np.all(np.abs(diff_relative_rv) / K_amp_st < 1e-2)
 
     # clean up
     os.system("rm {}".format(filename))
-
 
 
 def test_2planet_massive_reverse_order():

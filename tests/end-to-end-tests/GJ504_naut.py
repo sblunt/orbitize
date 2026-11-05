@@ -51,18 +51,24 @@ my_system = system.System(
 
 my_sampler = sampler.NautilusSampler(my_system, like=likelihood_func_name)
 
-print(f"Running {datafile} sampler with {n_threads} {n_live} {n_update} {sampler_args} {run_args}")
+print(
+    f"Running {datafile} sampler with {n_threads} {n_live} {n_update} {sampler_args} {run_args}"
+)
 # Run the sampler to compute some orbits, yeah!
-my_sampler.run_sampler(n_live,
-                       n_update,
-                       verbose=False,
-                       num_threads=n_threads,
-                       savefile=naut_file,
-                       sampler_kwargs=sampler_args,
-                       run_kwargs=run_args)
+my_sampler.run_sampler(
+    n_live,
+    n_update,
+    verbose=False,
+    num_threads=n_threads,
+    savefile=naut_file,
+    sampler_kwargs=sampler_args,
+    run_kwargs=run_args,
+)
 
 end = time.time()
-print(f"Processing time: {end} - {my_sampler.start} = {(end-my_sampler.start) / 60} minutes")
+print(
+    f"Processing time: {end} - {my_sampler.start} = {(end - my_sampler.start) / 60} minutes"
+)
 
 
 my_sampler.results.save_results(results_file)

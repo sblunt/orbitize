@@ -10,14 +10,16 @@ from orbitize import simulate_dr4 as sim
 def _write_gost(tmp_path, epochs, scan_angles, parallax_factors):
     """Create a tiny GOST file with JD(TCB) timestamps."""
     path = tmp_path / "gost.csv"
-    Table({
-        "ObservationTimeAtBarycentre[BarycentricJulianDateInTCB]": (
-            np.asarray(epochs) + 2400000.5
-        ),
-        "scanAngle[rad]": scan_angles,
-        "parallaxFactorAlongScan": parallax_factors,
-        "Fov[FovP=preceding/FovF=following]": ["FoVP"] * len(epochs),
-    }).write(path, format="ascii.csv")
+    Table(
+        {
+            "ObservationTimeAtBarycentre[BarycentricJulianDateInTCB]": (
+                np.asarray(epochs) + 2400000.5
+            ),
+            "scanAngle[rad]": scan_angles,
+            "parallaxFactorAlongScan": parallax_factors,
+            "Fov[FovP=preceding/FovF=following]": ["FoVP"] * len(epochs),
+        }
+    ).write(path, format="ascii.csv")
     return path
 
 
@@ -34,7 +36,7 @@ def gost_file(tmp_path):
 
 def test_simulate_dr4_linear_model(gost_file, monkeypatch):
     """Position, proper motion, and parallax give known AL positions."""
-    #make random noise 0
+    # make random noise 0
     monkeypatch.setattr(sim, "al_uncertainty", lambda g_mag: 0.0)
 
     # make ra0, dec0, pmra, pmdec, plx
@@ -54,9 +56,7 @@ def test_simulate_dr4_linear_model(gost_file, monkeypatch):
         rtol=0,
         atol=1e-12,
     )
-    np.testing.assert_array_equal(
-        table["centroid_pos_error_al"], np.zeros(3)
-    )
+    np.testing.assert_array_equal(table["centroid_pos_error_al"], np.zeros(3))
 
     assert table["obs_time_tcb"].unit == u.day
     assert table["centroid_pos_al"].unit == u.mas
@@ -70,9 +70,7 @@ def test_simulate_dr4_stellar_reflex(tmp_path, monkeypatch):
     monkeypatch.setattr(sim, "al_uncertainty", lambda g_mag: 0.0)
 
     # period to sma
-    period_days = np.sqrt(
-        4 * np.pi**2 * u.au**3 / (const.G * u.Msun)
-    ).to_value(u.day)
+    period_days = np.sqrt(4 * np.pi**2 * u.au**3 / (const.G * u.Msun)).to_value(u.day)
 
     # make mock gost file
     ref = sim.DR4_REF_EPOCH_MJD
@@ -96,9 +94,7 @@ def test_simulate_dr4_stellar_reflex(tmp_path, monkeypatch):
         m1=0.01,
     )
     # make mock dr4 data
-    table = sim.simulate_dr4(
-        path, params, seed=123, tau_ref_epoch=ref
-    )
+    table = sim.simulate_dr4(path, params, seed=123, tau_ref_epoch=ref)
 
     # Relative orbit radius: 20 mas.
     # Stellar reflex radius: 0.01 * 20 = 0.2 mas.

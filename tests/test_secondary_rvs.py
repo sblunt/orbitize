@@ -37,11 +37,11 @@ def test_secondary_rv_lnlike_calc():
 
     # compute RV of star
     _, _, rv_s, _ = calc_orbit(
-        epochs, a, e, i, omega+np.pi, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
+        epochs, a, e, i, omega + np.pi, Omega, tau, plx, m0 + m1, mass_for_Kamp=m1
     )
 
     # first check that the relationship between the RV datasets is what we expect
-    assert np.all(np.isclose(rv_s, -rv_p * m1/m0))
+    assert np.all(np.isclose(rv_s, -rv_p * m1 / m0))
 
     data_file = DataFrame(columns=["epoch", "object", "rv", "rv_err"])
     data_file.epoch = epochs
@@ -74,7 +74,8 @@ def test_secondary_rv_lnlike_calc():
 
     # check that the output of compute_model for the secondary is the difference between the primary
     # and secondary RV signals
-    assert np.all(np.isclose(rv1.flatten(), rv_p-rv_s))
+    assert np.all(np.isclose(rv1.flatten(), rv_p - rv_s))
+
 
 def test_read_input():
     """
@@ -82,24 +83,29 @@ def test_read_input():
     works. Added in response to issue #351.
     """
 
-    input_data = read_input.read_file('{}/HD4747.csv'.format(DATADIR)) 
-    input_data['object'] = 1 # make sure all astrometry and RV is marked as of the secondary
+    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data["object"] = (
+        1  # make sure all astrometry and RV is marked as of the secondary
+    )
     mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
+
 
 def test_secondary_rvs_inst_specified():
     """
     Check that orbitize! sets up the System object correctly (i.e. doesn't fit for
     gamma and jitter) even with multiple instruments specified for relative RVs.
     """
-    input_data = read_input.read_file('{}/HD4747.csv'.format(DATADIR)) 
-    input_data['object'] = 1 # make sure all astrometry and RV is marked as of the secondary
-    input_data['inst'] = "test"
+    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data["object"] = (
+        1  # make sure all astrometry and RV is marked as of the secondary
+    )
+    input_data["inst"] = "test"
     mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
 
     # check that inclusion of secondary RVs doesn't trigger gamma/jitter params to be created
     assert not mySystem.fit_secondary_mass
     for param in mySystem.param_idx.keys():
-        assert not param.startswith('gamma') and not param.startswith('jit')
+        assert not param.startswith("gamma") and not param.startswith("jit")
 
 
 if __name__ == "__main__":

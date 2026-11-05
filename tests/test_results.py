@@ -101,10 +101,15 @@ def test_init_and_add_samples(radec_input=False, weighted=False):
         sim_weighted_post = simulate_orbit_sampling(n_weighted_orbit_draws1)
         sim_weighted_lnlike = np.random.uniform(size=n_weighted_orbit_draws1)
         sim_weight = np.random.uniform(size=n_weighted_orbit_draws1)
-        sim_lnweight = np.log(sim_weight / np.sum(sim_weight)) # Normalize
+        sim_lnweight = np.log(sim_weight / np.sum(sim_weight))  # Normalize
         # Test adding samples
-        results_obj.add_samples(sim_post, sim_lnlike, weighted_post=sim_weighted_post,
-                                weighted_lnlike=sim_weighted_lnlike, lnweight=sim_lnweight)
+        results_obj.add_samples(
+            sim_post,
+            sim_lnlike,
+            weighted_post=sim_weighted_post,
+            weighted_lnlike=sim_weighted_lnlike,
+            lnweight=sim_lnweight,
+        )
     else:
         # Test adding samples
         results_obj.add_samples(sim_post, sim_lnlike)  # , labels=std_labels)
@@ -123,7 +128,7 @@ def test_init_and_add_samples(radec_input=False, weighted=False):
         assert results_obj.weighted_post.shape == (expected_length_weighted, 8)
         assert results_obj.weighted_lnlike.shape == (expected_length_weighted,)
         assert results_obj.weights.shape == (expected_length_weighted,)
-        
+
     assert results_obj.tau_ref_epoch == 58849
     assert results_obj.labels == std_labels
 
@@ -153,10 +158,15 @@ def results_to_test():
     sim_weighted_post = simulate_orbit_sampling(n_weighted_orbit_draws)
     sim_weighted_lnlike = np.random.uniform(size=n_weighted_orbit_draws)
     sim_weight = np.random.uniform(size=n_weighted_orbit_draws)
-    sim_lnweight = np.log(sim_weight / np.sum(sim_weight)) # Normalize
+    sim_lnweight = np.log(sim_weight / np.sum(sim_weight))  # Normalize
     # Test adding weighted and more samples
-    results_obj.add_samples(sim_post, sim_lnlike, weighted_post=sim_weighted_post,
-                            weighted_lnlike=sim_weighted_lnlike, lnweight=sim_lnweight)
+    results_obj.add_samples(
+        sim_post,
+        sim_lnlike,
+        weighted_post=sim_weighted_post,
+        weighted_lnlike=sim_weighted_lnlike,
+        lnweight=sim_lnweight,
+    )
     # Return object for testing
     return results_obj
 
@@ -200,7 +210,9 @@ def test_save_and_load_results(results_to_test, has_lnlike=True):
     assert np.array_equal(results_to_save.lnweight, loaded_results.lnweight)
     if has_lnlike:
         assert np.array_equal(results_to_save.lnlike, loaded_results.lnlike)
-        assert np.array_equal(results_to_save.weighted_lnlike, loaded_results.weighted_lnlike)
+        assert np.array_equal(
+            results_to_save.weighted_lnlike, loaded_results.weighted_lnlike
+        )
     # Try to load the saved results again, this time appending
     loaded_results.load_results(save_filename, append=True)
     # Now check that the loaded results object has the expected size
@@ -247,7 +259,6 @@ def test_plot_corner(results_to_test):
     Figure4 = results_to_test.plot_corner(downsample=1000)
     assert Figure4 is not None
 
-
     return Figure1, Figure2, Figure3, Figure4
 
 
@@ -277,24 +288,26 @@ def test_plot_orbits(results_to_test):
     assert Figure5 is not None
     return (Figure1, Figure2, Figure3, Figure4, Figure5)
 
+
 def test_downsample(results_to_test):
     """
     Test downsample() with simulated posterior samples
     """
     size = results_to_test.weighted_post.shape[0]
-    post, lnlikes = results_to_test.downsample(size*2, duplicates=True)
-    assert post.shape[0] == size*2
-    assert lnlikes.shape[0] == size*2
+    post, lnlikes = results_to_test.downsample(size * 2, duplicates=True)
+    assert post.shape[0] == size * 2
+    assert lnlikes.shape[0] == size * 2
     post, lnlikes = results_to_test.downsample(size, duplicates=False)
     assert post.shape[0] == size
     assert lnlikes.shape[0] == size
     try:
-        post, lnlikes = results_to_test.downsample(size+1, duplicates=False)
+        post, lnlikes = results_to_test.downsample(size + 1, duplicates=False)
     except ValueError:
-        pass # Expected error when taking too many samples without replacement
+        pass  # Expected error when taking too many samples without replacement
     else:
-        assert False, "Expected ValueError for drawing more samples than possible without duplicates did not occur"
-
+        assert False, (
+            "Expected ValueError for drawing more samples than possible without duplicates did not occur"
+        )
 
 
 def test_save_and_load_hipparcos_only():
@@ -307,22 +320,24 @@ def test_save_and_load_hipparcos_only():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
     hip_data = {
-        'RArad': 86.82118072,
-        'e_RArad': 0.1,
-        'DErad': -51.06671341,
-        'e_DErad': 0.11,
-        'Plx': 51.44,
-        'e_Plx': 0.12,
-        'pmRA': 4.65,
-        'e_pmRA': 0.11,
-        'pmDE': 83.1,
-        'e_pmDE': 0.15,
-        'F2': -1.63,
-        'Sn': 5,
-        'var': 0.0
+        "RArad": 86.82118072,
+        "e_RArad": 0.1,
+        "DErad": -51.06671341,
+        "e_DErad": 0.11,
+        "Plx": 51.44,
+        "e_Plx": 0.12,
+        "pmRA": 4.65,
+        "e_pmRA": 0.11,
+        "pmDE": 83.1,
+        "e_pmDE": 0.15,
+        "F2": -1.63,
+        "Sn": 5,
+        "var": 0.0,
     }
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
     data_table_with_rvs = read_input.read_file(input_file)
@@ -365,28 +380,30 @@ def test_save_and_load_gaia_and_hipparcos():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
     hip_data = {
-        'RArad': 86.82118072,
-        'e_RArad': 0.1,
-        'DErad': -51.06671341,
-        'e_DErad': 0.11,
-        'Plx': 51.44,
-        'e_Plx': 0.12,
-        'pmRA': 4.65,
-        'e_pmRA': 0.11,
-        'pmDE': 83.1,
-        'e_pmDE': 0.15,
-        'F2': -1.63,
-        'Sn': 5,
-        'var': 0.0
+        "RArad": 86.82118072,
+        "e_RArad": 0.1,
+        "DErad": -51.06671341,
+        "e_DErad": 0.11,
+        "Plx": 51.44,
+        "e_Plx": 0.12,
+        "pmRA": 4.65,
+        "e_pmRA": 0.11,
+        "pmDE": 83.1,
+        "e_pmDE": 0.15,
+        "F2": -1.63,
+        "Sn": 5,
+        "var": 0.0,
     }
     gaia_dr2_data = {
         "ra": 86.82123366090146,
         "ra_error": 0.3136836085700656,
         "dec": -51.06614803159093,
-        "dec_error": 0.34165541753173584
+        "dec_error": 0.34165541753173584,
     }
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
     myGaia = gaia.GaiaLogProb(gaia_num, myHip, gaia_dr2_data, dr="dr2")
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
@@ -439,8 +456,8 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results, has_lnlike=True)
     test_save_and_load_results(test_results, has_lnlike=False)
     test_save_and_load_results(test_results, has_lnlike=False)
-    test_corner_fig1, test_corner_fig2, test_corner_fig3, test_corner_fig4 = test_plot_corner(
-        test_results
+    test_corner_fig1, test_corner_fig2, test_corner_fig3, test_corner_fig4 = (
+        test_plot_corner(test_results)
     )
     test_orbit_figs = test_plot_orbits(test_results)
     test_orbit_figs = test_plot_orbits(test_results_radec)
@@ -464,8 +481,8 @@ if __name__ == "__main__":
     test_save_and_load_results(test_results_weighted, has_lnlike=True)
     test_save_and_load_results(test_results_weighted, has_lnlike=False)
     test_save_and_load_results(test_results_weighted, has_lnlike=False)
-    test_corner_fig5, test_corner_fig6, test_corner_fig7, test_corner_fig8 = test_plot_corner(
-        test_results_weighted
+    test_corner_fig5, test_corner_fig6, test_corner_fig7, test_corner_fig8 = (
+        test_plot_corner(test_results_weighted)
     )
     test_corner_fig5.savefig("test_corner5.png")
     test_corner_fig6.savefig("test_corner6.png")

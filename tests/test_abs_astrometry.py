@@ -88,9 +88,9 @@ def test_arbitrary_abs_astrom():
         path_to_iad_file, hip_num, num_secondary_bodies
     )
 
-    epochs = Time(
-        testHiPIAD.alphadec0_epoch, format="jyear"
-    ).mjd + np.array([0, 365.25/2, 365.25])
+    epochs = Time(testHiPIAD.alphadec0_epoch, format="jyear").mjd + np.array(
+        [0, 365.25 / 2, 365.25]
+    )
     ra_model = np.zeros(epochs.shape)
     dec_model = np.zeros(epochs.shape)
 
