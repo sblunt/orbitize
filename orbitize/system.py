@@ -5,6 +5,7 @@ from orbitize.read_input import read_file
 from orbitize.gaia import DR4LogProb
 import matplotlib.pyplot as plt
 
+
 class System(object):
     """
     A class to store information about a system (data & priors)
@@ -18,9 +19,9 @@ class System(object):
             ``orbitize.read_input.read_file()``. Pass None for a fit
             using only ``gaia`` or ``hipparcos_IAD`` observations.
         stellar_or_system_mass (float): mass of the primary star (if fitting for
-            dynamical masses of both components, for example when you have both 
-            astrometry and RVs) or total system mass (if fitting for total system 
-            mass only, as in the case of a vanilla 2-body fit using relative 
+            dynamical masses of both components, for example when you have both
+            astrometry and RVs) or total system mass (if fitting for total system
+            mass only, as in the case of a vanilla 2-body fit using relative
             astrometry only ) [M_sol]
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
@@ -74,19 +75,30 @@ class System(object):
         # Allow absolute astrometry fits without a separate data table.
         if data_table is None:
             if gaia is None and hipparcos_IAD is None:
-                raise ValueError(
-                    "Provide data_table, gaia, or hipparcos_IAD."
-                )
+                raise ValueError("Provide data_table, gaia, or hipparcos_IAD.")
 
             data_table = table.Table(
                 names=(
-                    "epoch", "object", "quant1", "quant1_err",
-                    "quant2", "quant2_err", "quant12_corr",
-                    "quant_type", "instrument",
+                    "epoch",
+                    "object",
+                    "quant1",
+                    "quant1_err",
+                    "quant2",
+                    "quant2_err",
+                    "quant12_corr",
+                    "quant_type",
+                    "instrument",
                 ),
                 dtype=(
-                    float, int, float, float,
-                    float, float, float, "U5", "U20",
+                    float,
+                    int,
+                    float,
+                    float,
+                    float,
+                    float,
+                    float,
+                    "U5",
+                    "U20",
                 ),
             )
         self.data_table = data_table
@@ -165,18 +177,18 @@ class System(object):
                 np.intersect1d(self.body_indices[body_num], seppa_indices)
             )
             self.rv.append(np.intersect1d(self.body_indices[body_num], rv_indices))
-            self.brightness.append(np.intersect1d(self.body_indices[body_num], brightness_indices))
+            self.brightness.append(
+                np.intersect1d(self.body_indices[body_num], brightness_indices)
+            )
 
         # we should track the influence of the planet(s) on each other/the star if:
         # we are not fitting massless planets and
         # we have more than 1 companion OR we have stellar astrometry
         self.track_planet_perturbs = self.fit_secondary_mass and (
-            (
-                ((len(self.radec[0]) + len(self.seppa[0])) > 0)
-                or (self.num_secondary_bodies > 1)
-                or (hipparcos_IAD is not None)
-                or (gaia is not None)
-            )
+            ((len(self.radec[0]) + len(self.seppa[0])) > 0)
+            or (self.num_secondary_bodies > 1)
+            or (hipparcos_IAD is not None)
+            or (gaia is not None)
         )
 
         if self.hipparcos_IAD is not None:
@@ -266,7 +278,7 @@ class System(object):
             rv=contains_rv,
             rv_instruments=self.rv_instruments,
             gaia_dr4=self.gaia if contains_gaiadr4 else None,
-            **self.extra_basis_kwargs
+            **self.extra_basis_kwargs,
         )
 
         self.basis.verify_params()
@@ -287,7 +299,6 @@ class System(object):
             self.pm_plx_predictor = hipparcos.PMPlx_Motion(
                 self.stellar_astrom_epochs, alpha0, delta0, alphadec0_epoch
             )
-
 
         self.secondary_mass_indx = [
             self.basis.standard_basis_idx[i]
@@ -332,6 +343,7 @@ class System(object):
         ]
 
         self.param_idx = self.basis.param_idx
+
     def save(self, hf):
         """
         Saves the current object to an hdf5 file
@@ -367,8 +379,11 @@ class System(object):
         hf.attrs["use_rebound"] = self.use_rebound
 
     def compute_all_orbits(
-            self, params_arr, epochs=None, comp_rebound=False,
-            params_basis="standard",
+        self,
+        params_arr,
+        epochs=None,
+        comp_rebound=False,
+        params_basis="standard",
     ):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
@@ -404,7 +419,7 @@ class System(object):
                     relative to the barycenter, and RVs of secondary companions
                     are relative to the primary.
 
-                brightness (np.array of float): N_epochs x N_bodies x N_orbits of 
+                brightness (np.array of float): N_epochs x N_bodies x N_orbits of
                     photometric brightness predictions, assuming a Lambertian disk
                     reflection law, at each epoch. Normalized so that brightness=1
                     at maximum.
@@ -412,9 +427,7 @@ class System(object):
         if params_basis == "fitting":
             params_arr = self.basis.to_standard_basis(np.copy(params_arr))
         elif params_basis != "standard":
-            raise ValueError(
-                "params_basis must be 'standard' or 'fitting'."
-            )
+            raise ValueError("params_basis must be 'standard' or 'fitting'.")
         if epochs is None:
             epochs = self.data_table["epoch"]
 
@@ -509,13 +522,13 @@ class System(object):
                     within_orbit = all_smas <= sma
                     all_pl_masses = params_arr[self.secondary_mass_indx]
                     inside_masses = np.where(within_orbit, all_pl_masses, 0)
-                    if params_arr.ndim > 1: # Multi-orbit
-                        if inside_masses.ndim > 1: # Multi-(inner)planet
+                    if params_arr.ndim > 1:  # Multi-orbit
+                        if inside_masses.ndim > 1:  # Multi-(inner)planet
                             mtot = np.sum(inside_masses, axis=0) + m0
-                        else: # No inner companions, only primary
+                        else:  # No inner companions, only primary
                             # In this case inside_masses = mass
                             mtot = inside_masses + m0
-                    else: # Single orbit
+                    else:  # Single orbit
                         mtot = np.sum(inside_masses) + m0
 
                 else:
@@ -533,7 +546,9 @@ class System(object):
                 # coordinates, this body's velocity relative to the system barycenter is
                 # scaled by (interior mass / mtot)
                 if self.fit_secondary_mass:
-                    m_interior = mtot - mass # mtot is mass of all bodies <= semimajor axis of companion body_num
+                    m_interior = (
+                        mtot - mass
+                    )  # mtot is mass of all bodies <= semimajor axis of companion body_num
                 else:
                     m_interior = None
 
@@ -548,21 +563,23 @@ class System(object):
                     tau,
                     plx,
                     mtot,
-                    mass_for_Kamp=m_interior, # using m_interior yields RV relative to the barycenter of companion body_num
+                    mass_for_Kamp=m_interior,  # using m_interior yields RV relative to the barycenter of companion body_num
                     tau_ref_epoch=self.tau_ref_epoch,
                 )
 
-                R = (sma*(1-ecc**2))/(1+ecc*np.cos(tanom))
-        
-                z = (R)*(-np.cos(argp)*np.sin(inc)*np.sin(tanom)-np.cos(tanom)*np.sin(inc)*np.sin(argp))
-                
-                B = np.arctan2(-R, z)+ np.pi
-        
-                alpha = (1/np.pi)*(np.sin(B)+(np.pi-B)*np.cos(B))
+                R = (sma * (1 - ecc**2)) / (1 + ecc * np.cos(tanom))
 
-                albedo = 0.5 # NOTE: we're only fitting relative changes in brightness, so the actual value of albedo doesn't matter
-                brightness = albedo*alpha/R**2
-        
+                z = (R) * (
+                    -np.cos(argp) * np.sin(inc) * np.sin(tanom)
+                    - np.cos(tanom) * np.sin(inc) * np.sin(argp)
+                )
+
+                B = np.arctan2(-R, z) + np.pi
+
+                alpha = (1 / np.pi) * (np.sin(B) + (np.pi - B) * np.cos(B))
+
+                albedo = 0.5  # NOTE: we're only fitting relative changes in brightness, so the actual value of albedo doesn't matter
+                brightness = albedo * alpha / R**2
 
                 # raoff, decoff, vz are scalers if the length of epochs is 1
                 if len(epochs) == 1:
@@ -575,16 +592,19 @@ class System(object):
                 ra_kepler[:, body_num, :] = np.reshape(raoff, (n_epochs, n_orbits))
                 dec_kepler[:, body_num, :] = np.reshape(decoff, (n_epochs, n_orbits))
                 vz[:, body_num, :] = np.reshape(vz_i, (n_epochs, n_orbits))
-                brightness_out[:, body_num, :] = np.reshape(brightness, (n_epochs, n_orbits))
+                brightness_out[:, body_num, :] = np.reshape(
+                    brightness, (n_epochs, n_orbits)
+                )
 
                 # vz_i is the ith companion radial velocity
                 if self.fit_secondary_mass:
                     vz0 = np.reshape(
                         vz_i * -(mass / m_interior), (n_epochs, n_orbits)
                     )  # calculating stellar velocity due to ith companion
-                    vz[:, 0, :] += vz0  # adding contribution from ith companion rv to stellar velocity
-                
-            
+                    vz[:, 0, :] += (
+                        vz0  # adding contribution from ith companion rv to stellar velocity
+                    )
+
             # if we are fitting for the mass of the planets, then they will perturb the star
             # add the perturbation on the star due to this planet on the relative astrometry of the planet that was measured
             # We are superimposing the Keplerian orbits, so we can add it linearly, scaled by the mass.
@@ -633,7 +653,6 @@ class System(object):
                                 masses[body_num] / mtots[body_num]
                             ) * dec_kepler[:, body_num, :]
 
-
             raoff = ra_kepler + ra_perturb
             deoff = dec_kepler + dec_perturb
 
@@ -641,10 +660,9 @@ class System(object):
             # we need to subtract the RV of the primary. Because the primary's RV already includes
             # the reflex motion due to every companion, this subtraction also accounts for the
             # Jacobi offset of interior companions, so no RV perturbation term is needed above.
-            vz[:,1:,:] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
+            vz[:, 1:, :] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
 
         if self.fitting_basis == "XYZ":
-            
             # Find and filter out unbound orbits
             bad_orbits = []
             if isinstance(ecc, float):
@@ -750,7 +768,9 @@ class System(object):
 
             # Brightness
             if len(self.brightness[body_num]) > 0:
-                model[self.brightness[body_num], 0] = brightness[self.brightness[body_num], body_num, :]
+                model[self.brightness[body_num], 0] = brightness[
+                    self.brightness[body_num], body_num, :
+                ]
                 model[self.brightness[body_num], 1] = np.nan
 
         # if we have abs astrometry measurements in the input file (i.e. not
@@ -763,7 +783,9 @@ class System(object):
 
             # divide by cos(delta0) because orbitize! input is delta(ra), not
             # delta(ra)*cos(delta0)
-            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape) / np.cos(np.radians(self.pm_plx_predictor.delta0))
+            model[self.radec[0], 0] += ra_pred.reshape(
+                model[self.radec[0], 0].shape
+            ) / np.cos(np.radians(self.pm_plx_predictor.delta0))
             model[self.radec[0], 1] += dec_pred.reshape(model[self.radec[0], 0].shape)
 
         if n_orbits == 1:
@@ -822,52 +844,52 @@ class System(object):
     def plot_astrometry(self):
         """
         Plot astrometry to ensure data is correct.
-        
+
         Returns:
             matplotlib.pyplot.figure object: figure of data plot.
 
         Written: David Trevascus, 2024
         """
 
-        if len(self.all_radec) + len(self.all_seppa) == 0: # no astrometry to plot
+        if len(self.all_radec) + len(self.all_seppa) == 0:  # no astrometry to plot
             return None
 
         self.convert_data_table_radec2seppa()
-        
+
         # create figure
         fig, ax = plt.subplots(2, self.num_secondary_bodies)
         ax = ax.reshape((2, self.num_secondary_bodies))
 
         # plot each object separately
-        for n in np.arange(self.num_secondary_bodies)+1:
-            
+        for n in np.arange(self.num_secondary_bodies) + 1:
             # plot seppa astrometry
-            ax[0, n-1].errorbar(
-                self.data_table['epoch'][self.seppa[n]],
-                self.data_table["quant1"][self.seppa[n]], 
-                yerr=self.data_table["quant1_err"][self.seppa[n]], 
-                linestyle='None',
-                marker='o',
+            ax[0, n - 1].errorbar(
+                self.data_table["epoch"][self.seppa[n]],
+                self.data_table["quant1"][self.seppa[n]],
+                yerr=self.data_table["quant1_err"][self.seppa[n]],
+                linestyle="None",
+                marker="o",
                 capsize=3,
             )
-            ax[1, n-1].errorbar(
-                self.data_table['epoch'][self.seppa[n]],
-                self.data_table["quant2"][self.seppa[n]], 
-                yerr=self.data_table["quant2_err"][self.seppa[n]], 
-                linestyle='None',
-                marker='o',
+            ax[1, n - 1].errorbar(
+                self.data_table["epoch"][self.seppa[n]],
+                self.data_table["quant2"][self.seppa[n]],
+                yerr=self.data_table["quant2_err"][self.seppa[n]],
+                linestyle="None",
+                marker="o",
                 capsize=3,
             )
 
             # set axis labels
-            ax[1, n-1].set_xlabel('time [mjd]')
-            ax[0, 0].set_ylabel('sep [mas]')
-            ax[1, 0].set_ylabel('PA [deg]')
+            ax[1, n - 1].set_xlabel("time [mjd]")
+            ax[0, 0].set_ylabel("sep [mas]")
+            ax[1, 0].set_ylabel("PA [deg]")
 
-        plt.suptitle('Check to make sure your astrometry looks correct:')
+        plt.suptitle("Check to make sure your astrometry looks correct:")
         plt.tight_layout()
 
         return fig
+
 
 def radec2seppa(ra, dec, mod180=False):
     """

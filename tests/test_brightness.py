@@ -33,7 +33,7 @@ def test_brightness_calculation():
             np.radians(89),
             np.radians(21),
             np.radians(70),
-            0.0,  
+            0.0,
             51.5,
             1.75,
         ]
@@ -42,9 +42,17 @@ def test_brightness_calculation():
     ra, dec, vz, brightness = test_system.compute_all_orbits(params)
 
     expected_brightness = np.zeros((len(times), num_secondary_bodies + 1, 1))
-    expected_brightness[:,1,:] = np.array([
-        .00040277, .00040277, .00164703, .00164703, .00032383, .00031209, .00029531
-    ]).reshape((7,1))
+    expected_brightness[:, 1, :] = np.array(
+        [
+            0.00040277,
+            0.00040277,
+            0.00164703,
+            0.00164703,
+            0.00032383,
+            0.00031209,
+            0.00029531,
+        ]
+    ).reshape((7, 1))
 
     assert expected_brightness == pytest.approx(brightness, abs=1e-8)
 
@@ -57,14 +65,14 @@ def test_read_input_with_brightness():
 
     data_table = read_input.read_file(input_file)
 
-    assert len(data_table[data_table['quant_type'] == 'brightness']) == 2
-    assert len(data_table[data_table['quant_type'] == 'seppa']) == 5
+    assert len(data_table[data_table["quant_type"] == "brightness"]) == 2
+    assert len(data_table[data_table["quant_type"] == "seppa"]) == 5
 
-    brightness_data = data_table[data_table['quant_type'] == 'brightness']
-    assert np.all(brightness_data['quant1'].value == [0.9, 0.6])
-    assert np.all(brightness_data['quant1_err'].value == [0.1, 0.2])
-    assert np.all(np.isnan(brightness_data['quant2'].value))
-    assert np.all(np.isnan(brightness_data['quant2_err'].value))
+    brightness_data = data_table[data_table["quant_type"] == "brightness"]
+    assert np.all(brightness_data["quant1"].value == [0.9, 0.6])
+    assert np.all(brightness_data["quant1_err"].value == [0.1, 0.2])
+    assert np.all(np.isnan(brightness_data["quant2"].value))
+    assert np.all(np.isnan(brightness_data["quant2_err"].value))
 
 
 def test_compute_posterior():
@@ -86,7 +94,6 @@ def test_compute_posterior():
     test_mcmc = sampler.MCMC(test_system, num_temps=1, num_walkers=30, num_threads=1)
     test_mcmc.run_sampler(1)
 
-    
 
 if __name__ == "__main__":
     test_brightness_calculation()
