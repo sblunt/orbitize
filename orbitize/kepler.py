@@ -1,6 +1,7 @@
 """
 This module solves for the orbit of the planet given Keplerian parameters.
 """
+
 import numpy as np
 import astropy.units as u
 import astropy.constants as consts
@@ -14,10 +15,11 @@ DEFAULT_TAU_REF_EPOCH = 58849
 if cext:
     from . import _kepler
 
+
 def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
     Gets the mean anomlay
-    
+
     Args:
         date (float or np.array): MJD
         sma (float): semi major axis (AU)
@@ -25,25 +27,23 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
         tau (float): fraction of the orbit which is elapsed at the epoch of
             periastron passage relative to the reference epoch (in the range [0,1))
         tau_ref_epoch (float): reference epoch for tau
-        
+
     Returns:
         float or np.array: mean anomaly on that date [0, 2pi)
     """
     # TODO: Explore C implementation
 
-    period = np.sqrt(
-        4 * np.pi**2.0 * (sma * u.AU)**3 /
-        (consts.G * (mtot * u.Msun))
-    )
+    period = np.sqrt(4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun)))
     period = period.to(u.day).value
 
-    frac_date = (date - tau_ref_epoch)/period
+    frac_date = (date - tau_ref_epoch) / period
     frac_date %= 1
 
     mean_anom = (frac_date - tau) * 2 * np.pi
     mean_anom %= 2 * np.pi
 
     return mean_anom
+
 
 def times2trueanom_and_eccanom(
     sma,
@@ -56,7 +56,7 @@ def times2trueanom_and_eccanom(
     max_iter=100,
     use_c=True,
 ):
-    """ 
+    """
     Convert times to true anomaly and eccentric anomaly by solving Kepler's Equation.
 
     Args:
@@ -81,7 +81,6 @@ def times2trueanom_and_eccanom(
     n_orbs = np.size(sma)  # num sets of input orbital parameters
     n_dates = np.size(epochs)  # number of dates to compute offsets and vz
 
-
     # Necessary for calc_ecc_anom, for now
     if np.isscalar(epochs):  # just in case epochs is given as a scalar
         epochs = np.array([epochs])
@@ -91,28 +90,46 @@ def times2trueanom_and_eccanom(
     # compute eccentric anomalies (size: n_orbs x n_dates)
     manom_flat = manom.flatten()
     ecc_arr = np.tile(ecc, n_dates)
-    eanom_flat = calc_ecc_anom(manom_flat, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c)
+    eanom_flat = calc_ecc_anom(
+        manom_flat, ecc_arr, tolerance=tolerance, max_iter=max_iter, use_c=use_c
+    )
     eanom = eanom_flat.reshape((n_dates, n_orbs))
 
     # compute the true anomalies (size: n_orbs x n_dates)
     # Note: matrix multiplication makes the shapes work out here and below
-    tanom = (2.*np.arctan(np.sqrt((1.0 + ecc)/(1.0 - ecc))*np.tan(0.5*eanom)))
+    tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
 
     return np.squeeze(tanom)[()], np.squeeze(eanom)[()]
+
 
 def make_array(obj):
     """
     Make a scalar or 1-dimensional numpy array into a c-compatible 1-dimensional numpy array or floats
-    
+
     Arg:
         obj (float, list of float, or 1-dimensional numpy.array of float)
-    
+
     Returns:
         C-Contiguous 1-dimensional numpy.array of floats
     """
     return np.ascontiguousarray(obj, np.float64)
 
-def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=DEFAULT_TAU_REF_EPOCH, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER):
+
+def calc_orbit_c(
+    epochs,
+    sma,
+    ecc,
+    inc,
+    aop,
+    pan,
+    tau,
+    plx,
+    mtot,
+    mass_for_Kamp=None,
+    tau_ref_epoch=DEFAULT_TAU_REF_EPOCH,
+    tolerance=DEFAULT_TOLERANCE,
+    max_iter=DEFAULT_MAX_ITER,
+):
     """
     Returns the right ascension offsets, declination offset, and radial velocities of the body given array of
     orbital parameters (size n_orbits) at given epochs (array of size n_epochs) solved in c
@@ -147,7 +164,7 @@ def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=
 
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
-            
+
             tanom (np.array): array-like (n_dates x n_orbs) of true anomalies
 
     Written: Jason Wang, Henry Ngo, 2018
@@ -166,7 +183,19 @@ def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=
         mass_for_Kamp = mtot
     mass_for_Kamp = make_array(mass_for_Kamp)
     raoff, deoff, vz, tanom = _kepler._calc_orbit(
-        epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter,
+        epochs,
+        sma,
+        ecc,
+        inc,
+        aop,
+        pan,
+        tau,
+        plx,
+        mtot,
+        mass_for_Kamp,
+        tau_ref_epoch,
+        tolerance,
+        max_iter,
     )
     raoff = np.squeeze(raoff)[()]
     deoff = np.squeeze(deoff)[()]
@@ -174,7 +203,22 @@ def calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=
     tanom = np.squeeze(tanom)[()]
     return raoff, deoff, vz, tanom
 
-def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=DEFAULT_TAU_REF_EPOCH, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER):
+
+def calc_orbit_py(
+    epochs,
+    sma,
+    ecc,
+    inc,
+    aop,
+    pan,
+    tau,
+    plx,
+    mtot,
+    mass_for_Kamp=None,
+    tau_ref_epoch=DEFAULT_TAU_REF_EPOCH,
+    tolerance=DEFAULT_TOLERANCE,
+    max_iter=DEFAULT_MAX_ITER,
+):
     """
     Returns the right ascension offsets, declination offset, and radial velocities of the body given array of
     orbital parameters (size n_orbits) at given epochs (array of size n_epochs) solved in python
@@ -209,7 +253,7 @@ def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp
 
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
-            
+
             tanom (np.array): array-like (n_dates x n_orbs) of true anomalies
 
     Written: Jason Wang, Henry Ngo, 2018
@@ -220,15 +264,25 @@ def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp
     if mass_for_Kamp is None:
         mass_for_Kamp = mtot
 
-    tanom, eanom = times2trueanom_and_eccanom(sma, epochs, mtot, ecc, tau, tau_ref_epoch=tau_ref_epoch, tolerance=tolerance, max_iter=max_iter, use_c=False)
+    tanom, eanom = times2trueanom_and_eccanom(
+        sma,
+        epochs,
+        mtot,
+        ecc,
+        tau,
+        tau_ref_epoch=tau_ref_epoch,
+        tolerance=tolerance,
+        max_iter=max_iter,
+        use_c=False,
+    )
 
     # compute 3-D orbital radius of second body (size: n_orbs x n_dates)
     radius = sma * (1.0 - ecc * np.cos(eanom))
 
     # compute ra/dec offsets (size: n_orbs x n_dates)
     # math from James Graham. Lots of trig
-    c2i2 = np.cos(0.5*inc)**2
-    s2i2 = np.sin(0.5*inc)**2
+    c2i2 = np.cos(0.5 * inc) ** 2
+    s2i2 = np.sin(0.5 * inc) ** 2
     arg1 = tanom + aop + pan
     arg2 = tanom + aop - pan
     c1 = np.cos(arg1)
@@ -237,23 +291,43 @@ def calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp
     s2 = np.sin(arg2)
 
     # updated sign convention for Green Eq. 19.4-19.7
-    raoff = radius * (c2i2*s1 - s2i2*s2) * plx
-    deoff = radius * (c2i2*c1 + s2i2*c2) * plx
+    raoff = radius * (c2i2 * s1 - s2i2 * s2) * plx
+    deoff = radius * (c2i2 * c1 + s2i2 * c2) * plx
 
     # compute the radial velocity (vz) of the body (size: n_orbs x n_dates)
     # first comptue the RV semi-amplitude (size: n_orbs x n_dates)
-    Kv = np.sqrt(consts.G / (1.0 - ecc**2)) * (mass_for_Kamp * u.Msun *
-                                               np.sin(inc)) / np.sqrt(mtot * u.Msun) / np.sqrt(sma * u.au)
+    Kv = (
+        np.sqrt(consts.G / (1.0 - ecc**2))
+        * (mass_for_Kamp * u.Msun * np.sin(inc))
+        / np.sqrt(mtot * u.Msun)
+        / np.sqrt(sma * u.au)
+    )
     # Convert to km/s
-    Kv = Kv.to(u.km/u.s)
+    Kv = Kv.to(u.km / u.s)
 
     # compute the vz
-    vz = Kv.value * (ecc*np.cos(aop) + np.cos(aop + tanom))
+    vz = Kv.value * (ecc * np.cos(aop) + np.cos(aop + tanom))
     # Squeeze out extra dimension (useful if n_orbs = 1, does nothing if n_orbs > 1)
     vz = np.squeeze(vz)[()]
     return raoff, deoff, vz, tanom
 
-def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=None, tau_ref_epoch=DEFAULT_TAU_REF_EPOCH, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER, use_c=True):
+
+def calc_orbit(
+    epochs,
+    sma,
+    ecc,
+    inc,
+    aop,
+    pan,
+    tau,
+    plx,
+    mtot,
+    mass_for_Kamp=None,
+    tau_ref_epoch=DEFAULT_TAU_REF_EPOCH,
+    tolerance=DEFAULT_TOLERANCE,
+    max_iter=DEFAULT_MAX_ITER,
+    use_c=True,
+):
     """
     Returns the right ascension offsets, declination offset, and radial velocities of the body given array of
     orbital parameters (size n_orbits) at given epochs (array of size n_epochs)
@@ -288,18 +362,49 @@ def calc_orbit(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=No
 
             vz (np.array): array-like (n_dates x n_orbs) of radial velocity of one of the bodies
                 (see `mass_for_Kamp` description)  [km/s]
-            
+
             tanom (np.array): array-like (n_dates x n_orbs) of true anomalies
 
     Written: Jason Wang, Henry Ngo, 2018
     Updated: Eshel Dror, 2026
     """
     if cext and use_c:
-        return calc_orbit_c(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter)
+        return calc_orbit_c(
+            epochs,
+            sma,
+            ecc,
+            inc,
+            aop,
+            pan,
+            tau,
+            plx,
+            mtot,
+            mass_for_Kamp,
+            tau_ref_epoch,
+            tolerance,
+            max_iter,
+        )
     else:
-        return calc_orbit_py(epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp, tau_ref_epoch, tolerance, max_iter)
+        return calc_orbit_py(
+            epochs,
+            sma,
+            ecc,
+            inc,
+            aop,
+            pan,
+            tau,
+            plx,
+            mtot,
+            mass_for_Kamp,
+            tau_ref_epoch,
+            tolerance,
+            max_iter,
+        )
 
-def calc_ecc_anom(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER, use_c=True):
+
+def calc_ecc_anom(
+    manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER, use_c=True
+):
     """
     Computes the eccentric anomaly from the mean anomaly.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -320,17 +425,20 @@ def calc_ecc_anom(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_
         if np.isscalar(ecc):
             ecc = np.ones(manom.shape[0]) * ecc
         ecc = make_array(ecc)
-        if (manom.shape == ecc.shape):
+        if manom.shape == ecc.shape:
             pass
         else:
             raise ValueError("ecc must be a scalar, or ecc.shape == manom.shape")
-        
+
         eanom = _kepler._calc_ecc_anom(manom, ecc, tolerance, max_iter)
         return np.squeeze(eanom)[()]
     else:
         return calc_ecc_anom_py(manom, ecc, tolerance, max_iter)
 
-def calc_ecc_anom_py(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER):
+
+def calc_ecc_anom_py(
+    manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER
+):
     """
     Computes the eccentric anomaly from the mean anomlay in Python.
     Code from Rob De Rosa's orbit solver (e < 0.95 use Newton, e >= 0.95 use Mikkola)
@@ -354,7 +462,7 @@ def calc_ecc_anom_py(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_M
 
     # If manom is a scalar, make it into a one-element array
     if np.isscalar(manom):
-        manom = np.array((manom, ))
+        manom = np.array((manom,))
 
     # If ecc is a scalar, make it the same shape as manom
     if np.isscalar(ecc):
@@ -374,28 +482,33 @@ def calc_ecc_anom_py(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_M
 
     # Now low eccentricities
     ind_low = np.where(~ecc_zero & ecc_low)
-    if len(ind_low[0]) > 0: 
-        eanom[ind_low] = _newton_solver(manom[ind_low], ecc[ind_low], tolerance, max_iter)
-    
+    if len(ind_low[0]) > 0:
+        eanom[ind_low] = _newton_solver(
+            manom[ind_low], ecc[ind_low], tolerance, max_iter
+        )
+
     # Now high eccentricities
     ind_high = np.where(~ecc_zero & ~ecc_low)
-    if len(ind_high[0]) > 0: 
+    if len(ind_high[0]) > 0:
         eanom[ind_high] = _mikkola_solver_wrapper(manom[ind_high], ecc[ind_high])
 
     return np.squeeze(eanom)[()]
 
-def _newton_solver(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER, eanom0=None):
+
+def _newton_solver(
+    manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX_ITER, eanom0=None
+):
     """
     Newton-Raphson solver for eccentric anomaly in python.
 
     Args:
         manom (np.array): array of mean anomalies
         ecc (np.array): array of eccentricities
-        tolerance (float, optional): absolute tolerance of iterative computation. 
+        tolerance (float, optional): absolute tolerance of iterative computation.
             Defaults to 1e-9.
-        max_iter (int, optional): maximum number of iterations before switching. 
+        max_iter (int, optional): maximum number of iterations before switching.
             Defaults to 100.
-        eanom0 (np.array): array of first guess for eccentric anomaly, same 
+        eanom0 (np.array): array of first guess for eccentric anomaly, same
             shape as manom (optional)
 
 
@@ -421,19 +534,23 @@ def _newton_solver(manom, ecc, tolerance=DEFAULT_TOLERANCE, max_iter=DEFAULT_MAX
     abs_diff = np.abs(diff)
     ind = np.where(abs_diff > tolerance)
     niter = 0
-    while ((ind[0].size > 0) and (niter <= max_iter)):
+    while (ind[0].size > 0) and (niter <= max_iter):
         eanom[ind] -= diff[ind]
-        diff[ind] = (eanom[ind] - (ecc[ind] * np.sin(eanom[ind])) - manom[ind]) / \
-            (1.0 - (ecc[ind] * np.cos(eanom[ind])))
+        diff[ind] = (eanom[ind] - (ecc[ind] * np.sin(eanom[ind])) - manom[ind]) / (
+            1.0 - (ecc[ind] * np.cos(eanom[ind]))
+        )
         abs_diff[ind] = np.abs(diff[ind])
         ind = np.where(abs_diff > tolerance)
         niter += 1
 
     if niter >= max_iter:
         # print(manom[ind], eanom[ind], diff[ind], ecc[ind], '> {} iter.'.format(max_iter))
-        eanom[ind] = _mikkola_solver_wrapper(manom[ind], ecc[ind]) # Send remaining orbits to the analytical version
+        eanom[ind] = _mikkola_solver_wrapper(
+            manom[ind], ecc[ind]
+        )  # Send remaining orbits to the analytical version
 
     return eanom
+
 
 def _mikkola_solver_wrapper(manom, ecc):
     """
@@ -456,6 +573,7 @@ def _mikkola_solver_wrapper(manom, ecc):
 
     return eanom
 
+
 def _mikkola_solver(manom, ecc):
     """
     Analtyical Mikkola solver for the eccentric anomaly in python. See: S. Mikkola. 1987. Celestial Mechanics, 40, 329-334.
@@ -474,23 +592,25 @@ def _mikkola_solver(manom, ecc):
     beta = (0.5 * manom) / ((4.0 * ecc) + 0.5)
 
     aux = np.sqrt(beta**2.0 + alpha**3.0)
-    z = np.abs(beta + aux)**(1.0/3.0)
+    z = np.abs(beta + aux) ** (1.0 / 3.0)
 
-    s0 = z - (alpha/z)
-    s1 = s0 - (0.078*(s0**5.0)) / (1.0 + ecc)
-    e0 = manom + (ecc * (3.0*s1 - 4.0*(s1**3.0)))
+    s0 = z - (alpha / z)
+    s1 = s0 - (0.078 * (s0**5.0)) / (1.0 + ecc)
+    e0 = manom + (ecc * (3.0 * s1 - 4.0 * (s1**3.0)))
 
     se0 = np.sin(e0)
     ce0 = np.cos(e0)
 
-    f = e0-ecc*se0-manom
-    f1 = 1.0-ecc*ce0
-    f2 = ecc*se0
-    f3 = ecc*ce0
+    f = e0 - ecc * se0 - manom
+    f1 = 1.0 - ecc * ce0
+    f2 = ecc * se0
+    f3 = ecc * ce0
     f4 = -f2
-    u1 = -f/f1
-    u2 = -f/(f1+0.5*f2*u1)
-    u3 = -f/(f1+0.5*f2*u2+(1.0/6.0)*f3*u2*u2)
-    u4 = -f/(f1+0.5*f2*u3+(1.0/6.0)*f3*u3*u3+(1.0/24.0)*f4*(u3**3.0))
+    u1 = -f / f1
+    u2 = -f / (f1 + 0.5 * f2 * u1)
+    u3 = -f / (f1 + 0.5 * f2 * u2 + (1.0 / 6.0) * f3 * u2 * u2)
+    u4 = -f / (
+        f1 + 0.5 * f2 * u3 + (1.0 / 6.0) * f3 * u3 * u3 + (1.0 / 24.0) * f4 * (u3**3.0)
+    )
 
-    return (e0 + u4)
+    return e0 + u4

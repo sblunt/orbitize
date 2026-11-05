@@ -111,18 +111,7 @@ params_arr = np.array(
     ]
 )
 
-params_arr_1planet = np.array(
-    [
-        sma1,
-        ecc1,
-        inc1,
-        aop1,
-        pan1,
-        tau1,
-        plx,
-        mtot  
-    ]
-)
+params_arr_1planet = np.array([sma1, ecc1, inc1, aop1, pan1, tau1, plx, mtot])
 
 hr8799_sys_1planet = System(
     1,
@@ -142,7 +131,7 @@ def test_8799_1planet_rebound_vs_kepler(plotname=None):
     )
     kra, kde, kvz, _ = hr8799_sys_1planet.compute_all_orbits(
         params_arr_1planet, epochs=epochs2, comp_rebound=False
-    )    
+    )
 
     delta_ra = abs(rra - kra)
     delta_de = abs(rde - kde)
@@ -209,6 +198,7 @@ def test_8799_1planet_rebound_vs_kepler(plotname=None):
         ax2.plot(yepochs, rvz[:, 0, 0], "r", label="Rebound")
         ax2.legend()
         plt.savefig("{}_primaryorbittrack.png".format(plotname), dpi=250)
+
 
 def test_8799_rebound_vs_kepler(plotname=None):
     """

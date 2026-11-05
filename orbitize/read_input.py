@@ -8,7 +8,18 @@ from astropy.table import Table
 from astropy.io.ascii import read, write
 from astropy import units as u
 
-VALID_ATTRS = ["raoff", "decoff", "radec_corr", "sep", "pa", "seppa_corr", "rv", "brightness", "instrument"]
+VALID_ATTRS = [
+    "raoff",
+    "decoff",
+    "radec_corr",
+    "sep",
+    "pa",
+    "seppa_corr",
+    "rv",
+    "brightness",
+    "instrument",
+]
+
 
 def read_file(filename):
     """Reads data from any file for use in orbitize
@@ -84,7 +95,7 @@ def read_file(filename):
         object. For the example input above::
 
              epoch  object  quant1 quant1_err  quant2 quant2_err quant12_corr quant_type instrument
-            float64 int64  float64  float64   float64  float64     float64     bytes10     str20   
+            float64 int64  float64  float64   float64  float64     float64     bytes10     str20
             ------- ------ ------- ---------- ------- ---------- ------------ ---------- ----------
              1234.0      1    0.01      0.005     0.5       0.05         0.25      radec      defrd
              1235.0      1     1.0      0.005    89.0        0.1          nan      seppa      defsp
@@ -172,7 +183,9 @@ def read_file(filename):
                 if attr in input_table.columns:
                     have[attr] = ~input_table[attr].mask
                 else:
-                    have[attr] = np.zeros(num_measurements, dtype=bool) # zeros are False   
+                    have[attr] = np.zeros(
+                        num_measurements, dtype=bool
+                    )  # zeros are False
     else:  # no masked entries, just check for required columns
         if "epoch" not in input_table.columns:
             raise Exception("Input table MUST have epoch!")
@@ -183,9 +196,11 @@ def read_file(filename):
         ):  # Set these flags only when not already in orbitize style
             for attr in VALID_ATTRS:
                 if attr in input_table.columns:
-                    have[attr] = np.ones(num_measurements, dtype=bool) # ones are True
+                    have[attr] = np.ones(num_measurements, dtype=bool)  # ones are True
                 else:
-                    have[attr] = np.zeros(num_measurements, dtype=bool) # zeros are False
+                    have[attr] = np.zeros(
+                        num_measurements, dtype=bool
+                    )  # zeros are False
 
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
@@ -232,7 +247,9 @@ def read_file(filename):
 
         # determine input quantity type (RA/DEC, SEP/PA, RV, or BRIGHTNESS)
         if orbitize_style:
-            if row["quant_type"] == "rv" or row["quant_type"] == 'brightness':  # special format for rv rows
+            if (
+                row["quant_type"] == "rv" or row["quant_type"] == "brightness"
+            ):  # special format for rv rows
                 output_table.add_row(
                     [
                         MJD,
@@ -282,7 +299,6 @@ def read_file(filename):
                 )
 
         else:  # When not in orbitize style
-
             if have["raoff"][index] and have["decoff"][index]:
                 # check if there's a covariance term
                 if have["radec_corr"][index]:
@@ -392,7 +408,7 @@ def read_file(filename):
                         "brightness",
                         "defbr",
                     ]
-                    )
+                )
 
     return output_table
 
@@ -436,9 +452,12 @@ def from_ohp_file(filename):
     """
     output_table = filename.copy() if isinstance(filename, Table) else read(filename)
     time_format = output_table.meta.get("time_format", "jd")
-    if time_format not in ("jd", "mjd") or output_table.meta.get("time_scale", "tcb") != "tcb":
+    if (
+        time_format not in ("jd", "mjd")
+        or output_table.meta.get("time_scale", "tcb") != "tcb"
+    ):
         raise ValueError("Gaia epoch times must be JD or MJD in the TCB time scale.")
-    #check all needed data
+    # check all needed data
     required_units = {
         "obs_time_tcb": u.day,
         "centroid_pos_al": u.mas,
@@ -481,11 +500,15 @@ def from_ohp_file(filename):
         output_table[name].unit = unit
 
     if np.any(output_table["centroid_pos_error_al"] <= 0):
-        raise ValueError("OHP column 'centroid_pos_error_al' must be strictly positive.")
+        raise ValueError(
+            "OHP column 'centroid_pos_error_al' must be strictly positive."
+        )
 
     if time_format == "jd":
         if np.any(output_table["obs_time_tcb"] < 2400000.5):
-            raise ValueError("Expected raw OHP JD times; mark MJD tables with meta['time_format']='mjd'.")
+            raise ValueError(
+                "Expected raw OHP JD times; mark MJD tables with meta['time_format']='mjd'."
+            )
         output_table["obs_time_tcb"] -= 2400000.5
     output_table.meta.update(time_format="mjd", time_scale="tcb")
     output_table.meta.setdefault("input_format", "ohp")
@@ -512,20 +535,32 @@ def from_dl2(filename, source_id, agis_only=True):
     sizes = [np.size(value) for value in data["obs_time_tcb"]]
     output_table = Table()
     for name in (
-        "obs_time_tcb", "centroid_pos_al", "centroid_pos_error_al", "ipd_error_al",
-        "scan_pos_angle", "used_by_agis_al",
+        "obs_time_tcb",
+        "centroid_pos_al",
+        "centroid_pos_error_al",
+        "ipd_error_al",
+        "scan_pos_angle",
+        "used_by_agis_al",
     ):
         if [np.shape(value) for value in data[name]] != [(size,) for size in sizes]:
-            raise ValueError("EAS column '{}' must have one aligned CCD array per transit.".format(name))
+            raise ValueError(
+                "EAS column '{}' must have one aligned CCD array per transit.".format(
+                    name
+                )
+            )
         output_table[name] = np.ma.concatenate(data[name])
     transit_rows = np.repeat(np.arange(len(data)), sizes)
     for name in ("source_id", "transit_id", "ra0", "dec0", "parallax_factor_al"):
         output_table[name] = data[name][transit_rows]
-    output_table["component_index"] = np.concatenate([np.arange(size) for size in sizes])
+    output_table["component_index"] = np.concatenate(
+        [np.arange(size) for size in sizes]
+    )
 
     # ns (Gaia) -> barycentric MJD; degrees -> radians.
-    time_ns = np.ma.asarray(output_table["obs_time_tcb"], dtype=np.float64) # ns
-    correction_ns = np.ma.asarray(data["obs_time_bary_corr"][transit_rows], dtype=np.float64) # barycentric corr
+    time_ns = np.ma.asarray(output_table["obs_time_tcb"], dtype=np.float64)  # ns
+    correction_ns = np.ma.asarray(
+        data["obs_time_bary_corr"][transit_rows], dtype=np.float64
+    )  # barycentric corr
     output_table["obs_time_tcb"] = 55197.0 + (time_ns + correction_ns) / 86400e9
     output_table["scan_pos_angle"] = np.deg2rad(
         np.ma.asarray(output_table["scan_pos_angle"], dtype=np.float64)
@@ -533,7 +568,9 @@ def from_dl2(filename, source_id, agis_only=True):
 
     # Keep the measurements Gaia used in AGIS.
     if agis_only:
-        output_table = output_table[np.ma.filled(output_table["used_by_agis_al"], False)]
+        output_table = output_table[
+            np.ma.filled(output_table["used_by_agis_al"], False)
+        ]
 
     for name, unit in {
         "obs_time_tcb": u.day,
@@ -546,11 +583,16 @@ def from_dl2(filename, source_id, agis_only=True):
         "dec0": u.deg,
     }.items():
         output_table[name].unit = unit
-    output_table["field_of_view"] = 1 + ((np.asarray(output_table["transit_id"]) >> 15) & 0x03)
+    output_table["field_of_view"] = 1 + (
+        (np.asarray(output_table["transit_id"]) >> 15) & 0x03
+    )
     output_table.meta.update(
-        time_format="mjd", time_scale="tcb", input_format="eas_prerelease",
+        time_format="mjd",
+        time_scale="tcb",
+        input_format="eas_prerelease",
     )
     return output_table
+
 
 def bootstrap_transit(ccd, n_boot=500, rng=None):
     """
@@ -579,6 +621,7 @@ def bootstrap_transit(ccd, n_boot=500, rng=None):
     error_floor = np.median(ipd_errors) / np.sqrt(n_ccd)
 
     return np.median(positions), max(bootstrap_error, error_floor)
+
 
 def combine_transits(data, method=bootstrap_transit, **kwargs):
     """
@@ -610,29 +653,46 @@ def combine_transits(data, method=bootstrap_transit, **kwargs):
         first = ccd[0]
         position, error = method(ccd, **kwargs)
 
-        rows.append((
-            first["source_id"], first["transit_id"],
-            np.mean(ccd["obs_time_tcb"]), position, error,
-            first["parallax_factor_al"], first["scan_pos_angle"],
-            first["field_of_view"], len(ccd),
-        ))
+        rows.append(
+            (
+                first["source_id"],
+                first["transit_id"],
+                np.mean(ccd["obs_time_tcb"]),
+                position,
+                error,
+                first["parallax_factor_al"],
+                first["scan_pos_angle"],
+                first["field_of_view"],
+                len(ccd),
+            )
+        )
 
     output = Table(
         rows=rows,
         names=(
-            "source_id", "transit_id", "obs_time_tcb", "centroid_pos_al",
-            "centroid_pos_error_al", "parallax_factor_al", "scan_pos_angle",
-            "field_of_view", "n_ccd",
+            "source_id",
+            "transit_id",
+            "obs_time_tcb",
+            "centroid_pos_al",
+            "centroid_pos_error_al",
+            "parallax_factor_al",
+            "scan_pos_angle",
+            "field_of_view",
+            "n_ccd",
         ),
     )
     for name in (
-        "obs_time_tcb", "centroid_pos_al", "centroid_pos_error_al",
-        "parallax_factor_al", "scan_pos_angle",
+        "obs_time_tcb",
+        "centroid_pos_al",
+        "centroid_pos_error_al",
+        "parallax_factor_al",
+        "scan_pos_angle",
     ):
         output[name].unit = data[name].unit
 
     output.meta.update(data.meta, observation_level="transit")
     return output
+
 
 def write_orbitize_input(table, output_filename, file_type="csv"):
     """Writes orbitize-readable input as an ASCII file
