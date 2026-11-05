@@ -129,12 +129,9 @@ class Sampler(abc.ABC):
                 # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
                 gaiahip_epochs = self.system.gaia.epochs_mjd
             else:
-                gaiahip_epochs = Time(
-                    np.append(
-                        self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch
-                    ),
-                    format="decimalyear",
-                ).mjd
+                gaiahip_epochs = np.append(
+                self.system.gaia.hipparcos_epoch.mjd, self.system.gaia.gaia_epoch.mjd
+            )
 
             # System handles conversion from the active fitting basis.
             raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
