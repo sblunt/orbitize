@@ -618,8 +618,13 @@ class System(object):
                             self.basis.standard_basis_idx["sma{}".format(body_num)]
                         ]
                         all_smas = params_arr[self.sma_indx]
-                        outside_orbit = np.where(all_smas > sma)[0]
-                        which_perturb_bodies = outside_orbit + 1
+                        outside_orbit = all_smas > sma
+                        if outside_orbit.ndim > 1:
+                            # Select each body once, retaining its per-orbit mask.
+                            affected_bodies = np.any(outside_orbit, axis=1)
+                        else:
+                            affected_bodies = outside_orbit
+                        which_perturb_bodies = np.where(affected_bodies)[0] + 1
 
                         # the planet will also perturb the star
                         which_perturb_bodies = np.append([0], which_perturb_bodies)
@@ -646,12 +651,17 @@ class System(object):
                             ) * dec_kepler[:, body_num, :]
 
                         else:
+                            scale = masses[body_num] / mtots[body_num]
+                            if outside_orbit.ndim > 1:
+                                scale = np.where(
+                                    outside_orbit[other_body_num - 1], scale, 0.0
+                                )
                             ra_perturb[:, other_body_num, :] += (
-                                masses[body_num] / mtots[body_num]
-                            ) * ra_kepler[:, body_num, :]
+                                scale * ra_kepler[:, body_num, :]
+                            )
                             dec_perturb[:, other_body_num, :] += (
-                                masses[body_num] / mtots[body_num]
-                            ) * dec_kepler[:, body_num, :]
+                                scale * dec_kepler[:, body_num, :]
+                            )
 
             raoff = ra_kepler + ra_perturb
             deoff = dec_kepler + dec_perturb
