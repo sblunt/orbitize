@@ -55,7 +55,7 @@ BUG_ABS_DR4 = pytest.mark.xfail(
 # (fit type, data) -> "ok" or the exception the System should raise
 CASES = [
     ("acc_only", "dr4", "ok"),
-    ("acc_only", "abs", "ok"),
+    ("acc_only", "abs", ValueError),  # ra/dec come from the Gaia object
     ("acc_only", "abs+dr4", "ok"),
     ("acc_only", "rel+dr4", ValueError),
     ("acc_only", "hip+dr4", ValueError),
@@ -91,7 +91,7 @@ def mock_dr4(n_obs=30, err=0.05, seed=0):
         }
     )
     data.meta.update(time_format="mjd", time_scale="tcb")
-    return gaia.DR4LogProb(0, data, ref_epoch_mjd=REF_EPOCH_MJD)
+    return gaia.DR4LogProb(0, data, ref_epoch_mjd=REF_EPOCH_MJD, ra=ALPHA0_DEG, dec=DELTA0_DEG)
 
 
 def astrometry_table(tmp_path, objects):
@@ -101,7 +101,7 @@ def astrometry_table(tmp_path, objects):
     rows = []
     for obj in objects:
         value = 50.0 if obj else 0.0  # companion offset [mas]; star at 0
-        for epoch in Time(years, format="decimalyear").mjd:
+        for epoch in Time(years, format="jyear").mjd:
             rows.append((epoch, obj, value, 0.5, value, 0.5))
     t = Table(rows=rows, names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"])
     filename = tmp_path / "astrometry.csv"
@@ -129,8 +129,6 @@ def make_system(fit_type, data, tmp_path):
             stellar_or_system_mass=1.0,
             plx=10.0,
             acceleration_only=True,
-            alpha0=ALPHA0_DEG,
-            delta0=DELTA0_DEG,
             **kwargs,
         )
     return system.System(

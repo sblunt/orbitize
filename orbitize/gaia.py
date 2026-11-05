@@ -501,6 +501,10 @@ class DR4LogProb(object):
             along-scan jitter parameter [mas]. When supplied, ``dr4_jitter``
             is registered as an additional System parameter. ``jitter`` must
             remain zero when fitting the jitter.
+        ra (float, optional): reference RA of the star [deg], used to compute
+            parallax factors for stellar ra/dec data in an acceleration-only
+            fit. Not the ``alpha0`` fitted parameter.
+        dec (float, optional): reference Dec of the star [deg]; see ``ra``.
 
     Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
     scale for joint fits. This class does not convert RV or relative-astrometry
@@ -517,6 +521,8 @@ class DR4LogProb(object):
         jitter=0.0,
         jitter_prior=None,
         ref_epoch_mjd=None,
+        ra=None,
+        dec=None,
     ):
         if ref_epoch_jd is not None:
             if ref_epoch_mjd is not None:
@@ -534,6 +540,8 @@ class DR4LogProb(object):
         self.gaia_num = gaia_num
         self.dr4_filepath = dr4_filepath
         self.ref_epoch_mjd = ref_epoch_mjd
+        self.ra = ra
+        self.dec = dec
         self.time_scale = "tcb"
         self.jitter = float(jitter)
         self.fit_jitter = jitter_prior is not None
@@ -572,6 +580,48 @@ class DR4LogProb(object):
             self.epochs_mjd, format="mjd", scale=self.time_scale
         ).decimalyear
 
+    def linear_fit(self, plx=None, orbit_al=0.0, fit_acceleration=False):
+        """
+        Weighted least-squares fit of the parameters that the along-scan model
+        is linear in. Useful for choosing a starting point for the sampler.
+
+        Args:
+            plx (float, optional): parallax [mas] to hold fixed. If None,
+                ``plx`` is fitted too.
+            orbit_al (float or np.array, optional): along-scan contribution
+                of any orbit [mas], subtracted from the data before fitting.
+            fit_acceleration (bool, optional): if True, also fit ``acc_ra``
+                and ``acc_dec`` [mas/yr^2].
+
+        Returns:
+            tuple of:
+                - list of str: labels of the fitted parameters
+                - np.array: best-fit values, in the order of the labels
+                - np.array: covariance matrix of the best-fit values
+                - float: chi2 of the best fit
+        """
+        y = self.centroid_pos_al - orbit_al
+        columns = {}
+        if plx is None:
+            columns["plx"] = self.parallax_factor_al
+        else:
+            y = y - plx * self.parallax_factor_al
+        columns["pm_ra"] = self.pm_ra_basis
+        columns["pm_dec"] = self.pm_dec_basis
+        columns["alpha0"] = self.sin_scan
+        columns["delta0"] = self.cos_scan
+        if fit_acceleration:
+            columns["acc_ra"] = 0.5 * self.dt_yr * self.pm_ra_basis
+            columns["acc_dec"] = 0.5 * self.dt_yr * self.pm_dec_basis
+
+        A = np.column_stack(list(columns.values()))
+        weights = 1.0 / (self.centroid_pos_error_al**2 + self.jitter**2)
+        cov = np.linalg.inv(A.T @ (A * weights[:, None]))
+        best = cov @ (A.T @ (weights * y))
+        chi2 = np.sum(weights * (y - A @ best) ** 2)
+
+        return list(columns), best, cov, float(chi2)
+
     def _save(self, hf):
         """Save to an open HDF5 file."""
         hf.attrs["gaia_num"] = self.gaia_num
@@ -581,6 +631,9 @@ class DR4LogProb(object):
         hf.attrs["dr4_time_scale"] = self.time_scale
         hf.attrs["dr4_jitter"] = self.jitter
         hf.attrs["dr4_fit_jitter"] = self.fit_jitter
+        if self.ra is not None:
+            hf.attrs["dr4_ra"] = self.ra
+            hf.attrs["dr4_dec"] = self.dec
 
         dr4_dat = self.data_table.copy()
         dr4_dat.convert_unicode_to_bytestring()

@@ -6,15 +6,18 @@ import itertools
 import astropy.units as u
 import astropy.constants as consts
 from astropy.time import Time
+from astropy.coordinates import get_body_barycentric_posvel
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from matplotlib.lines import Line2D
 import matplotlib.colors as colors
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.transforms as transforms
 
 from erfa import ErfaWarning
+from scipy.optimize import least_squares
 
 import orbitize
 
@@ -2030,6 +2033,8 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
         "pm_dec": "$\\mu_{{\\delta}}$ [mas/yr]",
         "alpha0": "$\\alpha^{{*}}_{{0}}$ [mas]",
         "delta0": "$\\delta_0$ [mas]",
+        "acc_ra": "$a_{{\\alpha^{{*}}}}$ [mas/yr$^2$]",
+        "acc_dec": "$a_{{\\delta}}$ [mas/yr$^2$]",
         "per": "$P_{0}$ [yr]",
         "K": "$K_{0}$ [km/s]",
         "x": "$X_{0}$ [AU]",
@@ -2095,7 +2100,7 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
             ):
                 body_num = ""
                 # maintain original label key
-            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0"]:
+            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0", "acc_ra", "acc_dec"]:
                 body_num = ""
             elif label_key.startswith("gamma") or label_key.startswith("sigma"):
                 body_num = ""
@@ -2430,10 +2435,10 @@ def plot_dr4_orbit(
         epochs_mjd.max() + 0.5 * 365.25,
         num_epochs_to_plot,
     )
-    t_fine_decyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).decimalyear
+    t_fine_jyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).jyear
 
     norm_yr = mpl.colors.Normalize(
-        vmin=t_fine_decyr.min(), vmax=t_fine_decyr.max()
+        vmin=t_fine_jyr.min(), vmax=t_fine_jyr.max()
     )
 
     if include_planet:
@@ -2465,7 +2470,7 @@ def plot_dr4_orbit(
             linewidth=1.5 if plot_map else 1.0,
             alpha=0.85 if plot_map else 0.3,
         )
-        lc.set_array(t_fine_decyr)
+        lc.set_array(t_fine_jyr)
         ax.add_collection(lc)
 
         if show_acceleration:
@@ -2553,30 +2558,87 @@ def plot_dr4_orbit(
         planet_ax.set_title(f"Companion {planet_to_plot}: relative orbit")
     return fig
 
+def _parallax_factors_dr4(dr4, epochs_mjd):
+    """
+    Compute the RA*cos(Dec) and Dec parallax factors of a Gaia DR4 source.
+
+    Gaia DR4 only provides the along-scan parallax factor. If the DR4LogProb
+    doesn't have the star's ``ra`` and ``dec``, they are found by fitting the
+    along-scan factors, given the scan angles and the Earth's position.
+
+    Args:
+        dr4 (orbitize.gaia.DR4LogProb): DR4 observations and scan geometry.
+        epochs_mjd (np.ndarray): evaluation epochs in MJD.
+
+    Returns:
+        tuple: RA*cos(Dec) and Dec parallax factor arrays.
+    """
+
+    def earth_position(epochs):
+        bary_pos, _ = get_body_barycentric_posvel(
+            "earth", Time(epochs, format="mjd", scale=dr4.time_scale)
+        )
+        return bary_pos.x.value, bary_pos.y.value, bary_pos.z.value  # [au]
+
+    def factors(ra, dec, xyz):
+        X, Y, Z = xyz
+        f_ra = X * np.sin(ra) - Y * np.cos(ra)
+        f_dec = (
+            X * np.cos(ra) * np.sin(dec) + Y * np.sin(ra) * np.sin(dec) - Z * np.cos(dec)
+        )
+        return f_ra, f_dec
+
+    if dr4.ra is not None and dr4.dec is not None:
+        ra, dec = np.radians(dr4.ra), np.radians(dr4.dec)
+    else:
+        xyz_obs = earth_position(dr4.epochs_mjd)
+
+        def residuals(radec):
+            f_ra, f_dec = factors(radec[0], radec[1], xyz_obs)
+            return f_ra * dr4.sin_scan + f_dec * dr4.cos_scan - dr4.parallax_factor_al
+
+        # coarse grid first, because the fit has local minima
+        grid = itertools.product(
+            np.radians(np.arange(0, 360, 30)), np.radians(np.arange(-75, 90, 30))
+        )
+        start = min(grid, key=lambda radec: np.sum(residuals(radec) ** 2))
+        fit = least_squares(residuals, start)
+        ra, dec = fit.x
+        rms = np.sqrt(np.mean(fit.fun**2))
+        if rms > 0.05:
+            warnings.warn(
+                "Reconstructed parallax factors are a poor match to the along-scan "
+                "factors (rms={:.3f}). Pass ra and dec to DR4LogProb.".format(rms)
+            )
+
+    return factors(ra, dec, earth_position(epochs_mjd))
+
+
 @plt.style.context(
     ["default", {"font.family": "stixgeneral", "mathtext.fontset": "stix"}]
 )
 def plot_dr4_acceleration(
     results, system, num_orbits_to_plot=50, num_epochs_to_plot=500,
-    cbar_param="sma1", min_projection=0.3, fontsize=14, fig=None,
+    cbar_param=None, min_projection=0.3, fontsize=18, fig=None,
 ):
     """
-    Plot a Gaia DR4 Keplerian + acceleration fit against time, removing one
-    part of the model per row:
+    Plot a Gaia DR4 fit against time, removing parts of the model row by row:
 
-        top:    position + proper motion + acceleration + orbit
-        middle: acceleration + orbit (position and proper motion removed)
-        bottom: orbit only (position, proper motion and acceleration removed)
+        top:    parallax + position + proper motion + acceleration + orbit
+        middle: acceleration + orbit
+        bottom: orbit
 
-    For an acceleration-only fit (``System(acceleration_only=True)``) there is
-    no orbit, so the middle row is the acceleration alone and the bottom row
-    shows the residuals of the full fit around zero.
+    Works for Keplerian + acceleration, acceleration-only and Keplerian-only
+    fits. A part that isn't in the fit is left out, so the middle row of an
+    acceleration-only fit is the acceleration alone, the middle row of a
+    Keplerian-only fit is the orbit alone, and the bottom row of both shows the
+    residuals of the full fit around zero.
 
     The left column is RA*cos(Dec) and the right column is Dec. Lines are
-    posterior draws; the bottom row (the middle row for an acceleration-only
-    fit) is colored by ``cbar_param``. Parallax is
-    removed from the data in every row, since DR4 only gives the AL parallax
-    factor.
+    posterior draws; the bottom row of a Keplerian + acceleration fit (the
+    middle row otherwise) is colored by ``cbar_param``. DR4 only gives the
+    along-scan parallax factor, so the parallax in the top row uses the RA and
+    Dec factors from ``_parallax_factors_dr4``.
 
     Each AL measurement is turned into a sky point for each draw by moving that
     draw's model position along the scan direction by the AL residual (the Gaia
@@ -2587,13 +2649,12 @@ def plot_dr4_acceleration(
 
     Args:
         results (orbitize.results.Results): Results object with posterior
-        system (orbitize.system.System): System made with
-            ``acceleration_and_keplerian_fit=True`` or ``acceleration_only=True``
-            and ``system.gaia`` set to a DR4LogProb instance
+        system (orbitize.system.System): System with ``system.gaia`` set to a
+            DR4LogProb instance
         num_orbits_to_plot (int): number of posterior draws to overplot
         num_epochs_to_plot (int): number of points per model curve
-        cbar_param (str): parameter label used to color the orbit row (the
-            acceleration row for an acceleration-only fit)
+        cbar_param (str, optional): parameter label used to color the lines of
+            one row. Default: ``sma1`` if it was fit, otherwise ``acc_ra``
         min_projection (float): smallest |sin(psi)| or |cos(psi)| for which the
             projected AL uncertainty is drawn
         fontsize (int): font size for axis labels
@@ -2603,16 +2664,14 @@ def plot_dr4_acceleration(
     Returns:
         matplotlib.pyplot.Figure
     """
-    if "acc_ra" not in system.param_idx:
-        raise ValueError(
-            "plot_dr4_acceleration needs acc_ra and acc_dec in the fit "
-            "(System(acceleration_and_keplerian_fit=True) or "
-            "System(acceleration_only=True))."
-        )
-
     dr4 = system.gaia
     idx = system.param_idx
     post = results.post
+    has_acc = "acc_ra" in idx
+    has_orbit = system.num_secondary_bodies > 0
+    if cbar_param is None:
+        cbar_param = "sma1" if "sma1" in idx else "acc_ra"
+
     choose = np.random.randint(
         0, high=len(post), size=min(num_orbits_to_plot, len(post))
     )
@@ -2624,84 +2683,115 @@ def plot_dr4_acceleration(
         epochs_mjd.max() + 0.5 * 365.25,
         num_epochs_to_plot,
     )
-    t_fine_decyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).decimalyear
-    t_data_decyr = Time(epochs_mjd, format="mjd", scale=dr4.time_scale).decimalyear
+    t_fine_jyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).jyear
+    t_data_jyr = Time(epochs_mjd, format="mjd", scale=dr4.time_scale).jyear
     dt_fine = (t_fine_mjd - dr4.ref_epoch_mjd) / 365.25
+    plx_factors_fine = np.array(_parallax_factors_dr4(dr4, t_fine_mjd))
+    plx_factors_data = np.array(_parallax_factors_dr4(dr4, epochs_mjd))
     scan = np.array([dr4.sin_scan, dr4.cos_scan])  # AL direction in (RA*, Dec)
 
-    def components(params, epochs, dt):
-        """(RA*, Dec) of the linear, acceleration and orbit parts of the model."""
+    def components(params, epochs, dt, plx_factors):
+        """(RA*, Dec) of each part of the model."""
         linear = np.array([
             params[idx["alpha0"]] + params[idx["pm_ra"]] * dt,
             params[idx["delta0"]] + params[idx["pm_dec"]] * dt,
         ])
-        orbit, acc = _split_star_offsets_dr4(params, system, epochs)
-        return {"linear": linear, "acc": acc, "orbit": orbit}
+        if has_acc:
+            orbit, acc = _split_star_offsets_dr4(params, system, epochs)
+        else:
+            orbit = np.array(_get_star_offsets_dr4(params, system, epochs))
+            acc = np.zeros_like(orbit)
+        return {
+            "plx": params[idx["plx"]] * plx_factors,
+            "linear": linear,
+            "acc": acc,
+            "orbit": orbit,
+        }
 
-    parts = ("linear", "acc", "orbit")
+    parts = ("plx", "linear", "acc", "orbit")
     fine = {k: np.zeros((n_draws, 2, len(t_fine_mjd))) for k in parts}
     data = {k: np.zeros((n_draws, 2, len(epochs_mjd))) for k in parts}
     points = np.zeros((n_draws, 2, len(epochs_mjd)))
 
     for n, i in enumerate(choose):
         params = post[i]
-        for store, epochs, dt in (
-            (fine, t_fine_mjd, dt_fine), (data, epochs_mjd, dr4.dt_yr)
+        for store, epochs, dt, plx_factors in (
+            (fine, t_fine_mjd, dt_fine, plx_factors_fine),
+            (data, epochs_mjd, dr4.dt_yr, plx_factors_data),
         ):
-            for k, v in components(params, epochs, dt).items():
+            for k, v in components(params, epochs, dt, plx_factors).items():
                 store[k][n] = v
         al_residual = dr4.centroid_pos_al - _model_along_scan_dr4(params, system, dr4)
-        sky = data["linear"][n] + data["acc"][n] + data["orbit"][n]
+        sky = sum(data[k][n] for k in parts)
         points[n] = sky + al_residual * scan
 
     cvals = post[choose, idx[cbar_param]]
     cmap = mpl.cm.RdBu_r
     norm = mpl.colors.Normalize(vmin=cvals.min(), vmax=cvals.max())
 
-    rows = [("linear", "acc", "orbit"), ("acc", "orbit"), ("orbit",)]
-    # with no orbit the bottom-row lines are all zero, so color the
-    # acceleration row instead
-    colored_row = 1 if system.acceleration_only else 2
+    signal = ["acc"] * has_acc + ["orbit"] * has_orbit
+    rows = [["plx", "linear"] + signal, signal, signal[1:]]
+    colored_row = 2 if len(signal) == 2 else 1
+
+    names = {"plx": "parallax", "linear": "pos. + PM", "acc": "accel.", "orbit": "orbit"}
+    line_color, scatter_color, al_color = "0.6", "#0072B2", "#D55E00"
 
     if fig is None:
-        fig, axes = plt.subplots(3, 2, figsize=(20, 10.5), sharex=True)
+        fig, axes = plt.subplots(3, 2, figsize=(20, 13), sharex=True)
     else:
         axes = np.array(fig.get_axes()).reshape(3, 2)
 
     for row_i, (row, keep) in enumerate(zip(axes, rows)):
         colored = row_i == colored_row
-        curves = sum(fine[k] for k in keep)
+        curves = sum((fine[k] for k in keep), np.zeros_like(fine["plx"]))
         y = points - sum(data[k] for k in parts if k not in keep)
         y_med, y_std = np.median(y, axis=0), np.std(y, axis=0)
+        kept_names = [names[k] for k in keep]
+        ylabel = (
+            " +\n".join(
+                " + ".join(kept_names[j:j + 2]) for j in range(0, len(kept_names), 2)
+            )
+            if keep else "residuals"
+        ) + " [mas]"
 
         for c, ax in enumerate(row):
             for n in range(n_draws):
-                color = cmap(norm(cvals[n])) if colored else "grey"
-                ax.plot(t_fine_decyr, curves[n, c], color=color, alpha=0.2)
+                color = cmap(norm(cvals[n])) if colored else line_color
+                ax.plot(t_fine_jyr, curves[n, c], color=color, alpha=0.3, zorder=1)
 
-            # scatter of the AL points over posterior draws
-            ax.errorbar(
-                t_data_decyr, y_med[c], y_std[c], ls="", marker="o",
-                color="blue", elinewidth=5, alpha=0.2,
-            )
             # AL uncertainty projected onto this axis
             good = np.abs(scan[c]) > min_projection
             ax.errorbar(
-                t_data_decyr[good], y_med[c][good],
+                t_data_jyr[good], y_med[c][good],
                 (dr4.centroid_pos_error_al / np.abs(scan[c]))[good],
-                ls="", alpha=0.2,
+                ls="", color=al_color, elinewidth=1.5, zorder=2,
+            )
+            # scatter of the AL points over posterior draws
+            ax.errorbar(
+                t_data_jyr, y_med[c], y_std[c], ls="", marker="o", ms=5,
+                color=scatter_color, elinewidth=6, zorder=3,
             )
             ax.tick_params(axis="both", labelsize=fontsize - 3)
+            ax.set_ylabel(ylabel, fontsize=fontsize)
 
-    axes[1, 0].set_ylabel(r"$\Delta$R.A. $\cos{\delta_0}$ [mas]", fontsize=fontsize)
-    axes[1, 1].set_ylabel(r"$\Delta$decl. [mas]", fontsize=fontsize)
+    axes[0, 0].set_title(r"$\Delta$R.A. $\cos{\delta_0}$", fontsize=fontsize)
+    axes[0, 1].set_title(r"$\Delta$decl.", fontsize=fontsize)
     for ax in axes[-1]:
-        ax.set_xlabel("Time [yr]", fontsize=fontsize)
-    fig.subplots_adjust(hspace=0, right=0.88)
+        ax.set_xlabel("Time [Julian yr]", fontsize=fontsize)
+    axes[0, 0].legend(
+        handles=[
+            Line2D([], [], color=line_color, label="posterior draws"),
+            Line2D([], [], color=scatter_color, lw=6, label="scatter over draws"),
+            Line2D([], [], color=al_color, lw=1.5, label="projected AL uncertainty"),
+        ],
+        fontsize=fontsize - 4,
+    )
+    fig.subplots_adjust(hspace=0, wspace=0.22, left=0.08, right=0.88)
 
     pos = axes[colored_row, 1].get_position()
     cbar_ax = fig.add_axes([0.9, pos.y0, 0.015, pos.height])
     cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm)
     cbar.set_label(cbar_param, size=fontsize)
+    cbar.ax.tick_params(labelsize=fontsize - 3)
 
     return fig

@@ -6,12 +6,16 @@ outer companion that isn't modelled. Gaia DR4 epoch astrometry is required;
 relative astrometry and Hipparcos IAD can be added.
 """
 
+from types import SimpleNamespace
+
+import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from astropy.table import Table
 from astropy.time import Time
 
-from orbitize import DATADIR, gaia, hipparcos, plot, read_input, sampler, system
+from orbitize import DATADIR, gaia, hipparcos, plot, priors, read_input, sampler, system
 
 REF_EPOCH_MJD = 57936.375  # J2017.5, the DR4 reference epoch [MJD]
 
@@ -73,7 +77,7 @@ def radec_table(tmp_path, obj, years=(2015.0, 2017.0, 2018.5, 2020.0), err=0.5):
     """Write ra/dec astrometry of ``obj`` at ``years`` to a csv file and read it
     back with ``read_input.read_file``. For obj=1 the values are a rough
     companion offset [mas]; for obj=0 (the star) they are zero."""
-    epochs = Time(np.array(years), format="decimalyear").mjd
+    epochs = Time(np.array(years), format="jyear").mjd
     n = len(epochs)
     value = 50.0 if obj else 0.0
     t = Table(
@@ -164,8 +168,8 @@ def test_acceleration_adds_to_star_only():
     ra0, dec0, _, _ = sys.compute_all_orbits(no_acc, epochs=epochs)
 
     dt = (epochs - REF_EPOCH_MJD) / 365.25
-    np.testing.assert_allclose(ra[:, 0, 0] - ra0[:, 0, 0], -TRUTH["acc_ra"] * dt**2)
-    np.testing.assert_allclose(dec[:, 0, 0] - dec0[:, 0, 0], -TRUTH["acc_dec"] * dt**2)
+    np.testing.assert_allclose(ra[:, 0, 0] - ra0[:, 0, 0], -0.5 * TRUTH["acc_ra"] * dt**2)
+    np.testing.assert_allclose(dec[:, 0, 0] - dec0[:, 0, 0], -0.5 * TRUTH["acc_dec"] * dt**2)
     np.testing.assert_array_equal(ra[:, 1, 0], ra0[:, 1, 0])
     np.testing.assert_array_equal(dec[:, 1, 0], dec0[:, 1, 0])
 
@@ -181,7 +185,7 @@ def test_acceleration_in_along_scan_model():
     diff = plot._model_along_scan_dr4(params, sys, dr4) - plot._model_along_scan_dr4(
         no_acc, sys, dr4
     )
-    expected = dr4.dt_yr**2 * (
+    expected = 0.5 * dr4.dt_yr**2 * (
         TRUTH["acc_ra"] * dr4.sin_scan + TRUTH["acc_dec"] * dr4.cos_scan
     )
     np.testing.assert_allclose(diff, expected, rtol=0, atol=1e-10)
@@ -194,7 +198,7 @@ def test_fitted_acceleration_recovers_injected():
     dr4 = mock_dr4()
     sys = kep_system(dr4)
     no_acc = params_from(sys, dict(TRUTH, acc_ra=0.0, acc_dec=0.0))
-    dr4.centroid_pos_al = plot._model_along_scan_dr4(no_acc, sys, dr4) + dr4.dt_yr**2 * (
+    dr4.centroid_pos_al = plot._model_along_scan_dr4(no_acc, sys, dr4) + 0.5 * dr4.dt_yr**2 * (
         TRUTH["acc_ra"] * dr4.sin_scan + TRUTH["acc_dec"] * dr4.cos_scan
     )
 
@@ -294,3 +298,81 @@ if __name__ == "__main__":
     test_hipparcos_plus_dr4()
     test_hipparcos_stellar_astrometry_and_dr4(tmp)
     test_mcmc_runs()
+
+
+def test_user_priors_replace_plx_and_mass():
+    """plx_prior and stellar_or_system_mass_prior can be used without plx and
+    stellar_or_system_mass, and take priority over them."""
+    plx_prior = priors.GaussianPrior(20.0, 0.5)
+    mass_prior = priors.GaussianPrior(1.0, 0.1)
+    kwargs = dict(
+        num_secondary_bodies=1, data_table=None, fit_secondary_mass=True, gaia=mock_dr4(),
+        plx_prior=plx_prior, stellar_or_system_mass_prior=mass_prior,
+    )
+    for sys in (
+        system.System(**kwargs),
+        system.System(stellar_or_system_mass=2.0, plx=5.0, plx_err=1.0, mass_err=0.5, **kwargs),
+    ):
+        assert sys.sys_priors[sys.param_idx["plx"]] is plx_prior
+        assert sys.sys_priors[sys.param_idx["m0"]] is mass_prior
+
+
+def test_total_mass_prior(tmp_path):
+    """Without a fitted companion mass, the prior is on the total mass."""
+    table = radec_table(tmp_path, obj=1)
+    mass_prior = priors.GaussianPrior(1.0, 0.1)
+    sys = system.System(1, table, plx=20.0, stellar_or_system_mass_prior=mass_prior)
+    assert sys.sys_priors[sys.param_idx["mtot"]] is mass_prior
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        (dict(plx=20.0), "stellar_or_system_mass"),
+        (dict(stellar_or_system_mass=1.0), "plx"),
+    ],
+)
+def test_needs_plx_and_mass(tmp_path, kwargs, match):
+    """A Keplerian fit needs a value or a prior for both plx and mass."""
+    with pytest.raises(ValueError, match=match):
+        system.System(1, radec_table(tmp_path, obj=1), **kwargs)
+
+
+def test_save_system_without_plx_or_mass(tmp_path):
+    """A System set up with only priors can still be saved."""
+    sys = system.System(
+        num_secondary_bodies=1, data_table=None, fit_secondary_mass=True, gaia=mock_dr4(),
+        plx_prior=priors.GaussianPrior(20.0, 0.5),
+        stellar_or_system_mass_prior=priors.GaussianPrior(1.0, 0.1),
+    )
+    with h5py.File(tmp_path / "system.hdf5", "w") as hf:
+        sys.save(hf)
+        assert np.isnan(hf.attrs["plx"])
+        assert np.isnan(hf.attrs["stellar_or_system_mass"])
+
+
+@pytest.mark.parametrize("fit", ["keplerian+acc", "keplerian", "acc_only"])
+def test_plot_dr4_acceleration(fit):
+    """plot_dr4_acceleration works for all three kinds of fit by default and
+    labels every y axis."""
+    dr4 = mock_dr4()
+    if fit == "acc_only":
+        sys = system.System(num_secondary_bodies=0, data_table=None, gaia=dr4, acceleration_only=True)
+    else:
+        sys = kep_system(dr4) if fit == "keplerian+acc" else system.System(
+            num_secondary_bodies=1, data_table=None, stellar_or_system_mass=1.0, mass_err=0.1,
+            plx=20.0, plx_err=0.5, fit_secondary_mass=True, gaia=dr4,
+        )
+    assert ("acc_ra" in sys.labels) == (fit != "keplerian")
+
+    values = dict(TRUTH, acc_ra=0.05, acc_dec=-0.04, plx=20.0)
+    post = np.tile(params_from(sys, values), (10, 1))
+    post += 1e-3 * np.random.default_rng(0).normal(size=post.shape)
+    results = SimpleNamespace(post=post)
+
+    plt.switch_backend("Agg")
+    fig = plot.plot_dr4_acceleration(results, sys, num_orbits_to_plot=5, num_epochs_to_plot=20)
+    axes = fig.get_axes()[:6]
+    assert all(ax.get_ylabel().endswith("[mas]") for ax in axes)
+    assert axes[-1].get_ylabel() == ("orbit [mas]" if fit == "keplerian+acc" else "residuals [mas]")
+    plt.close(fig)

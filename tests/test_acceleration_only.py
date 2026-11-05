@@ -6,6 +6,7 @@ stellar ra/dec astrometry from any instrument (object 0 in the data table),
 or both.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from astropy.table import Table
@@ -44,14 +45,14 @@ HIP_DATA = {
 }
 
 
-def mock_dr4(truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0):
+def mock_dr4(truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0, ra=None, dec=None):
     """
     Mock Gaia DR4 along-scan data over 5 yr centred on J2017.5. If ``truth``
     is given, the AL positions are the noiseless acceleration model,
     computed here by hand:
 
-        w = plx*f_AL + (alpha0 + pm_ra*dt + acc_ra*dt^2) sin(psi)
-                     + (delta0 + pm_dec*dt + acc_dec*dt^2) cos(psi)
+        w = plx*f_AL + (alpha0 + pm_ra*dt + 0.5*acc_ra*dt^2) sin(psi)
+                     + (delta0 + pm_dec*dt + 0.5*acc_dec*dt^2) cos(psi)
     """
     rng = np.random.default_rng(seed)
     epochs = REF_EPOCH_MJD + np.linspace(-2.5, 2.5, n_obs) * 365.25
@@ -62,8 +63,8 @@ def mock_dr4(truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0):
     if truth is not None:
         w = (
             truth["plx"] * f_al
-            + (truth["alpha0"] + truth["pm_ra"] * dt + truth["acc_ra"] * dt**2) * np.sin(psi)
-            + (truth["delta0"] + truth["pm_dec"] * dt + truth["acc_dec"] * dt**2) * np.cos(psi)
+            + (truth["alpha0"] + truth["pm_ra"] * dt + 0.5 * truth["acc_ra"] * dt**2) * np.sin(psi)
+            + (truth["delta0"] + truth["pm_dec"] * dt + 0.5 * truth["acc_dec"] * dt**2) * np.cos(psi)
         )
     data = Table(
         {
@@ -77,14 +78,14 @@ def mock_dr4(truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0):
     )
     data.meta.update(time_format="mjd", time_scale="tcb")
     return gaia.DR4LogProb(
-        0, data, ref_epoch_mjd=REF_EPOCH_MJD, jitter_prior=jitter_prior
+        0, data, ref_epoch_mjd=REF_EPOCH_MJD, jitter_prior=jitter_prior, ra=ra, dec=dec
     )
 
 
 def radec_table(tmp_path, obj=0, years=(2015.0, 2017.0, 2018.5, 2020.0), err=0.5):
     """Write ra/dec astrometry of ``obj`` (0 = the star) at ``years`` to a csv
     file and read it back with ``read_input.read_file``."""
-    epochs = Time(np.array(years), format="decimalyear").mjd
+    epochs = Time(np.array(years), format="jyear").mjd
     n = len(epochs)
     t = Table(
         [epochs, np.full(n, obj), np.zeros(n), np.full(n, err), np.zeros(n), np.full(n, err)],
@@ -96,13 +97,10 @@ def radec_table(tmp_path, obj=0, years=(2015.0, 2017.0, 2018.5, 2020.0), err=0.5
 
 
 def acc_system(data_table=None, dr4=None, **kwargs):
-    """Acceleration-only System. stellar_or_system_mass and plx are unused
-    placeholders."""
+    """Acceleration-only System."""
     return system.System(
         num_secondary_bodies=0,
         data_table=data_table,
-        stellar_or_system_mass=1.0,
-        plx=10.0,
         gaia=dr4,
         acceleration_only=True,
         **kwargs,
@@ -158,15 +156,16 @@ def test_rejects_companion_astrometry(tmp_path):
         acc_system(
             data_table=radec_table(tmp_path, obj=1),
             dr4=mock_dr4(),
-            alpha0=ALPHA0_DEG,
-            delta0=DELTA0_DEG,
         )
 
 
 def test_radec_data_needs_reference_position(tmp_path):
-    """Stellar ra/dec data need alpha0/delta0 to compute parallax factors."""
-    with pytest.raises(ValueError, match="alpha0 and delta0"):
+    """Stellar ra/dec data need the Gaia object's ra/dec to compute parallax
+    factors."""
+    with pytest.raises(ValueError, match="ra and dec"):
         acc_system(data_table=radec_table(tmp_path))
+    with pytest.raises(ValueError, match="ra and dec"):
+        acc_system(data_table=radec_table(tmp_path), dr4=mock_dr4())
 
 
 def test_rejects_both_fit_types():
@@ -193,8 +192,8 @@ def test_star_offsets_are_acceleration_only():
     raoff, deoff, vz, brightness = sys.compute_all_orbits(params, epochs=dr4.epochs_mjd)
 
     assert raoff.shape == (dr4.n_obs, 1, 1)
-    np.testing.assert_allclose(raoff[:, 0, 0], -TRUTH["acc_ra"] * dr4.dt_yr**2)
-    np.testing.assert_allclose(deoff[:, 0, 0], -TRUTH["acc_dec"] * dr4.dt_yr**2)
+    np.testing.assert_allclose(raoff[:, 0, 0], -0.5 * TRUTH["acc_ra"] * dr4.dt_yr**2)
+    np.testing.assert_allclose(deoff[:, 0, 0], -0.5 * TRUTH["acc_dec"] * dr4.dt_yr**2)
     assert np.all(vz == 0) and np.all(brightness == 0)
 
 
@@ -235,19 +234,19 @@ def test_least_squares_recovers_acceleration():
 
 def test_radec_model_matches_hand_calculation(tmp_path):
     """compute_model for stellar ra/dec data: with zero parallax the model is
-    the quadratic alpha0 + pm*dt + acc*dt^2 (RA divided by cos(delta0)),
+    the quadratic alpha0 + pm*dt + 0.5*acc*dt^2 (RA divided by cos(delta0)),
     with dt measured from alphadec0_epoch."""
     years = np.array([2015.0, 2017.0, 2018.5, 2020.0])
     sys = acc_system(
-        data_table=radec_table(tmp_path, years=years), alpha0=ALPHA0_DEG, delta0=DELTA0_DEG
+        data_table=radec_table(tmp_path, years=years),
+        dr4=mock_dr4(ra=ALPHA0_DEG, dec=DELTA0_DEG),
     )
     values = dict(TRUTH, plx=0.0)
     model, jitter = sys.compute_model(params_from(sys, values))
 
-    epochs_yr = Time(Time(years, format="decimalyear").mjd, format="mjd").decimalyear
-    dt = epochs_yr - sys.alphadec0_epoch
-    ra = values["alpha0"] + values["pm_ra"] * dt + values["acc_ra"] * dt**2
-    dec = values["delta0"] + values["pm_dec"] * dt + values["acc_dec"] * dt**2
+    dt = years - Time(REF_EPOCH_MJD, format="mjd").jyear
+    ra = values["alpha0"] + values["pm_ra"] * dt + 0.5 * values["acc_ra"] * dt**2
+    dec = values["delta0"] + values["pm_dec"] * dt + 0.5 * values["acc_dec"] * dt**2
 
     np.testing.assert_allclose(model[:, 0], ra / np.cos(np.radians(DELTA0_DEG)))
     np.testing.assert_allclose(model[:, 1], dec)
@@ -257,7 +256,7 @@ def test_radec_model_matches_hand_calculation(tmp_path):
 def test_radec_model_vectorised(tmp_path):
     """compute_model handles a 2D array of parameter vectors (one per
     column), as the samplers pass them in, and matches the 1D result."""
-    sys = acc_system(data_table=radec_table(tmp_path), alpha0=ALPHA0_DEG, delta0=DELTA0_DEG)
+    sys = acc_system(data_table=radec_table(tmp_path), dr4=mock_dr4(ra=ALPHA0_DEG, dec=DELTA0_DEG))
     p1 = params_from(sys, TRUTH)
     p2 = params_from(sys, dict(TRUTH, acc_ra=-0.3, plx=5.0))
 
@@ -270,30 +269,32 @@ def test_radec_model_vectorised(tmp_path):
 
 def test_radec_plus_dr4_lnlike_is_sum(tmp_path):
     """Fitting ra/dec astrometry and DR4 data together adds their
-    log-likelihoods: the joint lnlike equals the sum of the two separate
-    fits'."""
-    table = radec_table(tmp_path)
-    kwargs = dict(alpha0=ALPHA0_DEG, delta0=DELTA0_DEG)
+    log-likelihoods: the joint lnlike equals the DR4-only lnlike plus the
+    ra/dec lnlike calculated by hand."""
+    err = 0.5
+    table = radec_table(tmp_path, err=err)
 
-    joint = acc_system(data_table=table, dr4=mock_dr4(truth=TRUTH), **kwargs)
-    radec_only = acc_system(data_table=table, **kwargs)
+    joint = acc_system(data_table=table, dr4=mock_dr4(truth=TRUTH, ra=ALPHA0_DEG, dec=DELTA0_DEG))
     dr4_only = acc_system(dr4=mock_dr4(truth=TRUTH))
-    assert joint.labels == radec_only.labels == dr4_only.labels
+    assert joint.labels == dr4_only.labels
 
     params = params_from(joint, TRUTH)
     lnlike = lambda s: sampler.MCMC(s, num_temps=1, num_walkers=16, num_threads=1)._logl(params)
 
-    np.testing.assert_allclose(lnlike(joint), lnlike(radec_only) + lnlike(dr4_only))
+    model, _ = joint.compute_model(params)
+    radec_lnlike = np.sum(-0.5 * (model / err) ** 2 - np.log(np.sqrt(2 * np.pi) * err))
+
+    np.testing.assert_allclose(lnlike(joint), radec_lnlike + lnlike(dr4_only))
 
 
-@pytest.mark.parametrize("use_radec, use_dr4", [(False, True), (True, False), (True, True)])
+@pytest.mark.parametrize("use_radec, use_dr4", [(False, True), (True, True)])
 def test_mcmc_runs(tmp_path, use_radec, use_dr4):
-    """A short MCMC run works for DR4 data, ra/dec data and both, and returns
-    finite log-likelihoods."""
+    """A short MCMC run works for DR4 data with and without ra/dec data, and
+    returns finite log-likelihoods."""
     kwargs = {}
     if use_radec:
-        kwargs = dict(data_table=radec_table(tmp_path), alpha0=ALPHA0_DEG, delta0=DELTA0_DEG)
-    sys = acc_system(dr4=mock_dr4(truth=TRUTH) if use_dr4 else None, **kwargs)
+        kwargs = dict(data_table=radec_table(tmp_path))
+    sys = acc_system(dr4=mock_dr4(truth=TRUTH, ra=ALPHA0_DEG, dec=DELTA0_DEG), **kwargs)
 
     n_walkers = 2 * len(sys.labels)
     mcmc = sampler.MCMC(sys, num_temps=1, num_walkers=n_walkers, num_threads=1)
@@ -325,3 +326,62 @@ if __name__ == "__main__":
     test_radec_model_vectorised(tmp)
     test_radec_plus_dr4_lnlike_is_sum(tmp)
     test_mcmc_runs(tmp, True, True)
+
+
+def test_plx_prior_replaces_default():
+    """plx_prior replaces the default parallax prior."""
+    plx_prior = priors.GaussianPrior(12.0, 0.5)
+    sys = acc_system(dr4=mock_dr4(), plx_prior=plx_prior)
+    assert sys.sys_priors[sys.param_idx["plx"]] is plx_prior
+
+
+def test_rejects_mass_prior():
+    """An acceleration-only fit has no mass to put a prior on."""
+    with pytest.raises(ValueError, match="mass"):
+        acc_system(dr4=mock_dr4(), stellar_or_system_mass_prior=priors.GaussianPrior(1.0, 0.1))
+
+
+@pytest.mark.parametrize("plx", [None, TRUTH["plx"]])
+def test_linear_fit_recovers_truth(plx):
+    """DR4LogProb.linear_fit recovers the injected values from noiseless data,
+    with parallax fitted or held fixed."""
+    dr4 = mock_dr4(truth=TRUTH)
+    labels, best, cov, chi2 = dr4.linear_fit(plx=plx, fit_acceleration=True)
+
+    expected = ["pm_ra", "pm_dec", "alpha0", "delta0", "acc_ra", "acc_dec"]
+    assert labels == (expected if plx is not None else ["plx"] + expected)
+    assert cov.shape == (len(labels), len(labels))
+    np.testing.assert_allclose(best, [TRUTH[label] for label in labels], atol=1e-8)
+    np.testing.assert_allclose(chi2, 0.0, atol=1e-10)
+
+
+def test_parallax_factors_reconstructed():
+    """RA and Dec parallax factors found from the along-scan factors alone
+    match the ones calculated from the star's position."""
+    with_position = mock_dr4(ra=ALPHA0_DEG, dec=DELTA0_DEG)
+    epochs = with_position.epochs_mjd
+    f_ra, f_dec = plot._parallax_factors_dr4(with_position, epochs)
+
+    no_position = mock_dr4()
+    no_position.parallax_factor_al = f_ra * no_position.sin_scan + f_dec * no_position.cos_scan
+    f_ra2, f_dec2 = plot._parallax_factors_dr4(no_position, epochs)
+
+    np.testing.assert_allclose(f_ra2, f_ra, atol=1e-5)
+    np.testing.assert_allclose(f_dec2, f_dec, atol=1e-5)
+
+
+def test_plot_corner_default_labels():
+    """plot_corner has default labels for the accelerations."""
+    sys = acc_system(dr4=mock_dr4(truth=TRUTH))
+    n_walkers = 2 * len(sys.labels)
+    mcmc = sampler.MCMC(sys, num_temps=1, num_walkers=n_walkers, num_threads=1)
+    mcmc.curr_pos = params_from(sys, TRUTH) + 1e-3 * np.random.default_rng(0).normal(
+        size=(1, n_walkers, len(sys.labels))
+    )
+    mcmc.run_sampler(n_walkers * 20, burn_steps=0)
+
+    plt.switch_backend("Agg")
+    fig = mcmc.results.plot_corner(param_list=["acc_ra", "acc_dec"])
+    xlabels = [ax.get_xlabel() for ax in fig.get_axes()]
+    assert any("mas/yr$^2$" in label for label in xlabels)
+    plt.close(fig)
