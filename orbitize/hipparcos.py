@@ -165,7 +165,7 @@ class HipparcosLogProb(object):
             using this renormalization.
         brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
             to the residuals, following Brandt+ 2023.
-        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog
             (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
             "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
             "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
@@ -181,7 +181,7 @@ class HipparcosLogProb(object):
         alphadec0_epoch=1991.25,
         renormalize_errors=False,
         brandt_correction=False,
-        hip_data=None
+        hip_data=None,
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
@@ -207,7 +207,11 @@ class HipparcosLogProb(object):
         # we need to look it up
         if dvd_file:
             if not isinstance(hip_data, dict):
-                raise TypeError("Expected kwarg `hip_data` to be a dict but encountered {} instead".format(type(hip_data)))
+                raise TypeError(
+                    "Expected kwarg `hip_data` to be a dict but encountered {} instead".format(
+                        type(hip_data)
+                    )
+                )
             self.plx0 = hip_data["Plx"]  # [mas]
             self.pm_ra0 = hip_data["pmRA"]  # [mas/yr]
             self.pm_dec0 = hip_data["pmDE"]  # [mas/yr]
@@ -263,9 +267,7 @@ class HipparcosLogProb(object):
             raise ValueError(
                 """
                 Currently, we only handle stars with solution types 1 and 5. Your star has type {}. Let us know if you want us to add another solution type!
-                """.format(
-                    self.solution_type
-                )
+                """.format(self.solution_type)
             )
 
         # read in IAD
@@ -458,7 +460,7 @@ def nielsen_iad_refitting_test(
             plot
         burn_steps (int): number of MCMC burn-in steps to run.
         mcmc_steps (int): number of MCMC production steps to run.
-        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog
             (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
             "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
             "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
@@ -476,7 +478,11 @@ def nielsen_iad_refitting_test(
     num_secondary_bodies = 0
 
     myHipLogProb = HipparcosLogProb(
-        iad_file, hip_num, num_secondary_bodies, renormalize_errors=True, hip_data=hip_data
+        iad_file,
+        hip_num,
+        num_secondary_bodies,
+        renormalize_errors=True,
+        hip_data=hip_data,
     )
     n_epochs = len(myHipLogProb.epochs)
 

@@ -104,12 +104,10 @@ class Sampler(abc.ABC):
                 params, epochs=self.system.hipparcos_IAD.epochs_mjd
             )
 
-            (
-                raoff_model_hip_epoch,
-                deoff_model_hip_epoch,
-                _, _
-            ) = self.system.compute_all_orbits(
-                params, epochs=Time([1991.25], format="decimalyear").mjd
+            (raoff_model_hip_epoch, deoff_model_hip_epoch, _, _) = (
+                self.system.compute_all_orbits(
+                    params, epochs=Time([1991.25], format="decimalyear").mjd
+                )
             )
 
             # subtract off position of star at reference Hipparcos epoch
@@ -510,7 +508,6 @@ class OFTI(
         else:
             np.random.seed()
 
-
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
         output_lnlikes = np.empty(total_orbits)
@@ -541,7 +538,12 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0, seed=None
+        self,
+        total_orbits,
+        num_samples=10000,
+        num_cores=None,
+        OFTI_warning=60.0,
+        seed=None,
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -679,7 +681,7 @@ class OFTI(
 
 class MCMC(Sampler):
     """
-    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will 
+    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will
     be run if ``num_temps`` > 1 using ptemcee, a fork of the emcee Affine-infariant sampler.
 
     .. Warning:: may not work well for multi-modal distributions
@@ -893,8 +895,7 @@ class MCMC(Sampler):
 
                     # Get invalids by checking ecc values for each companion
                     indices = [
-                        ((i * 6) + 1)
-                        for i in range(self.system.num_secondary_bodies)
+                        ((i * 6) + 1) for i in range(self.system.num_secondary_bodies)
                     ]
                     invalids = np.where(
                         (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
@@ -911,7 +912,6 @@ class MCMC(Sampler):
                 if total_invalids == 0:
                     all_valid = True
                     print("All walker positions validated.")
-            
 
     def run_sampler(
         self,
@@ -955,8 +955,8 @@ class MCMC(Sampler):
             raise TypeError("periodic_save_freq must be an integer")
 
         if output_filename is not None:
-            if output_filename.endswith('.hdf5'):
-                output_filename = output_filename.split('.hdf5')[0]
+            if output_filename.endswith(".hdf5"):
+                output_filename = output_filename.split(".hdf5")[0]
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
@@ -972,16 +972,14 @@ class MCMC(Sampler):
                 logpargs=[
                     self.priors,
                 ],
-                pool=pool
+                pool=pool,
             )
-
 
             print("Starting Burn in")
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)
             ):
                 self.curr_pos = state[0]
-
 
                 if (i + 1) % 5 == 0:
                     print(
@@ -995,7 +993,9 @@ class MCMC(Sampler):
                 if periodic_save_freq is not None:
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self.results.curr_pos = self.curr_pos
-                        self.results.save_results(f'{output_filename}_{i+1}burnsteps.hdf5')
+                        self.results.save_results(
+                            f"{output_filename}_{i + 1}burnsteps.hdf5"
+                        )
 
             sampler.reset()
             print("")
@@ -1012,7 +1012,6 @@ class MCMC(Sampler):
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
                 if periodic_save_freq is not None:
-                    
                     if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
                         self._update_chains_from_sampler(sampler, num_steps=i + 1)
 
@@ -1041,7 +1040,6 @@ class MCMC(Sampler):
                         )
                         self.results.save_results(output_filename)
                         saved_upto = i + 1
-
 
             print("")
             self._update_chains_from_sampler(sampler)
@@ -1072,9 +1070,8 @@ class MCMC(Sampler):
                     curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
                 )
 
-
             if output_filename is not None:
-                self.results.save_results(f'{output_filename}.hdf5')
+                self.results.save_results(f"{output_filename}.hdf5")
 
             print("Run complete")
 
@@ -1285,7 +1282,7 @@ class BaseNestedSampler(Sampler):
         """
         utform = np.zeros(u.shape)
         for i in range(u.shape[0]):
-            if hasattr(self.system.sys_priors[i], 'transform_samples'):
+            if hasattr(self.system.sys_priors[i], "transform_samples"):
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
             else:
                 # prior is a fixed number
@@ -1312,7 +1309,8 @@ class NestedSampler(BaseNestedSampler):
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1383,7 +1381,7 @@ class NestedSampler(BaseNestedSampler):
         mp.set_start_method(start_method, force=True)
 
         if not static:
-            run_nested_kwargs['wt_kwargs'] = {"pfrac": pfrac}
+            run_nested_kwargs["wt_kwargs"] = {"pfrac": pfrac}
 
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
@@ -1405,7 +1403,7 @@ class NestedSampler(BaseNestedSampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
-                        nlive=nlive
+                        nlive=nlive,
                     )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
@@ -1436,7 +1434,9 @@ class NestedSampler(BaseNestedSampler):
         self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
         self.results.ln_evidence_err = self.dynesty_sampler.results["logzerr"][-1]
 
-        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["niter"]
+        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results[
+            "niter"
+        ]
 
 
 class MultiNest(Sampler):
@@ -1462,7 +1462,8 @@ class MultiNest(Sampler):
     Tomas Stolker 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1487,7 +1488,7 @@ class MultiNest(Sampler):
     def run_sampler(
         self,
         n_live_points=500,
-        output_basename='./multinest',
+        output_basename="./multinest",
         hdf5_file=None,
         multinest_kwargs=None,
     ):
@@ -1572,8 +1573,10 @@ class MultiNest(Sampler):
             """
 
             for i in range(n_param):
-                if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                    param_cube[i] = self.system.sys_priors[i].transform_samples(param_cube[i])
+                if hasattr(self.system.sys_priors[i], "transform_samples"):
+                    param_cube[i] = self.system.sys_priors[i].transform_samples(
+                        param_cube[i]
+                    )
                 else:
                     # The prior is a fixed number
                     param_cube[i] = self.system.sys_priors[i]
@@ -1625,11 +1628,14 @@ class MultiNest(Sampler):
         # The log-likelihood is stored in the last column
         self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
         self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
-        self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+        self.results.ln_evidence_err = sampling_stats[
+            "nested sampling global log-evidence error"
+        ]
 
         # Get the MPI rank of the process
         try:
             from mpi4py import MPI
+
             mpi_rank = MPI.COMM_WORLD.Get_rank()
         except ModuleNotFoundError:
             mpi_rank = 0
@@ -1639,6 +1645,7 @@ class MultiNest(Sampler):
             self.results.save_results(filename=hdf5_file)
 
         return post_samples[:, :-1]
+
 
 class NautilusSampler(BaseNestedSampler):
     """
@@ -1658,7 +1665,9 @@ class NautilusSampler(BaseNestedSampler):
 
     Eshel Dror, Quinton Blackston, Aniruddh Chalagulla, & Niklas Naworal 2026
     """
-    def __init__(self,
+
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1680,22 +1689,22 @@ class NautilusSampler(BaseNestedSampler):
             version_number=orbitize.__version__,
         )
         self.start = time.time()
-    
+
     def nautilus_ptform(self, u):
         return self.ptform(u.T).T
-    
+
     def nautilus_logl(self, u: np.ndarray):
         return self._logl(u.T).T
-    
+
     def run_sampler(
         self,
-        n_live = 2000,
-        n_update = None,
-        verbose = False,
-        num_threads = 1,
-        savefile = None,
-        sampler_kwargs = {},
-        run_kwargs = {}
+        n_live=2000,
+        n_update=None,
+        verbose=False,
+        num_threads=1,
+        savefile=None,
+        sampler_kwargs={},
+        run_kwargs={},
     ):
         """Runs the nested sampler from the Nautilus package.
 
@@ -1722,7 +1731,11 @@ class NautilusSampler(BaseNestedSampler):
         Returns:
             numpy.array of float: equal-weighted posterior samples
         """
-        if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
+        if (
+            sys.version_info < (3, 9, 0)
+            and isinstance(num_threads, int)
+            and num_threads > 1
+        ):
             with mp.Pool(processes=num_threads) as pool:
                 self.naut_sampler = nautilus.Sampler(
                     prior=self.nautilus_ptform,
@@ -1733,13 +1746,10 @@ class NautilusSampler(BaseNestedSampler):
                     n_update=n_update,
                     pool=pool,
                     filepath=savefile,
-                    **sampler_kwargs
-                    )
-
-                success = self.naut_sampler.run(
-                    verbose=verbose,
-                    **run_kwargs
+                    **sampler_kwargs,
                 )
+
+                success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
         else:
             self.naut_sampler = nautilus.Sampler(
                 prior=self.nautilus_ptform,
@@ -1750,14 +1760,11 @@ class NautilusSampler(BaseNestedSampler):
                 n_update=n_update,
                 pool=num_threads,
                 filepath=savefile,
-                **sampler_kwargs
-                )
-
-            success = self.naut_sampler.run(
-                verbose=verbose,
-                **run_kwargs
+                **sampler_kwargs,
             )
-        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+
+            success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+        points, _, log_l = self.naut_sampler.posterior(equal_weight=True)
         weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 
         self.results.add_samples(
@@ -1765,7 +1772,7 @@ class NautilusSampler(BaseNestedSampler):
             log_l,
             weighted_post=weighted_points,
             weighted_lnlike=weighted_log_l,
-            lnweight=log_w
+            lnweight=log_w,
         )
 
         return points
