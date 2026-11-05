@@ -39,19 +39,32 @@ def test_nested_sampler():
     mySys.sys_priors[lab["plx"]] = plx
     mySys.sys_priors[lab["mtot"]] = mtot
 
-    start_method="fork"
+    start_method = "fork"
     if sys.platform in ["darwin", "win32"]:
-        start_method="spawn"
+        start_method = "spawn"
 
     # run both static & dynamic nested samplers
     mysampler = sampler.NestedSampler(mySys)
-    _ = mysampler.run_sampler(bound="multi", pfrac=0.95, static=False, start_method=start_method, num_threads=8, run_nested_kwargs={})
+    _ = mysampler.run_sampler(
+        bound="multi",
+        pfrac=0.95,
+        static=False,
+        start_method=start_method,
+        num_threads=8,
+        run_nested_kwargs={},
+    )
     print("Finished first run!")
 
     dynamic_eccentricities = mysampler.results.post[:, lab["ecc1"]]
     assert np.median(dynamic_eccentricities) == pytest.approx(ecc, abs=0.1)
 
-    _ = mysampler.run_sampler(bound="multi", static=True, start_method=start_method, num_threads=8, run_nested_kwargs={})
+    _ = mysampler.run_sampler(
+        bound="multi",
+        static=True,
+        start_method=start_method,
+        num_threads=8,
+        run_nested_kwargs={},
+    )
     print("Finished second run!")
 
     static_eccentricities = mysampler.results.post[:, lab["ecc1"]]

@@ -17,9 +17,9 @@ class System(object):
         data_table (astropy.table.Table): output from
             ``orbitize.read_input.read_file()``
         stellar_or_system_mass (float): mass of the primary star (if fitting for
-            dynamical masses of both components, for example when you have both 
-            astrometry and RVs) or total system mass (if fitting for total system 
-            mass only, as in the case of a vanilla 2-body fit using relative 
+            dynamical masses of both components, for example when you have both
+            astrometry and RVs) or total system mass (if fitting for total system
+            mass only, as in the case of a vanilla 2-body fit using relative
             astrometry only ) [M_sol]
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
@@ -82,8 +82,8 @@ class System(object):
         self.gaia = gaia
         self.fitting_basis = fitting_basis
         self.use_rebound = use_rebound
-        self.corr_lighttravel = False # Initialize as false, and it will be overwritten 
-                                # if/when light travel correction is actually applied.
+        self.corr_lighttravel = False  # Initialize as false, and it will be overwritten
+        # if/when light travel correction is actually applied.
 
         self.best_epochs = []
         self.input_table = self.data_table.copy()
@@ -148,12 +148,10 @@ class System(object):
         # we are not fitting massless planets and
         # we have more than 1 companion OR we have stellar astrometry
         self.track_planet_perturbs = self.fit_secondary_mass and (
-            (
-                ((len(self.radec[0]) + len(self.seppa[0])) > 0)
-                or (self.num_secondary_bodies > 1)
-                or (hipparcos_IAD is not None)
-                or (gaia is not None)
-            )
+            ((len(self.radec[0]) + len(self.seppa[0])) > 0)
+            or (self.num_secondary_bodies > 1)
+            or (hipparcos_IAD is not None)
+            or (gaia is not None)
         )
 
         if self.hipparcos_IAD is not None:
@@ -238,7 +236,7 @@ class System(object):
             hipparcos_IAD=self.hipparcos_IAD,
             rv=contains_rv,
             rv_instruments=self.rv_instruments,
-            **self.extra_basis_kwargs
+            **self.extra_basis_kwargs,
         )
 
         self.basis.verify_params()
@@ -259,7 +257,6 @@ class System(object):
             self.pm_plx_predictor = hipparcos.PMPlx_Motion(
                 self.stellar_astrom_epochs, alpha0, delta0, alphadec0_epoch
             )
-
 
         self.secondary_mass_indx = [
             self.basis.standard_basis_idx[i]
@@ -339,7 +336,7 @@ class System(object):
         hf.attrs["fitting_basis"] = self.fitting_basis
         hf.attrs["use_rebound"] = self.use_rebound
 
-    def get_lightcorrected_epochs(self,params_arr,epochs=None,comp_rebound=False):
+    def get_lightcorrected_epochs(self, params_arr, epochs=None, comp_rebound=False):
         """
         TODO: Figure out if there are issues in XYZ coords, since this assumes 0 deltat for the star location!
         Returns:
@@ -349,25 +346,31 @@ class System(object):
         inc = params_arr[self.inc_indx]
         aop = params_arr[self.aop_indx]
         plx = params_arr[self.basis.standard_basis_idx["plx"]]
-    
+
         # first compute all orbits assuming inc=aop=pan=0
         params_arr_temp = params_arr.copy()
         params_arr_temp[self.inc_indx] = 0
         params_arr_temp[self.aop_indx] = 0
         params_arr_temp[self.pan_indx] = 0
-        ra0,dec0,_ = self.compute_all_orbits(params_arr_temp,epochs=epochs,comp_rebound=comp_rebound)
+        ra0, dec0, _ = self.compute_all_orbits(
+            params_arr_temp, epochs=epochs, comp_rebound=comp_rebound
+        )
 
         # Cast inc and aop to correct shape if multiplanet system
-        if isinstance(self.inc_indx,list):
-            inc = np.full_like(ra0,np.array([0,*inc])[:,np.newaxis]) # add nan for the star
-            aop = np.full_like(ra0,np.array([0,*aop])[:,np.newaxis]) # add nan for the star
+        if isinstance(self.inc_indx, list):
+            inc = np.full_like(
+                ra0, np.array([0, *inc])[:, np.newaxis]
+            )  # add nan for the star
+            aop = np.full_like(
+                ra0, np.array([0, *aop])[:, np.newaxis]
+            )  # add nan for the star
 
-        z = kepler.calc_z(ra0,dec0,inc,aop,plx) * u.AU
-        deltat = ((z / consts.c).to(u.day).value)
-        corrected_epochs = (self.data_table["epoch"][:,np.newaxis,np.newaxis] - deltat)
+        z = kepler.calc_z(ra0, dec0, inc, aop, plx) * u.AU
+        deltat = (z / consts.c).to(u.day).value
+        corrected_epochs = self.data_table["epoch"][:, np.newaxis, np.newaxis] - deltat
 
         return corrected_epochs
-    
+
     def compute_all_orbits(self, params_arr, epochs=None, comp_rebound=False):
         """
         Calls orbitize.kepler.calc_orbit and optionally accounts for multi-body
@@ -403,7 +406,7 @@ class System(object):
             epochs = self.data_table["epoch"]
 
         else:
-            assert (epochs.ndim == 3) or (epochs.ndim == 1) 
+            assert (epochs.ndim == 3) or (epochs.ndim == 1)
             # if ndim > 1 it should be of shape (n_epochs,n_bodies,n_orbits)
 
         n_epochs = len(epochs)
@@ -427,7 +430,7 @@ class System(object):
             masses = np.zeros((self.num_secondary_bodies + 1, n_orbits))
             mtots = np.zeros((self.num_secondary_bodies + 1, n_orbits))
 
-        if comp_rebound or self.use_rebound: # TODO: handle 3d epochs
+        if comp_rebound or self.use_rebound:  # TODO: handle 3d epochs
             sma = params_arr[self.sma_indx]
             ecc = params_arr[self.ecc_indx]
             inc = params_arr[self.inc_indx]
@@ -462,13 +465,15 @@ class System(object):
 
         else:
             for body_num in np.arange(self.num_secondary_bodies) + 1:
-
                 # Handle the case where we want to compute the position for a slightly different
                 # epoch for each body and orbit (light travel time corrections)
-                if epochs.ndim > 1: # epochs should have shape (n_epochs,n_bodies,n_orbits)
-                    body_epochs = epochs[:,body_num-1,:]
+                if (
+                    epochs.ndim > 1
+                ):  # epochs should have shape (n_epochs,n_bodies,n_orbits)
+                    body_epochs = epochs[:, body_num - 1, :]
                     # body_epochs shape: (n_epochs,n_orbits)
-                else: body_epochs = epochs
+                else:
+                    body_epochs = epochs
                 sma = params_arr[
                     self.basis.standard_basis_idx["sma{}".format(body_num)]
                 ]
@@ -602,7 +607,6 @@ class System(object):
             deoff = dec_kepler + dec_perturb
 
         if self.fitting_basis == "XYZ":
-            
             # Find and filter out unbound orbits
             bad_orbits = []
             if isinstance(ecc, float):
@@ -620,8 +624,7 @@ class System(object):
         else:
             return raoff, deoff, vz
 
-    def compute_model(self, params_arr, use_rebound=False,
-                           corr_lighttravel=False):
+    def compute_model(self, params_arr, use_rebound=False, corr_lighttravel=False):
         """
         Compute model predictions for an array of fitting parameters.
         Calls the above compute_all_orbits() function, adds jitter/gamma to
@@ -637,7 +640,7 @@ class System(object):
             use_rebound (bool, optional): A secondary optional input for
                 use of N-body solver Rebound; by default, this will be set
                 to false and a Kepler solver will be used instead.
-            corr_lighttravel (bool, optional): If True, correct for light travel 
+            corr_lighttravel (bool, optional): If True, correct for light travel
                 time in the system when computing model predictions. Default is False.
 
         Returns:
@@ -652,17 +655,16 @@ class System(object):
         standard_params_arr = self.basis.to_standard_basis(to_convert)
 
         if corr_lighttravel:
-            corrected_epochs = self.get_lightcorrected_epochs(standard_params_arr,
-                                                              comp_rebound=use_rebound)
+            corrected_epochs = self.get_lightcorrected_epochs(
+                standard_params_arr, comp_rebound=use_rebound
+            )
             epochs = corrected_epochs
         else:
             epochs = None
-                
 
         raoff, decoff, vz = self.compute_all_orbits(
-                standard_params_arr, comp_rebound=use_rebound,
-                epochs=epochs
-            )
+            standard_params_arr, comp_rebound=use_rebound, epochs=epochs
+        )
 
         if len(standard_params_arr.shape) == 1:
             n_orbits = 1
@@ -724,7 +726,9 @@ class System(object):
 
             # divide by cos(delta0) because orbitize! input is delta(ra), not
             # delta(ra)*cos(delta0)
-            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape) / np.cos(np.radians(self.pm_plx_predictor.delta0))
+            model[self.radec[0], 0] += ra_pred.reshape(
+                model[self.radec[0], 0].shape
+            ) / np.cos(np.radians(self.pm_plx_predictor.delta0))
             model[self.radec[0], 1] += dec_pred.reshape(model[self.radec[0], 0].shape)
 
         if n_orbits == 1:

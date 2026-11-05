@@ -65,7 +65,9 @@ class Sampler(abc.ABC):
 
         """
         # compute the model based on system params
-        model, jitter = self.system.compute_model(params,corr_lighttravel=corr_lighttravel)
+        model, jitter = self.system.compute_model(
+            params, corr_lighttravel=corr_lighttravel
+        )
 
         # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
         data = np.array(
@@ -429,7 +431,7 @@ class OFTI(
 
         """
 
-        lnp = self._logl(samples,corr_lighttravel)
+        lnp = self._logl(samples, corr_lighttravel)
 
         # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array(
@@ -471,8 +473,13 @@ class OFTI(
         return saved_orbits, lnlikes
 
     def _sampler_process(
-        self, output, total_orbits, num_samples=10000, Value=0, lock=None,
-        corr_lighttravel=False
+        self,
+        output,
+        total_orbits,
+        num_samples=10000,
+        Value=0,
+        lock=None,
+        corr_lighttravel=False,
     ):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
@@ -506,7 +513,7 @@ class OFTI(
         # add orbits to `output_orbits` until `total_orbits` are saved
         while n_orbits_saved < total_orbits:
             samples = self.prepare_samples(num_samples)
-            accepted_orbits, lnlikes = self.reject(samples,corr_lighttravel)
+            accepted_orbits, lnlikes = self.reject(samples, corr_lighttravel)
 
             if len(accepted_orbits) == 0:
                 pass
@@ -529,8 +536,12 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, 
-        OFTI_warning=60.0, corr_lighttravel=False
+        self,
+        total_orbits,
+        num_samples=10000,
+        num_cores=None,
+        OFTI_warning=60.0,
+        corr_lighttravel=False,
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -571,7 +582,14 @@ class OFTI(
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output, nrun_per_core, num_samples, orbits_saved, lock,corr_lighttravel),
+                    args=(
+                        output,
+                        nrun_per_core,
+                        num_samples,
+                        orbits_saved,
+                        lock,
+                        corr_lighttravel,
+                    ),
                 )
                 for x in range(num_cores)
             ]
@@ -630,7 +648,7 @@ class OFTI(
             # add orbits to `output_orbits` until `total_orbits` are saved
             while n_orbits_saved < total_orbits:
                 samples = self.prepare_samples(num_samples)
-                accepted_orbits, lnlikes = self.reject(samples,corr_lighttravel)
+                accepted_orbits, lnlikes = self.reject(samples, corr_lighttravel)
 
                 if len(accepted_orbits) == 0:
                     check_time = time.time() - start_time
@@ -850,7 +868,7 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(MCMC, self)._logl(full_params,corr_lighttravel) + logp
+        return super(MCMC, self)._logl(full_params, corr_lighttravel) + logp
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
@@ -1009,7 +1027,7 @@ class MCMC(Sampler):
                     logpargs=[
                         self.priors,
                     ],
-                    loglkwargs={"corr_lighttravel":corr_lighttravel}
+                    loglkwargs={"corr_lighttravel": corr_lighttravel},
                 )
             else:
                 sampler = emcee.EnsembleSampler(
@@ -1017,8 +1035,7 @@ class MCMC(Sampler):
                     self.num_params,
                     self._logl,
                     pool=pool,
-                    kwargs={"include_logp": True,
-                            "corr_lighttravel":corr_lighttravel},
+                    kwargs={"include_logp": True, "corr_lighttravel": corr_lighttravel},
                 )
 
             print("Starting Burn in")
@@ -1334,7 +1351,8 @@ class NestedSampler(Sampler):
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1371,7 +1389,7 @@ class NestedSampler(Sampler):
         """
         utform = np.zeros(len(u))
         for i in range(len(u)):
-            if hasattr(self.system.sys_priors[i], 'transform_samples'):
+            if hasattr(self.system.sys_priors[i], "transform_samples"):
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
             else:
                 # prior is a fixed number
@@ -1425,7 +1443,7 @@ class NestedSampler(Sampler):
         mp.set_start_method(start_method, force=True)
 
         if not static:
-            run_nested_kwargs['wt_kwargs'] = {"pfrac": pfrac}
+            run_nested_kwargs["wt_kwargs"] = {"pfrac": pfrac}
 
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
@@ -1447,7 +1465,7 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
-                        nlive=nlive
+                        nlive=nlive,
                     )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
@@ -1478,7 +1496,9 @@ class NestedSampler(Sampler):
         self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
         self.results.ln_evidence_err = self.dynesty_sampler.results["logzerr"][-1]
 
-        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["niter"]
+        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results[
+            "niter"
+        ]
 
 
 class MultiNest(Sampler):
@@ -1504,7 +1524,8 @@ class MultiNest(Sampler):
     Tomas Stolker 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1529,7 +1550,7 @@ class MultiNest(Sampler):
     def run_sampler(
         self,
         n_live_points=500,
-        output_basename='./multinest',
+        output_basename="./multinest",
         hdf5_file=None,
         multinest_kwargs=None,
     ):
@@ -1614,15 +1635,17 @@ class MultiNest(Sampler):
             """
 
             for i in range(n_param):
-                if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                    param_cube[i] = self.system.sys_priors[i].transform_samples(param_cube[i])
+                if hasattr(self.system.sys_priors[i], "transform_samples"):
+                    param_cube[i] = self.system.sys_priors[i].transform_samples(
+                        param_cube[i]
+                    )
                 else:
                     # The prior is a fixed number
                     param_cube[i] = self.system.sys_priors[i]
 
             return param_cube
 
-        def _loglike_multinest(param_cube, n_dim, n_param,corr_lighttravel):
+        def _loglike_multinest(param_cube, n_dim, n_param, corr_lighttravel):
             """
             Parameters
             ----------
@@ -1644,7 +1667,7 @@ class MultiNest(Sampler):
             for i in range(n_param):
                 param_array[i] = param_cube[i]
 
-            return self._logl(param_array,corr_lighttravel)
+            return self._logl(param_array, corr_lighttravel)
 
         pymultinest.run(
             _loglike_multinest,
@@ -1667,11 +1690,14 @@ class MultiNest(Sampler):
         # The log-likelihood is stored in the last column
         self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
         self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
-        self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+        self.results.ln_evidence_err = sampling_stats[
+            "nested sampling global log-evidence error"
+        ]
 
         # Get the MPI rank of the process
         try:
             from mpi4py import MPI
+
             mpi_rank = MPI.COMM_WORLD.Get_rank()
         except ModuleNotFoundError:
             mpi_rank = 0
