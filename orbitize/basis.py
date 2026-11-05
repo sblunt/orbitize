@@ -121,7 +121,6 @@ class Basis(abc.ABC):
         )
         labels_arr.append("delta0")
 
-
     def set_gaia_dr4_priors(self, priors_arr, labels_arr):
         """
         Adds the necessary priors relevant to the Gaia DR4 data to 'priors_arr'
@@ -194,7 +193,7 @@ class Basis(abc.ABC):
         else:
             priors_arr.append(self.stellar_or_system_mass)
 
-#-------------------------------------------------------------
+    # -------------------------------------------------------------
     def set_acceleration_priors(self, priors_arr, labels_arr):
         """
         Adds the priors on the star's acceleration (``acc_ra``, ``acc_dec``)
@@ -230,7 +229,7 @@ class Basis(abc.ABC):
             labels_arr.append(label)
 
 
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 class ObsPriors(Basis):
     """
     Basis used in Kosmo O'Neil+ 2019, and implemented here for use with the
@@ -962,8 +961,7 @@ class SemiAmp(Basis):
             np.array of float: the semi-major axis values for each orbit
         """
         sma = np.cbrt(
-            (consts.G * ((m0 + m_n) * u.Msun) * ((period * u.yr) ** 2))
-            / (4 * np.pi**2)
+            (consts.G * ((m0 + m_n) * u.Msun) * ((period * u.yr) ** 2)) / (4 * np.pi**2)
         )
         sma = sma.to(u.AU).value
 
@@ -1348,24 +1346,24 @@ class XYZ(Basis):
             standard_params = self.xyz_to_standard(constrained_epoch, to_convert)
 
             # Update param_arr to hold standard parameters
-            param_arr[
-                self.standard_basis_idx["sma{}".format(body_num)]
-            ] = standard_params[0]
-            param_arr[
-                self.standard_basis_idx["ecc{}".format(body_num)]
-            ] = standard_params[1]
-            param_arr[
-                self.standard_basis_idx["inc{}".format(body_num)]
-            ] = standard_params[2]
-            param_arr[
-                self.standard_basis_idx["aop{}".format(body_num)]
-            ] = standard_params[3]
-            param_arr[
-                self.standard_basis_idx["pan{}".format(body_num)]
-            ] = standard_params[4]
-            param_arr[
-                self.standard_basis_idx["tau{}".format(body_num)]
-            ] = standard_params[5]
+            param_arr[self.standard_basis_idx["sma{}".format(body_num)]] = (
+                standard_params[0]
+            )
+            param_arr[self.standard_basis_idx["ecc{}".format(body_num)]] = (
+                standard_params[1]
+            )
+            param_arr[self.standard_basis_idx["inc{}".format(body_num)]] = (
+                standard_params[2]
+            )
+            param_arr[self.standard_basis_idx["aop{}".format(body_num)]] = (
+                standard_params[3]
+            )
+            param_arr[self.standard_basis_idx["pan{}".format(body_num)]] = (
+                standard_params[4]
+            )
+            param_arr[self.standard_basis_idx["tau{}".format(body_num)]] = (
+                standard_params[5]
+            )
             param_arr[self.standard_basis_idx["plx"]] = standard_params[6]
             param_arr[self.standard_basis_idx["mtot"]] = standard_params[7]
 
@@ -1579,9 +1577,7 @@ class XYZ(Basis):
             2.0 * np.pi
         )
         # Eccentric anomaly
-        eanom = kepler.calc_ecc_anom(
-            manom, ecc, tolerance=tolerance, max_iter=max_iter
-        )
+        eanom = kepler.calc_ecc_anom(manom, ecc, tolerance=tolerance, max_iter=max_iter)
         # if eanom.ndim == 1:
         #     eanom = eanom[np.newaxis, :]
         # Magnitude of angular momentum:

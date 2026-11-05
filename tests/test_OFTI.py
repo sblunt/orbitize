@@ -3,6 +3,7 @@
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
+
 import numpy as np
 import os
 import pytest
@@ -18,6 +19,7 @@ from orbitize.hipparcos import HipparcosLogProb
 input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
 input_file_1epoch = os.path.join(orbitize.DATADIR, "GJ504_1epoch.csv")
 input_file_rvs = os.path.join(orbitize.DATADIR, "HD4747.csv")
+
 
 def test_scale_and_rotate():
     # perform scale-and-rotate
@@ -179,20 +181,20 @@ def test_not_implemented():
     """
 
     data_table = orbitize.read_input.read_file(input_file)
-    hip_data = { # 027321 beta pic
-        'RArad': 86.82118072,
-        'e_RArad': 0.1,
-        'DErad': -51.06671341,
-        'e_DErad': 0.11,
-        'Plx': 51.44,
-        'e_Plx': 0.12,
-        'pmRA': 4.65,
-        'e_pmRA': 0.11,
-        'pmDE': 83.1,
-        'e_pmDE': 0.15,
-        'F2': -1.63,
-        'Sn': 5,
-        'var': 0.0
+    hip_data = {  # 027321 beta pic
+        "RArad": 86.82118072,
+        "e_RArad": 0.1,
+        "DErad": -51.06671341,
+        "e_DErad": 0.11,
+        "Plx": 51.44,
+        "e_Plx": 0.12,
+        "pmRA": 4.65,
+        "e_pmRA": 0.11,
+        "pmDE": 83.1,
+        "e_pmDE": 0.15,
+        "F2": -1.63,
+        "Sn": 5,
+        "var": 0.0,
     }
 
     # test that if the `hipparcosIAD` attribute is set, OFTI won't work
@@ -200,7 +202,9 @@ def test_not_implemented():
         hip_num = "027321"
         num_secondary_bodies = 1
         iad_file = "{}/HIP{}.d".format(orbitize.DATADIR, hip_num)
-        myHip = HipparcosLogProb(iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+        myHip = HipparcosLogProb(
+            iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+        )
         mySystem = system.System(
             1, data_table, 1.22, 56.95, mass_err=0.08, plx_err=0.26, hipparcos_IAD=myHip
         )
@@ -319,10 +323,13 @@ def test_OFTI_multiplanet():
     s.results.print_results()
 
     # test that the results printing unit printing is working correctly
-    results_lines = s.results.results_str.split('\n')
-    assert results_lines[-3][-4:] == 'Msun'
+    results_lines = s.results.results_str.split("\n")
+    assert results_lines[-3][-4:] == "Msun"
     # check that the degree unit conversion was performed
-    assert float(results_lines[-6][6:13]) > 2 * np.pi and float(results_lines[-6][6:13]) < 360
+    assert (
+        float(results_lines[-6][6:13]) > 2 * np.pi
+        and float(results_lines[-6][6:13]) < 360
+    )
 
 
 @pytest.hookimpl(trylast=True)

@@ -91,7 +91,9 @@ def mock_dr4(n_obs=30, err=0.05, seed=0):
         }
     )
     data.meta.update(time_format="mjd", time_scale="tcb")
-    return gaia.DR4LogProb(0, data, ref_epoch_mjd=REF_EPOCH_MJD, ra=ALPHA0_DEG, dec=DELTA0_DEG)
+    return gaia.DR4LogProb(
+        0, data, ref_epoch_mjd=REF_EPOCH_MJD, ra=ALPHA0_DEG, dec=DELTA0_DEG
+    )
 
 
 def astrometry_table(tmp_path, objects):
@@ -103,7 +105,10 @@ def astrometry_table(tmp_path, objects):
         value = 50.0 if obj else 0.0  # companion offset [mas]; star at 0
         for epoch in Time(years, format="jyear").mjd:
             rows.append((epoch, obj, value, 0.5, value, 0.5))
-    t = Table(rows=rows, names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"])
+    t = Table(
+        rows=rows,
+        names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
+    )
     filename = tmp_path / "astrometry.csv"
     t.write(filename, overwrite=True)
     return read_input.read_file(str(filename))
@@ -148,7 +153,9 @@ def draw_params(sys, n, seed=0):
     np.random.seed(seed)
     return np.array(
         [
-            prior.draw_samples(n) if hasattr(prior, "draw_samples") else np.full(n, prior)
+            prior.draw_samples(n)
+            if hasattr(prior, "draw_samples")
+            else np.full(n, prior)
             for prior in sys.sys_priors
         ]
     ).T
@@ -202,4 +209,7 @@ def test_save_load_dr4_results(tmp_path, fit_type):
     assert loaded.labels == sys.labels
     assert isinstance(loaded.system.gaia, gaia.DR4LogProb)
     assert loaded.system.acceleration_only == sys.acceleration_only
-    assert loaded.system.acceleration_and_keplerian_fit == sys.acceleration_and_keplerian_fit
+    assert (
+        loaded.system.acceleration_and_keplerian_fit
+        == sys.acceleration_and_keplerian_fit
+    )

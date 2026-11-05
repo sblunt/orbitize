@@ -5,12 +5,23 @@ https://iopscience.iop.org/article/10.3847/1538-4357/ad58d3#apjad58d3t5
 """
 
 import os
-from orbitize import DATADIR, hipparcos, gaia, read_input, system, priors, sampler, results
+from orbitize import (
+    DATADIR,
+    hipparcos,
+    gaia,
+    read_input,
+    system,
+    priors,
+    sampler,
+    results,
+)
 import matplotlib.pyplot as plt
 
 # the necessary input data for beta Pic is part of the orbitize! example data!
 iad_filepath = os.path.join(DATADIR, "H024332.d")
-gost_filepath = os.path.join(DATADIR, "gost_22.4.3_806543_2026-07-28-17-46-26_HD_33632.csv")
+gost_filepath = os.path.join(
+    DATADIR, "gost_22.4.3_806543_2026-07-28-17-46-26_HD_33632.csv"
+)
 
 # Create the HGCA and helper Hipparcos object
 hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, 24332, 1)
@@ -43,17 +54,16 @@ this_system = system.System(
 # )
 
 # MCMC parameters
-n_temps=20
-n_walkers=1000
-n_threads=20
-total_orbits= n_walkers * 50_000
-burn_steps=10_000
-thin=100
+n_temps = 20
+n_walkers = 1000
+n_threads = 20
+total_orbits = n_walkers * 50_000
+burn_steps = 10_000
+thin = 100
 
 run_fit = True
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # create the sampler, run it, and save posteriors
     output_filename = "HD_33632_Ab.hdf5"
     this_sampler = sampler.MCMC(this_system, n_temps, n_walkers, n_threads)
@@ -61,10 +71,12 @@ if __name__ == '__main__':
     periodic_save_freq = 5_000
 
     if run_fit:
-
         this_sampler.run_sampler(
-            total_orbits, burn_steps=burn_steps, thin=thin, periodic_save_freq=periodic_save_freq,
-            output_filename=output_filename
+            total_orbits,
+            burn_steps=burn_steps,
+            thin=thin,
+            periodic_save_freq=periodic_save_freq,
+            output_filename=output_filename,
         )
 
         this_sampler.results.save_results(output_filename)

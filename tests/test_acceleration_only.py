@@ -45,7 +45,9 @@ HIP_DATA = {
 }
 
 
-def mock_dr4(truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0, ra=None, dec=None):
+def mock_dr4(
+    truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0, ra=None, dec=None
+):
     """
     Mock Gaia DR4 along-scan data over 5 yr centred on J2017.5. If ``truth``
     is given, the AL positions are the noiseless acceleration model,
@@ -63,8 +65,10 @@ def mock_dr4(truth=None, n_obs=40, err=0.05, jitter_prior=None, seed=0, ra=None,
     if truth is not None:
         w = (
             truth["plx"] * f_al
-            + (truth["alpha0"] + truth["pm_ra"] * dt + 0.5 * truth["acc_ra"] * dt**2) * np.sin(psi)
-            + (truth["delta0"] + truth["pm_dec"] * dt + 0.5 * truth["acc_dec"] * dt**2) * np.cos(psi)
+            + (truth["alpha0"] + truth["pm_ra"] * dt + 0.5 * truth["acc_ra"] * dt**2)
+            * np.sin(psi)
+            + (truth["delta0"] + truth["pm_dec"] * dt + 0.5 * truth["acc_dec"] * dt**2)
+            * np.cos(psi)
         )
     data = Table(
         {
@@ -88,7 +92,14 @@ def radec_table(tmp_path, obj=0, years=(2015.0, 2017.0, 2018.5, 2020.0), err=0.5
     epochs = Time(np.array(years), format="jyear").mjd
     n = len(epochs)
     t = Table(
-        [epochs, np.full(n, obj), np.zeros(n), np.full(n, err), np.zeros(n), np.full(n, err)],
+        [
+            epochs,
+            np.full(n, obj),
+            np.zeros(n),
+            np.full(n, err),
+            np.zeros(n),
+            np.full(n, err),
+        ],
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = tmp_path / "astrometry.csv"
@@ -116,7 +127,15 @@ def test_labels_and_priors():
     accelerations, in that order, with no orbit or mass parameters."""
     sys = acc_system(dr4=mock_dr4())
 
-    assert sys.labels == ["plx", "pm_ra", "pm_dec", "alpha0", "delta0", "acc_ra", "acc_dec"]
+    assert sys.labels == [
+        "plx",
+        "pm_ra",
+        "pm_dec",
+        "alpha0",
+        "delta0",
+        "acc_ra",
+        "acc_dec",
+    ]
     assert sys.param_idx == {label: i for i, label in enumerate(sys.labels)}
     assert len(sys.sys_priors) == len(sys.labels)
     assert all(isinstance(p, priors.UniformPrior) for p in sys.sys_priors)
@@ -130,7 +149,14 @@ def test_labels_with_dr4_jitter():
     sys = acc_system(dr4=mock_dr4(jitter_prior=priors.UniformPrior(0.0, 1.0)))
 
     assert sys.labels == [
-        "plx", "pm_ra", "pm_dec", "alpha0", "delta0", "dr4_jitter", "acc_ra", "acc_dec",
+        "plx",
+        "pm_ra",
+        "pm_dec",
+        "alpha0",
+        "delta0",
+        "dr4_jitter",
+        "acc_ra",
+        "acc_dec",
     ]
 
 
@@ -256,7 +282,9 @@ def test_radec_model_matches_hand_calculation(tmp_path):
 def test_radec_model_vectorised(tmp_path):
     """compute_model handles a 2D array of parameter vectors (one per
     column), as the samplers pass them in, and matches the 1D result."""
-    sys = acc_system(data_table=radec_table(tmp_path), dr4=mock_dr4(ra=ALPHA0_DEG, dec=DELTA0_DEG))
+    sys = acc_system(
+        data_table=radec_table(tmp_path), dr4=mock_dr4(ra=ALPHA0_DEG, dec=DELTA0_DEG)
+    )
     p1 = params_from(sys, TRUTH)
     p2 = params_from(sys, dict(TRUTH, acc_ra=-0.3, plx=5.0))
 
@@ -274,12 +302,16 @@ def test_radec_plus_dr4_lnlike_is_sum(tmp_path):
     err = 0.5
     table = radec_table(tmp_path, err=err)
 
-    joint = acc_system(data_table=table, dr4=mock_dr4(truth=TRUTH, ra=ALPHA0_DEG, dec=DELTA0_DEG))
+    joint = acc_system(
+        data_table=table, dr4=mock_dr4(truth=TRUTH, ra=ALPHA0_DEG, dec=DELTA0_DEG)
+    )
     dr4_only = acc_system(dr4=mock_dr4(truth=TRUTH))
     assert joint.labels == dr4_only.labels
 
     params = params_from(joint, TRUTH)
-    lnlike = lambda s: sampler.MCMC(s, num_temps=1, num_walkers=16, num_threads=1)._logl(params)
+    lnlike = lambda s: sampler.MCMC(
+        s, num_temps=1, num_walkers=16, num_threads=1
+    )._logl(params)
 
     model, _ = joint.compute_model(params)
     radec_lnlike = np.sum(-0.5 * (model / err) ** 2 - np.log(np.sqrt(2 * np.pi) * err))
@@ -338,7 +370,9 @@ def test_plx_prior_replaces_default():
 def test_rejects_mass_prior():
     """An acceleration-only fit has no mass to put a prior on."""
     with pytest.raises(ValueError, match="mass"):
-        acc_system(dr4=mock_dr4(), stellar_or_system_mass_prior=priors.GaussianPrior(1.0, 0.1))
+        acc_system(
+            dr4=mock_dr4(), stellar_or_system_mass_prior=priors.GaussianPrior(1.0, 0.1)
+        )
 
 
 @pytest.mark.parametrize("plx", [None, TRUTH["plx"]])
@@ -363,7 +397,9 @@ def test_parallax_factors_reconstructed():
     f_ra, f_dec = plot._parallax_factors_dr4(with_position, epochs)
 
     no_position = mock_dr4()
-    no_position.parallax_factor_al = f_ra * no_position.sin_scan + f_dec * no_position.cos_scan
+    no_position.parallax_factor_al = (
+        f_ra * no_position.sin_scan + f_dec * no_position.cos_scan
+    )
     f_ra2, f_dec2 = plot._parallax_factors_dr4(no_position, epochs)
 
     np.testing.assert_allclose(f_ra2, f_ra, atol=1e-5)

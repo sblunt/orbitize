@@ -81,7 +81,14 @@ def radec_table(tmp_path, obj, years=(2015.0, 2017.0, 2018.5, 2020.0), err=0.5):
     n = len(epochs)
     value = 50.0 if obj else 0.0
     t = Table(
-        [epochs, np.full(n, obj), np.full(n, value), np.full(n, err), np.full(n, value), np.full(n, err)],
+        [
+            epochs,
+            np.full(n, obj),
+            np.full(n, value),
+            np.full(n, err),
+            np.full(n, value),
+            np.full(n, err),
+        ],
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
     filename = tmp_path / "astrometry_{}.csv".format(obj)
@@ -126,9 +133,21 @@ def test_labels():
     sys = kep_system(mock_dr4())
 
     assert sys.labels == [
-        "sma1", "ecc1", "inc1", "aop1", "pan1", "tau1",
-        "plx", "pm_ra", "pm_dec", "alpha0", "delta0",
-        "acc_ra", "acc_dec", "m1", "m0",
+        "sma1",
+        "ecc1",
+        "inc1",
+        "aop1",
+        "pan1",
+        "tau1",
+        "plx",
+        "pm_ra",
+        "pm_dec",
+        "alpha0",
+        "delta0",
+        "acc_ra",
+        "acc_dec",
+        "m1",
+        "m0",
     ]
     assert sys.acceleration_and_keplerian_fit
     assert not sys.acceleration_only
@@ -168,8 +187,12 @@ def test_acceleration_adds_to_star_only():
     ra0, dec0, _, _ = sys.compute_all_orbits(no_acc, epochs=epochs)
 
     dt = (epochs - REF_EPOCH_MJD) / 365.25
-    np.testing.assert_allclose(ra[:, 0, 0] - ra0[:, 0, 0], -0.5 * TRUTH["acc_ra"] * dt**2)
-    np.testing.assert_allclose(dec[:, 0, 0] - dec0[:, 0, 0], -0.5 * TRUTH["acc_dec"] * dt**2)
+    np.testing.assert_allclose(
+        ra[:, 0, 0] - ra0[:, 0, 0], -0.5 * TRUTH["acc_ra"] * dt**2
+    )
+    np.testing.assert_allclose(
+        dec[:, 0, 0] - dec0[:, 0, 0], -0.5 * TRUTH["acc_dec"] * dt**2
+    )
     np.testing.assert_array_equal(ra[:, 1, 0], ra0[:, 1, 0])
     np.testing.assert_array_equal(dec[:, 1, 0], dec0[:, 1, 0])
 
@@ -185,8 +208,10 @@ def test_acceleration_in_along_scan_model():
     diff = plot._model_along_scan_dr4(params, sys, dr4) - plot._model_along_scan_dr4(
         no_acc, sys, dr4
     )
-    expected = 0.5 * dr4.dt_yr**2 * (
-        TRUTH["acc_ra"] * dr4.sin_scan + TRUTH["acc_dec"] * dr4.cos_scan
+    expected = (
+        0.5
+        * dr4.dt_yr**2
+        * (TRUTH["acc_ra"] * dr4.sin_scan + TRUTH["acc_dec"] * dr4.cos_scan)
     )
     np.testing.assert_allclose(diff, expected, rtol=0, atol=1e-10)
 
@@ -198,18 +223,25 @@ def test_fitted_acceleration_recovers_injected():
     dr4 = mock_dr4()
     sys = kep_system(dr4)
     no_acc = params_from(sys, dict(TRUTH, acc_ra=0.0, acc_dec=0.0))
-    dr4.centroid_pos_al = plot._model_along_scan_dr4(no_acc, sys, dr4) + 0.5 * dr4.dt_yr**2 * (
+    dr4.centroid_pos_al = plot._model_along_scan_dr4(
+        no_acc, sys, dr4
+    ) + 0.5 * dr4.dt_yr**2 * (
         TRUTH["acc_ra"] * dr4.sin_scan + TRUTH["acc_dec"] * dr4.cos_scan
     )
 
     idx = [sys.param_idx["acc_ra"], sys.param_idx["acc_dec"]]
     base = plot._model_along_scan_dr4(no_acc, sys, dr4)
     design = np.column_stack(
-        [plot._model_along_scan_dr4(no_acc + np.eye(len(no_acc))[i], sys, dr4) - base for i in idx]
+        [
+            plot._model_along_scan_dr4(no_acc + np.eye(len(no_acc))[i], sys, dr4) - base
+            for i in idx
+        ]
     )
     best, *_ = np.linalg.lstsq(design, dr4.centroid_pos_al - base, rcond=None)
 
-    np.testing.assert_allclose(best, [TRUTH["acc_ra"], TRUTH["acc_dec"]], rtol=0, atol=1e-10)
+    np.testing.assert_allclose(
+        best, [TRUTH["acc_ra"], TRUTH["acc_dec"]], rtol=0, atol=1e-10
+    )
 
 
 def test_relative_astrometry_ignores_acceleration(tmp_path):
@@ -220,7 +252,9 @@ def test_relative_astrometry_ignores_acceleration(tmp_path):
     params = params_from(sys, TRUTH)
     no_acc = params_from(sys, dict(TRUTH, acc_ra=0.0, acc_dec=0.0))
 
-    np.testing.assert_allclose(sys.compute_model(params)[0], sys.compute_model(no_acc)[0])
+    np.testing.assert_allclose(
+        sys.compute_model(params)[0], sys.compute_model(no_acc)[0]
+    )
     assert lnlike(sys, params) != lnlike(sys, no_acc)
 
 
@@ -306,12 +340,18 @@ def test_user_priors_replace_plx_and_mass():
     plx_prior = priors.GaussianPrior(20.0, 0.5)
     mass_prior = priors.GaussianPrior(1.0, 0.1)
     kwargs = dict(
-        num_secondary_bodies=1, data_table=None, fit_secondary_mass=True, gaia=mock_dr4(),
-        plx_prior=plx_prior, stellar_or_system_mass_prior=mass_prior,
+        num_secondary_bodies=1,
+        data_table=None,
+        fit_secondary_mass=True,
+        gaia=mock_dr4(),
+        plx_prior=plx_prior,
+        stellar_or_system_mass_prior=mass_prior,
     )
     for sys in (
         system.System(**kwargs),
-        system.System(stellar_or_system_mass=2.0, plx=5.0, plx_err=1.0, mass_err=0.5, **kwargs),
+        system.System(
+            stellar_or_system_mass=2.0, plx=5.0, plx_err=1.0, mass_err=0.5, **kwargs
+        ),
     ):
         assert sys.sys_priors[sys.param_idx["plx"]] is plx_prior
         assert sys.sys_priors[sys.param_idx["m0"]] is mass_prior
@@ -341,7 +381,10 @@ def test_needs_plx_and_mass(tmp_path, kwargs, match):
 def test_save_system_without_plx_or_mass(tmp_path):
     """A System set up with only priors can still be saved."""
     sys = system.System(
-        num_secondary_bodies=1, data_table=None, fit_secondary_mass=True, gaia=mock_dr4(),
+        num_secondary_bodies=1,
+        data_table=None,
+        fit_secondary_mass=True,
+        gaia=mock_dr4(),
         plx_prior=priors.GaussianPrior(20.0, 0.5),
         stellar_or_system_mass_prior=priors.GaussianPrior(1.0, 0.1),
     )
@@ -357,11 +400,23 @@ def test_plot_dr4_acceleration(fit):
     labels every y axis."""
     dr4 = mock_dr4()
     if fit == "acc_only":
-        sys = system.System(num_secondary_bodies=0, data_table=None, gaia=dr4, acceleration_only=True)
+        sys = system.System(
+            num_secondary_bodies=0, data_table=None, gaia=dr4, acceleration_only=True
+        )
     else:
-        sys = kep_system(dr4) if fit == "keplerian+acc" else system.System(
-            num_secondary_bodies=1, data_table=None, stellar_or_system_mass=1.0, mass_err=0.1,
-            plx=20.0, plx_err=0.5, fit_secondary_mass=True, gaia=dr4,
+        sys = (
+            kep_system(dr4)
+            if fit == "keplerian+acc"
+            else system.System(
+                num_secondary_bodies=1,
+                data_table=None,
+                stellar_or_system_mass=1.0,
+                mass_err=0.1,
+                plx=20.0,
+                plx_err=0.5,
+                fit_secondary_mass=True,
+                gaia=dr4,
+            )
         )
     assert ("acc_ra" in sys.labels) == (fit != "keplerian")
 
@@ -371,8 +426,12 @@ def test_plot_dr4_acceleration(fit):
     results = SimpleNamespace(post=post)
 
     plt.switch_backend("Agg")
-    fig = plot.plot_dr4_acceleration(results, sys, num_orbits_to_plot=5, num_epochs_to_plot=20)
+    fig = plot.plot_dr4_acceleration(
+        results, sys, num_orbits_to_plot=5, num_epochs_to_plot=20
+    )
     axes = fig.get_axes()[:6]
     assert all(ax.get_ylabel().endswith("[mas]") for ax in axes)
-    assert axes[-1].get_ylabel() == ("orbit [mas]" if fit == "keplerian+acc" else "residuals [mas]")
+    assert axes[-1].get_ylabel() == (
+        "orbit [mas]" if fit == "keplerian+acc" else "residuals [mas]"
+    )
     plt.close(fig)
