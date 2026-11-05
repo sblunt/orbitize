@@ -420,9 +420,9 @@ class LogUniformPrior(Prior):
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
         else:
-            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-                -np.inf
-            )
+            lnprob[
+                (element_array > self.maxval) | (element_array < self.minval)
+            ] = -np.inf
 
         return lnprob
 
@@ -494,9 +494,9 @@ class UniformPrior(Prior):
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
         else:
-            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-                -np.inf
-            )
+            lnprob[
+                (element_array > self.maxval) | (element_array < self.minval)
+            ] = -np.inf
 
         return lnprob
 
@@ -760,7 +760,6 @@ class ObsPrior(Prior):
             )
 
         if self.param_num == (self.total_params - 1):
-
             period = self.correlated_input_samples[0]
             ecc = self.correlated_input_samples[1]
             tp = self.correlated_input_samples[2]
@@ -773,7 +772,6 @@ class ObsPrior(Prior):
                 or (tp < self.tp_lims[0])
                 or (tp > self.tp_lims[1])
             ):
-
                 self.increment_param_num()
                 return -np.inf
 
@@ -808,7 +806,6 @@ class ObsPrior(Prior):
             return lnprob
 
         else:
-
             self.increment_param_num()
             return 0
 

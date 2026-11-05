@@ -72,7 +72,6 @@ def plot_corner(results, param_list=None, **corner_kwargs):
 
     # Define array of default axis labels (overwritten if user specifies list)
     default_labels = {
-
         "sma": "$a_{0}$ [au]",
         "ecc": "$ecc_{0}$",
         "inc": "$inc_{0}$ [$^\\circ$]",
@@ -257,7 +256,7 @@ def plot_orbits(
         warnings.simplefilter("ignore", ErfaWarning)
 
         data = results.data[results.data["object"] == object_to_plot]
-        possible_cbar_params = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx"]
+        possible_cbar_params = ["sma", "ecc", "inc", "aoppan", "tau", "plx"]
 
         if cbar_param in ["Epoch [year]", "Epoch (year)"]:
             pass
@@ -401,7 +400,6 @@ def plot_orbits(
             )
 
         elif cbar_param in ["Epoch [year]", "Epoch (year)"]:
-
             min_cbar_date = np.min(epochs)
             max_cbar_date = np.max(epochs[-1, :])
 
@@ -459,7 +457,6 @@ def plot_orbits(
         pa_data, pa_err = data["quant2"][seppa_inds], data["quant2_err"][seppa_inds]
 
         if len(radec_inds[0] > 0):
-
             sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
                 data["quant1"][radec_inds], data["quant2"][radec_inds]
             )
@@ -468,7 +465,6 @@ def plot_orbits(
             sep_err_from_ra_data = np.empty(num_radec_pts)
             pa_err_from_dec_data = np.empty(num_radec_pts)
             for j in np.arange(num_radec_pts):
-
                 sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = (
                     orbitize.system.transform_errors(
                         np.array(data["quant1"][radec_inds][j]),
@@ -602,7 +598,6 @@ def plot_orbits(
         epochs_seppa = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
 
         for i in np.arange(num_orbits_to_plot):
-
             epochs_seppa[i, :] = np.linspace(
                 start_mjd,
                 Time(sep_pa_end_year, format="decimalyear").mjd,
@@ -803,7 +798,6 @@ def plot_orbits(
             )
 
         if rv_time_series == True:
-
             rv_data = results.data[results.data["object"] == 0]
             rv_data = rv_data[rv_data["quant_type"] == "rv"]
 
@@ -1106,7 +1100,7 @@ def plot_residuals(
     """
     data = my_results.data[my_results.data["object"] == object_to_plot]
 
-    possible_cbar_params = ["sma", "ecc", "inc", "aop" "pan", "tau", "plx"]
+    possible_cbar_params = ["sma", "ecc", "inc", "aoppan", "tau", "plx"]
     num_orbits = len(my_results.post[:, 0])
     if num_orbits_to_plot > num_orbits:
         num_orbits_to_plot = num_orbits
@@ -1204,7 +1198,6 @@ def plot_residuals(
     pa_err = np.copy(data["quant2_err"])
 
     if len(radec_inds[0] > 0):
-
         sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
             data["quant1"][radec_inds], data["quant2"][radec_inds]
         )
@@ -1213,7 +1206,6 @@ def plot_residuals(
         sep_err_from_ra_data = np.empty(num_radec_pts)
         pa_err_from_dec_data = np.empty(num_radec_pts)
         for j in np.arange(num_radec_pts):
-
             sep_err_from_ra_data[j], pa_err_from_dec_data[j], _ = (
                 orbitize.system.transform_errors(
                     np.array(data["quant1"][radec_inds][j]),
@@ -1238,7 +1230,6 @@ def plot_residuals(
     dec_err = np.copy(data["quant2_err"])
 
     if len(seppa_inds[0] > 0):
-
         ra_from_seppa_data, dec_from_seppa_data = orbitize.system.seppa2radec(
             data["quant1"][seppa_inds], data["quant2"][seppa_inds]
         )
@@ -1247,7 +1238,6 @@ def plot_residuals(
         ra_err_from_seppa_data = np.empty(num_seppa_pts)
         dec_err_from_seppa_data = np.empty(num_seppa_pts)
         for j in np.arange(num_seppa_pts):
-
             ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], _ = (
                 orbitize.system.transform_errors(
                     np.array(data["quant1"][seppa_inds][j]),
@@ -1276,7 +1266,6 @@ def plot_residuals(
     seps_100 = []
     pas_100 = []
     for i in np.arange(num_orbits_to_plot):
-
         epochs_seppa[i, :] = np.linspace(
             Time(start_mjd, format="mjd").mjd,
             Time(sep_pa_end_year, format="decimalyear").mjd,
@@ -1504,7 +1493,7 @@ def plot_propermotion(
             "sma",
             "ecc",
             "inc",
-            "aop" "pan",
+            "aoppan",
             "tau",
             "plx",
             "m0",
@@ -1616,7 +1605,6 @@ def plot_propermotion(
             )
 
         elif cbar_param is None:
-
             norm = mpl.colors.Normalize()
 
         # Create figure for orbit plots

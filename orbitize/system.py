@@ -16,9 +16,9 @@ class System(object):
         data_table (astropy.table.Table): output from
             ``orbitize.read_input.read_file()``
         stellar_or_system_mass (float): mass of the primary star (if fitting for
-            dynamical masses of both components, for example when you have both 
-            astrometry and RVs) or total system mass (if fitting for total system 
-            mass only, as in the case of a vanilla 2-body fit using relative 
+            dynamical masses of both components, for example when you have both
+            astrometry and RVs) or total system mass (if fitting for total system
+            mass only, as in the case of a vanilla 2-body fit using relative
             astrometry only ) [M_sol]
         plx (float): mean parallax of the system, in mas
         mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
@@ -145,12 +145,10 @@ class System(object):
         # we are not fitting massless planets and
         # we have more than 1 companion OR we have stellar astrometry
         self.track_planet_perturbs = self.fit_secondary_mass and (
-            (
-                ((len(self.radec[0]) + len(self.seppa[0])) > 0)
-                or (self.num_secondary_bodies > 1)
-                or (hipparcos_IAD is not None)
-                or (gaia is not None)
-            )
+            ((len(self.radec[0]) + len(self.seppa[0])) > 0)
+            or (self.num_secondary_bodies > 1)
+            or (hipparcos_IAD is not None)
+            or (gaia is not None)
         )
 
         if self.hipparcos_IAD is not None:
@@ -235,7 +233,7 @@ class System(object):
             hipparcos_IAD=self.hipparcos_IAD,
             rv=contains_rv,
             rv_instruments=self.rv_instruments,
-            **self.extra_basis_kwargs
+            **self.extra_basis_kwargs,
         )
 
         self.basis.verify_params()
@@ -256,7 +254,6 @@ class System(object):
             self.pm_plx_predictor = hipparcos.PMPlx_Motion(
                 self.stellar_astrom_epochs, alpha0, delta0, alphadec0_epoch
             )
-
 
         self.secondary_mass_indx = [
             self.basis.standard_basis_idx[i]
@@ -554,7 +551,6 @@ class System(object):
             deoff = dec_kepler + dec_perturb
 
         if self.fitting_basis == "XYZ":
-            
             # Find and filter out unbound orbits
             bad_orbits = []
             if isinstance(ecc, float):
@@ -667,7 +663,9 @@ class System(object):
 
             # divide by cos(delta0) because orbitize! input is delta(ra), not
             # delta(ra)*cos(delta0)
-            model[self.radec[0], 0] += ra_pred.reshape(model[self.radec[0], 0].shape) / np.cos(np.radians(self.pm_plx_predictor.delta0))
+            model[self.radec[0], 0] += ra_pred.reshape(
+                model[self.radec[0], 0].shape
+            ) / np.cos(np.radians(self.pm_plx_predictor.delta0))
             model[self.radec[0], 1] += dec_pred.reshape(model[self.radec[0], 0].shape)
 
         if n_orbits == 1:

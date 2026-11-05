@@ -3,6 +3,7 @@
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
+
 import numpy as np
 import os
 import pytest
