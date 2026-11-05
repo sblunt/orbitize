@@ -32,7 +32,12 @@ class Sampler(abc.ABC):
     """
 
     def __init__(
-        self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard", marginalizers=None
+        self,
+        system,
+        like="chi2_lnlike",
+        custom_lnlike=None,
+        chi2_type="standard",
+        marginalizers=None,
     ):
         self.system = system
 
@@ -53,9 +58,10 @@ class Sampler(abc.ABC):
             # TODO: Construct if not empty list
             self.marginalizers = marginalizers
 
-
         # TODO: multiplanet
-        marginalized_param_labels_set = set(label for marg in self.marginalizers for label in marg.MARG_PARAMS)
+        marginalized_param_labels_set = set(
+            label for marg in self.marginalizers for label in marg.MARG_PARAMS
+        )
         fitted_param_labels_set = set(system.labels) - marginalized_param_labels_set
 
         self.fitted_param_labels = []
@@ -68,7 +74,9 @@ class Sampler(abc.ABC):
         self.marg_param_idx = {}
         fitted_param_counter = 0
         marg_param_counter = 0
-        for i, (label, prior) in enumerate(zip(self.system.labels, self.system.sys_priors)):
+        for i, (label, prior) in enumerate(
+            zip(self.system.labels, self.system.sys_priors)
+        ):
             if label in fitted_param_labels_set:
                 self.fitted_priors.append(prior)
                 self.fitted_param_labels.append(label)
@@ -83,12 +91,17 @@ class Sampler(abc.ABC):
                 marg_param_counter += 1
         self.total_param_num = len(self.system.sys_priors)
         quants = set(np.unique(self.system.data_table["quant_type"]))
-        marg_quants = {(quant_type for quant_type in marg.QUANT_TYPES) for marg in self.marginalizers}
+        marg_quants = {
+            (quant_type for quant_type in marg.QUANT_TYPES)
+            for marg in self.marginalizers
+        }
         self.blob_labels = ["lnlike"] + self.marg_param_labels
-        
+
         self.non_marg_quants = list(quants - marg_quants)
 
-        if not orbitize.marginalizer.compatible_params(self.marginalizers, self.fitted_param_labels):
+        if not orbitize.marginalizer.compatible_params(
+            self.marginalizers, self.fitted_param_labels
+        ):
             raise ValueError("Marginalizers and basis are incompatible")
 
     @abc.abstractmethod
@@ -119,7 +132,10 @@ class Sampler(abc.ABC):
         else:
             num_orbits = input_shape[1]
             params = np.full((self.total_param_num, num_orbits), np.nan)
-        assert len(self.fitted_param_sys_idx) == len(fitted_params), (self.fitted_param_sys_idx, fitted_params)
+        assert len(self.fitted_param_sys_idx) == len(fitted_params), (
+            self.fitted_param_sys_idx,
+            fitted_params,
+        )
         params[self.fitted_param_sys_idx] = fitted_params
 
         total_lnlike = 0
@@ -127,20 +143,25 @@ class Sampler(abc.ABC):
         all_calculated_values = {}
         for marg in self.marginalizers:
             req_param_idx = [self.system.param_idx[label] for label in marg.REQ_PARAMS]
-            jitter_param_idx = [self.system.param_idx[label] for label in marg.JITTER_PARAMS]
-            marg_param_idx = [self.system.param_idx[label] for label in marg.MARG_PARAMS]
+            jitter_param_idx = [
+                self.system.param_idx[label] for label in marg.JITTER_PARAMS
+            ]
+            marg_param_idx = [
+                self.system.param_idx[label] for label in marg.MARG_PARAMS
+            ]
             req_params = params[req_param_idx]
             jitter = params[jitter_param_idx]
-            partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(req_params, jitter, all_calculated_values)
+            partial_lnprob, partial_lnlike, marg_params, calculated_values = marg.apply(
+                req_params, jitter, all_calculated_values
+            )
             total_lnprob += partial_lnprob
             total_lnlike += partial_lnlike
             params[marg_param_idx] = marg_params
-            all_calculated_values.update(calculated_values) # i.e. astr_tanom, rv_eanom
+            all_calculated_values.update(calculated_values)  # i.e. astr_tanom, rv_eanom
         assert not np.isnan(params).any(), (marg_params, params.shape, marg_param_idx)
 
         lnlikes_sum = 0
         if len(self.non_marg_quants) > 0:
-
             # compute the model based on system params
             model, jitter = self.system.compute_model(params)
 
@@ -151,7 +172,10 @@ class Sampler(abc.ABC):
 
             # errors below required for lnlike function below
             errs = np.array(
-                [self.system.data_table["quant1_err"], self.system.data_table["quant2_err"]]
+                [
+                    self.system.data_table["quant1_err"],
+                    self.system.data_table["quant2_err"],
+                ]
             ).T
             # covariances/correlations, if applicable
             # we're doing this check now because the likelihood computation is much faster if we can skip it.
@@ -165,7 +189,10 @@ class Sampler(abc.ABC):
                 seppa_indices = self.system.all_seppa
             else:
                 seppa_indices = ()
-            non_marg_mask = np.isin(np.astype(self.system.data_table["quant_type"], str), self.non_marg_quants)
+            non_marg_mask = np.isin(
+                np.astype(self.system.data_table["quant_type"], str),
+                self.non_marg_quants,
+            )
             non_marg_data = data[non_marg_mask]
             non_marg_errs = errs[non_marg_mask]
             if corrs is not None:
@@ -177,7 +204,13 @@ class Sampler(abc.ABC):
 
             # compute lnlike
             lnlikes = self.lnlike(
-                non_marg_data, non_marg_errs, non_marg_corrs, non_marg_model, non_marg_jitter, seppa_indices, chi2_type=self.chi2_type
+                non_marg_data,
+                non_marg_errs,
+                non_marg_corrs,
+                non_marg_model,
+                non_marg_jitter,
+                seppa_indices,
+                chi2_type=self.chi2_type,
             )
 
             # return sum of lnlikes (aka product of likeliehoods)
@@ -192,12 +225,10 @@ class Sampler(abc.ABC):
                 params, epochs=self.system.hipparcos_IAD.epochs_mjd
             )
 
-            (
-                raoff_model_hip_epoch,
-                deoff_model_hip_epoch,
-                _, _
-            ) = self.system.compute_all_orbits(
-                params, epochs=Time([1991.25], format="decimalyear").mjd
+            (raoff_model_hip_epoch, deoff_model_hip_epoch, _, _) = (
+                self.system.compute_all_orbits(
+                    params, epochs=Time([1991.25], format="decimalyear").mjd
+                )
             )
 
             # subtract off position of star at reference Hipparcos epoch
@@ -797,10 +828,14 @@ class MCMC(Sampler):
         like="chi2_lnlike",
         custom_lnlike=None,
         prev_result_filename=None,
-        marginalizers=None
+        marginalizers=None,
     ):
         super(MCMC, self).__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=marginalizers
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+            marginalizers=marginalizers,
         )
 
         self.num_temps = num_temps
@@ -983,19 +1018,32 @@ class MCMC(Sampler):
         self.post = self._fill_in_fixed_params(self.post)
 
         if self.use_pt:
-            assert False, "need to implement blobs for ptemcee" # TODO
+            assert False, "need to implement blobs for ptemcee"  # TODO
         else:
-            self.blobs = sampler.blobs[:num_steps, :].T.reshape(len(self.blob_labels), -1).T
-            no_diff = ((self.lnlikes == self.blobs[:, 0]) | (np.abs(self.lnlikes - self.blobs[:, 0]) < 0.001))
-            assert (no_diff).all(), (self.lnlikes[~no_diff], self.blobs[:, 0][~no_diff], np.shape(np.where(~no_diff)), np.shape(np.where(no_diff)))
+            self.blobs = (
+                sampler.blobs[:num_steps, :].T.reshape(len(self.blob_labels), -1).T
+            )
+            no_diff = (self.lnlikes == self.blobs[:, 0]) | (
+                np.abs(self.lnlikes - self.blobs[:, 0]) < 0.001
+            )
+            assert (no_diff).all(), (
+                self.lnlikes[~no_diff],
+                self.blobs[:, 0][~no_diff],
+                np.shape(np.where(~no_diff)),
+                np.shape(np.where(no_diff)),
+            )
             self.marginalized_param_blobs = self.blobs[:, 1:]
-            assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[:5, :10]
+            assert not np.isnan(self.marginalized_param_blobs).any(), sampler.blobs[
+                :5, :10
+            ]
         num_orbits = self.post.shape[0]
         self.full_post = np.full((num_orbits, self.total_param_num), np.nan)
         self.full_post[:, self.fitted_param_sys_idx] = self.post
         self.full_post[:, self.marg_param_sys_idx] = self.marginalized_param_blobs
-        assert not np.isnan(self.full_post).any(), (self.fitted_param_sys_idx, self.marg_param_sys_idx)
-
+        assert not np.isnan(self.full_post).any(), (
+            self.fitted_param_sys_idx,
+            self.marg_param_sys_idx,
+        )
 
     def validate_xyz_positions(self):
         """
@@ -1117,7 +1165,7 @@ class MCMC(Sampler):
                     logpargs=[
                         self.priors,
                     ],
-                    pool=pool
+                    pool=pool,
                 )
             else:
                 sampler = emcee.EnsembleSampler(
@@ -1439,7 +1487,7 @@ class BaseNestedSampler(Sampler):
         """
         utform = np.zeros(u.shape)
         for i in range(u.shape[0]):
-            if hasattr(self.system.sys_priors[i], 'transform_samples'):
+            if hasattr(self.system.sys_priors[i], "transform_samples"):
                 utform[i] = self.system.sys_priors[i].transform_samples(u[i])
             else:
                 # prior is a fixed number
@@ -1466,7 +1514,8 @@ class NestedSampler(BaseNestedSampler):
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1537,7 +1586,7 @@ class NestedSampler(BaseNestedSampler):
         mp.set_start_method(start_method, force=True)
 
         if not static:
-            run_nested_kwargs['wt_kwargs'] = {"pfrac": pfrac}
+            run_nested_kwargs["wt_kwargs"] = {"pfrac": pfrac}
 
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
@@ -1559,7 +1608,7 @@ class NestedSampler(BaseNestedSampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
-                        nlive=nlive
+                        nlive=nlive,
                     )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
@@ -1590,7 +1639,9 @@ class NestedSampler(BaseNestedSampler):
         self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
         self.results.ln_evidence_err = self.dynesty_sampler.results["logzerr"][-1]
 
-        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["niter"]
+        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results[
+            "niter"
+        ]
 
 
 class MultiNest(Sampler):
@@ -1616,7 +1667,8 @@ class MultiNest(Sampler):
     Tomas Stolker 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1641,7 +1693,7 @@ class MultiNest(Sampler):
     def run_sampler(
         self,
         n_live_points=500,
-        output_basename='./multinest',
+        output_basename="./multinest",
         hdf5_file=None,
         multinest_kwargs=None,
     ):
@@ -1726,8 +1778,10 @@ class MultiNest(Sampler):
             """
 
             for i in range(n_param):
-                if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                    param_cube[i] = self.system.sys_priors[i].transform_samples(param_cube[i])
+                if hasattr(self.system.sys_priors[i], "transform_samples"):
+                    param_cube[i] = self.system.sys_priors[i].transform_samples(
+                        param_cube[i]
+                    )
                 else:
                     # The prior is a fixed number
                     param_cube[i] = self.system.sys_priors[i]
@@ -1779,11 +1833,14 @@ class MultiNest(Sampler):
         # The log-likelihood is stored in the last column
         self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
         self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
-        self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+        self.results.ln_evidence_err = sampling_stats[
+            "nested sampling global log-evidence error"
+        ]
 
         # Get the MPI rank of the process
         try:
             from mpi4py import MPI
+
             mpi_rank = MPI.COMM_WORLD.Get_rank()
         except ModuleNotFoundError:
             mpi_rank = 0
@@ -1793,6 +1850,7 @@ class MultiNest(Sampler):
             self.results.save_results(filename=hdf5_file)
 
         return post_samples[:, :-1]
+
 
 class NautilusSampler(BaseNestedSampler):
     """
@@ -1812,7 +1870,9 @@ class NautilusSampler(BaseNestedSampler):
 
     Eshel Dror, Quinton Blackston, Aniruddh Chalagulla, & Niklas Naworal 2026
     """
-    def __init__(self,
+
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
@@ -1834,22 +1894,22 @@ class NautilusSampler(BaseNestedSampler):
             version_number=orbitize.__version__,
         )
         self.start = time.time()
-    
+
     def nautilus_ptform(self, u):
         return self.ptform(u.T).T
-    
+
     def nautilus_logl(self, u: np.ndarray):
         return self._logl(u.T).T
-    
+
     def run_sampler(
         self,
-        n_live = 2000,
-        n_update = None,
-        verbose = False,
-        num_threads = 1,
-        savefile = None,
-        sampler_kwargs = {},
-        run_kwargs = {}
+        n_live=2000,
+        n_update=None,
+        verbose=False,
+        num_threads=1,
+        savefile=None,
+        sampler_kwargs={},
+        run_kwargs={},
     ):
         """Runs the nested sampler from the Nautilus package.
 
@@ -1876,7 +1936,11 @@ class NautilusSampler(BaseNestedSampler):
         Returns:
             numpy.array of float: equal-weighted posterior samples
         """
-        if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
+        if (
+            sys.version_info < (3, 9, 0)
+            and isinstance(num_threads, int)
+            and num_threads > 1
+        ):
             with mp.Pool(processes=num_threads) as pool:
                 self.naut_sampler = nautilus.Sampler(
                     prior=self.nautilus_ptform,
@@ -1887,13 +1951,10 @@ class NautilusSampler(BaseNestedSampler):
                     n_update=n_update,
                     pool=pool,
                     filepath=savefile,
-                    **sampler_kwargs
-                    )
-
-                success = self.naut_sampler.run(
-                    verbose=verbose,
-                    **run_kwargs
+                    **sampler_kwargs,
                 )
+
+                success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
         else:
             self.naut_sampler = nautilus.Sampler(
                 prior=self.nautilus_ptform,
@@ -1904,14 +1965,11 @@ class NautilusSampler(BaseNestedSampler):
                 n_update=n_update,
                 pool=num_threads,
                 filepath=savefile,
-                **sampler_kwargs
-                )
-
-            success = self.naut_sampler.run(
-                verbose=verbose,
-                **run_kwargs
+                **sampler_kwargs,
             )
-        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+
+            success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+        points, _, log_l = self.naut_sampler.posterior(equal_weight=True)
         weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 
         self.results.add_samples(
@@ -1919,7 +1977,7 @@ class NautilusSampler(BaseNestedSampler):
             log_l,
             weighted_post=weighted_points,
             weighted_lnlike=weighted_log_l,
-            lnweight=log_w
+            lnweight=log_w,
         )
 
         return points

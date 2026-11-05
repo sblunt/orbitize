@@ -289,7 +289,9 @@ def read_file(filename):
 
         # determine input quantity type (RA/DEC, SEP/PA, RV, or BRIGHTNESS)
         if orbitize_style:
-            if row["quant_type"] == "rv" or row["quant_type"] == 'brightness':  # special format for rv rows
+            if (
+                row["quant_type"] == "rv" or row["quant_type"] == "brightness"
+            ):  # special format for rv rows
                 output_table.add_row(
                     [
                         MJD,
@@ -339,7 +341,6 @@ def read_file(filename):
                 )
 
         else:  # When not in orbitize style
-
             if have_ra[index] and have_dec[index]:
                 # check if there's a covariance term
                 if have_radeccorr[index]:
@@ -449,7 +450,7 @@ def read_file(filename):
                         "brightness",
                         "defbr",
                     ]
-                    )
+                )
 
     return output_table
 

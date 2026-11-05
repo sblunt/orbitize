@@ -25,6 +25,7 @@ cmap = colors.LinearSegmentedColormap.from_list(
     cmap(np.linspace(0.0, 0.7, 1000)),
 )
 
+
 class Plotter(object):
     """
     A class to plot results
@@ -46,7 +47,7 @@ class Plotter(object):
             calculate rv_time_series of the primary (object 0) (default: False)
         rv_time_series2 (bool): if fitting for secondary mass using MCMC for rv fitting,
             calculate rv_time_series of the companion (object 1) (default: False)
-        post_to_use (np.array of float): num_orbits_to_plot x num_params posterior to use instead of randomly draw from the posterior 
+        post_to_use (np.array of float): num_orbits_to_plot x num_params posterior to use instead of randomly draw from the posterior
 
     (written): Henry Ngo, Sarah Blunt, 2018
     Additions by Malena Rice, 2019
@@ -54,25 +55,50 @@ class Plotter(object):
     Refactored to class by Eshel Dror, 2026
 
     """
+
     # Color Map
     CMAP = cmap
     # color bar
     CBAR_SPACING = 0.005
     CBAR_WIDTH = 0.02
     # colour/shape scheme scheme for data points
-    ASTR_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
+    ASTR_COLORS = (
+        "cornflowerblue",
+        "#FF7F11",
+        "#FF1919",
+        "#7A11FF",
+        "#11FFE3",
+        "#14FF11",
+    )
     ASTR_SYMBOLS = (".", "*", "p", "s")
     MODEL_COLORS = ("#372554", "#0496FF", "#FF1053", "#3A7CA5", "#143109")
-    RV_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
-    RV_ERR_COLORS = ("cornflowerblue", "#FF7F11", "#FF1919", "#7A11FF", "#11FFE3", "#14FF11")
+    RV_COLORS = (
+        "cornflowerblue",
+        "#FF7F11",
+        "#FF1919",
+        "#7A11FF",
+        "#11FFE3",
+        "#14FF11",
+    )
+    RV_ERR_COLORS = (
+        "cornflowerblue",
+        "#FF7F11",
+        "#FF1919",
+        "#7A11FF",
+        "#11FFE3",
+        "#14FF11",
+    )
     RV_SYMBOLS = (".", "*", "p", "s")
     BORDER_COLOR = "k"
-    RADEC_ERR_COLORS = ("k")
+    RADEC_ERR_COLORS = "k"
     # Latex for rv error
-    RV_ERR_MATH = {"offset" : "\\mathrm{{std}}(\\gamma)", "observation": "\\epsilon", "jitter": "\\mathrm{{med}}(\\sigma)"}
+    RV_ERR_MATH = {
+        "offset": "\\mathrm{{std}}(\\gamma)",
+        "observation": "\\epsilon",
+        "jitter": "\\mathrm{{med}}(\\sigma)",
+    }
     # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
     OBJECT_LABELS = {0: "*"}
-
 
     def __init__(
         self,
@@ -86,24 +112,41 @@ class Plotter(object):
         cbar_param="Epoch [year]",
         rv_time_series=False,
         rv_time_series2=False,
-        post_to_use=None
+        post_to_use=None,
     ):
         self.results = results
         self.system = results.system
 
         if start is None:
-           start = getattr(Time(np.min(self.system.data_table['epoch'])-365*3, format="mjd"), time_format)
+            start = getattr(
+                Time(np.min(self.system.data_table["epoch"]) - 365 * 3, format="mjd"),
+                time_format,
+            )
         if end is None:
-           end = getattr(Time(np.max(self.system.data_table['epoch'])+365*3, format="mjd"), time_format)
+            end = getattr(
+                Time(np.max(self.system.data_table["epoch"]) + 365 * 3, format="mjd"),
+                time_format,
+            )
 
-        self.set_params(object_to_plot, start, end, time_format, num_orbits_to_plot, num_epochs_to_plot, cbar_param, rv_time_series, rv_time_series2, post_to_use)
+        self.set_params(
+            object_to_plot,
+            start,
+            end,
+            time_format,
+            num_orbits_to_plot,
+            num_epochs_to_plot,
+            cbar_param,
+            rv_time_series,
+            rv_time_series2,
+            post_to_use,
+        )
 
     def set_params(
         self,
         object_to_plot=None,
         start=None,
         end=None,
-        time_format=None, 
+        time_format=None,
         num_orbits_to_plot=None,
         num_epochs_to_plot=None,
         cbar_param=None,
@@ -140,7 +183,10 @@ class Plotter(object):
             # Check cbar_param
             if cbar_param in ["Epoch [year]", "Epoch (year)"]:
                 pass
-            elif cbar_param in self.results.param_idx or cbar_param in self.results.standard_param_idx:
+            elif (
+                cbar_param in self.results.param_idx
+                or cbar_param in self.results.standard_param_idx
+            ):
                 pass
             else:
                 raise Exception(
@@ -149,9 +195,7 @@ class Plotter(object):
             self.cbar_param = cbar_param
 
         if self.start >= self.end:
-            raise ValueError(
-                "start keyword date must be less than end keyword date."
-            )
+            raise ValueError("start keyword date must be less than end keyword date.")
 
         if max(self.objects_to_plot) > self.results.num_secondary_bodies:
             raise ValueError(
@@ -160,7 +204,9 @@ class Plotter(object):
                 )
             )
 
-        if 0 in self.objects_to_plot and not (self.system.use_rebound or self.system.track_planet_perturbs):
+        if 0 in self.objects_to_plot and not (
+            self.system.use_rebound or self.system.track_planet_perturbs
+        ):
             raise ValueError(
                 "Plotting the primary's orbit without rebound or tracking planetary perturbations (fitting for secondary masses) currently unsupported."
             )
@@ -173,32 +219,76 @@ class Plotter(object):
                 post = np.copy(post_to_use)
                 self.standard_post = self.results.basis.to_standard_basis(post.T).T
             else:
-                self.post, self.standard_post = self._get_standard_post(self.num_orbits_to_plot)
-            self.period_raoffs, self.period_deoffs, self.period_vzs, self.period_epochss = self._calc_full_orbits(
-                self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, self.standard_post)
-            self.fixed_raoffs, self.fixed_deoffs, self.fixed_vzs, self.fixed_brightnesses, self.fixed_epochs = self._calc_panel_orbits(
-                self.start, self.num_epochs_to_plot, self.standard_post, self.end)
-            self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(self.cbar_param, self.period_epochss, self.post, self.standard_post)
+                self.post, self.standard_post = self._get_standard_post(
+                    self.num_orbits_to_plot
+                )
+            (
+                self.period_raoffs,
+                self.period_deoffs,
+                self.period_vzs,
+                self.period_epochss,
+            ) = self._calc_full_orbits(
+                self.start,
+                self.num_orbits_to_plot,
+                self.num_epochs_to_plot,
+                self.standard_post,
+            )
+            (
+                self.fixed_raoffs,
+                self.fixed_deoffs,
+                self.fixed_vzs,
+                self.fixed_brightnesses,
+                self.fixed_epochs,
+            ) = self._calc_panel_orbits(
+                self.start, self.num_epochs_to_plot, self.standard_post, self.end
+            )
+            self.cbar_param_arr, self.norm, self.norm_yr = self._create_cbar(
+                self.cbar_param, self.period_epochss, self.post, self.standard_post
+            )
             if self.rv_time_series:
-                self.rv_data, self.gam_idx, self.rv_inst_inds, self.sig_idx = self._calc_rv(object_index=0)
+                self.rv_data, self.gam_idx, self.rv_inst_inds, self.sig_idx = (
+                    self._calc_rv(object_index=0)
+                )
                 if len(self.rv_data) == 0:
                     warnings.warn("Unable to calculate primary radial velocity data.")
-                    self.rv_time_series=False
+                    self.rv_time_series = False
             if self.rv_time_series2:
-                self.rv_data2, self.gam_idx2, self.rv_inst_inds2, self.sig_idx2 = self._calc_rv(object_index=1)
+                self.rv_data2, self.gam_idx2, self.rv_inst_inds2, self.sig_idx2 = (
+                    self._calc_rv(object_index=1)
+                )
                 if len(self.rv_data2) == 0:
                     warnings.warn("Unable to calculate secondary radial velocity data.")
-                    self.rv_time_series2=False
+                    self.rv_time_series2 = False
             (
-                self.sep_datas, self.sep_errs, self.pa_datas, self.pa_errs, self.seppa_corrs, self.ra_datas, self.ra_errs, self.dec_datas, self.dec_errs, self.radec_corrs,
-                self.bright_datas, self.bright_errs, self.bright_insts, self.bright_inst_inds, self.bright_epochs,
-                self.astr_raoffs, self.astr_deoffs, self.astr_vzs, self.astr_epochs, self.astr_insts, self.astr_inst_inds
-            ) = self._calc_astrometry(self.standard_post, self.data, self.objects_to_plot)
+                self.sep_datas,
+                self.sep_errs,
+                self.pa_datas,
+                self.pa_errs,
+                self.seppa_corrs,
+                self.ra_datas,
+                self.ra_errs,
+                self.dec_datas,
+                self.dec_errs,
+                self.radec_corrs,
+                self.bright_datas,
+                self.bright_errs,
+                self.bright_insts,
+                self.bright_inst_inds,
+                self.bright_epochs,
+                self.astr_raoffs,
+                self.astr_deoffs,
+                self.astr_vzs,
+                self.astr_epochs,
+                self.astr_insts,
+                self.astr_inst_inds,
+            ) = self._calc_astrometry(
+                self.standard_post, self.data, self.objects_to_plot
+            )
 
     def _calc_astrometry(self, standard_post, all_data, objects_to_plot):
         """
         Calculate seppa/radec/brightness data and model from ``self.start`` to ``self.end``
-        
+
         Args:
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
             all_data (astropy.table.Table): data on all objects
@@ -226,7 +316,7 @@ class Plotter(object):
                 astr_vzs (list of np.array of float): num_orbits x num_astr_epochs Radial velocities at astrometry epochs for each object
                 astr_epochs (list of np.array of float): epochs of astrometry data for each object
                 astr_insts (list of np.array of string): names of astrometry instruments for each object
-                astr_inst_inds (list of dictionary of string to np.array of int): indices of data points of each astrometry instrument for each object  
+                astr_inst_inds (list of dictionary of string to np.array of int): indices of data points of each astrometry instrument for each object
         """
         sep_datas = []
         sep_errs = []
@@ -254,7 +344,18 @@ class Plotter(object):
 
         for i in objects_to_plot:
             object_data = all_data[all_data["object"] == i]
-            sep_data, sep_err, pa_data, pa_err, seppa_corr, ra_data, ra_err, dec_data, dec_err, radec_corr = self._calc_seppa_radec(object_data)
+            (
+                sep_data,
+                sep_err,
+                pa_data,
+                pa_err,
+                seppa_corr,
+                ra_data,
+                ra_err,
+                dec_data,
+                dec_err,
+                radec_corr,
+            ) = self._calc_seppa_radec(object_data)
             sep_datas.append(sep_data)
             sep_errs.append(sep_err)
             pa_datas.append(pa_data)
@@ -266,25 +367,48 @@ class Plotter(object):
             dec_errs.append(dec_err)
             radec_corrs.append(radec_corr)
 
-            bright_data, bright_err, bright_inst, bright_inst_ind, bright_epoch = self._calc_brightness(object_data)
+            bright_data, bright_err, bright_inst, bright_inst_ind, bright_epoch = (
+                self._calc_brightness(object_data)
+            )
             bright_datas.append(bright_data)
             bright_errs.append(bright_err)
             bright_insts.append(bright_inst)
             bright_inst_inds.append(bright_inst_ind)
             bright_epochs.append(bright_epoch)
 
-            astr_raoff, astr_deoff, astr_vz, astr_epoch, astr_inst, astr_inst_ind = self._calc_astr_orbits(standard_post, i, object_data)
-            astr_raoffs.append(astr_raoff) 
-            astr_deoffs.append(astr_deoff) 
-            astr_vzs.append(astr_vz) 
-            astr_epochs.append(astr_epoch) 
-            astr_insts.append(astr_inst) 
-            astr_inst_inds.append(astr_inst_ind) 
+            astr_raoff, astr_deoff, astr_vz, astr_epoch, astr_inst, astr_inst_ind = (
+                self._calc_astr_orbits(standard_post, i, object_data)
+            )
+            astr_raoffs.append(astr_raoff)
+            astr_deoffs.append(astr_deoff)
+            astr_vzs.append(astr_vz)
+            astr_epochs.append(astr_epoch)
+            astr_insts.append(astr_inst)
+            astr_inst_inds.append(astr_inst_ind)
 
-
-        return (sep_datas, sep_errs, pa_datas, pa_errs, seppa_corrs, ra_datas, ra_errs, dec_datas, dec_errs, radec_corrs,
-                bright_datas, bright_errs, bright_insts, bright_inst_inds, bright_epochs,
-                astr_raoffs, astr_deoffs, astr_vzs, astr_epochs, astr_insts, astr_inst_inds)
+        return (
+            sep_datas,
+            sep_errs,
+            pa_datas,
+            pa_errs,
+            seppa_corrs,
+            ra_datas,
+            ra_errs,
+            dec_datas,
+            dec_errs,
+            radec_corrs,
+            bright_datas,
+            bright_errs,
+            bright_insts,
+            bright_inst_inds,
+            bright_epochs,
+            astr_raoffs,
+            astr_deoffs,
+            astr_vzs,
+            astr_epochs,
+            astr_insts,
+            astr_inst_inds,
+        )
 
     def _calc_seppa_radec(self, object_data):
         """
@@ -305,7 +429,9 @@ class Plotter(object):
                 dec_err (np.array): declination data error for any data point where seppa/radec was available
                 radec_corr (np.array): correlation coefficient of ra/dec data error for any data point where seppa/radec was available, may be nan
         """
-        astr_inds = np.where((~np.isnan(object_data["quant1"])) & (~np.isnan(object_data["quant2"])))
+        astr_inds = np.where(
+            (~np.isnan(object_data["quant1"])) & (~np.isnan(object_data["quant2"]))
+        )
         data = object_data[astr_inds]
         radec_inds = np.where(data["quant_type"] == "radec")
         seppa_inds = np.where(data["quant_type"] == "seppa")
@@ -318,7 +444,6 @@ class Plotter(object):
         seppa_corr = np.copy(data["quant12_corr"])
 
         if len(radec_inds[0] > 0):
-
             sep_from_ra_data, pa_from_dec_data = orbitize.system.radec2seppa(
                 data["quant1"][radec_inds], data["quant2"][radec_inds]
             )
@@ -328,16 +453,17 @@ class Plotter(object):
             pa_err_from_dec_data = np.empty(num_radec_pts)
             seppa_corr_from_radec_data = np.empty(num_radec_pts)
             for j in np.arange(num_radec_pts):
-
-                sep_err_from_ra_data[j], pa_err_from_dec_data[j], seppa_corr_from_radec_data[j] = (
-                    orbitize.system.transform_errors(
-                        np.array(data["quant1"][radec_inds][j]),
-                        np.array(data["quant2"][radec_inds][j]),
-                        np.array(data["quant1_err"][radec_inds][j]),
-                        np.array(data["quant2_err"][radec_inds][j]),
-                        np.array(data["quant12_corr"][radec_inds][j]),
-                        orbitize.system.radec2seppa,
-                    )
+                (
+                    sep_err_from_ra_data[j],
+                    pa_err_from_dec_data[j],
+                    seppa_corr_from_radec_data[j],
+                ) = orbitize.system.transform_errors(
+                    np.array(data["quant1"][radec_inds][j]),
+                    np.array(data["quant2"][radec_inds][j]),
+                    np.array(data["quant1_err"][radec_inds][j]),
+                    np.array(data["quant2_err"][radec_inds][j]),
+                    np.array(data["quant12_corr"][radec_inds][j]),
+                    orbitize.system.radec2seppa,
                 )
 
             sep_data[radec_inds] = sep_from_ra_data
@@ -356,7 +482,6 @@ class Plotter(object):
         radec_corr = np.copy(data["quant12_corr"])
 
         if len(seppa_inds[0] > 0):
-
             ra_from_seppa_data, dec_from_seppa_data = orbitize.system.seppa2radec(
                 data["quant1"][seppa_inds], data["quant2"][seppa_inds]
             )
@@ -366,16 +491,17 @@ class Plotter(object):
             dec_err_from_seppa_data = np.empty(num_seppa_pts)
             radec_corr_from_seppa_data = np.empty(num_seppa_pts)
             for j in np.arange(num_seppa_pts):
-
-                ra_err_from_seppa_data[j], dec_err_from_seppa_data[j], radec_corr_from_seppa_data[j] = (
-                    orbitize.system.transform_errors(
-                        np.array(data["quant1"][seppa_inds][j]),
-                        np.array(data["quant2"][seppa_inds][j]),
-                        np.array(data["quant1_err"][seppa_inds][j]),
-                        np.array(data["quant2_err"][seppa_inds][j]),
-                        np.array(data["quant12_corr"][seppa_inds][j]),
-                        orbitize.system.seppa2radec,
-                    )
+                (
+                    ra_err_from_seppa_data[j],
+                    dec_err_from_seppa_data[j],
+                    radec_corr_from_seppa_data[j],
+                ) = orbitize.system.transform_errors(
+                    np.array(data["quant1"][seppa_inds][j]),
+                    np.array(data["quant2"][seppa_inds][j]),
+                    np.array(data["quant1_err"][seppa_inds][j]),
+                    np.array(data["quant2_err"][seppa_inds][j]),
+                    np.array(data["quant12_corr"][seppa_inds][j]),
+                    orbitize.system.seppa2radec,
                 )
 
             ra_data[seppa_inds] = ra_from_seppa_data
@@ -385,16 +511,27 @@ class Plotter(object):
             dec_err[seppa_inds] = dec_err_from_seppa_data
 
             radec_corr[seppa_inds] = radec_corr_from_seppa_data
-        
-        return sep_data, sep_err, pa_data, pa_err, seppa_corr, ra_data, ra_err, dec_data, dec_err, radec_corr
+
+        return (
+            sep_data,
+            sep_err,
+            pa_data,
+            pa_err,
+            seppa_corr,
+            ra_data,
+            ra_err,
+            dec_data,
+            dec_err,
+            radec_corr,
+        )
 
     def _calc_brightness(self, object_data):
         """
         Calculate brightness data for object
-        
+
         Args:
             object_data (``astropy.table.Table``): data of object
-        
+
         Return:
             5-tuple:
                 brightness_data (np.array of float): brightness measurements
@@ -410,14 +547,21 @@ class Plotter(object):
 
         bright_epochs = object_data["epoch"][brightness_indices]
         bright_insts = np.unique(data["instrument"])
-        
+
         # Indices corresponding to each instrument in datafile
         bright_inst_inds = {}
         for i in range(len(bright_insts)):
             bright_inst_inds[bright_insts[i]] = np.where(
-                (data["instrument"] == bright_insts[i].encode()) | (data["instrument"] ==  bright_insts[i])
+                (data["instrument"] == bright_insts[i].encode())
+                | (data["instrument"] == bright_insts[i])
             )[0]
-        return brightness_data, brightness_err, bright_insts, bright_inst_inds, bright_epochs
+        return (
+            brightness_data,
+            brightness_err,
+            bright_insts,
+            bright_inst_inds,
+            bright_epochs,
+        )
 
     def _calc_astr_orbits(self, standard_post, object_to_plot, data):
         """
@@ -427,7 +571,7 @@ class Plotter(object):
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
             object_to_plot (int): index of object to plot
             data (astropy.table.Table): data of object
-        
+
         Return:
             6-tuple:
                 raoff (np.array of float): num_orbits x num_astr_epochs Right Ascension offset at astrometry epochs
@@ -447,19 +591,19 @@ class Plotter(object):
         astr_inst_inds = {}
         for i in range(len(astr_insts)):
             astr_inst_inds[astr_insts[i]] = np.where(
-                (astr_data["instrument"] == astr_insts[i].encode()) | (astr_data["instrument"] ==  astr_insts[i])
+                (astr_data["instrument"] == astr_insts[i].encode())
+                | (astr_data["instrument"] == astr_insts[i])
             )[0]
 
         # Calculate ra/dec offsets for all epochs of this orbit
         raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
-            standard_post.T,
-            astr_epochs
+            standard_post.T, astr_epochs
         )
 
-        raoff = np.transpose(raoff0, [1,2,0])[object_to_plot, :, :]
-        deoff = np.transpose(deoff0, [1,2,0])[object_to_plot, :, :]
-        vz = np.transpose(vz0, [1,2,0])[object_to_plot, :, :]
-        
+        raoff = np.transpose(raoff0, [1, 2, 0])[object_to_plot, :, :]
+        deoff = np.transpose(deoff0, [1, 2, 0])[object_to_plot, :, :]
+        vz = np.transpose(vz0, [1, 2, 0])[object_to_plot, :, :]
+
         return raoff, deoff, vz, astr_epochs, astr_insts, astr_inst_inds
 
     def _calc_rv(self, object_index):
@@ -499,8 +643,9 @@ class Plotter(object):
         # indices corresponding to each instrument in the datafile
         inds = {}
         for i in range(len(insts)):
-            inds[insts[i]] = np.where( # include encode for backwards compatibility
-                (rv_data["instrument"] == insts[i].encode()) | (rv_data["instrument"] == insts[i])
+            inds[insts[i]] = np.where(  # include encode for backwards compatibility
+                (rv_data["instrument"] == insts[i].encode())
+                | (rv_data["instrument"] == insts[i])
             )[0]
         return rv_data, gam_idx, inds, sig_idx
 
@@ -525,8 +670,15 @@ class Plotter(object):
         post = self.results.post[choose, :]
         standard_post = self.results.basis.to_standard_basis(np.copy(post).T).T
         return post, standard_post
-    
-    def _calc_full_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, standard_post, periods_to_plot=1):
+
+    def _calc_full_orbits(
+        self,
+        start,
+        num_orbits_to_plot,
+        num_epochs_to_plot,
+        standard_post,
+        periods_to_plot=1,
+    ):
         """
         Calculate position in orbit at equally spaced epochs over a number of orbital periods for all objects
 
@@ -536,13 +688,13 @@ class Plotter(object):
             num_epochs_to_plot (int): number of equally spaced epochs at which to calculate positions
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
             periods_to_plot (float): number of periods to calculate for each set of orbital parameters (default: 1)
-        
+
         Return:
             4-tuple:
                 raoffs (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot Right Ascension offset at epochs
                 deoffs (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot Declination offset at epochs
                 vzs (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot Radial velocities at epochs
-                epochss (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot epochs for each orbit 
+                epochss (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot epochs for each orbit
         """
         num_objects = self.results.num_secondary_bodies + 1
         raoffs = np.zeros((num_objects, num_orbits_to_plot, num_epochs_to_plot))
@@ -551,14 +703,29 @@ class Plotter(object):
         epochss = np.zeros((num_objects, num_orbits_to_plot, num_epochs_to_plot))
 
         for i in range(num_objects):
-            raoff, deoff, vz, epochs = self._calc_object_full_orbits(start, num_orbits_to_plot, num_epochs_to_plot, i, standard_post, periods_to_plot)
+            raoff, deoff, vz, epochs = self._calc_object_full_orbits(
+                start,
+                num_orbits_to_plot,
+                num_epochs_to_plot,
+                i,
+                standard_post,
+                periods_to_plot,
+            )
             raoffs[i, :, :] = raoff
             deoffs[i, :, :] = deoff
             vzs[i, :, :] = vz
             epochss[i, :, :] = epochs
         return raoffs, deoffs, vzs, epochss
 
-    def _calc_object_full_orbits(self, start, num_orbits_to_plot, num_epochs_to_plot, object_to_plot, standard_post, periods_to_plot=1):
+    def _calc_object_full_orbits(
+        self,
+        start,
+        num_orbits_to_plot,
+        num_epochs_to_plot,
+        object_to_plot,
+        standard_post,
+        periods_to_plot=1,
+    ):
         """
         Calculate position in orbit at equally spaced epochs over a number of orbital periods for an object
 
@@ -569,30 +736,35 @@ class Plotter(object):
             object_to_plot (int): index of object to plot
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
             periods_to_plot (float): number of periods to calculate for each set of orbital parameters (default: 1)
-        
+
         Return:
             4-tuple:
                 raoff (np.array of float): num_orbits_to_plot x num_epochs_to_plot Right Ascension offset at epochs
                 deoff (np.array of float): num_orbits_to_plot x num_epochs_to_plot Declination offset at epochs
                 vz (np.array of float): num_orbits_to_plot x num_epochs_to_plot Radial velocities at epochs
-                epochs (np.array of float): num_orbits_to_plot x num_epochs_to_plot epochs for each orbit 
+                epochs (np.array of float): num_orbits_to_plot x num_epochs_to_plot epochs for each orbit
         """
         raoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         deoff = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         vz = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
         epochs = np.zeros((num_orbits_to_plot, num_epochs_to_plot))
-        
+
         # Loop through each orbit to plot and calcualte ra/dec offsets for all points in orbit
         # Need this loops since epochs[] vary for each orbit, unless we want to just plot the same time period for all orbits
         # Compute period (from Kepler's third law)
         if object_to_plot == 0:
             # Use longest secondary period
             secondaries = np.arange(self.results.num_secondary_bodies) + 1
-            sma_indexes = [self.results.standard_param_idx["sma{}".format(i)] for i in secondaries]
+            sma_indexes = [
+                self.results.standard_param_idx["sma{}".format(i)] for i in secondaries
+            ]
             smas = standard_post[:, sma_indexes]
             if "m0" in self.results.labels:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
-                m1_indexes = [self.results.standard_param_idx["m{}".format(i)] for i in secondaries]
+                m1_indexes = [
+                    self.results.standard_param_idx["m{}".format(i)]
+                    for i in secondaries
+                ]
                 m1s = standard_post[:, m1_indexes]
                 mtots = (m0 + m1s.T).T
                 periods = np.sqrt(
@@ -601,7 +773,10 @@ class Plotter(object):
             else:
                 mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
                 periods = np.sqrt(
-                    4 * np.pi**2.0 * (smas.T * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+                    4
+                    * np.pi**2.0
+                    * (smas.T * u.AU) ** 3
+                    / (consts.G * (mtots * u.Msun))
                 ).T
             periods = periods.to(u.day).value
             period = np.max(periods, axis=1)
@@ -624,13 +799,14 @@ class Plotter(object):
         for i in np.arange(num_orbits_to_plot):
             # Create an epochs array to plot num_epochs_to_plot points over one orbital period
             epochs[i, :] = np.linspace(
-                start.mjd, float(start.mjd + period[i]*periods_to_plot), num_epochs_to_plot
+                start.mjd,
+                float(start.mjd + period[i] * periods_to_plot),
+                num_epochs_to_plot,
             )
 
             # Calculate ra/dec offsets for all epochs of this orbit
             raoff0, deoff0, vz0, _ = self.system.compute_all_orbits(
-                standard_post[i],
-                epochs[i, :]
+                standard_post[i], epochs[i, :]
             )
 
             raoff[i, :] = raoff0[:, object_to_plot, 0]
@@ -641,13 +817,13 @@ class Plotter(object):
     def _calc_panel_orbits(self, start, num_epochs_to_plot, standard_post, end):
         """
         Calculate position in orbit at equally spaced epochs from a start to end epochs
-            
+
         Args:
             start (``astropy.time.Time``): epoch at which to start calculating the orbits
             num_epochs_to_plot (int): number of equally spaced epochs at which to calculate positions
             standard_post (np.array): num_orbits x num_params posterior of orbital parameters from Results.post
             end (``astropy.time.Time``): Epoch at which to end calculating the orbits
-        
+
         Return:
             5-tuple:
                 raoff (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot Right Ascension offset at epochs
@@ -656,20 +832,17 @@ class Plotter(object):
                 brightness (np.array of float): num_objects x num_orbits_to_plot x num_epochs_to_plot relative brightness at epochs
                 epochs (np.array of float): (num_epochs_to_plot) epochs
         """
-        epochs = np.linspace(
-                start.mjd, end.mjd, num_epochs_to_plot
-            )
-        
+        epochs = np.linspace(start.mjd, end.mjd, num_epochs_to_plot)
+
         raoff0, deoff0, vz0, brightness0 = self.system.compute_all_orbits(
-            standard_post.T,
-            epochs
+            standard_post.T, epochs
         )
 
         # epochs x bodies x orbits -> bodies x orbits x epochs
-        raoffs = np.transpose(raoff0, [1,2,0])
-        deoffs = np.transpose(deoff0, [1,2,0])
-        vzs = np.transpose(vz0, [1,2,0])
-        brightnesses = np.transpose(brightness0, [1,2,0])
+        raoffs = np.transpose(raoff0, [1, 2, 0])
+        deoffs = np.transpose(deoff0, [1, 2, 0])
+        vzs = np.transpose(vz0, [1, 2, 0])
+        brightnesses = np.transpose(brightness0, [1, 2, 0])
         return raoffs, deoffs, vzs, brightnesses, epochs
 
     def _get_object_label(self, object_index):
@@ -678,7 +851,7 @@ class Plotter(object):
 
         Arg:
             object_index: int
-        
+
         Return:
             (string): object label from `self.OBJECT_LABELS` or `str(object_index)` if no label exists
         """
@@ -693,13 +866,13 @@ class Plotter(object):
             epochss (np.array of float): num_objects x num_orbits x num_epochs epochs for each orbit in standard_post
             post (np.array of float): num_orbits x num_params posterior in system.basis
             standard_post (np.array of float): num_orbits x num_params posterior in standard basis
-        
+
         Return:
             3-tuple:
                 cbar_param_arr (np.array of float): (num_orbits) if ``cbar_param`` is not "Epoch [year]", otherwise (num_objects x num_orbits x num_epochs) ``epochs``.
                     The value of the cbar parameter for each orbit.
                 norm (``matploblib.colors.Normalize``): linear normalization from the minimum to maximum values of the cbar param.
-                    Maximum epoch is a maximum of 1000 years after the minimum epoch if cbar_param is epoch. 
+                    Maximum epoch is a maximum of 1000 years after the minimum epoch if cbar_param is epoch.
                 norm_yr (``matplotlib.colors.Normalize``): same as ``norm`` except in decimal year if ``cbar_param`` is epoch
         """
 
@@ -741,7 +914,7 @@ class Plotter(object):
 
         Args:
             ax (matplotlib.axes.Axes): Axes on which to plot
-            x (np.array): x values at which to plot 
+            x (np.array): x values at which to plot
             y (np.array): y values at which to plot
             xerr (np.array): xerr of value
             yerr (np.array): yerr of value
@@ -765,10 +938,36 @@ class Plotter(object):
             else:
                 eigen_x = np.sqrt(1 + pearson[i])
                 eigen_y = np.sqrt(1 - pearson[i])
-                transf = transforms.Affine2D().rotate_deg(45).scale(scale_x, scale_y).translate(x0, y0)
-                ax.errorbar(0, 0, xerr=eigen_x, yerr=eigen_y, transform=(transf + ax.transData), **kwargs)
+                transf = (
+                    transforms.Affine2D()
+                    .rotate_deg(45)
+                    .scale(scale_x, scale_y)
+                    .translate(x0, y0)
+                )
+                ax.errorbar(
+                    0,
+                    0,
+                    xerr=eigen_x,
+                    yerr=eigen_y,
+                    transform=(transf + ax.transData),
+                    **kwargs,
+                )
 
-    def _plot_full_orbits(self, ax, plot_astrometry, cmap, plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color):
+    def _plot_full_orbits(
+        self,
+        ax,
+        plot_astrometry,
+        cmap,
+        plot_astrometry_insts,
+        use_cmap,
+        n_std,
+        object_i,
+        object_index,
+        astr_color,
+        astr_symbols,
+        model_color,
+        err_color,
+    ):
         """
         Plot RAoff/Decoff orbits and astrometry
 
@@ -789,24 +988,37 @@ class Plotter(object):
         """
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(self.num_orbits_to_plot):
-            points = np.array([self.period_raoffs[object_index, i, :], self.period_deoffs[object_index, i, :]]).T.reshape(-1, 1, 2)
+            points = np.array(
+                [
+                    self.period_raoffs[object_index, i, :],
+                    self.period_deoffs[object_index, i, :],
+                ]
+            ).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             if use_cmap:
                 lc = LineCollection(segments, cmap=cmap, norm=self.norm, linewidth=1.0)
                 if self.cbar_param not in ["Epoch [year]", "Epoch (year)"]:
-                    lc.set_array(np.ones(self.num_epochs_to_plot) * self.cbar_param_arr[i])
+                    lc.set_array(
+                        np.ones(self.num_epochs_to_plot) * self.cbar_param_arr[i]
+                    )
                 elif self.cbar_param in ["Epoch [year]", "Epoch (year)"]:
                     lc.set_array(self.period_epochss[object_index, i, :])
             else:
-                lc = LineCollection(segments, colors=model_color, norm=self.norm, linewidth=1.0)
+                lc = LineCollection(
+                    segments, colors=model_color, norm=self.norm, linewidth=1.0
+                )
             ax.add_collection(lc)
 
         if plot_astrometry:
             # Plot astrometry along with instruments
             if plot_astrometry_insts:
                 for astr_inst in self.astr_insts[object_i]:
-                    ra = self.ra_datas[object_i][self.astr_inst_inds[object_i][astr_inst]]
-                    dec = self.dec_datas[object_i][self.astr_inst_inds[object_i][astr_inst]]
+                    ra = self.ra_datas[object_i][
+                        self.astr_inst_inds[object_i][astr_inst]
+                    ]
+                    dec = self.dec_datas[object_i][
+                        self.astr_inst_inds[object_i][astr_inst]
+                    ]
                     ax.scatter(
                         ra,
                         dec,
@@ -820,13 +1032,26 @@ class Plotter(object):
                 plt.sca(ax)
                 plt.legend(fontsize=15, loc=1)
             else:
-                ax.scatter(self.ra_datas[object_i], self.dec_datas[object_i], marker=next(astr_symbols), edgecolors=self.BORDER_COLOR, c=astr_color, zorder=10, s=60)
+                ax.scatter(
+                    self.ra_datas[object_i],
+                    self.dec_datas[object_i],
+                    marker=next(astr_symbols),
+                    edgecolors=self.BORDER_COLOR,
+                    c=astr_color,
+                    zorder=10,
+                    s=60,
+                )
         if n_std != 0:
             self._plot_correlated_errorbars(
-                ax, self.ra_datas[object_i], self.dec_datas[object_i],
-                xerr=self.ra_errs[object_i], yerr=self.dec_errs[object_i],
-                pearson=self.radec_corrs[object_i], n_std=n_std,
-                ecolor=err_color, zorder=5
+                ax,
+                self.ra_datas[object_i],
+                self.dec_datas[object_i],
+                xerr=self.ra_errs[object_i],
+                yerr=self.dec_errs[object_i],
+                pearson=self.radec_corrs[object_i],
+                n_std=n_std,
+                ecolor=err_color,
+                zorder=5,
             )
 
     def _add_colorbar(self, ax, fig, cmaps, num_cbars):
@@ -839,12 +1064,14 @@ class Plotter(object):
             cmaps (list of ``matplotlib.colors.Colormap``): color maps to use with ``self.cbar_param, self.norm_yr``
             num_cbars (int): number of colorsbars to plot
         """
-        
+
         # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
         for i in range(num_cbars):
             cbar_ax = fig.add_axes(
                 [
-                    ax.get_position().x1 + self.CBAR_SPACING + (self.CBAR_SPACING + self.CBAR_WIDTH)*i,
+                    ax.get_position().x1
+                    + self.CBAR_SPACING
+                    + (self.CBAR_SPACING + self.CBAR_WIDTH) * i,
                     ax.get_position().y0,
                     self.CBAR_WIDTH,
                     ax.get_position().height,
@@ -858,7 +1085,9 @@ class Plotter(object):
             )
             if num_cbars > 1:
                 cbar_objects = self.objects_to_plot[i::num_cbars]
-                cbar.ax.set_xlabel(",".join(map(self._get_object_label,cbar_objects)), size=15)
+                cbar.ax.set_xlabel(
+                    ",".join(map(self._get_object_label, cbar_objects)), size=15
+                )
             last = i == num_cbars - 1
             if not last:
                 cbar.ax.set_yticklabels([])
@@ -866,10 +1095,12 @@ class Plotter(object):
         cbar.ax.tick_params(labelsize=15)
         cbar.set_label(label=self.cbar_param, size=20)
 
-    def _plot_sep_pa_model(self, ax1, ax2, mod180, sep_pa_color, object_i, object_index):
+    def _plot_sep_pa_model(
+        self, ax1, ax2, mod180, sep_pa_color, object_i, object_index
+    ):
         """
         Plot Sep/PA vs time from model
-        
+
         Args:
             ax1 (``matploblib.axes.Axes``): sep axes
             ax2 (``matploblib.axes.Axes``): pa axes
@@ -883,7 +1114,9 @@ class Plotter(object):
             yr_epochs = Time(self.fixed_epochs, format="mjd").decimalyear
 
             seps, pas = orbitize.system.radec2seppa(
-                self.fixed_raoffs[object_index, i, :], self.fixed_deoffs[object_index, i, :], mod180=mod180
+                self.fixed_raoffs[object_index, i, :],
+                self.fixed_deoffs[object_index, i, :],
+                mod180=mod180,
             )
 
             plt.sca(ax1)
@@ -895,7 +1128,7 @@ class Plotter(object):
     def _plot_brightness_model(self, ax, sep_pa_color, object_i, object_index):
         """
         Plot relative brightness vs epoch from model
-            
+
         Args:
             ax (``matploblib.axes.Axes``): axes on which to plot
             sep_pa_color (string): matploblib color string of orbit tracks
@@ -908,7 +1141,7 @@ class Plotter(object):
 
             plt.sca(ax)
             plt.plot(yr_epochs, brightnesses, color=sep_pa_color)
-    
+
     def _plot_rv_model(self, ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color):
         """
         Plot primary/secondary rv vs epoch from model
@@ -948,10 +1181,12 @@ class Plotter(object):
                     color=sep_pa_color,
                 )
 
-    def _plot_sep_pa_data(self, ax1, ax2, plot_astrometry_insts, plot_errorbars, object_i, object_index):
+    def _plot_sep_pa_data(
+        self, ax1, ax2, plot_astrometry_insts, plot_errorbars, object_i, object_index
+    ):
         """
         Plot Sep/PA vs epoch of instrument data.
-        
+
         Args:
             ax1 (``matploblib.axes.Axes``): sep axes
             ax2 (``matploblib.axes.Axes``): pa axes
@@ -1064,10 +1299,12 @@ class Plotter(object):
                     capsize=2,
                 )
 
-    def _plot_brightness_data(self, ax, plot_astrometry_insts, plot_errorbars, object_i, object_index):
+    def _plot_brightness_data(
+        self, ax, plot_astrometry_insts, plot_errorbars, object_i, object_index
+    ):
         """
         Plot relative brightness vs epoch of instrument data.
-        
+
         Args:
             ax (``matploblib.axes.Axes``): axes on which to plot
             plot_astrometry_insts (bool): plot instruments separately
@@ -1130,8 +1367,10 @@ class Plotter(object):
                     zorder=10,
                     capsize=2,
                 )
-    
-    def _plot_rv_data(self, ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars):
+
+    def _plot_rv_data(
+        self, ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars
+    ):
         """
         Plot primary/secondary rv vs epoch of instrument data. The median rv offset (gamma) is subtracted from each instrument.
 
@@ -1155,10 +1394,9 @@ class Plotter(object):
             # switch current axis to rv panel
             plt.sca(ax3)
 
-            med_ga = [np.median(self.results.post[:,i]) for i in self.gam_idx]
-            stddev_ga = [np.std(self.results.post[:,i]) for i in self.gam_idx]
-            med_sigma = [np.median(self.results.post[:,i]) for i in self.sig_idx]
-
+            med_ga = [np.median(self.results.post[:, i]) for i in self.gam_idx]
+            stddev_ga = [np.std(self.results.post[:, i]) for i in self.gam_idx]
+            med_sigma = [np.median(self.results.post[:, i]) for i in self.sig_idx]
 
             # get rvs and plot them
             for i, name in enumerate(self.rv_inst_inds.keys()):
@@ -1169,11 +1407,15 @@ class Plotter(object):
                 primary_obs_err = inst_data["quant1_err"]
                 primary_offset_err = stddev_ga[i]
                 primary_jitter = med_sigma[i]
-                primary_errors = {'observation': primary_obs_err, 'offset': primary_offset_err, 'jitter': primary_jitter}
+                primary_errors = {
+                    "observation": primary_obs_err,
+                    "offset": primary_offset_err,
+                    "jitter": primary_jitter,
+                }
                 name2 = "RV data" if name == "defrv" else name
                 plt.scatter(
                     epochs,
-                    rvs-med_ga[i],
+                    rvs - med_ga[i],
                     s=30,
                     marker=next(symbols),
                     c=next(colors),
@@ -1188,37 +1430,52 @@ class Plotter(object):
                             primary_rv_err_labels = []
                             for err_type in grouping:
                                 primary_rv_err2 += np.square(primary_errors[err_type])
-                                primary_rv_err_labels.append("{0}^2".format(self.RV_ERR_MATH[err_type]))
-                            primary_rv_err_label = "$(" + "+".join(primary_rv_err_labels) + ")^\\frac{{1}}{{2}}$"
+                                primary_rv_err_labels.append(
+                                    "{0}^2".format(self.RV_ERR_MATH[err_type])
+                                )
+                            primary_rv_err_label = (
+                                "$("
+                                + "+".join(primary_rv_err_labels)
+                                + ")^\\frac{{1}}{{2}}$"
+                            )
                             primary_rv_err = np.sqrt(primary_rv_err2)
                         else:
                             primary_rv_err = primary_errors[grouping]
-                            primary_rv_err_label = "${0}$".format(self.RV_ERR_MATH[grouping])
+                            primary_rv_err_label = "${0}$".format(
+                                self.RV_ERR_MATH[grouping]
+                            )
                         plt.errorbar(
                             x=epochs,
-                            y=rvs-med_ga[i],
+                            y=rvs - med_ga[i],
                             yerr=primary_rv_err,
                             ecolor=self.RV_ERR_COLORS[group_i],
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=primary_rv_err_label if i==0 else None,
-                            alpha=1-0.1*(bar_width-1)
+                            label=primary_rv_err_label if i == 0 else None,
+                            alpha=1 - 0.1 * (bar_width - 1),
                         )
                         bar_width += 3
 
-            if (rv_err_grouping == [("observation", "offset", "jitter")] or (not plot_errorbars)) and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
+            if (
+                (
+                    rv_err_grouping == [("observation", "offset", "jitter")]
+                    or (not plot_errorbars)
+                )
+                and len(self.rv_inst_inds.keys()) == 1
+                and "defrv" in self.rv_inst_inds.keys()
+            ):
                 pass
             else:
                 nitems = len(self.rv_inst_inds)
                 if plot_errorbars:
                     nitems += len(rv_err_grouping)
-                plt.legend(fontsize=20, ncol=((nitems-1)//5+1))
+                plt.legend(fontsize=20, ncol=((nitems - 1) // 5 + 1))
 
         if rv_time_series2 and len(self.rv_data2) > 0:
-            med_ga2 = [np.median(self.results.post[:,i]) for i in self.gam_idx2]
-            stddev_ga2 = [np.std(self.results.post[:,i]) for i in self.gam_idx2]
-            med_sigma2 = [np.median(self.results.post[:,i]) for i in self.sig_idx2]
+            med_ga2 = [np.median(self.results.post[:, i]) for i in self.gam_idx2]
+            stddev_ga2 = [np.std(self.results.post[:, i]) for i in self.gam_idx2]
+            med_sigma2 = [np.median(self.results.post[:, i]) for i in self.sig_idx2]
 
             if rv_time_series:
                 plt.sca(ax4)
@@ -1237,10 +1494,14 @@ class Plotter(object):
                 secondary_obs_err = inst_data2["quant1_err"]
                 secondary_offset_err = stddev_ga2[i]
                 secondary_jitter = med_sigma2[i]
-                secondary_errors = {'observation': secondary_obs_err, 'offset': secondary_offset_err, 'jitter': secondary_jitter}
+                secondary_errors = {
+                    "observation": secondary_obs_err,
+                    "offset": secondary_offset_err,
+                    "jitter": secondary_jitter,
+                }
                 plt.scatter(
                     epochs2,
-                    rvs2-med_ga2[i],
+                    rvs2 - med_ga2[i],
                     s=30,
                     marker=next(symbols),
                     c=next(colors),
@@ -1254,33 +1515,47 @@ class Plotter(object):
                             secondary_rv_err2 = 0
                             secondary_rv_err_labels = []
                             for err_type in grouping:
-                                secondary_rv_err2 += np.square(secondary_errors[err_type])
-                                secondary_rv_err_labels.append("{0}^2".format(self.RV_ERR_MATH[err_type]))
-                            secondary_rv_err_label = "$(" + "+".join(secondary_rv_err_labels) + ")^\\frac{{1}}{{2}}$"
+                                secondary_rv_err2 += np.square(
+                                    secondary_errors[err_type]
+                                )
+                                secondary_rv_err_labels.append(
+                                    "{0}^2".format(self.RV_ERR_MATH[err_type])
+                                )
+                            secondary_rv_err_label = (
+                                "$("
+                                + "+".join(secondary_rv_err_labels)
+                                + ")^\\frac{{1}}{{2}}$"
+                            )
                             secondary_rv_err = np.sqrt(secondary_rv_err2)
                         else:
                             secondary_rv_err = secondary_errors[grouping]
-                            secondary_rv_err_label = "${0}$".format(self.RV_ERR_MATH[grouping])
+                            secondary_rv_err_label = "${0}$".format(
+                                self.RV_ERR_MATH[grouping]
+                            )
                         plt.errorbar(
                             x=epochs2,
-                            y=rvs2-med_ga2[i],
+                            y=rvs2 - med_ga2[i],
                             yerr=secondary_rv_err,
                             ecolor=self.RV_ERR_COLORS[group_i],
                             elinewidth=bar_width,
                             zorder=6,
                             ls="none",
-                            label=secondary_rv_err_label if i==0 else None,
-                            alpha=1-0.1*(bar_width-1)
+                            label=secondary_rv_err_label if i == 0 else None,
+                            alpha=1 - 0.1 * (bar_width - 1),
                         )
                         bar_width += 3
 
-            if rv_err_grouping == [("observation", "offset", "jitter")] and len(self.rv_inst_inds2.keys()) == 1 and "defrv" in self.rv_inst_inds2.keys():
+            if (
+                rv_err_grouping == [("observation", "offset", "jitter")]
+                and len(self.rv_inst_inds2.keys()) == 1
+                and "defrv" in self.rv_inst_inds2.keys()
+            ):
                 pass
             else:
                 nitems = len(self.rv_inst_inds2)
                 if plot_errorbars:
                     nitems += len(rv_err_grouping)
-                plt.legend(fontsize=20, ncol=((nitems-1)//5+1))
+                plt.legend(fontsize=20, ncol=((nitems - 1) // 5 + 1))
 
     def plot_orbits(
         self,
@@ -1321,7 +1596,7 @@ class Plotter(object):
             plot_astrometry_insts (bool): plots the astrometric data by instruments (default: False)
             plot_brightness (bool): plots the relative brightness if it exists (default: False)
             plot_errorbars (bool): plot errorbars on data (default: True)
-            n_std (float): number of standard deviations to plot in the RA/Dec plot, 
+            n_std (float): number of standard deviations to plot in the RA/Dec plot,
                 no errorbars are plotted if n_std=0 (default: 1.0)
             rv_time_series (bool): if fitting for secondary mass using MCMC for rv fitting,
                 display rv time series of the primary (object 0) (default: False)
@@ -1331,7 +1606,7 @@ class Plotter(object):
                 determines how errors for rv time series are grouped. The strings within each tuple determine
                 what types of error are included in that errorbar. For example [('offset'), ('observation', 'jitter')]
                 would create one errorbar for the rv offset (gamma) and another for the combined observation (epsilon)
-                and jitter (sigma) errors. (default: [('observation', 'offset', 'jitter)]) 
+                and jitter (sigma) errors. (default: [('observation', 'offset', 'jitter)])
             fontsize (int): font size of labels (default: 20)
             fig (``matplotlib.pyplot.Figure``): optionally include a predefined Figure object to plot the orbit on.
                 Most users will not need this keyword.
@@ -1343,10 +1618,10 @@ class Plotter(object):
         (written): Henry Ngo, Sarah Blunt, 2018
         Additions by Malena Rice, 2019
         Additions by Dino Hsu, 2023
-        Refactoring and additions by Eshel Dror, 2026 
+        Refactoring and additions by Eshel Dror, 2026
 
         """
-        
+
         if cmap is None:
             cmap = self.CMAP
 
@@ -1374,12 +1649,22 @@ class Plotter(object):
                 "so the argument is set to False instead."
             )
 
-        if plot_brightness and len(self.objects_to_plot) == 1 and len(self.bright_datas[0]) == 0:
+        if (
+            plot_brightness
+            and len(self.objects_to_plot) == 1
+            and len(self.bright_datas[0]) == 0
+        ):
             plot_brightness = False
-            warnings.warn("No brightness data was provided so plot_brightness=True is not possible")
+            warnings.warn(
+                "No brightness data was provided so plot_brightness=True is not possible"
+            )
 
-        if (rv_time_series and not self.rv_time_series) or (rv_time_series2 and not self.rv_time_series2):
-            self.set_params(rv_time_series=rv_time_series, rv_time_series2=rv_time_series2)
+        if (rv_time_series and not self.rv_time_series) or (
+            rv_time_series2 and not self.rv_time_series2
+        ):
+            self.set_params(
+                rv_time_series=rv_time_series, rv_time_series2=rv_time_series2
+            )
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
@@ -1400,9 +1685,19 @@ class Plotter(object):
             bright_shape = (height, 18)
             # Main Panel
             if num_objects_to_plot == 1:
-                ax = plt.subplot2grid(shape, (0, 0), rowspan=2+plot_brightness, colspan=8 - show_colorbar)
+                ax = plt.subplot2grid(
+                    shape,
+                    (0, 0),
+                    rowspan=2 + plot_brightness,
+                    colspan=8 - show_colorbar,
+                )
             else:
-                ax = plt.subplot2grid(shape, (0, 0), rowspan=4, colspan=16 - show_colorbar*2 - num_cbars//2)
+                ax = plt.subplot2grid(
+                    shape,
+                    (0, 0),
+                    rowspan=4,
+                    colspan=16 - show_colorbar * 2 - num_cbars // 2,
+                )
             # modify the axes
             if full_plot:
                 adjustable_param = "datalim"
@@ -1439,17 +1734,42 @@ class Plotter(object):
             else:
                 for i, object_index in enumerate(self.objects_to_plot):
                     if plot_brightness and len(self.bright_datas[i]) > 0:
-                        sep_ax = plt.subplot2grid(bright_shape, (4+i, 0), rowspan=1, colspan=4)
-                        pa_ax = plt.subplot2grid(bright_shape, (4+i, 6), rowspan=1, colspan=4)
-                        bright_ax = plt.subplot2grid(bright_shape, (4+i, 12), rowspan=1, colspan=4)
-                        bright_ax.set_ylabel("$Brightness_{{{0}}}$".format(self._get_object_label(object_index)), fontsize=fontsize)
+                        sep_ax = plt.subplot2grid(
+                            bright_shape, (4 + i, 0), rowspan=1, colspan=4
+                        )
+                        pa_ax = plt.subplot2grid(
+                            bright_shape, (4 + i, 6), rowspan=1, colspan=4
+                        )
+                        bright_ax = plt.subplot2grid(
+                            bright_shape, (4 + i, 12), rowspan=1, colspan=4
+                        )
+                        bright_ax.set_ylabel(
+                            "$Brightness_{{{0}}}$".format(
+                                self._get_object_label(object_index)
+                            ),
+                            fontsize=fontsize,
+                        )
                         bright_ax.set_xlabel("Epoch", fontsize=fontsize)
                     else:
-                        sep_ax = plt.subplot2grid(shape, (4+i, 0), rowspan=1, colspan=7)
-                        pa_ax = plt.subplot2grid(shape, (4+i, 9), rowspan=1, colspan=7)
+                        sep_ax = plt.subplot2grid(
+                            shape, (4 + i, 0), rowspan=1, colspan=7
+                        )
+                        pa_ax = plt.subplot2grid(
+                            shape, (4 + i, 9), rowspan=1, colspan=7
+                        )
                         bright_ax = None
-                    sep_ax.set_ylabel("$\\rho_{{{0}}}$ (mas)".format(self._get_object_label(object_index)), fontsize=fontsize)
-                    pa_ax.set_ylabel("PA$_{{{0}}}$ ($^{{\\circ}}$)".format(self._get_object_label(object_index)), fontsize=fontsize)
+                    sep_ax.set_ylabel(
+                        "$\\rho_{{{0}}}$ (mas)".format(
+                            self._get_object_label(object_index)
+                        ),
+                        fontsize=fontsize,
+                    )
+                    pa_ax.set_ylabel(
+                        "PA$_{{{0}}}$ ($^{{\\circ}}$)".format(
+                            self._get_object_label(object_index)
+                        ),
+                        fontsize=fontsize,
+                    )
                     sep_ax.set_xlabel("Epoch", fontsize=fontsize)
                     pa_ax.set_xlabel("Epoch", fontsize=fontsize)
 
@@ -1460,7 +1780,9 @@ class Plotter(object):
             # rv panels
             ax3 = ax4 = None
             if rv_time_series:
-                ax3 = plt.subplot2grid(shape, (height - 1 - rv_time_series2, 0), rowspan=1, colspan=16)
+                ax3 = plt.subplot2grid(
+                    shape, (height - 1 - rv_time_series2, 0), rowspan=1, colspan=16
+                )
                 ax3.set_ylabel("Primary RV (km/s)", fontsize=fontsize)
                 ax3.set_xlabel("Epoch", fontsize=fontsize)
             if rv_time_series2:
@@ -1480,37 +1802,80 @@ class Plotter(object):
                 astr_color = next(astr_colors)
                 err_color = next(err_colors)
                 model_color = next(model_colors)
-                self._plot_full_orbits(ax, plot_astrometry, next(cmaps_iter), plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color)
-                self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
-                self._plot_sep_pa_data(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
+                self._plot_full_orbits(
+                    ax,
+                    plot_astrometry,
+                    next(cmaps_iter),
+                    plot_astrometry_insts,
+                    use_cmap,
+                    n_std,
+                    object_i,
+                    object_index,
+                    astr_color,
+                    astr_symbols,
+                    model_color,
+                    err_color,
+                )
+                self._plot_sep_pa_model(
+                    sep_axes[object_i],
+                    pa_axes[object_i],
+                    mod180,
+                    sep_pa_color,
+                    object_i,
+                    object_index,
+                )
+                self._plot_sep_pa_data(
+                    sep_axes[object_i],
+                    pa_axes[object_i],
+                    plot_astrometry_insts,
+                    plot_errorbars,
+                    object_i,
+                    object_index,
+                )
 
                 bright_ax = bright_axes[object_i]
                 if bright_ax is not None:
-                    self._plot_brightness_model(bright_ax, sep_pa_color, object_i, object_index)
-                    self._plot_brightness_data(bright_ax, plot_astrometry_insts, plot_errorbars, object_i, object_index)
+                    self._plot_brightness_model(
+                        bright_ax, sep_pa_color, object_i, object_index
+                    )
+                    self._plot_brightness_data(
+                        bright_ax,
+                        plot_astrometry_insts,
+                        plot_errorbars,
+                        object_i,
+                        object_index,
+                    )
 
             if rv_time_series or rv_time_series2:
-                self._plot_rv_model(ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color)
-                self._plot_rv_data(ax3, ax4, rv_time_series, rv_time_series2, rv_err_grouping, plot_errorbars)
+                self._plot_rv_model(
+                    ax3, ax4, rv_time_series, rv_time_series2, sep_pa_color
+                )
+                self._plot_rv_data(
+                    ax3,
+                    ax4,
+                    rv_time_series,
+                    rv_time_series2,
+                    rv_err_grouping,
+                    plot_errorbars,
+                )
 
             # add colorbar
             if show_colorbar:
                 self._add_colorbar(ax, fig, cmaps, num_cbars)
-            
+
             for ax1 in fig.get_axes():
-                ax1.tick_params(axis="both", which="both", labelsize=15, top=True, right=True)
+                ax1.tick_params(
+                    axis="both", which="both", labelsize=15, top=True, right=True
+                )
                 ax1.minorticks_on()
 
         fig.tight_layout()
-        
+
         return fig
 
     def plot_residuals(
-            self,
-            sep_pa_color="lightgrey",
-            mod180=False,
-            separate_error=False
-        ):
+        self, sep_pa_color="lightgrey", mod180=False, separate_error=False
+    ):
         """
         Plots sep/PA residuals for a set of orbits
 
@@ -1525,11 +1890,13 @@ class Plotter(object):
         Return:
             ``matplotlib.pyplot.Figure``: the residual plots
 
-        Refactored by Eshel Dror, 2026        
-    
+        Refactored by Eshel Dror, 2026
+
         """
 
-        fig, axes = plt.subplots(len(self.objects_to_plot), 2, figsize=(8, 4*len(self.objects_to_plot)))
+        fig, axes = plt.subplots(
+            len(self.objects_to_plot), 2, figsize=(8, 4 * len(self.objects_to_plot))
+        )
         for object_index, object_to_plot in enumerate(self.objects_to_plot):
             object_axes = axes[object_index] if len(self.objects_to_plot) > 1 else axes
             seps = []
@@ -1537,10 +1904,15 @@ class Plotter(object):
             seps_100 = []
             pas_100 = []
             for i in np.arange(self.num_orbits_to_plot):
+                raoff0, deoff0 = (
+                    self.astr_raoffs[object_index][i],
+                    self.astr_deoffs[object_index][i],
+                )
 
-                raoff0, deoff0 = self.astr_raoffs[object_index][i], self.astr_deoffs[object_index][i]
-
-                raoff2, deoff2 = self.fixed_raoffs[object_to_plot, i, :], self.fixed_deoffs[object_to_plot, i, :]
+                raoff2, deoff2 = (
+                    self.fixed_raoffs[object_to_plot, i, :],
+                    self.fixed_deoffs[object_to_plot, i, :],
+                )
 
                 seps1, pas1 = orbitize.system.radec2seppa(raoff0, deoff0, mod180=mod180)
 
@@ -1562,7 +1934,7 @@ class Plotter(object):
 
             median_seps_100 = np.median(seps_100, axis=0)
             median_pas_100 = np.median(pas_100, axis=0)
-            
+
             median_seps = np.median(seps, axis=0)
             median_pas = np.median(pas, axis=0)
             stddev_seps = np.std(seps, axis=0)
@@ -1570,7 +1942,7 @@ class Plotter(object):
 
             residual_seps = median_seps - self.sep_datas[object_index]
             residual_pas = median_pas - self.pa_datas[object_index]
-            
+
             if separate_error:
                 object_axes[0].errorbar(
                     yr_epochs,
@@ -1583,7 +1955,7 @@ class Plotter(object):
                     c=self.ASTR_COLORS[0],
                     zorder=10,
                     capsize=2,
-                    label="Data Error"
+                    label="Data Error",
                 )
                 object_axes[0].errorbar(
                     yr_epochs,
@@ -1595,11 +1967,13 @@ class Plotter(object):
                     c=self.ASTR_COLORS[1],
                     zorder=10,
                     capsize=2,
-                    label="Model Standard Deviation"
+                    label="Model Standard Deviation",
                 )
                 object_axes[0].legend()
             else:
-                residual_seps_err = np.sqrt(self.sep_errs[object_index] ** 2 + stddev_seps ** 2)
+                residual_seps_err = np.sqrt(
+                    self.sep_errs[object_index] ** 2 + stddev_seps**2
+                )
                 object_axes[0].errorbar(
                     yr_epochs,
                     residual_seps,
@@ -1615,10 +1989,16 @@ class Plotter(object):
 
             for i in range(self.num_orbits_to_plot):
                 residual_seps_100 = median_seps_100 - seps_100[i]
-                object_axes[0].plot(yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1)
+                object_axes[0].plot(
+                    yr_epochs2, residual_seps_100, color=sep_pa_color, zorder=1
+                )
             object_axes[0].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
-                object_axes[0].set_ylabel("Residual $\\rho_{{{0}}}$ [mas]".format(self._get_object_label(object_index)))
+                object_axes[0].set_ylabel(
+                    "Residual $\\rho_{{{0}}}$ [mas]".format(
+                        self._get_object_label(object_index)
+                    )
+                )
             else:
                 object_axes[0].set_ylabel("Residual $\\rho$ [mas]")
             object_axes[0].set_xlabel("Epoch")
@@ -1636,7 +2016,7 @@ class Plotter(object):
                     c=self.ASTR_COLORS[0],
                     zorder=10,
                     capsize=2,
-                    label="Data Error"
+                    label="Data Error",
                 )
                 object_axes[1].errorbar(
                     yr_epochs,
@@ -1648,11 +2028,13 @@ class Plotter(object):
                     c=self.ASTR_COLORS[1],
                     zorder=10,
                     capsize=2,
-                    label="Model Standard Deviation"
+                    label="Model Standard Deviation",
                 )
                 object_axes[1].legend()
             else:
-                residual_pa_err = np.sqrt(self.pa_errs[object_index] ** 2 + stddev_pas ** 2)
+                residual_pa_err = np.sqrt(
+                    self.pa_errs[object_index] ** 2 + stddev_pas**2
+                )
                 object_axes[1].errorbar(
                     yr_epochs,
                     residual_pas,
@@ -1667,10 +2049,16 @@ class Plotter(object):
                 )
             for i in range(self.num_orbits_to_plot):
                 residual_pas_100 = median_pas_100 - pas_100[i]
-                object_axes[1].plot(yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1)
+                object_axes[1].plot(
+                    yr_epochs2, residual_pas_100, color=sep_pa_color, zorder=1
+                )
             object_axes[1].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
-                object_axes[1].set_ylabel("Residual PA$_{{{0}}}$ [$^{{\\circ}}$]".format(self._get_object_label(object_index)))
+                object_axes[1].set_ylabel(
+                    "Residual PA$_{{{0}}}$ [$^{{\\circ}}$]".format(
+                        self._get_object_label(object_index)
+                    )
+                )
             else:
                 object_axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
             object_axes[1].set_xlabel("Epoch")
@@ -1726,7 +2114,7 @@ class Plotter(object):
         if not isinstance(cmap, colors.Colormap):
             cmap = cmap[0]
 
-        object_to_plot = self.objects_to_plot[0] # TODO: All objects?
+        object_to_plot = self.objects_to_plot[0]  # TODO: All objects?
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ErfaWarning)
@@ -1737,8 +2125,13 @@ class Plotter(object):
                 epochs = self.period_epochss[object_to_plot]
             else:
                 raoff, deoff, _, epochs = self._calc_object_full_orbits(
-                self.start, self.num_orbits_to_plot, self.num_epochs_to_plot, object_to_plot, self.standard_post, periods_to_plot)
-
+                    self.start,
+                    self.num_orbits_to_plot,
+                    self.num_epochs_to_plot,
+                    object_to_plot,
+                    self.standard_post,
+                    periods_to_plot,
+                )
 
             # Create figure for orbit plots
             fig, axes = plt.subplots(1, 2, figsize=(8, 4), facecolor="white")
@@ -1753,9 +2146,7 @@ class Plotter(object):
                 timestep = epoch_in_yr[1] - epoch_in_yr[0]
                 # dra/dt and ddec/dt
                 ddec_b = np.gradient(deoff[i, :], timestep)  # in mas/yr
-                dec_b_radian = (
-                    deoff[i, :] * u.mas
-                ).to(u.rad).value  # mas -> radian
+                dec_b_radian = (deoff[i, :] * u.mas).to(u.rad).value  # mas -> radian
                 ra_b = raoff[i, :]
                 rastar_b = ra_b * np.cos(dec_b_radian)  # in mas
                 drastar_b = np.gradient(rastar_b, timestep)  # in mas/yr
@@ -1765,8 +2156,17 @@ class Plotter(object):
                 ddec_a = ddec_b * mass_ratio_
                 drastar_a = drastar_b * mass_ratio_
 
-                if self.cbar_param is not None and self.cbar_param not in ["Epoch [year]", "Epoch (year)"]:
-                    color = cmap(self.norm(self.standard_post[:, self.results.param_idx[self.cbar_param]][i]))
+                if self.cbar_param is not None and self.cbar_param not in [
+                    "Epoch [year]",
+                    "Epoch (year)",
+                ]:
+                    color = cmap(
+                        self.norm(
+                            self.standard_post[
+                                :, self.results.param_idx[self.cbar_param]
+                            ][i]
+                        )
+                    )
                 else:
                     color = "k"
 
@@ -1803,10 +2203,12 @@ class Plotter(object):
         )
 
         hgca_epoch = (
-            self.system.gaia.gaia_epoch_ra + np.nanmedian(self.system.gaia.hipparcos_epoch)
+            self.system.gaia.gaia_epoch_ra
+            + np.nanmedian(self.system.gaia.hipparcos_epoch)
         ) / 2
         hgca_epoch_err = (
-            self.system.gaia.gaia_epoch_ra - np.nanmedian(self.system.gaia.hipparcos_epoch)
+            self.system.gaia.gaia_epoch_ra
+            - np.nanmedian(self.system.gaia.hipparcos_epoch)
         ) / 2
 
         axes[0].errorbar(
@@ -1880,7 +2282,11 @@ class Plotter(object):
             cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
 
             cbar = mpl.colorbar.ColorbarBase(
-                cbar_ax, cmap=cmap, norm=self.norm, orientation="vertical", label=self.cbar_param
+                cbar_ax,
+                cmap=cmap,
+                norm=self.norm,
+                orientation="vertical",
+                label=self.cbar_param,
             )
 
         axes[0].set_rasterization_zorder(1)
@@ -1904,13 +2310,25 @@ class Plotter(object):
 
         return fig
 
-    def plot_corner(self, param_list=None, plot_priors=True, downsample=None, **corner_kwargs):
+    def plot_corner(
+        self, param_list=None, plot_priors=True, downsample=None, **corner_kwargs
+    ):
         """
         Wrapper for `orbitize.plot.plot_corner`
         """
-        return plot_corner(self.results, param_list, plot_priors, downsample, **corner_kwargs)
+        return plot_corner(
+            self.results, param_list, plot_priors, downsample, **corner_kwargs
+        )
 
-def plot_corner(results, param_list=None, plot_priors=True, downsample=None, prior_color="orange", **corner_kwargs):
+
+def plot_corner(
+    results,
+    param_list=None,
+    plot_priors=True,
+    downsample=None,
+    prior_color="orange",
+    **corner_kwargs,
+):
     """
     Make a corner plot of posterior on orbit fit from any sampler
 
@@ -1957,7 +2375,6 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
 
     # Define array of default axis labels (overwritten if user specifies list)
     default_labels = {
-
         "sma": "$a_{0}$ [au]",
         "ecc": "$ecc_{0}$",
         "inc": "$inc_{0}$ [$^\\circ$]",
@@ -2004,9 +2421,9 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
                 or label_key.startswith("pan")
                 or label_key.startswith("inc")
             ):
-                angle_indices.append(i-len(fixed_indices))
+                angle_indices.append(i - len(fixed_indices))
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
-                secondary_mass_indices.append(i-len(fixed_indices))
+                secondary_mass_indices.append(i - len(fixed_indices))
         else:
             fixed_indices.append(i)
 
@@ -2067,7 +2484,7 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
             prior = results.system.sys_priors[param_i]
             if not hasattr(prior, "compute_lnprob"):
                 continue
-            ax = axes[i * (num_params+1)]
+            ax = axes[i * (num_params + 1)]
             if i in angle_indices:
                 dmin, dmax = np.radians(ax.dataLim.intervalx)
                 x = np.linspace(dmin, dmax, 10000)
@@ -2080,8 +2497,12 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
                 dmin, dmax = ax.dataLim.intervalx
                 x_plot = x = np.linspace(dmin, dmax, 10000)
             y = np.exp(prior.compute_lnprob(x))
-            if y.shape != x.shape: # Some priors may require specific input procedures (ObsPrior)
-                warnings.warn("Could not compute prior probability for {0}".format(prior))
+            if (
+                y.shape != x.shape
+            ):  # Some priors may require specific input procedures (ObsPrior)
+                warnings.warn(
+                    "Could not compute prior probability for {0}".format(prior)
+                )
                 continue
             if i in angle_indices:
                 y_plot = y / 180 * np.pi
@@ -2093,12 +2514,13 @@ def plot_corner(results, param_list=None, plot_priors=True, downsample=None, pri
 
         corner_color = corner_kwargs.get("color", mpl.rcParams["ytick.color"])
         legend_elements = [
-            mpl.lines.Line2D([0], [0], color=corner_color, lw=4, label='Posterior'),
-            mpl.lines.Line2D([0], [0], color=prior_color, lw=4, label='Prior'),
-            ]
+            mpl.lines.Line2D([0], [0], color=corner_color, lw=4, label="Posterior"),
+            mpl.lines.Line2D([0], [0], color=prior_color, lw=4, label="Prior"),
+        ]
         figure.legend(handles=legend_elements, loc=1)
 
     return figure
+
 
 def plot_orbits(
     results,
@@ -2122,7 +2544,9 @@ def plot_orbits(
     fontsize=20,
     fig=None,
 ):
-    warnings.warn("The orbitize.plot.plot_orbits function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_orbits method.")
+    warnings.warn(
+        "The orbitize.plot.plot_orbits function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_orbits method."
+    )
     plotter = Plotter(
         results=results,
         object_to_plot=object_to_plot,
@@ -2133,8 +2557,8 @@ def plot_orbits(
         num_epochs_to_plot=num_epochs_to_plot,
         cbar_param=cbar_param,
         rv_time_series=rv_time_series,
-        rv_time_series2=rv_time_series2
-        )
+        rv_time_series2=rv_time_series2,
+    )
     if cmap is not None:
         plotter.CMAP = cmap
     return plotter.plot_orbits(
@@ -2148,8 +2572,9 @@ def plot_orbits(
         rv_time_series=rv_time_series,
         rv_time_series2=rv_time_series2,
         fontsize=fontsize,
-        fig=fig
+        fig=fig,
     )
+
 
 def plot_residuals(
     my_results,
@@ -2162,7 +2587,9 @@ def plot_residuals(
     cbar_param="Epoch [year]",
     mod180=False,
 ):
-    warnings.warn("The orbitize.plot.plot_residuals function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_residuals method.")
+    warnings.warn(
+        "The orbitize.plot.plot_residuals function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_residuals method."
+    )
     plotter = Plotter(
         results=my_results,
         object_to_plot=object_to_plot,
@@ -2171,12 +2598,10 @@ def plot_residuals(
         time_format="decimalyear",
         num_orbits_to_plot=num_orbits_to_plot,
         num_epochs_to_plot=num_epochs_to_plot,
-        cbar_param=cbar_param
+        cbar_param=cbar_param,
     )
-    return plotter.plot_residuals(
-        sep_pa_color=sep_pa_color,
-        mod180=mod180
-    )
+    return plotter.plot_residuals(sep_pa_color=sep_pa_color, mod180=mod180)
+
 
 def plot_propermotion(
     results,
@@ -2193,7 +2618,9 @@ def plot_propermotion(
     cbar_param="m0",
     tight_layout=False,
 ):
-    warnings.warn("The orbitize.plot.plot_propermotion function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_propermotion method.")
+    warnings.warn(
+        "The orbitize.plot.plot_propermotion function is deprecated. Instead, initialize an orbitize.plot.Plotter and use the plot_propermotion method."
+    )
     plotter = Plotter(
         results=results,
         object_to_plot=object_to_plot,
@@ -2202,7 +2629,7 @@ def plot_propermotion(
         time_format="decimalyear",
         num_orbits_to_plot=num_orbits_to_plot,
         num_epochs_to_plot=num_epochs_to_plot,
-        cbar_param=cbar_param
+        cbar_param=cbar_param,
     )
     if cmap is not None:
         plotter.CMAP = cmap
@@ -2210,5 +2637,5 @@ def plot_propermotion(
         periods_to_plot=periods_to_plot,
         alpha=alpha,
         show_colorbar=show_colorbar,
-        tight_layout=tight_layout
+        tight_layout=tight_layout,
     )

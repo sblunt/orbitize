@@ -60,7 +60,6 @@ def test_rv_default_inst():
     )
 
 
-
 def test_rv_multiple_inst():
     filename = "{}/HR7672_joint.csv".format(DATADIR)
 
@@ -120,6 +119,7 @@ def test_rv_multiple_inst():
         plot_astrometry_insts=True,
     )
 
+
 def test_secondary_rv():
     """
     Make sure plotting works when all RVs are secondary RVs
@@ -174,7 +174,9 @@ def test_secondary_rv():
     )
 
     import matplotlib.pyplot as plt
-    plt.savefig('foo.png')
+
+    plt.savefig("foo.png")
+
 
 def test_secondary_and_primary_rv():
     """
@@ -230,8 +232,6 @@ def test_secondary_and_primary_rv():
         rv_time_series2=True,
         plot_astrometry_insts=True,
     )
-
-
 
 
 if __name__ == "__main__":
