@@ -74,9 +74,7 @@ class GaiaLogProb(object):
             ra, dec, ra_error, dec_error
             FROM gaia{}.gaia_source
             WHERE source_id = {}
-            """.format(
-                self.dr, self.gaia_num
-            )
+            """.format(self.dr, self.gaia_num)
 
             job = Gaia.launch_job_async(query)
             gaia_data = job.get_results()
@@ -147,9 +145,7 @@ class GaiaLogProb(object):
 
         # RA model (not in tangent plane)
         alpha_model = self.hiplogprob.alpha0 + self.mas2deg * (  # [deg]
-            alpha_H0
-            + delta_alpha_from_pm
-            + alpha_diff_orbit
+            alpha_H0 + delta_alpha_from_pm + alpha_diff_orbit
             # divide by cos(dec) to undo projection onto tangent plane
         ) / np.cos(np.radians(self.hiplogprob.delta0))
         alpha_data = self.ra

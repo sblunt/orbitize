@@ -3,6 +3,7 @@
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
+
 import numpy as np
 import os
 import pytest
@@ -307,10 +308,13 @@ def test_OFTI_multiplanet():
     s.results.print_results()
 
     # test that the results printing unit printing is working correctly
-    results_lines = s.results.results_str.split('\n')
-    assert results_lines[-3][-4:] == 'Msun'
+    results_lines = s.results.results_str.split("\n")
+    assert results_lines[-3][-4:] == "Msun"
     # check that the degree unit conversion was performed
-    assert float(results_lines[-6][6:13]) > 2 * np.pi and float(results_lines[-6][6:13]) < 360
+    assert (
+        float(results_lines[-6][6:13]) > 2 * np.pi
+        and float(results_lines[-6][6:13]) < 360
+    )
 
 
 @pytest.hookimpl(trylast=True)

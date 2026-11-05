@@ -14,11 +14,12 @@ from orbitize.plot import plot_corner
 import matplotlib.pyplot as plt
 import pytest
 
+
 def test_MargConstNoInput():
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
     data_table = read_input.read_file(input_file)
-    output_file = os.path.join(orbitize.DATADIR, 'test_marg.hdf5')
+    output_file = os.path.join(orbitize.DATADIR, "test_marg.hdf5")
 
     mySystem = system.System(
         1,
@@ -29,24 +30,21 @@ def test_MargConstNoInput():
     marg_prior = 1
     marg = marginalizer.MargConstNoInput()
     mySystem.sys_priors.append(marg_prior)
-    mySystem.param_idx["test"] = len(mySystem.sys_priors)-1
+    mySystem.param_idx["test"] = len(mySystem.sys_priors) - 1
     mySystem.labels.append("test")
     mySampler = sampler.MCMC(
-        mySystem,
-        num_temps=0,
-        num_walkers=100,
-        num_threads=1,
-        marginalizers=[marg]
+        mySystem, num_temps=0, num_walkers=100, num_threads=1, marginalizers=[marg]
     )
     mySampler.run_sampler(400, 10, output_filename=output_file, periodic_save_freq=2)
     myResults = mySampler.results
     assert (myResults.post[:, 8] == 1).all()
 
+
 def test_MargPriorNoInput():
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'GJ504.csv')
+    input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
     data_table = read_input.read_file(input_file)
-    output_file = os.path.join(orbitize.DATADIR, 'test_marg.hdf5')
+    output_file = os.path.join(orbitize.DATADIR, "test_marg.hdf5")
 
     mySystem = system.System(
         1,
@@ -64,11 +62,7 @@ def test_MargPriorNoInput():
     assert mySystem.param_idx["test1"] == 9
     mySystem.labels.extend(marg.MARG_PARAMS)
     mySampler = sampler.MCMC(
-        mySystem,
-        num_temps=0,
-        num_walkers=100,
-        num_threads=1,
-        marginalizers=[marg]
+        mySystem, num_temps=0, num_walkers=100, num_threads=1, marginalizers=[marg]
     )
     mySampler.run_sampler(400, 10, output_filename=output_file, periodic_save_freq=2)
     myResults = mySampler.results
@@ -76,6 +70,7 @@ def test_MargPriorNoInput():
     assert np.mean(myResults.post[:, 8]) == pytest.approx(1, rel=0.1)
     assert np.std(myResults.post[:, 9]) == pytest.approx(1, rel=0.1)
     assert np.mean(myResults.post[:, 9]) == pytest.approx(10, rel=0.1)
+
 
 if __name__ == "__main__":
     test_MargConstNoInput()

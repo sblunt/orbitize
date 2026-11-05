@@ -271,9 +271,7 @@ class HipparcosLogProb(object):
             raise ValueError(
                 """
                 Currently, we only handle stars with solution types 1 and 5. Your star has type {}. Let us know if you want us to add another solution type!
-                """.format(
-                    self.solution_type
-                )
+                """.format(self.solution_type)
             )
 
         # read in IAD

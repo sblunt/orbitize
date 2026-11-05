@@ -6,31 +6,31 @@ This module defines marginalizations to draw
 samples of non-marginalized parameters and compute appropriate probability
 """
 
-class Marginalizer(abc.ABC):
 
+class Marginalizer(abc.ABC):
     QUANT_TYPES = []
     JITTER_PARAMS = []
     REQ_PARAMS = []
     MARG_PARAMS = []
     LNLIKE_TYPE = None
     MULTIBODY = False
-    
+
     @abc.abstractmethod
     def apply(self, param_arr, jitter_arr=None, calculated_values={}):
         pass
 
-class Marg1(Marginalizer):
 
+class Marg1(Marginalizer):
     REQ_PARAMS = ["tau", "per"]
     MARG_PARAMS = ["sma", "pan"]
 
-class Marg2(Marginalizer):
 
+class Marg2(Marginalizer):
     REQ_PARAMS = ["tau", "sma", "pan"]
     MARG_PARAMS = ["gamma"]
 
-class MargConstNoInput(Marginalizer):
 
+class MargConstNoInput(Marginalizer):
     MARG_PARAMS = ["test"]
 
     def apply(self, param_arr, jitter_arr, calculated_values):
@@ -40,9 +40,9 @@ class MargConstNoInput(Marginalizer):
             return 0, np.zeros((n_orbits)), np.ones((n_orbits)), calculated_values
         else:
             return 0, 0, 1, calculated_values
-        
-class MargPriorNoInput(Marginalizer):
 
+
+class MargPriorNoInput(Marginalizer):
     MARG_PARAMS = ["test"]
 
     def __init__(self, priors):
@@ -55,8 +55,13 @@ class MargPriorNoInput(Marginalizer):
         if len(shape) > 1:
             n_orbits = shape[1]
             assert n_orbits > 1
-            samples = np.array([[prior.draw_samples(1).item() for i in range(n_orbits)] for prior in self.priors])  
-            assert samples.shape == (self.dim, n_orbits)  
+            samples = np.array(
+                [
+                    [prior.draw_samples(1).item() for i in range(n_orbits)]
+                    for prior in self.priors
+                ]
+            )
+            assert samples.shape == (self.dim, n_orbits)
             assert not np.isnan(samples).any(), samples
             return 0, np.zeros((n_orbits)), samples, calculated_values
         else:
@@ -64,6 +69,7 @@ class MargPriorNoInput(Marginalizer):
             assert samples.shape == (self.dim,), samples
             assert not np.isnan(samples).any(), samples
             return 0, 0, samples, calculated_values
+
 
 def compatible_params(marginalizers, input_params):
     # TODO: Multibody, quant_type
