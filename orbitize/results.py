@@ -8,6 +8,8 @@ import orbitize.system
 import orbitize.basis
 import orbitize.plot
 import orbitize.gaia, orbitize.hipparcos
+from orbitize import DATADIR
+
 
 
 class Results(object):
@@ -345,6 +347,7 @@ class Results(object):
                 hip_data = {key: hip_data_raw[key][()] for key in hip_data_raw.keys()}
             else:
                 hip_data = None
+            brandt_correction = bool(hf.attrs.get("brandt_correction", False))
 
             hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
                 tmpfile,
@@ -352,7 +355,8 @@ class Results(object):
                 num_secondary_bodies,
                 alphadec0_epoch,
                 renormalize_errors,
-                hip_data,
+                hip_data=hip_data,
+                brandt_correction=brandt_correction,
             )
 
             # load Gaia data
@@ -371,24 +375,34 @@ class Results(object):
 
             # alternatively load HGCA. Note requires hipparcos_IAD attribute
             gaiagost_data = hf.get("Gaia_GOST")
+            hgca_filepath = None
             if gaiagost_data is not None:
                 tmpfile = "tmpfile_gost_OkToDeleteAfterFitFinishes"
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
                 hgca_entry_raw = hf.get("HGCA_entry")
+                hgca_entry = None
                 if hgca_entry_raw is None:
-                    raise KeyError(
-                        "HGCA Entry not found in {} for initializing HGCALogProb".format(
-                            filename
+                    if os.path.exists(os.path.join(DATADIR, "HGCA_vEDR3.fits")):
+                        hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
+                    else:
+                        raise KeyError(
+                            "HGCA Entry not found in {} for initializing HGCALogProb".format(
+                                filename
+                            )
                         )
-                    )
-                hgca_entry = {
-                    key: hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()
-                }
+                else:
+                    hgca_entry = {
+                        key: hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()
+                    }
 
                 gaia = orbitize.gaia.HGCALogProb(
-                    int(hip_num), hipparcos_IAD, tmpfile, hgca_entry=hgca_entry
+                    int(hip_num),
+                    hipparcos_IAD,
+                    tmpfile,
+                    hgca_filepath=hgca_filepath,
+                    hgca_entry=hgca_entry,
                 )
                 hipparcos_IAD = None  # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
