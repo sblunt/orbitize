@@ -822,6 +822,7 @@ class OftEiGaiaBasis(Basis):
             rv_instruments,
             gaia_dr4
         )
+        # TODO: raise error
         assert fit_secondary_mass, "Secondary mass must be used with Gaia"
         assert num_secondary_bodies == 1, "Multiplanet not supported yet"
         assert gaia_dr4 is not None, "DR4 must be used"
@@ -841,7 +842,7 @@ class OftEiGaiaBasis(Basis):
 
                 list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
         """
-        base_labels = ["ecc", "inc", "aop", "pan", "tau", "per"]
+        base_labels = ["ecc", "inc", "aop", "tau", "per"]
         basis_priors = []
         basis_labels = []
 
@@ -889,9 +890,9 @@ class OftEiGaiaBasis(Basis):
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
-        self.standard_basis_idx["m0"] = self.param_idx["per1"]
-        self.standard_basis_idx["pan1"] = self.param_idx["u"]
-        self.standard_basis_idx["sma1"] = self.param_idx["v"]
+        self.standard_basis_idx["m0"] = self.standard_basis_idx.pop("per1")
+        self.standard_basis_idx["pan1"] = self.standard_basis_idx.pop("u")
+        self.standard_basis_idx["sma1"] = self.standard_basis_idx.pop("v")
 
         return basis_priors, basis_labels
 
@@ -902,9 +903,12 @@ class OftEiGaiaBasis(Basis):
         m1 = param_arr[self.param_idx["m1"]]
         per = param_arr[self.param_idx["per1"]]
         pan = np.atan(v/u)
-        pan[u < 0] += np.pi
-        pan %= 2 * np.pi
-        param_arr[self.standard_basis_idx["pan1"]] = pan
+        if u.shape == ():
+            if u < 0:
+                pan += np.pi
+        else:
+            pan[u < 0] += np.pi
+        pan %= (2 * np.pi)
         sma_photo = u / np.cos(pan) / plx
         sma = np.sqrt(m1 / sma_photo * per**2) # TODO: bright companion
         mtot = (sma**3) / (per**2)
