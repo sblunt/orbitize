@@ -504,9 +504,8 @@ class System(object):
 
         Returns:
             tuple of:
-                np.array of float: N_epochs x M predicted RA*cos(delta0)
-                    offsets [mas]
-                np.array of float: N_epochs x M predicted Dec offsets [mas]
+                - np.array of float: N_epochs x M predicted RA*cos(delta0) offsets [mas]
+                - np.array of float: N_epochs x M predicted Dec offsets [mas]
         """
         idx = self.param_idx
         params_arr = np.atleast_1d(params_arr)

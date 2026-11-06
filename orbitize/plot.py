@@ -2264,7 +2264,7 @@ class Plotter(object):
         axes[0].set_ylabel(r"$\mu_\alpha^*$ [mas/yr]")
 
         axes[0].errorbar(
-            np.nanmedian(self.system.gaia.hipparcos_epoch),
+            np.nanmedian(self.system.gaia.hipparcos_epoch.jyear),
             self.system.gaia.hip_pm[0],
             yerr=self.system.gaia.hip_pm_err[0],
             zorder=30,
@@ -2276,11 +2276,11 @@ class Plotter(object):
 
         hgca_epoch = (
             self.system.gaia.gaia_epoch_ra
-            + np.nanmedian(self.system.gaia.hipparcos_epoch)
+            + np.nanmedian(self.system.gaia.hipparcos_epoch.jyear)
         ) / 2
         hgca_epoch_err = (
             self.system.gaia.gaia_epoch_ra
-            - np.nanmedian(self.system.gaia.hipparcos_epoch)
+            - np.nanmedian(self.system.gaia.hipparcos_epoch.jyear)
         ) / 2
 
         axes[0].errorbar(
@@ -2310,7 +2310,7 @@ class Plotter(object):
         axes[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
         axes[1].errorbar(
-            np.nanmedian(self.system.gaia.hipparcos_epoch),
+            np.nanmedian(self.system.gaia.hipparcos_epoch.jyear),
             self.system.gaia.hip_pm[1],
             yerr=self.system.gaia.hip_pm_err[1],
             zorder=30,
