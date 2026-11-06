@@ -1,6 +1,8 @@
 import numpy as np
-from orbitize import nbody, kepler, basis, hipparcos
+from orbitize import nbody, kepler, basis, hipparcos, priors
 from astropy import table
+from astropy.time import Time
+from astropy.coordinates import get_body_barycentric_posvel
 from orbitize.read_input import read_file
 from orbitize.gaia import DR4LogProb
 import matplotlib.pyplot as plt
@@ -18,12 +20,15 @@ class System(object):
         data_table (astropy.table.Table or None): output from
             ``orbitize.read_input.read_file()``. Pass None for a fit
             using only ``gaia`` or ``hipparcos_IAD`` observations.
-        stellar_or_system_mass (float): mass of the primary star (if fitting for
+        stellar_or_system_mass (float, optional): mass of the primary star (if fitting for
             dynamical masses of both components, for example when you have both
             astrometry and RVs) or total system mass (if fitting for total system
             mass only, as in the case of a vanilla 2-body fit using relative
-            astrometry only ) [M_sol]
-        plx (float): mean parallax of the system, in mas
+            astrometry only ) [M_sol]. Required unless
+            ``stellar_or_system_mass_prior`` is set or ``acceleration_only`` is
+            True.
+        plx (float, optional): mean parallax of the system, in mas. Required
+            unless ``plx_prior`` is set or ``acceleration_only`` is True.
         mass_err (float, optional): uncertainty on ``stellar_or_system_mass``, in M_sol
         plx_err (float, optional): uncertainty on ``plx``, in mas
         restrict_angle_ranges (bool, optional): if True, restrict the ranges
@@ -45,6 +50,30 @@ class System(object):
             basis to be used. See basis.py for a list of implemented fitting bases.
         use_rebound (bool): if True, use an n-body backend solver instead
             of a Keplerian solver.
+        acceleration_only (bool, optional): if True, no Keplerian orbit is
+            fit. The star's absolute astrometry is modelled as position +
+            proper motion + acceleration, plus parallax. The fitted
+            parameters are ``plx``, then ``pm_ra``, ``pm_dec``, ``alpha0``,
+            ``delta0`` (from ``Basis.set_gaia_dr4_priors``), then ``acc_ra``,
+            ``acc_dec`` (from ``Basis.set_acceleration_priors``). The data
+            are Gaia DR4 epoch astrometry passed in through ``gaia`` (an
+            ``orbitize.gaia.DR4LogProb``) and/or stellar ra/dec data
+            (object 0) in the data table. Not compatible with
+            ``hipparcos_IAD``. (default: False)
+        acceleration_and_keplerian_fit (bool, optional): if True, fit a
+            Keplerian orbit plus a constant acceleration of the star
+            (``acc_ra``, ``acc_dec``), e.g. from an outer companion that
+            isn't modelled. Requires Gaia DR4 data passed in through
+            ``gaia``. Not compatible with ``acceleration_only``.
+            (default: False)
+        plx_prior (orbitize.priors.Prior, optional): prior on the parallax.
+            If set, it is used instead of a prior or fixed value set by
+            ``plx`` and ``plx_err``.
+        stellar_or_system_mass_prior (orbitize.priors.Prior, optional): prior
+            on ``stellar_or_system_mass``. If set, it is used instead of a
+            prior or fixed value set by ``stellar_or_system_mass`` and
+            ``mass_err``. Not compatible with ``acceleration_only``, which
+            doesn't fit a mass.
 
     Priors are initialized as a list of orbitize.priors.Prior objects and stored
     in the variable ``System.sys_priors``. You should initialize this class,
@@ -59,8 +88,8 @@ class System(object):
         self,
         num_secondary_bodies,
         data_table,
-        stellar_or_system_mass,
-        plx,
+        stellar_or_system_mass=None,
+        plx=None,
         mass_err=0,
         plx_err=0,
         restrict_angle_ranges=False,
@@ -70,6 +99,10 @@ class System(object):
         gaia=None,
         fitting_basis="Standard",
         use_rebound=False,
+        acceleration_only=False,
+        acceleration_and_keplerian_fit=False,
+        plx_prior=None,
+        stellar_or_system_mass_prior=None,
     ):
         self.num_secondary_bodies = num_secondary_bodies
         # Allow absolute astrometry fits without a separate data table.
@@ -113,6 +146,28 @@ class System(object):
         self.gaia = gaia
         self.fitting_basis = fitting_basis
         self.use_rebound = use_rebound
+        self.acceleration_only = acceleration_only
+        self.acceleration_and_keplerian_fit = acceleration_and_keplerian_fit
+        if acceleration_only and acceleration_and_keplerian_fit:
+            raise ValueError(
+                "Choose one of acceleration_only (no orbit) or "
+                "acceleration_and_keplerian_fit (Keplerian orbit + acceleration)."
+            )
+        if acceleration_only and stellar_or_system_mass_prior is not None:
+            raise ValueError("acceleration_only fits do not fit a mass.")
+        if not acceleration_only:
+            if plx is None and plx_prior is None:
+                raise ValueError("Provide plx or plx_prior.")
+            if stellar_or_system_mass is None and stellar_or_system_mass_prior is None:
+                raise ValueError(
+                    "Provide stellar_or_system_mass or stellar_or_system_mass_prior."
+                )
+        if fitting_basis == "XYZ" and (plx is None or stellar_or_system_mass is None):
+            raise ValueError(
+                "The XYZ basis needs numerical plx and stellar_or_system_mass values."
+            )
+        self.plx_prior = plx_prior
+        self.stellar_or_system_mass_prior = stellar_or_system_mass_prior
 
         self.best_epochs = []
         self.input_table = self.data_table.copy()
@@ -282,13 +337,35 @@ class System(object):
         )
 
         self.basis.verify_params()
-        self.sys_priors, self.labels = self.basis.construct_priors()
+
+        if self.acceleration_and_keplerian_fit:
+            if not contains_gaiadr4:
+                raise ValueError(
+                    "acceleration_and_keplerian_fit requires Gaia DR4 data "
+                    "(an orbitize.gaia.DR4LogProb passed in through 'gaia')."
+                )
+            self.basis.acceleration_and_keplerian_fit = True
+
+        if self.acceleration_only:
+            self._setup_acceleration_fit()
+        else:
+            self.sys_priors, self.labels = self.basis.construct_priors()
+
+        if self.plx_prior is not None:
+            self.sys_priors[self.labels.index("plx")] = self.plx_prior
+        if self.stellar_or_system_mass_prior is not None:
+            mass_label = "m0" if self.fit_secondary_mass else "mtot"
+            self.sys_priors[self.labels.index(mass_label)] = (
+                self.stellar_or_system_mass_prior
+            )
 
         # if we're fitting absolute astrometry of the star, create an object that
         # knows how to compute predicted astrometric motion due to parallax and
         # proper motion
 
-        if (len(self.radec[0]) + len(self.seppa[0])) > 0:
+        if self.acceleration_only:
+            pass  # predictor already created in _setup_acceleration_fit()
+        elif (len(self.radec[0]) + len(self.seppa[0])) > 0:
             self.stellar_astrom_epochs = self.data_table["epoch"][
                 (self.data_table["quant_type"] == "radec")
                 & (self.data_table["object"] == 0)
@@ -344,6 +421,136 @@ class System(object):
 
         self.param_idx = self.basis.param_idx
 
+    # -------------------------------------------------------------
+    def _setup_acceleration_fit(self):
+        """
+        Sets up an acceleration-only fit: checks the inputs, builds the priors
+        & labels with ``Basis.set_acceleration_priors``, and precomputes the
+        Earth positions needed for the parallax factors.
+        """
+        if self.hipparcos_IAD is not None:
+            raise ValueError("acceleration_only fits do not support hipparcos_IAD.")
+        stellar_radec = (self.data_table["quant_type"] == "radec") & (
+            self.data_table["object"] == 0
+        )
+        if np.sum(~stellar_radec) > 0:
+            raise ValueError(
+                "acceleration_only fits only use stellar ra/dec data (object 0); "
+                "remove the other rows from the data table."
+            )
+        if (np.sum(stellar_radec) == 0) and (self.gaia is None):
+            raise ValueError(
+                "acceleration_only fits require stellar ra/dec data (object 0) "
+                "or a likelihood object passed in through 'gaia'."
+            )
+
+        # parallax, then position & proper motion of the star (from
+        # set_gaia_dr4_priors), then the acceleration terms
+        self.sys_priors = [priors.UniformPrior(0.0, 1000.0)]  # [mas]
+        self.labels = ["plx"]
+        self.basis.set_gaia_dr4_priors(self.sys_priors, self.labels)
+        if isinstance(self.gaia, DR4LogProb) and self.gaia.fit_jitter:
+            self.sys_priors.append(self.gaia.jitter_prior)
+            self.labels.append("dr4_jitter")
+        self.basis.set_acceleration_priors(self.sys_priors, self.labels)
+        self.basis.param_idx = dict(zip(self.labels, np.arange(len(self.labels))))
+        self.basis.standard_basis_idx = dict(self.basis.param_idx)
+
+        # data passed in only through 'gaia' (e.g. Gaia along-scan epoch
+        # astrometry) is modelled by that object's compute_lnlike
+        if np.sum(stellar_radec) == 0:
+            return
+
+        if not isinstance(self.gaia, DR4LogProb) or (
+            self.gaia.ra is None or self.gaia.dec is None
+        ):
+            raise ValueError(
+                "ra and dec [deg] are required to fit stellar ra/dec data in an "
+                "acceleration_only fit; pass them to orbitize.gaia.DR4LogProb."
+            )
+
+        # reuse PMPlx_Motion for the epochs & barycentric Earth positions
+        self.stellar_astrom_epochs = self.data_table["epoch"][self.radec[0]]
+        self.pm_plx_predictor = hipparcos.PMPlx_Motion(
+            self.stellar_astrom_epochs,
+            self.gaia.ra,
+            self.gaia.dec,
+            Time(
+                self.gaia.ref_epoch_mjd, format="mjd", scale=self.gaia.time_scale
+            ).jyear,
+        )
+
+    def compute_acceleration_model(self, params_arr, epochs=None):
+        """
+        Computes the star's predicted absolute position for an acceleration-only
+        fit (position + proper motion + acceleration, plus parallax):
+
+            ra(t)  = alpha0 + pm_ra*dt  + 0.5*acc_ra*dt^2  + plx*f_ra(t)
+            dec(t) = delta0 + pm_dec*dt + 0.5*acc_dec*dt^2 + plx*f_dec(t)
+
+        where dt = t - alphadec0_epoch [Julian yr], alphadec0_epoch is the Gaia
+        DR4 reference epoch, and f_ra, f_dec are the parallax
+        factors (as in ``hipparcos.PMPlx_Motion``). ``acc_ra`` and ``acc_dec``
+        are the sky-plane acceleration, i.e. the second derivative of the
+        star's motion, the same convention as ``_add_stellar_acceleration``.
+
+        Args:
+            params_arr (np.array of float): RxM array of fitting parameters,
+                ordered as in ``System.param_idx``. If M=1, this can be a 1d
+                array.
+            epochs (np.array of float, optional): epochs [mjd] at
+                which to predict positions. If None, use the stellar ra/dec
+                epochs in the data table.
+
+        Returns:
+            tuple of:
+                - np.array of float: N_epochs x M predicted RA*cos(delta0) offsets [mas]
+                - np.array of float: N_epochs x M predicted Dec offsets [mas]
+        """
+        idx = self.param_idx
+        params_arr = np.atleast_1d(params_arr)
+        if params_arr.ndim == 1:
+            params_arr = params_arr[:, None]
+
+        predictor = self.pm_plx_predictor
+        if epochs is None:
+            epochs = predictor.epochs_mjd
+            X, Y, Z = predictor.X, predictor.Y, predictor.Z
+        else:
+            bary_pos, _ = get_body_barycentric_posvel(
+                "earth", Time(epochs, format="mjd")
+            )
+            X = bary_pos.x.value  # [au]
+            Y = bary_pos.y.value  # [au]
+            Z = bary_pos.z.value  # [au]
+
+        alpha0 = np.radians(predictor.alpha0)
+        delta0 = np.radians(predictor.delta0)
+        f_ra = X * np.sin(alpha0) - Y * np.cos(alpha0)
+        f_dec = (
+            X * np.cos(alpha0) * np.sin(delta0)
+            + Y * np.sin(alpha0) * np.sin(delta0)
+            - Z * np.cos(delta0)
+        )
+        dt = (Time(epochs, format="mjd").jyear - predictor.alphadec0_epoch)[
+            :, None
+        ]  # [Julian yr]
+
+        ra_pred = (
+            params_arr[idx["alpha0"]]
+            + params_arr[idx["pm_ra"]] * dt
+            + 0.5 * params_arr[idx["acc_ra"]] * dt**2
+            + params_arr[idx["plx"]] * f_ra[:, None]
+        )
+        dec_pred = (
+            params_arr[idx["delta0"]]
+            + params_arr[idx["pm_dec"]] * dt
+            + 0.5 * params_arr[idx["acc_dec"]] * dt**2
+            + params_arr[idx["plx"]] * f_dec[:, None]
+        )
+        return ra_pred, dec_pred
+
+    # -----------------------------------------------------------
     def save(self, hf):
         """
         Saves the current object to an hdf5 file
@@ -365,8 +572,13 @@ class System(object):
 
         hf.attrs["restrict_angle_ranges"] = self.restrict_angle_ranges
         hf.attrs["tau_ref_epoch"] = self.tau_ref_epoch
-        hf.attrs["stellar_or_system_mass"] = self.stellar_or_system_mass
-        hf.attrs["plx"] = self.plx
+        # these are None if only priors were passed in, which hdf5 can't store
+        hf.attrs["stellar_or_system_mass"] = (
+            np.nan
+            if self.stellar_or_system_mass is None
+            else self.stellar_or_system_mass
+        )
+        hf.attrs["plx"] = np.nan if self.plx is None else self.plx
         hf.attrs["mass_err"] = self.mass_err
         hf.attrs["plx_err"] = self.plx_err
         hf.attrs["fit_secondary_mass"] = self.fit_secondary_mass
@@ -377,6 +589,33 @@ class System(object):
             self.hipparcos_IAD._save(hf)
         hf.attrs["fitting_basis"] = self.fitting_basis
         hf.attrs["use_rebound"] = self.use_rebound
+
+        hf.attrs["acceleration_only"] = self.acceleration_only
+
+    def _add_stellar_acceleration(self, raoff, deoff, params_arr, epochs):
+        """
+        Adds the star's constant acceleration (``acc_ra``, ``acc_dec``) to the
+        body 0 offsets from ``compute_all_orbits``, in place, for a Keplerian +
+        acceleration fit. ``dt`` is measured from the Gaia DR4 reference epoch.
+
+        ``DR4LogProb`` projects the stellar offsets as -(raoff*sin(psi) +
+        deoff*cos(psi)), so the term is subtracted here to give
+        +0.5*acc*dt^2 in the along-scan model, the same sign as ``pm_ra``
+        and ``pm_dec``.
+
+        Args:
+            raoff (np.array of float): N_epochs x N_bodies x N_orbits RA offsets
+                (updated here)
+            deoff (np.array of float): N_epochs x N_bodies x N_orbits Dec offsets
+                (updated here)
+            params_arr (np.array of float): RxM array of standard-basis parameters
+            epochs (np.array of float): epochs [mjd] of the offsets
+        """
+        idx = self.basis.standard_basis_idx
+        dt = (np.asarray(epochs) - self.gaia.ref_epoch_mjd) / 365.25  # [yr]
+        half_dt2 = 0.5 * dt[:, None] ** 2
+        raoff[:, 0, :] -= half_dt2 * np.atleast_1d(params_arr[idx["acc_ra"]])
+        deoff[:, 0, :] -= half_dt2 * np.atleast_1d(params_arr[idx["acc_dec"]])
 
     def compute_all_orbits(
         self,
@@ -442,6 +681,16 @@ class System(object):
             (n_epochs, self.num_secondary_bodies + 1, n_orbits)
         )  # N_epochs x N_bodies x N_orbits
         dec_kepler = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+
+        # no orbit in an acceleration-only fit. The star's acceleration is
+        # passed to the Gaia DR4 likelihood as its offsets; stellar ra/dec data
+        # are modelled by compute_acceleration_model()
+        if self.acceleration_only:
+            raoff = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
+            deoff = np.zeros_like(raoff)
+            if isinstance(self.gaia, DR4LogProb):
+                self._add_stellar_acceleration(raoff, deoff, params_arr, epochs)
+            return raoff, deoff, np.zeros_like(raoff), np.zeros_like(raoff)
 
         ra_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
         dec_perturb = np.zeros((n_epochs, self.num_secondary_bodies + 1, n_orbits))
@@ -662,6 +911,9 @@ class System(object):
             # Jacobi offset of interior companions, so no RV perturbation term is needed above.
             vz[:, 1:, :] -= vz[:, 0, :].reshape((n_epochs, 1, n_orbits))
 
+        if self.acceleration_and_keplerian_fit:
+            self._add_stellar_acceleration(raoff, deoff, params_arr, epochs)
+
         if self.fitting_basis == "XYZ":
             # Find and filter out unbound orbits
             bad_orbits = []
@@ -705,6 +957,9 @@ class System(object):
                 np.array of float: Nobsx2xM array jitter predictions. If M=1, this is
                     a 2d array, otherwise it is a 3d array.
         """
+
+        if self.acceleration_only:
+            return self._compute_acceleration_only_model(params_arr)
 
         to_convert = np.copy(params_arr)
         standard_params_arr = self.basis.to_standard_basis(to_convert)
@@ -797,6 +1052,32 @@ class System(object):
             return model + gamma, jitter
         else:
             return model, jitter
+
+    def _compute_acceleration_only_model(self, params_arr):
+        """
+        ``compute_model`` for an acceleration-only fit. Same inputs & outputs
+        as ``compute_model``; no orbit is computed.
+        """
+        n_orbits = 1 if len(params_arr.shape) == 1 else params_arr.shape[1]
+        n_epochs = len(self.data_table)
+        model = np.zeros((n_epochs, 2, n_orbits))
+        jitter = np.zeros((n_epochs, 2, n_orbits))
+
+        if len(self.radec[0]) > 0:
+            ra_pred, dec_pred = self.compute_acceleration_model(params_arr)
+
+            # divide by cos(delta0) because orbitize! input is delta(ra), not
+            # delta(ra)*cos(delta0)
+            model[self.radec[0], 0] = ra_pred / np.cos(
+                np.radians(self.pm_plx_predictor.delta0)
+            )
+            model[self.radec[0], 1] = dec_pred
+
+        if n_orbits == 1:
+            model = model.reshape((n_epochs, 2))
+            jitter = jitter.reshape((n_epochs, 2))
+
+        return model, jitter
 
     def convert_data_table_radec2seppa(self, body_num=1):
         """
