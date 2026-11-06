@@ -10,11 +10,12 @@ This module defines marginalizations to draw
 samples of non-marginalized parameters and compute appropriate probability
 """
 
+
 class Marginalizer(abc.ABC):
     """
     Abstract Base Class for marginalizer objects.
     All marginalizer objects should inherit from this class.
-    
+
     Written: Eshel Dror, 2026
     """
 
@@ -24,7 +25,7 @@ class Marginalizer(abc.ABC):
     LNLIKE_TYPE = None
     MULTIBODY = False
     GAIA = False
-    
+
     @abc.abstractmethod
     def apply(self, param_arr, calculated_values={}):
         """
@@ -35,7 +36,7 @@ class Marginalizer(abc.ABC):
                 R is the number of required parameters in the order of `self.REQ_PARAMS` and
                 M is the number of orbits. If M=1 this can be a 1d array.
             calculated values (dict): Dictionary of calculated values passed through consecutive marginalizers.
-        
+
         Returns:
             float or np.array of float: log-probability of the likelihood of the parameters
                 in `param_arr` and the priors of the marginalized parameters.
@@ -83,18 +84,18 @@ class Marginalizer(abc.ABC):
 
         return -0.5 * chi2_map + error_norm_term
 
-class Marg1(Marginalizer):
 
+class Marg1(Marginalizer):
     REQ_PARAMS = ["tau", "per"]
     MARG_PARAMS = ["sma", "pan"]
 
-class Marg2(Marginalizer):
 
+class Marg2(Marginalizer):
     REQ_PARAMS = ["tau", "sma", "pan"]
     MARG_PARAMS = ["gamma"]
 
-class MargConstNoInput(Marginalizer):
 
+class MargConstNoInput(Marginalizer):
     MARG_PARAMS = ["test"]
 
     def apply(self, param_arr, calculated_values):
@@ -104,9 +105,9 @@ class MargConstNoInput(Marginalizer):
             return 0, np.zeros((n_orbits)), np.ones((n_orbits)), calculated_values
         else:
             return 0, 0, 1, calculated_values
-        
-class MargPriorNoInput(Marginalizer):
 
+
+class MargPriorNoInput(Marginalizer):
     MARG_PARAMS = ["test"]
 
     def __init__(self, priors):
@@ -119,8 +120,13 @@ class MargPriorNoInput(Marginalizer):
         if len(shape) > 1:
             n_orbits = shape[1]
             assert n_orbits > 1
-            samples = np.array([[prior.draw_samples(1).item() for i in range(n_orbits)] for prior in self.priors])  
-            assert samples.shape == (self.dim, n_orbits)  
+            samples = np.array(
+                [
+                    [prior.draw_samples(1).item() for i in range(n_orbits)]
+                    for prior in self.priors
+                ]
+            )
+            assert samples.shape == (self.dim, n_orbits)
             assert not np.isnan(samples).any(), samples
             return 0, np.zeros((n_orbits)), samples, calculated_values
         else:
@@ -128,6 +134,7 @@ class MargPriorNoInput(Marginalizer):
             assert samples.shape == (self.dim,), samples
             assert not np.isnan(samples).any(), samples
             return 0, 0, samples, calculated_values
+
 
 class OFTeI_sma_pan(Marginalizer):
     """
@@ -155,7 +162,19 @@ class OFTeI_sma_pan(Marginalizer):
     QUANT_TYPES = ["seppa"]
     LNLIKE_TYPE = "chi2"
 
-    def __init__(self, epochs, seps, pas, sigma_seps, sigma_pas, covar_seps_pas, sma_prior=None, pan_prior=None, mass_prior=None, implicit_mass_prior=None):
+    def __init__(
+        self,
+        epochs,
+        seps,
+        pas,
+        sigma_seps,
+        sigma_pas,
+        covar_seps_pas,
+        sma_prior=None,
+        pan_prior=None,
+        mass_prior=None,
+        implicit_mass_prior=None,
+    ):
         self.sma_prior = sma_prior
         self.pan_prior = pan_prior
         self.mass_prior = mass_prior
@@ -197,7 +216,9 @@ class OFTeI_sma_pan(Marginalizer):
         # compute eccentric anomalies (size: n_dates)
         eanom = kepler.calc_ecc_anom(manoms, ecc)
 
-        tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
+        tanom = 2.0 * np.arctan(
+            np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom)
+        )
 
         radius = (1.0 - ecc * np.cos(eanom)) * plx
 
@@ -261,18 +282,25 @@ class OFTeI_sma_pan(Marginalizer):
             [sma_map, pan_map], cov_matrix
         )
 
-        _, logabsdet_covmatrix = np.linalg.slogdet(
-            cov_matrix
-        )
-        logabsdet_covmatrix += 2 * np.log(2*np.pi)
+        _, logabsdet_covmatrix = np.linalg.slogdet(cov_matrix)
+        logabsdet_covmatrix += 2 * np.log(2 * np.pi)
 
         res = np.array([sma_sample - sma_map, basis.angle_diff(pan_sample, pan_map)])
 
-        log_conditional_prob = -0.5 * res.T @ precision_matrix @ res - 0.5 * logabsdet_covmatrix
+        log_conditional_prob = (
+            -0.5 * res.T @ precision_matrix @ res - 0.5 * logabsdet_covmatrix
+        )
 
-        log_conditional_prob -= (n_obs) * np.log(2*np.pi)
+        log_conditional_prob -= (n_obs) * np.log(2 * np.pi)
 
-        return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample, log_conditional_prob
+        return (
+            sma_map,
+            pan_map,
+            logabsdet_covmatrix,
+            sma_sample,
+            pan_sample,
+            log_conditional_prob,
+        )
 
     def apply(self, param_arr, calculated_values):
         shape = param_arr.shape
@@ -296,15 +324,22 @@ class OFTeI_sma_pan(Marginalizer):
         Y = np.hstack((self.seps, basis.angle_diff(self.pas, g_samples)))
         # set up design matrix
         D = np.zeros((2 * self.n_obs, 2))
-        D[:self.n_obs, 0] = f_samples
-        D[self.n_obs:, 1] = 1
+        D[: self.n_obs, 0] = f_samples
+        D[self.n_obs :, 1] = 1
 
         try:
-            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg, log_conditional_prob = (
-                self.calc_cov_matrix_det(self.n_obs, Y, D, W, W_inv)
-            )
+            (
+                smas_map,
+                pans_map_degrees,
+                logdet_covmatrix,
+                sma_sample,
+                pan_sample_deg,
+                log_conditional_prob,
+            ) = self.calc_cov_matrix_det(self.n_obs, Y, D, W, W_inv)
         except np.linalg.LinAlgError as e:
-            warnings.warn(f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0")
+            warnings.warn(
+                f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0"
+            )
             return -np.inf, -np.inf, None, dict()
 
         beta_hat = np.hstack((smas_map, pans_map_degrees))
@@ -328,12 +363,12 @@ class OFTeI_sma_pan(Marginalizer):
         # apply total mass prior
         mtot_sample = sma_sample**3 / (period_yr) ** 2
         if self.mass_prior is not None:
-            logprob -= np.sum(self.implicit_mass_prior.compute_lnprob(
-                np.array([mtot_sample])
-            ))  # "undo" the effective prior
-            logprob += np.sum(self.mass_prior.compute_lnprob(
-                np.array([mtot_sample])
-            ))  # apply the user-defined prior
+            logprob -= np.sum(
+                self.implicit_mass_prior.compute_lnprob(np.array([mtot_sample]))
+            )  # "undo" the effective prior
+            logprob += np.sum(
+                self.mass_prior.compute_lnprob(np.array([mtot_sample]))
+            )  # apply the user-defined prior
 
         samples = np.array([sma_sample, pan_sample])
 
@@ -342,8 +377,8 @@ class OFTeI_sma_pan(Marginalizer):
 
         return logprob, loglike, samples, calculated_values
 
-class OFTeI_DR4_gaia(Marginalizer):
 
+class OFTeI_DR4_gaia(Marginalizer):
     """
     OFTeI marginalizer for Gaia DR4 absolute astrometry.
 
@@ -366,7 +401,15 @@ class OFTeI_DR4_gaia(Marginalizer):
     QUANT_TYPES = []
     GAIA = True
 
-    def __init__(self, gaia, sma_prior=None, pan_prior=None, plx_prior=None, m0_prior=None, implicit_mass_prior=None):
+    def __init__(
+        self,
+        gaia,
+        sma_prior=None,
+        pan_prior=None,
+        plx_prior=None,
+        m0_prior=None,
+        implicit_mass_prior=None,
+    ):
         self.gaia = gaia
         if self.gaia.fit_jitter:
             self.REQ_PARAMS.append("dr4_jitter")
@@ -391,15 +434,17 @@ class OFTeI_DR4_gaia(Marginalizer):
                 np.array of float: B (defined in \ref{eq:gaia_matrix} in PASP review)
 
         """
-        
+
         n_dates = np.size(manoms)
 
         # compute eccentric anomalies (size: n_dates)
         eanom = kepler.calc_ecc_anom(manoms, ecc)
 
-        tanom = 2.0 * np.arctan(np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom))
+        tanom = 2.0 * np.arctan(
+            np.sqrt((1.0 + ecc) / (1.0 - ecc)) * np.tan(0.5 * eanom)
+        )
 
-        radius = (1.0 - ecc * np.cos(eanom))
+        radius = 1.0 - ecc * np.cos(eanom)
 
         aop_star = 180.0 + aop
 
@@ -438,16 +483,18 @@ class OFTeI_DR4_gaia(Marginalizer):
         # Sample linear params
         sample = np.random.multivariate_normal(map_fit, cov_matrix)
 
-        _, logabsdet_covmatrix = np.linalg.slogdet(
-            cov_matrix
-        )
-        logabsdet_covmatrix += 2 * np.log(2*np.pi)
+        _, logabsdet_covmatrix = np.linalg.slogdet(cov_matrix)
+        logabsdet_covmatrix += 2 * np.log(2 * np.pi)
 
         res = sample - map_fit
 
-        log_conditional_prob = -0.5 * res.T @ precision_matrix @ res - 0.5 * logabsdet_covmatrix
+        log_conditional_prob = (
+            -0.5 * res.T @ precision_matrix @ res - 0.5 * logabsdet_covmatrix
+        )
 
-        log_conditional_prob -= (n_obs/2) * np.log(2*np.pi) # Figure out if half n_obs is right
+        log_conditional_prob -= (n_obs / 2) * np.log(
+            2 * np.pi
+        )  # Figure out if half n_obs is right
 
         return map_fit, logabsdet_covmatrix, sample, log_conditional_prob
 
@@ -474,16 +521,16 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         variances = self.gaia.centroid_pos_error_al**2 + jitter**2
         W = np.diag(variances)
-        W_inv = np.diag(1/variances)
+        W_inv = np.diag(1 / variances)
         W_det = np.prod(variances)
 
         n_obs = self.gaia.n_obs
-        
-        D = np.zeros((n_obs, 7))  
-        D[:, 0] = self.gaia.sin_scan     
-        D[:, 1] = self.gaia.pm_ra_basis     
-        D[:, 2] = self.gaia.cos_scan      
-        D[:, 3] = self.gaia.pm_dec_basis     
+
+        D = np.zeros((n_obs, 7))
+        D[:, 0] = self.gaia.sin_scan
+        D[:, 1] = self.gaia.pm_ra_basis
+        D[:, 2] = self.gaia.cos_scan
+        D[:, 3] = self.gaia.pm_dec_basis
         D[:, 4] = self.gaia.parallax_factor_al
         D[:, 5] = As
         D[:, 6] = Bs
@@ -495,17 +542,16 @@ class OFTeI_DR4_gaia(Marginalizer):
                 self.calc_cov_matrix_det(Y, D, W, W_inv)
             )
         except np.linalg.LinAlgError as e:
-            warnings.warn(f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0")
+            warnings.warn(
+                f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0"
+            )
             return -np.inf, -np.inf, None, {}
 
         chi2lnlike = self.lnlike(Y, D, map_fit, W, W_inv, W_det, add_error_norm=True)
 
-        logprob = (
-            chi2lnlike + 0.5 * logabsdet_covmatrix
-        )
+        logprob = chi2lnlike + 0.5 * logabsdet_covmatrix
 
         loglike = logprob + log_conditional_prob
-
 
         pm_ra, pm_dec, alpha0, delta0, plx_sample, u, v = samples
         # undo the effective sma, pan, plx prior
@@ -514,12 +560,12 @@ class OFTeI_DR4_gaia(Marginalizer):
         # sma_photo = m1 / mtot * sma
         # mtot = sma**3/per**2
         # m1 / sma_photo * per**2 = sma**2
-        pan_sample = np.atan(v/u)
+        pan_sample = np.atan(v / u)
         if u < 0:
             pan_sample += np.pi
         pan_sample %= 2 * np.pi
         sma_photo_sample = u / np.cos(pan_sample) / plx_sample
-        logprob -= np.log(plx_sample**2 * sma_photo_sample) # TODO: test
+        logprob -= np.log(plx_sample**2 * sma_photo_sample)  # TODO: test
         sma_sample = np.sqrt(m1 / sma_photo_sample * period_yr**2)
         if self.sma_prior is not None:
             logprob += np.sum(self.sma_prior.compute_lnprob(np.array([sma_sample])))
@@ -532,12 +578,12 @@ class OFTeI_DR4_gaia(Marginalizer):
         mtot_sample = sma_sample**3 / (period_yr) ** 2
         m0_sample = mtot_sample - m1
         if self.m0_prior is not None:
-            logprob -= np.sum(self.implicit_mass_prior.compute_lnprob(
-                np.array([mtot_sample])
-            ))  # "undo" the effective prior TODO: make correct
-            logprob += np.sum(self.m0_prior.compute_lnprob(
-                np.array([mtot_sample])
-            ))  # apply the user-defined prior
+            logprob -= np.sum(
+                self.implicit_mass_prior.compute_lnprob(np.array([mtot_sample]))
+            )  # "undo" the effective prior TODO: make correct
+            logprob += np.sum(
+                self.m0_prior.compute_lnprob(np.array([mtot_sample]))
+            )  # apply the user-defined prior
 
         if not np.isfinite(logprob):
             return -np.inf, -np.inf, samples, calculated_values
@@ -555,7 +601,7 @@ def solve_linear_eq(Y, A, C, C_inv=None):
         A: Design Matrix
         C: Covariance Matrix of the Data
         C_inv: Inverse of C if calculated previously (default: None)
-    
+
     Returns:
         np.array: MAP beta
         np.array: covariance matrix of p(beta|Y,A)
@@ -563,12 +609,11 @@ def solve_linear_eq(Y, A, C, C_inv=None):
     """
     if C_inv is None:
         C_inv = np.linalg.inv(C)
-    prec_matrix = (
-        A.T @ C_inv @ A
-    ) 
-    cov_matrix = np.linalg.inv(prec_matrix) # variance on diag, covar on off-diag
+    prec_matrix = A.T @ C_inv @ A
+    cov_matrix = np.linalg.inv(prec_matrix)  # variance on diag, covar on off-diag
     best_fit = cov_matrix @ (A.T @ C_inv @ Y)
     return best_fit, cov_matrix, prec_matrix
+
 
 def compatible_params(marginalizers, input_params, data_quants):
     # TODO: Multibody, quant_type
@@ -578,7 +623,11 @@ def compatible_params(marginalizers, input_params, data_quants):
         req_params = set(marginalizer.REQ_PARAMS)
         marg_params = set(marginalizer.MARG_PARAMS)
         marg_quants = set(marginalizer.QUANT_TYPES)
-        if not (req_params - params) and not (marg_params & params) and (not (marg_quants) or (quants & marg_quants)):
+        if (
+            not (req_params - params)
+            and not (marg_params & params)
+            and (not (marg_quants) or (quants & marg_quants))
+        ):
             # TODO: differentiate between requiring all quant types vs any quant types
             params |= set(marginalizer.MARG_PARAMS)
         else:

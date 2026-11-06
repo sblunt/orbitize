@@ -9,24 +9,25 @@ gaia_edr3_data = {
     "ra": 86.82123452009108,
     "ra_error": 0.13713108,
     "dec": -51.066136257823345,
-    "dec_error": 0.13109376
+    "dec_error": 0.13109376,
 }
 
-hip_data = { # 027321 beta pic
-    'RArad': 86.82118072,
-    'e_RArad': 0.1,
-    'DErad': -51.06671341,
-    'e_DErad': 0.11,
-    'Plx': 51.44,
-    'e_Plx': 0.12,
-    'pmRA': 4.65,
-    'e_pmRA': 0.11,
-    'pmDE': 83.1,
-    'e_pmDE': 0.15,
-    'F2': -1.63,
-    'Sn': 5,
-    'var': 0.0
+hip_data = {  # 027321 beta pic
+    "RArad": 86.82118072,
+    "e_RArad": 0.1,
+    "DErad": -51.06671341,
+    "e_DErad": 0.11,
+    "Plx": 51.44,
+    "e_Plx": 0.12,
+    "pmRA": 4.65,
+    "e_pmRA": 0.11,
+    "pmDE": 83.1,
+    "e_pmDE": 0.15,
+    "F2": -1.63,
+    "Sn": 5,
+    "var": 0.0,
 }
+
 
 def test_hipparcos_api():
     """
@@ -53,14 +54,16 @@ def test_hipparcos_api():
 
     # just make sure it doesn't throw an error
     myFirstHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    assert myFirstHip.var == (10*0.15)**2
+    assert myFirstHip.var == (10 * 0.15) ** 2
 
     # check that RV + Hip gives correct prior array labels
     hip_num = "027321"  # beta Pic
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
 
     input_file = os.path.join(DATADIR, "HD4747.csv")
     data_table_with_rvs = read_input.read_file(input_file)
@@ -146,7 +149,9 @@ def test_dvd_vs_2021catalog():
     new_iadHipLogProb = HipparcosLogProb(iad_file_2021, hip_num, num_secondary_bodies)
 
     # next, test reading of a DVD file
-    old_iadHipLogProb = HipparcosLogProb(iad_file_dvd, hip_num, num_secondary_bodies, hip_data=hip_data)
+    old_iadHipLogProb = HipparcosLogProb(
+        iad_file_dvd, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
 
     # test that these give the same data file for beta Pic (which has no rejected scans)
     assert (
@@ -182,7 +187,11 @@ def test_iad_refitting():
     """
 
     post, myHipLogProb = nielsen_iad_refitting_test(
-        "{}/HIP027321.d".format(DATADIR), burn_steps=10, mcmc_steps=50, saveplot=None, hip_data=hip_data
+        "{}/HIP027321.d".format(DATADIR),
+        burn_steps=10,
+        mcmc_steps=50,
+        saveplot=None,
+        hip_data=hip_data,
     )
 
     # check that we get reasonable values for the posteriors of the refit IAD
@@ -201,7 +210,9 @@ def test_save_load_dvd():
     num_secondary_bodies = 1
     path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
 
-    myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data)
+    myHip = HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
     myGaia = GaiaLogProb(4792774797545800832, myHip, gaia_edr3_data, dr="edr3")
 
     input_file = os.path.join(DATADIR, "HD4747.csv")
