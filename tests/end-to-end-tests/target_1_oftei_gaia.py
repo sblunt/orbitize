@@ -60,8 +60,8 @@ mySystem.reweight_priors.append(priors.OFTeIMassReweightPrior(implicit_mass_prio
 mySystem.reweight_priors.append(priors.OFTeIUVReweightPrior(sma_prior, pan_prior, mySystem.basis))
 
 #run mcmc sampler
-num_walkers, num_temps, num_threads = 40, 5, 1
-total_steps, burn_steps, thin = 200, 200, 5
+num_walkers, num_temps, num_threads = 100, 5, 1
+total_steps, burn_steps, thin = 5000, 1000, 5
 mySampler = sampler.MCMC(mySystem, num_temps=num_temps,
                      num_walkers=num_walkers, num_threads=num_threads, marginalizers=[myMarginalizer])
 

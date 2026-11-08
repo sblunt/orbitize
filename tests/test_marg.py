@@ -659,9 +659,7 @@ def test_OFTeI_gaia():
         l = noMargSampler._logl(param)[0]
         true_l.append(l)
     diff = np.abs(true_l - myResults.lnlike)
-    # print((true_l - myResults.lnlike)[np.where(diff > 0.2)])
     print(f"{true_l=}, {myResults.lnlike=}")
-    # print(myResults.post[10:20])
     n_small_diff = np.sum(diff < 0.2)
     n_tot = myResults.post.shape[0]
     assert n_small_diff / n_tot > 0.99, np.where(diff < 0.2)

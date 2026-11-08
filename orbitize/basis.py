@@ -714,9 +714,12 @@ class OftEiBasis(Basis):
             rv_instruments,
             gaia_dr4,
         )
-        assert not fit_secondary_mass, "Secondary mass not supported yet"
-        assert num_secondary_bodies == 1, "Multiplanet not supported yet"
-        assert gaia_dr4 is None, "DR4 not supported yet"
+        if fit_secondary_mass:
+            raise ValueError("Secondary mass not supported yet for OftEi basis")
+        if not num_secondary_bodies == 1:
+            raise ValueError("Multiplanet not supported yet")
+        if gaia_dr4 is not None:
+            raise ValueError("DR4 not supported with OFTeI basis, use OftEiGaia Basis instead.")
 
     def construct_priors(self):
         """
@@ -779,10 +782,7 @@ class OftEiBasis(Basis):
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
-        if not self.fit_secondary_mass and self.num_secondary_bodies == 1:
-            self.standard_basis_idx["mtot"] = self.param_idx["per1"]
-        else:
-            assert False
+        self.standard_basis_idx["mtot"] = self.param_idx["per1"]
 
         return basis_priors, basis_labels
 
@@ -828,9 +828,12 @@ class OftEiGaiaBasis(Basis):
             gaia_dr4,
         )
         # TODO: raise error
-        assert fit_secondary_mass, "Secondary mass must be used with Gaia"
-        assert num_secondary_bodies == 1, "Multiplanet not supported yet"
-        assert gaia_dr4 is not None, "DR4 must be used"
+        if not fit_secondary_mass:
+            raise ValueError("Secondary mass must be used with Gaia")
+        if not num_secondary_bodies == 1:
+            raise ValueError("Multiplanet not supported yet")
+        if gaia_dr4 is None:
+            raise ValueError("DR4 must be used")
 
     def construct_priors(self):
         """

@@ -68,7 +68,7 @@ class Sampler(abc.ABC):
                 and not (set(orbitize.marginalizer.OFTeI_sma_pan.MARG_PARAMS) - params)
                 and not (set(orbitize.marginalizer.OFTeI_sma_pan.REQ_PARAMS) - params)
             ):
-                # OFTeI
+                # Automatically use OFTeI
                 self.system.convert_data_table_radec2seppa()
                 self.has_corr = np.any(
                     ~np.isnan(self.system.data_table["quant12_corr"])
@@ -153,7 +153,10 @@ class Sampler(abc.ABC):
         )
         self.blob_labels = ["lnlike"] + self.marg_param_labels
 
+        # Quantity types which will not be evaluated during marginalization (i.e. rv for seppa OFTeI)
         self.non_marg_quants = list(quants - marg_quants)
+        # Instead of performing marginalization, draw the marginalized parameters
+        # directly from their priors so they are guaranteed to be within prior domain 
         self.force_valid_marg = False
 
         if not orbitize.marginalizer.compatible_params(
@@ -405,6 +408,8 @@ class OFTI(
             custom_lnlike=custom_lnlike,
             marginalizers=[],
         )
+
+        warnings.warn("OFTI is depracated. Please use MCMC with OFTeI marginalization for faster and more accurate results.")
 
         if (self.system.hipparcos_IAD is not None) or (len(self.system.rv[0] > 0)):
             raise NotImplementedError(
@@ -937,7 +942,7 @@ class MCMC(Sampler):
             left off.
         marginalizers (list of orbitize.marginalizer.Marginalizer): list of marginalizers
             to apply in order when fitting. If None, will attempt to automatically select
-            marginalizers (default: None).
+            marginalizers (default: None). Disable marginalization by setting to an empty list [].
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -1281,7 +1286,8 @@ class MCMC(Sampler):
                         self.results.curr_pos = self.curr_pos
                         new_file = f"{output_filename}_{i + 1}burnsteps.hdf5"
                         self.results.save_results(new_file)
-                        assert os.path.exists(new_file)
+                        if not os.path.exists(new_file):
+                            raise IOError(f"Failed to save results to {new_file}")
                         prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
                         if os.path.exists(prev_file):
                             os.remove(prev_file)
@@ -1356,7 +1362,8 @@ class MCMC(Sampler):
                             )
                         new_file = f"{output_filename}_{i + 1}steps.hdf5"
                         self.results.save_results(new_file)
-                        assert os.path.exists(new_file)
+                        if not os.path.exists(new_file):
+                            raise IOError(f"Failed to save results to {new_file}")
                         prev_file = (
                             f"{output_filename}_{i + 1 - periodic_save_freq}steps.hdf5"
                         )

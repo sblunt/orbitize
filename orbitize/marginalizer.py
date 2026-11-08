@@ -52,7 +52,7 @@ class Marginalizer(abc.ABC):
     def lnlike(y, X, beta_hat, W, W_inv=None, W_absdet=None, add_error_norm=True):
         """
         Compute log likelihood, excluding volume in marginalization integral (first two terms in \ref{eq:marg_like} in
-        PASP review):
+        PASP review by Blunt 2026):
 
             -1/2 log|W| - 1/2 chi2_MAP
 
@@ -62,7 +62,7 @@ class Marginalizer(abc.ABC):
             beta_hat: length 2 array of conditional MAP values of sma and pan (respectively)
             W: 2n x 2n covariance matrix corresponding to observations y
             W_inv: 2n x 2n inverse of the covariance matrix W, if calculated previously. (default: None)
-            add_error_term: if True, include the -1/2 log|W| term (needed if fitting for jitter
+            add_error_norm: if True, include the -1/2 log|W| term (needed if fitting for jitter
                 or want a result consistent with other methods). (default: True).
 
         Returns:
@@ -142,8 +142,8 @@ class OFTeI_sma_pan(Marginalizer):
 
         Return:
             tuple of:
-                np.array of float: f (defined in \ref{eq:f_and_g} in PASP review)
-                np.array of float: g (defined in \ref{eq:f_and_g} in PASP review)
+                np.array of float: f (defined in \ref{eq:f_and_g} in PASP review by Blunt 2026)
+                np.array of float: g (defined in \ref{eq:f_and_g} in PASP review by Blunt 2026)
 
         """
 
@@ -243,7 +243,8 @@ class OFTeI_sma_pan(Marginalizer):
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
         ecc, inc, aop, tau, plx, period_yr = param_arr
-        assert period_yr > 0
+        if not period_yr > 0:
+            raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
         frac_date = self.epochs / (period_yr * units.yr.to(units.day))
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
@@ -306,6 +307,10 @@ class OFTeI_DR4_gaia(Marginalizer):
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"] + ["dr4_jitter"] if fitting jitter
     MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
 
+    where:
+    u = plx * sma_photo * cos(pan)
+    v = plx * sma_photo * sin(pan)
+
     Args:
         gaia (orbitize.gaia.DR4LogProb): Gaia DR4 object
     """
@@ -334,8 +339,8 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         Return:
             tuple of:
-                np.array of float: A (defined in \ref{eq:gaia_matrix} in PASP review)
-                np.array of float: B (defined in \ref{eq:gaia_matrix} in PASP review)
+                np.array of float: A (defined in \ref{eq:gaia_matrix} in PASP review by Blunt 2026)
+                np.array of float: B (defined in \ref{eq:gaia_matrix} in PASP review by Blunt 2026)
 
         """
 
@@ -411,7 +416,8 @@ class OFTeI_DR4_gaia(Marginalizer):
         else:
             ecc, inc, aop, tau, period_yr, mfrac1 = param_arr
             jitter = self.gaia.jitter
-        assert period_yr > 0
+        if not period_yr > 0:
+            raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
         frac_date = self.gaia.epochs_mjd / (period_yr * units.yr.to(units.day))
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
