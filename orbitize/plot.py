@@ -765,7 +765,7 @@ class Plotter(object):
                 self.results.standard_param_idx["sma{}".format(i)] for i in secondaries
             ]
             smas = standard_post[:, sma_indexes]
-            if "m0" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1_indexes = [
                     self.results.standard_param_idx["m{}".format(i)]
@@ -790,7 +790,7 @@ class Plotter(object):
             sma = standard_post[
                 :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
             ]
-            if "m0" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1 = standard_post[
                     :, self.results.standard_param_idx["m{}".format(object_to_plot)]
