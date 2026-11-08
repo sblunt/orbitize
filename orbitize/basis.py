@@ -886,14 +886,15 @@ class OftEiGaiaBasis(Basis):
 
         # Add mass priors TODO: Implicit mass prior
         # self.set_default_mass_priors(basis_priors, basis_labels)
-        basis_labels.append("m1".format(body))
-        basis_priors.append(priors.LogUniformPrior(1e-6, 2))  # in Solar masses
+        basis_labels.append("mfrac1")
+        basis_priors.append(priors.LogUniformPrior(1e-6, 1.0))
 
         # Define param label dictionary in current basis & standard basis
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
         self.standard_basis_idx["m0"] = self.standard_basis_idx.pop("per1")
+        self.standard_basis_idx["m1"] = self.standard_basis_idx.pop("mfrac1")
         self.standard_basis_idx["pan1"] = self.standard_basis_idx.pop("u")
         self.standard_basis_idx["sma1"] = self.standard_basis_idx.pop("v")
 
@@ -903,7 +904,7 @@ class OftEiGaiaBasis(Basis):
         u = param_arr[self.param_idx["u"]]
         v = param_arr[self.param_idx["v"]]
         plx = param_arr[self.param_idx["plx"]]
-        m1 = param_arr[self.param_idx["m1"]]
+        mfrac1 = param_arr[self.param_idx["mfrac1"]]
         per = param_arr[self.param_idx["per1"]]
         pan = np.atan(v/u)
         if u.shape == ():
@@ -913,11 +914,13 @@ class OftEiGaiaBasis(Basis):
             pan[u < 0] += np.pi
         pan %= (2 * np.pi)
         sma_photo = u / np.cos(pan) / plx
-        sma = np.sqrt(m1 / sma_photo * per**2)  # TODO: bright companion
+        sma = sma_photo / mfrac1  # TODO: bright companion
         mtot = (sma**3) / (per**2)
+        m1 = mtot * mfrac1
         m0 = mtot - m1
 
         param_arr[self.standard_basis_idx["m0"]] = m0
+        param_arr[self.standard_basis_idx["m1"]] = m1
         param_arr[self.standard_basis_idx["pan1"]] = pan
         param_arr[self.standard_basis_idx["sma1"]] = sma
         return param_arr
