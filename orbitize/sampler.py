@@ -84,7 +84,6 @@ class Sampler(abc.ABC):
                 else:
                     covar = np.zeros(len(epochs))
                 sma_prior = self.system.sys_priors[self.system.param_idx["sma1"]]
-                pan_prior = self.system.sys_priors[self.system.param_idx["pan1"]]
                 mass_prior = orbitize.priors.GaussianPrior(
                     self.system.stellar_or_system_mass, self.system.mass_err
                 )
@@ -95,6 +94,8 @@ class Sampler(abc.ABC):
                     per_prior.minval,
                     per_prior.maxval,
                 )
+                reweight_prior = orbitize.priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, self.system.basis)
+                self.system.reweight_priors.append(reweight_prior)
                 marg = orbitize.marginalizer.OFTeI_sma_pan(
                     epochs,
                     sep,
@@ -102,10 +103,6 @@ class Sampler(abc.ABC):
                     sep_err,
                     pa_err,
                     covar,
-                    sma_prior,
-                    pan_prior,
-                    mass_prior,
-                    implicit_mass_prior,
                 )
                 self.marginalizers = [marg]
         else:
@@ -117,7 +114,7 @@ class Sampler(abc.ABC):
         )
         fitted_param_labels_set = set(system.labels) - marginalized_param_labels_set
 
-        self.gaia_marg = np.any(marg.GAIA for marg in self.marginalizers)
+        self.gaia_marg = np.any([marg.GAIA for marg in self.marginalizers])
 
         self.fitted_param_labels = []
         self.marg_param_labels = []
@@ -199,6 +196,8 @@ class Sampler(abc.ABC):
         total_lnprob = 0
         all_calculated_values = {}
         if self.force_valid_marg:
+            # reweight_prob = -np.inf
+            # while np.isneginf(reweight_prob):
             samples = [
                 (
                     np.squeeze(prior.draw_samples(num_orbits))
@@ -208,6 +207,14 @@ class Sampler(abc.ABC):
                 for prior in self.marg_priors
             ]
             params[self.marg_param_sys_idx] = samples
+
+                # if len(self.system.reweight_priors) == 0:
+                #     reweight_prob = 0
+                # else:
+                #     for reweight_prior in self.system.reweight_priors:
+                #         reweight_prob = reweight_prior.compute_lnprob(params)
+            # total_lnprob += reweight_prob
+
         else:
             for marg in self.marginalizers:
                 req_param_idx = [
@@ -220,6 +227,13 @@ class Sampler(abc.ABC):
                 partial_lnprob, partial_lnlike, marg_params, calculated_values = (
                     marg.apply(req_params, all_calculated_values)
                 )
+                if np.isscalar(marg_params):
+                    if hasattr(self.system.sys_priors[marg_param_idx[0]], "compute_lnprob"):
+                        partial_lnprob += self.system.sys_priors[marg_param_idx[0]].compute_lnprob(np.array([marg_params]))
+                else:
+                    for i, param in zip(marg_param_idx, marg_params):
+                        if hasattr(self.system.sys_priors[i], "compute_lnprob"):
+                            partial_lnprob += self.system.sys_priors[i].compute_lnprob(np.array([param]))
                 if np.isneginf(partial_lnprob):
                     return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
                 total_lnprob += partial_lnprob
@@ -228,6 +242,12 @@ class Sampler(abc.ABC):
                 all_calculated_values.update(
                     calculated_values
                 )  # i.e. astr_tanom, rv_eanom
+
+            for reweight_prior in self.system.reweight_priors:
+                total_lnprob += reweight_prior.compute_lnprob(params)
+
+            if np.isneginf(total_lnprob):
+                return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
 
         lnlikes_sum = 0
         if self.force_valid_marg or len(self.non_marg_quants) > 0:
@@ -319,7 +339,7 @@ class Sampler(abc.ABC):
                 self.system.param_idx,
             )
 
-        if self.system.gaia is not None and not self.gaia_marg:
+        if self.system.gaia is not None and (not self.gaia_marg or self.force_valid_marg):
             if hasattr(self.system.gaia, "epochs_mjd"):
                 # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
                 gaiahip_epochs = self.system.gaia.epochs_mjd
@@ -347,6 +367,9 @@ class Sampler(abc.ABC):
         total_lnlike += lnlikes_sum
 
         marg_params = params[self.marg_param_sys_idx]
+
+        if np.isnan(total_lnprob):
+            return -np.inf, -np.inf, *marg_params
 
         return total_lnprob, total_lnlike, *marg_params
 

@@ -35,7 +35,7 @@ class Marginalizer(abc.ABC):
             param_arr (np.array of float): RxM array of fitting parameters. Where
                 R is the number of required parameters in the order of `self.REQ_PARAMS` and
                 M is the number of orbits. If M=1 this can be a 1d array.
-            calculated values (dict): Dictionary of calculated values passed through consecutive marginalizers.
+            calculated_values (dict): Dictionary of calculated values passed through consecutive marginalizers.
 
         Returns:
             float or np.array of float: log-probability of the likelihood of the parameters
@@ -84,58 +84,6 @@ class Marginalizer(abc.ABC):
 
         return -0.5 * chi2_map + error_norm_term
 
-
-class Marg1(Marginalizer):
-    REQ_PARAMS = ["tau", "per"]
-    MARG_PARAMS = ["sma", "pan"]
-
-
-class Marg2(Marginalizer):
-    REQ_PARAMS = ["tau", "sma", "pan"]
-    MARG_PARAMS = ["gamma"]
-
-
-class MargConstNoInput(Marginalizer):
-    MARG_PARAMS = ["test"]
-
-    def apply(self, param_arr, calculated_values):
-        shape = param_arr.shape
-        if len(shape) > 1:
-            n_orbits = shape[1]
-            return 0, np.zeros((n_orbits)), np.ones((n_orbits)), calculated_values
-        else:
-            return 0, 0, 1, calculated_values
-
-
-class MargPriorNoInput(Marginalizer):
-    MARG_PARAMS = ["test"]
-
-    def __init__(self, priors):
-        self.dim = len(priors)
-        self.MARG_PARAMS = ["test{}".format(i) for i in range(self.dim)]
-        self.priors = priors
-
-    def apply(self, param_arr, calculated_values):
-        shape = param_arr.shape
-        if len(shape) > 1:
-            n_orbits = shape[1]
-            assert n_orbits > 1
-            samples = np.array(
-                [
-                    [prior.draw_samples(1).item() for i in range(n_orbits)]
-                    for prior in self.priors
-                ]
-            )
-            assert samples.shape == (self.dim, n_orbits)
-            assert not np.isnan(samples).any(), samples
-            return 0, np.zeros((n_orbits)), samples, calculated_values
-        else:
-            samples = np.array([prior.draw_samples(1).item() for prior in self.priors])
-            assert samples.shape == (self.dim,), samples
-            assert not np.isnan(samples).any(), samples
-            return 0, 0, samples, calculated_values
-
-
 class OFTeI_sma_pan(Marginalizer):
     """
     OFTeI marginalizer for relative astrometry.
@@ -151,10 +99,6 @@ class OFTeI_sma_pan(Marginalizer):
         sigma_seps (np.array of float): Standard Deviation of the Separation data
         sigma_pas (np.array of float): Standard Deviation of the Position Angle data
         covar_seps_pas (np.array of float): Covariance of Separation and Position Angle data at the same epoch
-        sma_prior (orbitize.priors.Prior): Prior for the Semimajor Axis
-        pan_prior (orbitize.priors.Prior): Prior for the Position Angle of Nodes
-        mass_prior (orbitize.priors.Prior): Prior to apply for the total mass
-        implcit_mass_prior (orbitize.priors.Prior): Implicit prior to subtract for the total mass
     """
 
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
@@ -170,15 +114,7 @@ class OFTeI_sma_pan(Marginalizer):
         sigma_seps,
         sigma_pas,
         covar_seps_pas,
-        sma_prior=None,
-        pan_prior=None,
-        mass_prior=None,
-        implicit_mass_prior=None,
     ):
-        self.sma_prior = sma_prior
-        self.pan_prior = pan_prior
-        self.mass_prior = mass_prior
-        self.implicit_mass_prior = implicit_mass_prior
         self.epochs = epochs
         self.seps = seps
         self.pas = pas
@@ -354,22 +290,6 @@ class OFTeI_sma_pan(Marginalizer):
         pan_sample = np.deg2rad(pan_sample_deg) % (2 * np.pi)
         loglike = logprob + log_conditional_prob
 
-        # apply sma/pan priors
-        if self.sma_prior is not None:
-            logprob += np.sum(self.sma_prior.compute_lnprob(np.array([sma_sample])))
-        if self.pan_prior is not None:
-            logprob += np.sum(self.pan_prior.compute_lnprob(np.array([pan_sample])))
-
-        # apply total mass prior
-        mtot_sample = sma_sample**3 / (period_yr) ** 2
-        if self.mass_prior is not None:
-            logprob -= np.sum(
-                self.implicit_mass_prior.compute_lnprob(np.array([mtot_sample]))
-            )  # "undo" the effective prior
-            logprob += np.sum(
-                self.mass_prior.compute_lnprob(np.array([mtot_sample]))
-            )  # apply the user-defined prior
-
         samples = np.array([sma_sample, pan_sample])
 
         if not np.isfinite(logprob):
@@ -383,20 +303,15 @@ class OFTeI_DR4_gaia(Marginalizer):
     OFTeI marginalizer for Gaia DR4 absolute astrometry.
 
     Currently only applicable to 1 massive companion.
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "m1"] + ["dr4_jitter"] if fitting jitter
-    MARG_PARAMS = ["pm_ra", "pm_dec", "alpha0", "delta0", "plx", "u", "v"]
+    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"] + ["dr4_jitter"] if fitting jitter
+    MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
 
     Args:
         gaia (orbitize.gaia.DR4LogProb): Gaia DR4 object
-        sma_prior (orbitize.priors.Prior): Prior for the Semimajor Axis
-        pan_prior (orbitize.priors.Prior): Prior for the Position Angle of Nodes
-        plx_prior (orbitize.priors.Prior): Prior for the Parallax
-        m0_prior (orbitize.priors.Prior): Prior to apply for the stellar mass
-        implcit_mass_prior (orbitize.priors.Prior): Implicit prior to subtract for the stellar mass
     """
 
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "m1"]
-    MARG_PARAMS = ["pm_ra", "pm_dec", "alpha0", "delta0", "plx", "u", "v"]
+    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"]
+    MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
     LNLIKE_TYPE = "chi2"
     QUANT_TYPES = []
     GAIA = True
@@ -404,21 +319,10 @@ class OFTeI_DR4_gaia(Marginalizer):
     def __init__(
         self,
         gaia,
-        sma_prior=None,
-        pan_prior=None,
-        plx_prior=None,
-        m0_prior=None,
-        implicit_mass_prior=None,
     ):
         self.gaia = gaia
         if self.gaia.fit_jitter:
             self.REQ_PARAMS.append("dr4_jitter")
-
-        self.sma_prior = sma_prior
-        self.pan_prior = pan_prior
-        self.plx_prior = plx_prior
-        self.m0_prior = m0_prior
-        self.implicit_mass_prior = implicit_mass_prior
 
     def calc_As_and_Bs(self, manoms, ecc, inc, aop):
         """
@@ -446,13 +350,13 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         radius = 1.0 - ecc * np.cos(eanom)
 
-        aop_star = 180.0 + aop
+        aop_star = np.pi + aop
 
-        As = radius * (
+        As = - radius * ( # TODO: verify negative
             np.cos(tanom + aop_star) * self.gaia.cos_scan
             + np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.sin_scan
         )
-        Bs = radius * (
+        Bs = - radius * (
             np.cos(tanom + aop_star) * self.gaia.sin_scan
             - np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.cos_scan
         )
@@ -503,9 +407,9 @@ class OFTeI_DR4_gaia(Marginalizer):
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
         if self.gaia.fit_jitter:
-            ecc, inc, aop, tau, period_yr, m1, jitter = param_arr
+            ecc, inc, aop, tau, period_yr, mfrac1, jitter = param_arr
         else:
-            ecc, inc, aop, tau, period_yr, m1 = param_arr
+            ecc, inc, aop, tau, period_yr, mfrac1 = param_arr
             jitter = self.gaia.jitter
         assert period_yr > 0
         frac_date = self.gaia.epochs_mjd / (period_yr * units.yr.to(units.day))
@@ -552,38 +456,6 @@ class OFTeI_DR4_gaia(Marginalizer):
         logprob = chi2lnlike + 0.5 * logabsdet_covmatrix
 
         loglike = logprob + log_conditional_prob
-
-        pm_ra, pm_dec, alpha0, delta0, plx_sample, u, v = samples
-        # undo the effective sma, pan, plx prior
-        # plx * sma_photo * cos_pan = u
-        # plx * sma_photo * sin_pan = v
-        # sma_photo = m1 / mtot * sma
-        # mtot = sma**3/per**2
-        # m1 / sma_photo * per**2 = sma**2
-        pan_sample = np.atan(v / u)
-        if u < 0:
-            pan_sample += np.pi
-        pan_sample %= 2 * np.pi
-        sma_photo_sample = u / np.cos(pan_sample) / plx_sample
-        logprob -= np.log(plx_sample**2 * sma_photo_sample)  # TODO: test
-        sma_sample = np.sqrt(m1 / sma_photo_sample * period_yr**2)
-        if self.sma_prior is not None:
-            logprob += np.sum(self.sma_prior.compute_lnprob(np.array([sma_sample])))
-        if self.pan_prior is not None:
-            logprob += np.sum(self.pan_prior.compute_lnprob(np.array([pan_sample])))
-        if self.plx_prior is not None:
-            logprob += np.sum(self.plx_prior.compute_lnprob(np.array([plx_sample])))
-
-        # apply total mass prior
-        mtot_sample = sma_sample**3 / (period_yr) ** 2
-        m0_sample = mtot_sample - m1
-        if self.m0_prior is not None:
-            logprob -= np.sum(
-                self.implicit_mass_prior.compute_lnprob(np.array([mtot_sample]))
-            )  # "undo" the effective prior TODO: make correct
-            logprob += np.sum(
-                self.m0_prior.compute_lnprob(np.array([mtot_sample]))
-            )  # apply the user-defined prior
 
         if not np.isfinite(logprob):
             return -np.inf, -np.inf, samples, calculated_values

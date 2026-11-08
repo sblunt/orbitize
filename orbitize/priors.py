@@ -811,53 +811,19 @@ class ObsPrior(Prior):
             self.increment_param_num()
             return 0
 
+class ReweightPrior(abc.ABC):
+    def __init__(self, implied_prior, new_prior, basis):
+        self.implied_prior = implied_prior
+        self.new_prior = new_prior
+        self.basis = basis
 
-def all_lnpriors(params, priors):
-    """
-    Calculates log(prior probability) of a set of parameters and a list of priors
+    def compute_lnprob(self, element_array):
+        param_value = self.get_param_value(element_array)
+        return self.new_prior.compute_lnprob(param_value) - self.implied_prior.compute_lnprob(param_value)
 
-    Args:
-        params (np.array): size of N parameters
-        priors (list): list of N prior objects corresponding to each parameter
-
-    Returns:
-        float: prior probability of this set of parameters
-    """
-    logp = np.array(0.0)
-
-    params_2d = params.reshape(
-        (-1, 1)
-    )  # Make each item an array of size 1, i.e. [[1],[2],[3],...]
-    for param, prior in zip(params_2d, priors):
-        logp = logp + prior.compute_lnprob(param)
-
-    return logp.item()
-
-
-if __name__ == "__main__":
-    # myPrior = LinearPrior(-1.0, 1.0)
-    # mySamples = myPrior.draw_samples(1000)
-    # print(mySamples)
-    # myProbs = myPrior.compute_lnprob(mySamples)
-    # print(myProbs)
-
-    # myPrior = GaussianPrior(1.3, 0.2)
-    # mySamples = myPrior.draw_samples(1)
-    # print(mySamples)
-
-    # myProbs = myPrior.compute_lnprob(mySamples)
-    # print(myProbs)
-
-    myPrior = GaussianPrior(-10, 0.5, no_negatives=True)
-    u = np.random.uniform(0, 1, int(1e4))
-    samps = myPrior.transform_samples(u)
-    print(samps.min(), samps.max())
-
-    import matplotlib.pyplot as plt
-
-    plt.hist(samps, bins=50)
-    plt.show()
-
+    @abc.abstractmethod
+    def get_param_value():
+        ...
 
 class OFTeIMassPrior(Prior):
     """
@@ -909,3 +875,88 @@ class OFTeIMassPrior(Prior):
 
         with np.errstate(divide="ignore"):
             return np.log(f_Z / element_array)
+
+class OFTeIMassReweightPrior(ReweightPrior):
+    def get_param_value(self, param_arr):
+        standard_param_arr = self.basis.to_standard_basis(np.copy(param_arr))
+        if "m0" in self.basis.standard_basis_idx:
+            return np.array([standard_param_arr[self.basis.standard_basis_idx["m0"]]])
+        else:
+            return np.array([standard_param_arr[self.basis.standard_basis_idx["mtot"]]])
+
+class OFTeIUVReweightPrior(ReweightPrior):
+    def __init__(self, sma_prior, pan_prior, basis):
+        self.sma_prior = sma_prior
+        self.pan_prior = pan_prior
+        self.basis = basis
+        
+    def compute_lnprob(self, param_arr):
+        v = param_arr[self.basis.param_idx["v"]]
+        u = param_arr[self.basis.param_idx["u"]]
+        plx = param_arr[self.basis.param_idx["plx"]]
+        mfrac1 = param_arr[self.basis.param_idx["mfrac1"]] # m1 / mtot
+        period_yr = param_arr[self.basis.param_idx["per1"]]
+        pan = np.atan(v / u)
+        if u < 0:
+            pan += np.pi
+        pan %= 2 * np.pi
+        sma_photo_sample = u / np.cos(pan) / plx
+        
+        logprob = - np.log(plx**2 * sma_photo_sample)
+        sma = sma_photo_sample / mfrac1
+        # TODO: multiple orbits
+        if self.sma_prior is not None:
+            logprob += np.sum(self.sma_prior.compute_lnprob(np.array([sma])))
+        if self.pan_prior is not None:
+            logprob += np.sum(self.pan_prior.compute_lnprob(np.array([pan])))
+
+        return logprob
+
+    def get_param_value(self):
+        pass
+
+def all_lnpriors(params, priors):
+    """
+    Calculates log(prior probability) of a set of parameters and a list of priors
+
+    Args:
+        params (np.array): size of N parameters
+        priors (list): list of N prior objects corresponding to each parameter
+
+    Returns:
+        float: prior probability of this set of parameters
+    """
+    logp = np.array(0.0)
+
+    params_2d = params.reshape(
+        (-1, 1)
+    )  # Make each item an array of size 1, i.e. [[1],[2],[3],...]
+    for param, prior in zip(params_2d, priors):
+        logp = logp + prior.compute_lnprob(param)
+
+    return logp.item()
+
+
+if __name__ == "__main__":
+    # myPrior = LinearPrior(-1.0, 1.0)
+    # mySamples = myPrior.draw_samples(1000)
+    # print(mySamples)
+    # myProbs = myPrior.compute_lnprob(mySamples)
+    # print(myProbs)
+
+    # myPrior = GaussianPrior(1.3, 0.2)
+    # mySamples = myPrior.draw_samples(1)
+    # print(mySamples)
+
+    # myProbs = myPrior.compute_lnprob(mySamples)
+    # print(myProbs)
+
+    myPrior = GaussianPrior(-10, 0.5, no_negatives=True)
+    u = np.random.uniform(0, 1, int(1e4))
+    samps = myPrior.transform_samples(u)
+    print(samps.min(), samps.max())
+
+    import matplotlib.pyplot as plt
+
+    plt.hist(samps, bins=50)
+    plt.show()
