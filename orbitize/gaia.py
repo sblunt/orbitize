@@ -465,9 +465,8 @@ class DR4LogProb(object):
     - :math:`\varpi` is ``plx`` [mas], and :math:`P_i` is the
       dimensionless along-scan parallax factor.
     - :math:`\eta_{\mathrm{orb},i}` is the orbital contribution [mas],
-      computed as ``-raoff_model[i, 0]*sin(psi_i)
-      - deoff_model[i, 0]*cos(psi_i)`` using the likelihood's
-      existing sign convention.
+      computed as ``raoff_model[i, 0]*sin(psi_i)
+      + deoff_model[i, 0]*cos(psi_i)`` from the barycentric stellar offsets.
 
     These parameters are added by the fitting basis when System is
     constructed with gaia=dr4. Users can customize their priors through
@@ -569,6 +568,7 @@ class DR4LogProb(object):
 
     def _save(self, hf):
         """Save to an open HDF5 file."""
+        hf.attrs["dr4_orbit_sign"] = 1
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = "dr4"
         hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
@@ -610,9 +610,7 @@ class DR4LogProb(object):
         pmra = samples[param_idx["pm_ra"]]  # mas/yr
         pmdec = samples[param_idx["pm_dec"]]  # mas/yr
         # project orbital perturbation onto along-scan direction
-        orbit_al = -(
-            raoff_model[:, 0] * self.sin_scan + deoff_model[:, 0] * self.cos_scan
-        )
+        orbit_al = raoff_model[:, 0] * self.sin_scan + deoff_model[:, 0] * self.cos_scan
 
         # full along-scan model: position + PM + parallax + orbit
         model_al = (

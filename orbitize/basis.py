@@ -826,20 +826,38 @@ class SemiAmp(Basis):
                 in each orbit rather than period, removes stellar rv semi-amplitude parameters for
                 each companion, and appends the companion masses to 'param_arr'
         """
-        m0 = param_arr[self.param_idx["m0"]]
+        samples = param_arr[:, None] if param_arr.ndim == 1 else param_arr
+        bodies = np.arange(1, self.num_secondary_bodies + 1)
+        indices = {
+            name: np.array([self.param_idx[f"{name}{body}"] for body in bodies])
+            for name in ("per", "ecc", "inc", "K")
+        }
 
-        # Compute each companion's mass and sma
-        for body_num in np.arange(self.num_secondary_bodies) + 1:
-            period = param_arr[self.param_idx["per{}".format(body_num)]]
-            ecc = param_arr[self.param_idx["ecc{}".format(body_num)]]
-            inc = param_arr[self.param_idx["inc{}".format(body_num)]]
-            semi_amp = param_arr[self.param_idx["K{}".format(body_num)]]
+        # Process inner planets first, separately for each sample.
+        order = np.argsort(samples[indices["per"]], axis=0)
+        columns = np.arange(samples.shape[1])
+        interior_mass = samples[self.param_idx["m0"]].copy()
 
-            # Replace semi-amp with companion mass and period with sma
-            companion_m = self.compute_companion_mass(period, ecc, inc, semi_amp, m0)
-            param_arr[self.standard_basis_idx["m{}".format(body_num)]] = companion_m
-            companion_sma = self.compute_companion_sma(period, m0, companion_m)
-            param_arr[self.standard_basis_idx["sma{}".format(body_num)]] = companion_sma
+        for rank in range(self.num_secondary_bodies):
+            body = order[rank]
+            per_rows = indices["per"][body]
+            mass_rows = indices["K"][body]
+
+            period = samples[per_rows, columns]
+            ecc = samples[indices["ecc"][body], columns]
+            inc = samples[indices["inc"][body], columns]
+            semi_amp = samples[mass_rows, columns]
+
+            companion_m = self.compute_companion_mass(
+                period, ecc, inc, semi_amp, interior_mass
+            )
+            companion_sma = self.compute_companion_sma(
+                period, interior_mass, companion_m
+            )
+
+            samples[per_rows, columns] = companion_sma
+            samples[mass_rows, columns] = companion_m
+            interior_mass += companion_m
 
         return param_arr
 
@@ -937,15 +955,22 @@ class SemiAmp(Basis):
                 in each orbit rather than period, appends stellar rv semi-amplitude parameters, and
                 removes companion masses
         """
-
-        for body_num in np.arange(self.num_secondary_bodies) + 1:
+        # Cache these before their slots become periods and K.
+        bodies = np.arange(1, self.num_secondary_bodies + 1)
+        all_smas = param_arr[
+            [self.standard_basis_idx[f"sma{body}"] for body in bodies]
+        ].copy()
+        all_masses = param_arr[
+            [self.standard_basis_idx[f"m{body}"] for body in bodies]
+        ].copy()
+        for body_num in bodies:
             # Grab necessary parameters for conversion
             sma = param_arr[self.standard_basis_idx["sma{}".format(body_num)]]
             ecc = param_arr[self.standard_basis_idx["ecc{}".format(body_num)]]
             inc = param_arr[self.standard_basis_idx["inc{}".format(body_num)]]
             m_n = param_arr[self.standard_basis_idx["m{}".format(body_num)]]
             m0 = param_arr[self.standard_basis_idx["m0"]]
-            mtot = m_n + m0
+            mtot = m0 + np.sum(np.where(all_smas <= sma, all_masses, 0.0), axis=0)
 
             # Get stellar semi-amplitude
             K_n = (
