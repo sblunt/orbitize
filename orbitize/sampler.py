@@ -372,9 +372,6 @@ class Sampler(abc.ABC):
 
         marg_params = params[self.marg_param_sys_idx]
 
-        if np.isnan(total_lnprob):
-            return -np.inf, -np.inf, *marg_params
-
         return total_lnprob, total_lnlike, *marg_params
 
 
