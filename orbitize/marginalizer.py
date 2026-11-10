@@ -363,11 +363,11 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         aop_star = np.pi + aop
 
-        As = - radius * ( # TODO: verify negative
+        As = radius * ( # TODO: verify negative
             np.cos(tanom + aop_star) * self.gaia.cos_scan
             + np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.sin_scan
         )
-        Bs = - radius * (
+        Bs = radius * (
             np.cos(tanom + aop_star) * self.gaia.sin_scan
             - np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.cos_scan
         )
