@@ -99,6 +99,7 @@ class OFTeI_sma_pan(Marginalizer):
         sigma_seps (np.array of float): Standard Deviation of the Separation data
         sigma_pas (np.array of float): Standard Deviation of the Position Angle data
         covar_seps_pas (np.array of float): Covariance of Separation and Position Angle data at the same epoch
+        tau_ref_epoch (float): Tau Reference Epoch
     """
 
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
@@ -114,6 +115,7 @@ class OFTeI_sma_pan(Marginalizer):
         sigma_seps,
         sigma_pas,
         covar_seps_pas,
+        tau_ref_epoch=kepler.DEFAULT_TAU_REF_EPOCH,
     ):
         self.epochs = epochs
         self.seps = seps
@@ -121,6 +123,7 @@ class OFTeI_sma_pan(Marginalizer):
         self.sigma_seps = sigma_seps
         self.sigma_pas = sigma_pas
         self.covar_seps_pas = covar_seps_pas
+        self.tau_ref_epoch=tau_ref_epoch
         self.n_obs = len(epochs)
         # compute variance-covariance matrix W of observational uncertainties
         self.W = (
@@ -245,7 +248,7 @@ class OFTeI_sma_pan(Marginalizer):
         ecc, inc, aop, tau, plx, period_yr = param_arr
         if not period_yr > 0:
             raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
-        frac_date = self.epochs / (period_yr * units.yr.to(units.day))
+        frac_date = (self.epochs - self.tau_ref_epoch) / (period_yr * units.yr.to(units.day))
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi
@@ -313,6 +316,7 @@ class OFTeI_DR4_gaia(Marginalizer):
 
     Args:
         gaia (orbitize.gaia.DR4LogProb): Gaia DR4 object
+        tau_ref_epoch (float): Tau Reference Epoch
     """
 
     REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"]
@@ -324,8 +328,10 @@ class OFTeI_DR4_gaia(Marginalizer):
     def __init__(
         self,
         gaia,
+        tau_ref_epoch=kepler.DEFAULT_TAU_REF_EPOCH
     ):
         self.gaia = gaia
+        self.tau_ref_epoch=tau_ref_epoch
         if self.gaia.fit_jitter:
             self.REQ_PARAMS.append("dr4_jitter")
 
@@ -418,7 +424,7 @@ class OFTeI_DR4_gaia(Marginalizer):
             jitter = self.gaia.jitter
         if not period_yr > 0:
             raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
-        frac_date = self.gaia.epochs_mjd / (period_yr * units.yr.to(units.day))
+        frac_date = (self.gaia.epochs_mjd - self.tau_ref_epoch) / (period_yr * units.yr.to(units.day))
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi

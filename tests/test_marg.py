@@ -211,6 +211,7 @@ def test_OFTeI():
         sep_err,
         pa_err,
         covar,
+        tau_ref_epoch,
     )
     reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
     mySystem.reweight_priors.append(reweight_prior)
@@ -295,6 +296,7 @@ def test_OFTeI_RV():
         sep_err,
         pa_err,
         covar,
+        tau_ref_epoch,
     )
     reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
     mySystem.reweight_priors.append(reweight_prior)
@@ -388,6 +390,7 @@ def test_OFTeI_RV_auto():
         sep_err,
         pa_err,
         covar,
+        tau_ref_epoch,
     )
 
     assert len(mySystem.reweight_priors) == 1
@@ -403,6 +406,7 @@ def test_OFTeI_RV_auto():
     assert (true_marg.sigma_seps == marg.sigma_seps).all()
     assert (true_marg.sigma_pas == marg.sigma_pas).all()
     assert (true_marg.covar_seps_pas == marg.covar_seps_pas).all()
+    assert true_marg.tau_ref_epoch == marg.tau_ref_epoch
     assert true_marg.n_obs == marg.n_obs
 
     mySampler.run_sampler(4000, 10, output_filename=output_file, periodic_save_freq=2)
@@ -489,6 +493,7 @@ def test_OFTeI_radec():
             sep_err,
             pa_err,
             covar,
+            tau_ref_epoch,
         )
         reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
         mySystem.reweight_priors.append(reweight_prior)
@@ -544,6 +549,7 @@ def test_OFTeI_radec():
         sep_err,
         pa_err,
         covar,
+        tau_ref_epoch,
     )
     reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
     mySystem.reweight_priors.append(reweight_prior)
@@ -629,7 +635,7 @@ def test_OFTeI_gaia():
     implicit_mass_prior = priors.OFTeIMassPrior(sma_lo, sma_hi, period_prior_min_yr, period_prior_max_yr)
     mySystem.sys_priors[pi["per1"]] = priors.LogUniformPrior(period_prior_min_yr, period_prior_max_yr)
 
-    myMarginalizer = marginalizer.OFTeI_DR4_gaia(dr4)
+    myMarginalizer = marginalizer.OFTeI_DR4_gaia(dr4, TAU_REF_EPOCH)
 
     mySystem.reweight_priors.append(priors.OFTeIMassReweightPrior(implicit_mass_prior, m0_prior, mySystem.basis))
     mySystem.reweight_priors.append(priors.OFTeIUVReweightPrior(sma_prior, pan_prior, mySystem.basis))

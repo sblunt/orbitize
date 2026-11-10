@@ -103,6 +103,7 @@ class Sampler(abc.ABC):
                     sep_err,
                     pa_err,
                     covar,
+                    self.system.tau_ref_epoch,
                 )
                 self.marginalizers = [marg]
         else:
