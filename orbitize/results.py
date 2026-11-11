@@ -409,6 +409,22 @@ class Results(object):
             hipparcos_IAD = None
             gaia = None
 
+        if "Gaia_DR4" in hf:
+            dr4_table = table.Table(hf["Gaia_DR4"][()])
+            dr4_table.convert_bytestring_to_unicode()
+            dr4_table.meta.update(
+                time_format=hf.attrs["dr4_time_format"],
+                time_scale=hf.attrs["dr4_time_scale"],
+            )
+            gaia = orbitize.gaia.DR4LogProb(
+                int(hf.attrs["gaia_num"]),
+                dr4_table,
+                ref_epoch_mjd=float(hf.attrs["dr4_ref_epoch_mjd"]),
+                jitter=float(hf.attrs["dr4_jitter"]),
+            )
+            # Keep the fitted jitter column. Its prior is not serialized.
+            gaia.fit_jitter = bool(hf.attrs["dr4_fit_jitter"])
+
         try:
             fitting_basis = str(hf.attrs["fitting_basis"])
         except KeyError:
