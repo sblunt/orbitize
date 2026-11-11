@@ -283,6 +283,7 @@ class System(object):
 
         self.basis.verify_params()
         self.sys_priors, self.labels = self.basis.construct_priors()
+        self.reweight_priors = [] # TODO: auto-construct
 
         # if we're fitting absolute astrometry of the star, create an object that
         # knows how to compute predicted astrometric motion due to parallax and

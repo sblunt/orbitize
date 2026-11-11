@@ -11,6 +11,7 @@ import orbitize.gaia, orbitize.hipparcos
 from orbitize import DATADIR
 
 
+
 class Results(object):
     """
     A class to store accepted orbital configurations from the sampler

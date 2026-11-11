@@ -765,15 +765,7 @@ class Plotter(object):
                 self.results.standard_param_idx["sma{}".format(i)] for i in secondaries
             ]
             smas = standard_post[:, sma_indexes]
-            if "mtot" in self.results.labels:
-                mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
-                periods = np.sqrt(
-                    4
-                    * np.pi**2.0
-                    * (smas.T * u.AU) ** 3
-                    / (consts.G * (mtots * u.Msun))
-                ).T
-            elif "m0" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1_indexes = [
                     self.results.standard_param_idx["m{}".format(i)]
@@ -784,20 +776,28 @@ class Plotter(object):
                 periods = np.sqrt(
                     4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
                 )
+            else:
+                mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
+                periods = np.sqrt(
+                    4
+                    * np.pi**2.0
+                    * (smas.T * u.AU) ** 3
+                    / (consts.G * (mtots * u.Msun))
+                ).T
             periods = periods.to(u.day).value
             period = np.max(periods, axis=1)
         else:
             sma = standard_post[
                 :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
             ]
-            if "mtot" in self.results.labels:
-                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
-            elif "m0" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1 = standard_post[
                     :, self.results.standard_param_idx["m{}".format(object_to_plot)]
                 ]
                 mtot = m0 + m1
+            else:
+                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
             period = np.sqrt(
                 4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
             )
@@ -2396,6 +2396,7 @@ def plot_corner(
     plot_priors=True,
     downsample=None,
     prior_color="orange",
+    use_standard_params=False,
     **corner_kwargs,
 ):
     """
@@ -2426,6 +2427,8 @@ def plot_corner(
         plot priors (bool): overplot prior probabilites on the 1d histograms (default: True)
         downsample (int):
             amount of samples to randomly draw from the posterior using ``results.downsample``
+        use_standard_params (bool): convert posterior to standard basis to plot posteriors of those parameters
+            (default: False)
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
@@ -2472,18 +2475,39 @@ def plot_corner(
     }
 
     if param_list is None:
-        param_list = results.labels
+        if use_standard_params:
+            param_list = list(results.standard_param_idx.keys())
+        else:
+            param_list = results.labels
 
     param_indices = []
+    sys_param_indices = []
+    converted_sys_param_indices = []
     angle_indices = []
     secondary_mass_indices = []
     fixed_indices = []
+
+    if downsample is not None:
+        post, _ = results.downsample(downsample)
+        weights = None
+    else:
+        post = results.weighted_post
+        weights = results.weights
+    if use_standard_params:
+        post = results.basis.to_standard_basis(np.copy(post).T).T
+
     for i, label_key in enumerate(param_list):
-        index_num = results.param_idx[label_key]
+        if use_standard_params:
+            index_num = results.standard_param_idx[label_key]
+        else:
+            index_num = results.param_idx[label_key]
 
         # only plot non-fixed parameters
-        if not np.isclose(0.0, np.std(results.post[:, index_num])):
-            param_indices.append(index_num)
+        if not np.isclose(0.0, np.std(post[:, index_num])):
+            param_indices.append(i)
+            sys_param_indices.append(index_num)
+            if use_standard_params and label_key not in results.param_idx:
+                converted_sys_param_indices.append(index_num)
             if (
                 label_key.startswith("aop")
                 or label_key.startswith("pan")
@@ -2495,15 +2519,8 @@ def plot_corner(
         else:
             fixed_indices.append(i)
 
-    if downsample is not None:
-        post, _ = results.downsample(downsample)
-        weights = None
-    else:
-        post = results.weighted_post
-        weights = results.weights
-
     samples = np.copy(
-        post[:, param_indices]
+        post[:, sys_param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -2516,7 +2533,7 @@ def plot_corner(
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in range(len(param_indices)):
+        for i in param_indices:
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
@@ -2526,7 +2543,7 @@ def plot_corner(
             ):
                 body_num = ""
                 # maintain original label key
-            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0"]:
+            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0", "u", "v"]:
                 body_num = ""
             elif label_key.startswith("gamma") or label_key.startswith("sigma"):
                 body_num = ""
@@ -2534,7 +2551,7 @@ def plot_corner(
             else:
                 body_num = label_key[-1]
                 label_key = label_key[0:-1]
-            reduced_labels_list.append(default_labels[label_key].format(body_num))
+            reduced_labels_list.append(default_labels.get(label_key, label_key+"{}").format(body_num))
 
         corner_kwargs["labels"] = reduced_labels_list
 
@@ -2547,8 +2564,10 @@ def plot_corner(
 
     if plot_priors:
         axes = figure.axes
-        num_params = len(param_indices)
-        for i, param_i in enumerate(param_indices):
+        num_params = len(sys_param_indices)
+        for i, param_i in enumerate(sys_param_indices):
+            if param_i in converted_sys_param_indices:
+                continue
             prior = results.system.sys_priors[param_i]
             if not hasattr(prior, "compute_lnprob"):
                 continue
