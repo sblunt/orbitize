@@ -685,7 +685,7 @@ class Period(Basis):
         return param_arr
 
 
-class OftEiBasis(Basis):
+class OFTeIBasis(Basis):
     def __init__(
         self,
         stellar_or_system_mass,
@@ -701,7 +701,7 @@ class OftEiBasis(Basis):
         gaia_dr4=None,
     ):
 
-        super(OftEiBasis, self).__init__(
+        super(OFTeIBasis, self).__init__(
             stellar_or_system_mass,
             mass_err,
             plx,
@@ -715,11 +715,11 @@ class OftEiBasis(Basis):
             gaia_dr4,
         )
         if fit_secondary_mass:
-            raise ValueError("Secondary mass not supported yet for OftEi basis")
+            raise ValueError("Secondary mass not supported yet for OFTeI basis")
         if not num_secondary_bodies == 1:
             raise ValueError("Multiplanet not supported yet")
         if gaia_dr4 is not None:
-            raise ValueError("DR4 not supported with OFTeI basis, use OftEiGaia Basis instead.")
+            raise ValueError("DR4 not supported with OFTeI basis, use OFTeIGaia Basis instead.")
 
     def construct_priors(self):
         """
@@ -798,7 +798,7 @@ class OftEiBasis(Basis):
         return param_arr
 
 
-class OftEiGaiaBasis(Basis):
+class OFTeIGaiaBasis(Basis):
     def __init__(
         self,
         stellar_or_system_mass,
@@ -814,7 +814,7 @@ class OftEiGaiaBasis(Basis):
         gaia_dr4=None,
     ):
 
-        super(OftEiGaiaBasis, self).__init__(
+        super(OFTeIGaiaBasis, self).__init__(
             stellar_or_system_mass,
             mass_err,
             plx,

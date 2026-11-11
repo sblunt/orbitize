@@ -178,7 +178,7 @@ def test_OFTeI():
         mtot,
         plx,
         tau_ref_epoch=tau_ref_epoch,
-        fitting_basis="OftEiBasis",
+        fitting_basis="OFTeIBasis",
     )
     sma_prior_min = 0.1  # au
     sma_prior_max = 500  # au
@@ -261,7 +261,7 @@ def test_OFTeI_RV():
         plx,
         plx_err=plx_err,
         tau_ref_epoch=tau_ref_epoch,
-        fitting_basis="OftEiBasis",
+        fitting_basis="OFTeIBasis",
     )
     assert len(mySystem.reweight_priors) == 0
 
@@ -346,7 +346,7 @@ def test_OFTeI_RV_auto():
         plx_err=plx_err,
         mass_err=mass_err,
         tau_ref_epoch=tau_ref_epoch,
-        fitting_basis="OftEiBasis",
+        fitting_basis="OFTeIBasis",
     )
     sma_prior_min = 0.1  # au
     sma_prior_max = 500  # au
@@ -460,7 +460,7 @@ def test_OFTeI_radec():
             plx,
             plx_err=plx_err,
             tau_ref_epoch=tau_ref_epoch,
-            fitting_basis="OftEiBasis",
+            fitting_basis="OFTeIBasis",
         )
         sma_prior_min = 0.1  # au
         sma_prior_max = 500  # au
@@ -515,7 +515,7 @@ def test_OFTeI_radec():
         plx,
         plx_err=plx_err,
         tau_ref_epoch=tau_ref_epoch,
-        fitting_basis="OftEiBasis",
+        fitting_basis="OFTeIBasis",
     )
     mySystem.convert_data_table_radec2seppa()
     sma_prior_min = 0.1  # au
@@ -609,7 +609,7 @@ def test_OFTeI_gaia():
         num_secondary_bodies=1, data_table=None,
         stellar_or_system_mass=m0_guess, plx=plx_guess,
         mass_err=m0_err, plx_err=plx_err,
-        fit_secondary_mass=True, gaia=dr4, tau_ref_epoch=TAU_REF_EPOCH, fitting_basis="OftEiGaiaBasis"
+        fit_secondary_mass=True, gaia=dr4, tau_ref_epoch=TAU_REF_EPOCH, fitting_basis="OFTeIGaiaBasis"
     )
 
     #set up prior pdf in system

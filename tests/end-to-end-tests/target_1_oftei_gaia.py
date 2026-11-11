@@ -28,7 +28,7 @@ mySystem = osys.System(
     num_secondary_bodies=1, data_table=None,
     stellar_or_system_mass=m0_guess, plx=plx_guess,
     mass_err=m0_err, plx_err=plx_err,
-    fit_secondary_mass=True, gaia=dr4, tau_ref_epoch=TAU_REF_EPOCH, fitting_basis="OftEiGaiaBasis"
+    fit_secondary_mass=True, gaia=dr4, tau_ref_epoch=TAU_REF_EPOCH, fitting_basis="OFTeIGaiaBasis"
 )
 
 #set up prior pdf in system

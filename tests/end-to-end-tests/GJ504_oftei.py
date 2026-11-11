@@ -42,7 +42,7 @@ mySystem = system.System(
     system_mass,
     plx,
     tau_ref_epoch=tau_ref_epoch,
-    fitting_basis="OftEiBasis",
+    fitting_basis="OFTeIBasis",
 )
 
 sma_prior_min = 0.1  # au
