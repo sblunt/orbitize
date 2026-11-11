@@ -568,7 +568,6 @@ class DR4LogProb(object):
 
     def _save(self, hf):
         """Save to an open HDF5 file."""
-        hf.attrs["dr4_orbit_sign"] = 1
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = "dr4"
         hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
@@ -629,7 +628,6 @@ class DR4LogProb(object):
             jitter = samples[param_idx["dr4_jitter"]]
         else:
             jitter = self.jitter
-
         variance = self.centroid_pos_error_al**2 + jitter**2
         chi2 = np.sum(residuals**2 / variance)
         log_norm = np.sum(np.log(2.0 * np.pi * variance))
