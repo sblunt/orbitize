@@ -7,7 +7,6 @@ from orbitize import kepler
 DR4_START_MJD = 56863.4375  # 2014-07-25
 DR4_END_MJD = 58868.9167  # 2020-01-20
 DR4_REF_EPOCH_MJD = 57936.375
-ORBIT_AL_SIGN = 1.0
 
 # Approximate per-CCD along scan uncertainties [mas].
 # Tabulation from Gaiamock, based on the "EDR3 adjusted" curve in
@@ -163,7 +162,8 @@ def simulate_dr4(
         (alpha0 * np.sin(psi) + delta0 * np.cos(psi))
         + (pm_ra * dt * np.sin(psi) + pm_dec * dt * np.cos(psi))
         + (plx * table["parallax_factor_al"])
-        + (ORBIT_AL_SIGN * (ra_star * np.sin(psi) + dec_star * np.cos(psi)))
+        + ra_star * np.sin(psi)
+        + dec_star * np.cos(psi)
     )
 
     # 5. Add random scan tracking noise to data columns

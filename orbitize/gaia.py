@@ -569,7 +569,6 @@ class DR4LogProb(object):
 
     def _save(self, hf):
         """Save to an open HDF5 file."""
-        hf.attrs["dr4_orbit_sign"] = 1
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = "dr4"
         hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
