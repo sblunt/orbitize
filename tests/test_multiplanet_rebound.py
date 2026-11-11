@@ -105,7 +105,7 @@ def test_1planet():
     data = read_input.read_file(filename)
 
     sys = system.System(
-        1, data, mtot, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True
+        1, data, m0, plx, tau_ref_epoch=tau_ref_epoch, fit_secondary_mass=True
     )
 
     jit = 0
@@ -180,7 +180,10 @@ def test_2planet_massive():
     mjup = u.Mjup.to(u.Msun)
     mass_b = 12 * mjup
     mass_c = 9 * mjup
+    m_tot = 1.5
+    m_st = m_tot - mass_b - mass_c
 
+    plx = 50
     params = np.array(
         [
             10,
@@ -195,10 +198,10 @@ def test_2planet_massive():
             np.radians(190),
             np.radians(45),
             0.2,
-            50,
+            plx,
             mass_b,
             mass_c,
-            1.5 - mass_b - mass_c,
+            m_st,
         ]
     )
     params_noc = np.array(
@@ -215,7 +218,7 @@ def test_2planet_massive():
             np.radians(190),
             np.radians(45),
             0.2,
-            50,
+            plx,
             mass_b,
             0,
             1.5 - mass_b,
@@ -300,11 +303,10 @@ def test_2planet_massive():
     assert np.all(b_ra_orb_noc != b_ra_orb)
 
     # now project the orbit with rebound
-    b_manom = kepler.tau_to_manom(
-        epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
-    )
+    mtot_c = m_st + mass_c  # Jacobi coordinates
+    b_manom = kepler.tau_to_manom(epochs[0], params[0], m_tot, params[5], tau_ref_epoch)
     c_manom = kepler.tau_to_manom(
-        epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
+        epochs[0], params[0 + 6], mtot_c, params[5 + 6], tau_ref_epoch
     )
 
     sim = rebound.Simulation()
@@ -407,7 +409,7 @@ def test_2planet_massive():
         2,
         astrom_dat,
         params[-1],
-        params[-2],
+        plx,
         tau_ref_epoch=tau_ref_epoch,
         fit_secondary_mass=True,
     )
@@ -477,7 +479,7 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_ra) / (params[0]) < 3e-3)
     assert np.all(np.abs(diff_dec) / (params[0]) < 3e-3)
     K_amp_c = np.abs(c_rv_orb).max()
-    assert np.all(np.abs(diff_relative_rv) / K_amp_c < 1e-2)
+    assert np.all(np.abs(diff_relative_rv) / K_amp_c < 7e-3)
 
     # clean up
     os.system("rm {}".format(filename))
@@ -493,6 +495,9 @@ def test_2planet_massive_stellar_rv():
     mjup = u.Mjup.to(u.Msun)
     mass_b = 12 * mjup
     mass_c = 9 * mjup
+    m_tot = 1.5
+    m_star = m_tot - mass_b - mass_c
+    plx = 50
 
     params = np.array(
         [
@@ -508,12 +513,12 @@ def test_2planet_massive_stellar_rv():
             np.radians(190),
             np.radians(45),
             0.2,
-            50,
+            plx,
             0,  # gamma
             0,  # jitter
             mass_b,
             mass_c,
-            1.5 - mass_b - mass_c,
+            m_star,
         ]
     )
 
@@ -538,8 +543,6 @@ def test_2planet_massive_stellar_rv():
     filename = os.path.join(orbitize.DATADIR, "rebound_2planet_st_rvs.csv")
     t.write(filename, overwrite=True)
 
-    # TEST THE OUTER PLANET
-
     # create the orbitize system and generate model predictions using the ground truth
     astrom_dat = read_input.read_file(filename)
 
@@ -547,7 +550,7 @@ def test_2planet_massive_stellar_rv():
         2,
         astrom_dat,
         params[-1],
-        params[-4],
+        plx,
         tau_ref_epoch=tau_ref_epoch,
         fit_secondary_mass=True,
     )
@@ -558,11 +561,11 @@ def test_2planet_massive_stellar_rv():
     st_rv_orb = modelpredict_orbitize[:, 0]
 
     # now project the orbit with rebound
-    b_manom = kepler.tau_to_manom(
-        epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
-    )
+
+    b_manom = kepler.tau_to_manom(epochs[0], params[0], m_tot, params[5], tau_ref_epoch)
+    m_tot_c = m_star + mass_c  # Jacobi coordinates
     c_manom = kepler.tau_to_manom(
-        epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
+        epochs[0], params[0 + 6], m_tot_c, params[5 + 6], tau_ref_epoch
     )
 
     sim = rebound.Simulation()
@@ -609,11 +612,11 @@ def test_2planet_massive_stellar_rv():
     rv_st = np.array(rv_st) * (u.au / u.yr).to(u.km / u.s)
 
     diff_relative_rv = rv_st - st_rv_orb
-    K_amp_st = np.abs(np.max(rv_st))
+    K_amp_st = np.max(np.abs(rv_st))
     assert np.all(np.abs(diff_relative_rv) / K_amp_st < 1e-2)
 
     # clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
 
 def test_2planet_massive_reverse_order():
@@ -625,6 +628,8 @@ def test_2planet_massive_reverse_order():
     mjup = u.Mjup.to(u.Msun)
     mass_b = 12 * mjup
     mass_c = 9 * mjup
+    mtot = 1.5
+    m_star = mtot - mass_b - mass_c
 
     params = np.array(
         [
@@ -643,7 +648,7 @@ def test_2planet_massive_reverse_order():
             50,
             mass_c,
             mass_b,
-            1.5 - mass_b - mass_c,
+            m_star,
         ]
     )
     tau_ref_epoch = 0
@@ -704,13 +709,14 @@ def test_2planet_massive_reverse_order():
     b_dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
+    m_tot_c = m_star + mass_c  # Jacobi coordinates
     c_manom = kepler.tau_to_manom(
-        epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
+        epochs[0], params[0], m_tot_c, params[5], tau_ref_epoch
     )
     b_manom = kepler.tau_to_manom(
         epochs[0],
         params[0 + 6],
-        params[-1] + params[-2] + params[-3],
+        mtot,
         params[5 + 6],
         tau_ref_epoch,
     )
@@ -771,7 +777,7 @@ def test_2planet_massive_reverse_order():
     assert np.all(np.abs(diff_dec) / (params[6]) < 1e-3)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
 
 def test_2planet_nomass():
@@ -782,6 +788,9 @@ def test_2planet_nomass():
     mjup = u.Mjup.to(u.Msun)
     mass_b = 0 * mjup
     mass_c = 0 * mjup
+    mtot = 1.5
+    m_st = mtot - mass_b - mass_c
+    plx = 1
 
     params = np.array(
         [
@@ -797,10 +806,10 @@ def test_2planet_nomass():
             np.radians(190),
             np.radians(45),
             0.2,
-            1,
+            plx,
             mass_b,
             mass_c,
-            1.5 - mass_b - mass_c,
+            m_st,
         ]
     )
     tau_ref_epoch = 0
@@ -848,7 +857,7 @@ def test_2planet_nomass():
         2,
         astrom_dat,
         params[-1],
-        params[-2],
+        plx,
         tau_ref_epoch=tau_ref_epoch,
         fit_secondary_mass=True,
     )
@@ -859,11 +868,10 @@ def test_2planet_nomass():
     b_dec_orb = radec_orbitize[:, 1]
 
     # now project the orbit with rebound
-    b_manom = kepler.tau_to_manom(
-        epochs[0], params[0], params[-1] + params[-3], params[5], tau_ref_epoch
-    )
+    mtot_c = m_st + mass_c
+    b_manom = kepler.tau_to_manom(epochs[0], params[0], mtot, params[5], tau_ref_epoch)
     c_manom = kepler.tau_to_manom(
-        epochs[0], params[0 + 6], params[-1] + params[-2], params[5 + 6], tau_ref_epoch
+        epochs[0], params[0 + 6], mtot_c, params[5 + 6], tau_ref_epoch
     )
 
     sim = rebound.Simulation()
@@ -921,7 +929,7 @@ def test_2planet_nomass():
     assert np.all(np.abs(diff_dec) / (params[0] * params[6 * 2]) < 1e-9)
 
     # clean up
-    # os.system("rm {}".format(filename))
+    os.system("rm {}".format(filename))
 
 
 if __name__ == "__main__":
