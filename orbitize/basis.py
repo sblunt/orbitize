@@ -308,12 +308,8 @@ class ObsPriors(Basis):
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
         for body_num in np.arange(self.num_secondary_bodies) + 1:
-            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[
-                f"per{body_num}"
-            ]
-            self.standard_basis_idx[f"tau{body_num}"] = self.param_idx[
-                f"tp{body_num}"
-            ]
+            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[f"per{body_num}"]
+            self.standard_basis_idx[f"tau{body_num}"] = self.param_idx[f"tp{body_num}"]
 
         return basis_priors, basis_labels
 
@@ -612,9 +608,7 @@ class Period(Basis):
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
         for body_num in np.arange(self.num_secondary_bodies) + 1:
-            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[
-                f"per{body_num}"
-            ]
+            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[f"per{body_num}"]
 
         return basis_priors, basis_labels
 
@@ -803,12 +797,8 @@ class SemiAmp(Basis):
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
         for body_num in np.arange(self.num_secondary_bodies) + 1:
-            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[
-                f"per{body_num}"
-            ]
-            self.standard_basis_idx[f"m{body_num}"] = self.param_idx[
-                f"K{body_num}"
-            ]
+            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[f"per{body_num}"]
+            self.standard_basis_idx[f"m{body_num}"] = self.param_idx[f"K{body_num}"]
 
         return basis_priors, basis_labels
 
@@ -1238,15 +1228,9 @@ class XYZ(Basis):
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
         for body_num in np.arange(self.num_secondary_bodies) + 1:
-            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[
-                f"x{body_num}"
-            ]
-            self.standard_basis_idx[f"ecc{body_num}"] = self.param_idx[
-                f"y{body_num}"
-            ]
-            self.standard_basis_idx[f"inc{body_num}"] = self.param_idx[
-                f"z{body_num}"
-            ]
+            self.standard_basis_idx[f"sma{body_num}"] = self.param_idx[f"x{body_num}"]
+            self.standard_basis_idx[f"ecc{body_num}"] = self.param_idx[f"y{body_num}"]
+            self.standard_basis_idx[f"inc{body_num}"] = self.param_idx[f"z{body_num}"]
             self.standard_basis_idx[f"aop{body_num}"] = self.param_idx[
                 f"xdot{body_num}"
             ]
@@ -1299,24 +1283,12 @@ class XYZ(Basis):
             standard_params = self.xyz_to_standard(constrained_epoch, to_convert)
 
             # Update param_arr to hold standard parameters
-            param_arr[self.standard_basis_idx[f"sma{body_num}"]] = (
-                standard_params[0]
-            )
-            param_arr[self.standard_basis_idx[f"ecc{body_num}"]] = (
-                standard_params[1]
-            )
-            param_arr[self.standard_basis_idx[f"inc{body_num}"]] = (
-                standard_params[2]
-            )
-            param_arr[self.standard_basis_idx[f"aop{body_num}"]] = (
-                standard_params[3]
-            )
-            param_arr[self.standard_basis_idx[f"pan{body_num}"]] = (
-                standard_params[4]
-            )
-            param_arr[self.standard_basis_idx[f"tau{body_num}"]] = (
-                standard_params[5]
-            )
+            param_arr[self.standard_basis_idx[f"sma{body_num}"]] = standard_params[0]
+            param_arr[self.standard_basis_idx[f"ecc{body_num}"]] = standard_params[1]
+            param_arr[self.standard_basis_idx[f"inc{body_num}"]] = standard_params[2]
+            param_arr[self.standard_basis_idx[f"aop{body_num}"]] = standard_params[3]
+            param_arr[self.standard_basis_idx[f"pan{body_num}"]] = standard_params[4]
+            param_arr[self.standard_basis_idx[f"tau{body_num}"]] = standard_params[5]
             param_arr[self.standard_basis_idx["plx"]] = standard_params[6]
             param_arr[self.standard_basis_idx["mtot"]] = standard_params[7]
 
@@ -1607,7 +1579,7 @@ class XYZ(Basis):
         # For now, raise error if data is in sep/pa
         seppa_locs = np.where(self.data_table["quant_type"] == "seppa")
         if np.size(seppa_locs) != 0:
-            raise Exception(
+            raise NotImplementedError(
                 "For now, the XYZ basis requires data in RA and DEC offsets."
             )
 
@@ -1619,7 +1591,7 @@ class XYZ(Basis):
             max_index = np.amax(body_indices)
 
             if max_index - best_epoch_loc < 2:
-                raise Exception(
+                raise NotImplementedError(
                     f"For now, the epoch with the lowest sepparation error should not be one of the last two entries for body{body_num}"
                 )
 

@@ -426,7 +426,7 @@ class HGCALogProb:
         # construct y matrix
         y_vec = (raoff_planet * cos_phi + decoff_planet * sin_phi) / errs
 
-        x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
+        x, _, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
 
         return x
 

@@ -660,7 +660,7 @@ def test_2planet_massive_reverse_order():
     # doesn't matter that this is right, just needs to be the same size. below doesn't
     # include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
+    b_ra_model, b_dec_model, _, _ = kepler.calc_orbit(
         epochs,
         params[6 + 0],
         params[6 + 1],
@@ -821,7 +821,7 @@ def test_2planet_nomass():
     # doesn't matter that this is right, just needs to be the same size. below
     # doesn't include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
+    b_ra_model, b_dec_model, _, _ = kepler.calc_orbit(
         epochs,
         params[0],
         params[1],

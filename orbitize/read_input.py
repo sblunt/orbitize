@@ -202,10 +202,10 @@ def read_file(filename):
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
     if orbitize_style:
-        if "quant12_corr" not in input_table.keys():
+        if "quant12_corr" not in input_table.colnames:
             default_corrs = np.nan * np.ones(len(input_table))
             input_table.add_column(default_corrs, name="quant12_corr")
-        if "instrument" not in input_table.keys():
+        if "instrument" not in input_table.colnames:
             default_insts = []
             for this_quant_type in input_table["quant_type"]:
                 if this_quant_type == "radec":
@@ -464,9 +464,7 @@ def from_ohp_file(filename):
     for name, unit in required_units.items():
         column = output_table[name]
         if column.ndim != 1 or np.iscomplexobj(column):
-            raise ValueError(
-                f"OHP column '{name}' must contain real scalar values."
-            )
+            raise ValueError(f"OHP column '{name}' must contain real scalar values.")
         # Inspect the mask before converting: np.asarray discards Astropy masks.
         if np.any(np.ma.getmaskarray(column)):
             raise ValueError(f"OHP column '{name}' contains missing values.")

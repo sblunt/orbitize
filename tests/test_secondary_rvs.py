@@ -70,7 +70,6 @@ def test_secondary_rv_lnlike_calc():
 
     # assert that the secondary orbit is the primary orbit scaled
     _, _, rv, _ = mySys.compute_all_orbits(orbitize_params_list)
-    rv0 = rv[:, 0]
     rv1 = rv[:, 1]
 
     # check that the output of compute_model for the secondary is the difference between the primary
@@ -88,7 +87,7 @@ def test_read_input():
     input_data["object"] = (
         1  # make sure all astrometry and RV is marked as of the secondary
     )
-    mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
+    _ = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
 
 
 def test_secondary_rvs_inst_specified():
@@ -105,7 +104,7 @@ def test_secondary_rvs_inst_specified():
 
     # check that inclusion of secondary RVs doesn't trigger gamma/jitter params to be created
     assert not mySystem.fit_secondary_mass
-    for param in mySystem.param_idx.keys():
+    for param in mySystem.param_idx:
         assert not param.startswith("gamma") and not param.startswith("jit")
 
 

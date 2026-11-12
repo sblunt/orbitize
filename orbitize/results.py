@@ -342,7 +342,7 @@ class Results:
 
             hip_data_raw = hf.get("hip_data", default=None)
             if hip_data_raw is not None:
-                hip_data = {key: hip_data_raw[key][()] for key in hip_data_raw.keys()}
+                hip_data = {key: hip_data_raw[key][()] for key in hip_data_raw}
             else:
                 hip_data = None
             brandt_correction = bool(hf.attrs.get("brandt_correction", False))
@@ -364,9 +364,7 @@ class Results:
                 gaia_data_raw = hf.get("gaia_data")
                 if gaia_data_raw is None:
                     raise KeyError
-                gaia_data = {
-                    key: gaia_data_raw[key][()] for key in gaia_data_raw.keys()
-                }
+                gaia_data = {key: gaia_data_raw[key][()] for key in gaia_data_raw}
                 gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, gaia_data, dr)
             except KeyError:
                 gaia = None
@@ -390,7 +388,7 @@ class Results:
                         )
                 else:
                     hgca_entry = {
-                        key: hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()
+                        key: hgca_entry_raw[key][()] for key in hgca_entry_raw
                     }
 
                 gaia = orbitize.gaia.HGCALogProb(
@@ -458,7 +456,7 @@ class Results:
                 self.sampler_name = sampler_name
             # otherwise only proceed if the sampler_names match
             elif self.sampler_name != sampler_name:
-                raise Exception(
+                raise ValueError(
                     f"Unable to append file {filename} to Results object. sampler_name of object and file do not match"
                 )
             # if no version_number set, use the input file's value
@@ -466,7 +464,7 @@ class Results:
                 self.version_number = version_number
             # otherwise only proceed if the version_numbers match
             elif self.version_number != version_number:
-                raise Exception(
+                raise ValueError(
                     f"Unable to append file {filename} to Results object. version_number of object and file do not match"
                 )
 
@@ -500,7 +498,7 @@ class Results:
                 )  # , self.labels)
 
             else:
-                raise Exception(
+                raise ValueError(
                     f"Unable to load file {filename} to Results object. append is set to False but object is not empty"
                 )
 

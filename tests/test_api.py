@@ -113,11 +113,11 @@ def test_systeminit():
         (1.0, 0.0): 14,
     }
 
-    for plx_e, mass_e in plx_mass_errs2lens:
+    for (plx_e, mass_e), value in plx_mass_errs2lens.items():
         testSystem_priors = system.System(
             2, data_table, 10.0, 10.0, plx_err=plx_e, mass_err=mass_e
         )
-        assert len(testSystem_priors.sys_priors) == plx_mass_errs2lens[(plx_e, mass_e)]
+        assert len(testSystem_priors.sys_priors) == value
 
     testSystem_parsing = system.System(
         2, data_table, 10.0, 10.0, plx_err=0.5, mass_err=0.5

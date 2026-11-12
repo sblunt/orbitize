@@ -189,7 +189,7 @@ class Plotter:
             ):
                 pass
             else:
-                raise Exception(
+                raise ValueError(
                     "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
                 )
             self.cbar_param = cbar_param
@@ -768,8 +768,7 @@ class Plotter:
             elif "m0" in self.results.labels:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1_indexes = [
-                    self.results.standard_param_idx[f"m{i}"]
-                    for i in secondaries
+                    self.results.standard_param_idx[f"m{i}"] for i in secondaries
                 ]
                 m1s = standard_post[:, m1_indexes]
                 mtots = (m0 + m1s.T).T
@@ -1459,7 +1458,7 @@ class Plotter:
                     or (not plot_errorbars)
                 )
                 and len(self.rv_inst_inds.keys()) == 1
-                and "defrv" in self.rv_inst_inds.keys()
+                and "defrv" in self.rv_inst_inds
             ):
                 pass
             else:
@@ -1542,7 +1541,7 @@ class Plotter:
             if (
                 rv_err_grouping == [("observation", "offset", "jitter")]
                 and len(self.rv_inst_inds2.keys()) == 1
-                and "defrv" in self.rv_inst_inds2.keys()
+                and "defrv" in self.rv_inst_inds2
             ):
                 pass
             else:
@@ -1629,7 +1628,7 @@ class Plotter:
         n_std=1.0,
         rv_time_series=False,
         rv_time_series2=False,
-        rv_err_grouping=[("observation", "offset", "jitter")],
+        rv_err_grouping=None,
         fontsize=20,
         fig=None,
     ):
@@ -1678,6 +1677,9 @@ class Plotter:
         Refactoring and additions by Eshel Dror, 2026
 
         """
+
+        if rv_err_grouping is None:
+            rv_err_grouping = [("observation", "offset", "jitter")]
 
         if cmap is None:
             cmap = self.CMAP
@@ -2328,7 +2330,7 @@ class Plotter:
         if show_colorbar:
             cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
 
-            cbar = mpl.colorbar.ColorbarBase(
+            _ = mpl.colorbar.ColorbarBase(
                 cbar_ax,
                 cmap=cmap,
                 norm=self.norm,
@@ -2462,11 +2464,7 @@ def plot_corner(
         # only plot non-fixed parameters
         if not np.isclose(0.0, np.std(results.post[:, index_num])):
             param_indices.append(index_num)
-            if (
-                label_key.startswith("aop")
-                or label_key.startswith("pan")
-                or label_key.startswith("inc")
-            ):
+            if label_key.startswith(("aop", "pan", "inc")):
                 angle_indices.append(i - len(fixed_indices))
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 secondary_mass_indices.append(i - len(fixed_indices))
@@ -2503,7 +2501,7 @@ def plot_corner(
                 label_key == "m0" or label_key == "mtot" or label_key.startswith("plx")
             ) or label_key in ["pm_ra", "pm_dec", "alpha0", "delta0"]:
                 body_num = ""
-            elif label_key.startswith("gamma") or label_key.startswith("sigma"):
+            elif label_key.startswith(("gamma", "sigma")):
                 body_num = ""
                 label_key = label_key[0:3]
             else:
@@ -2543,9 +2541,7 @@ def plot_corner(
             if (
                 y.shape != x.shape
             ):  # Some priors may require specific input procedures (ObsPrior)
-                warnings.warn(
-                    f"Could not compute prior probability for {prior}"
-                )
+                warnings.warn(f"Could not compute prior probability for {prior}")
                 continue
             if i in angle_indices:
                 y_plot = y / 180 * np.pi

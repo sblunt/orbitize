@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
@@ -33,7 +31,7 @@ def test_scale_and_rotate():
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
+    ra, dec, _, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
@@ -60,7 +58,7 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
-    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
+    ra, dec, _, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     assert np.max(lan) > np.pi
@@ -90,7 +88,7 @@ def test_scale_and_rotate():
     assert np.max(lan) < np.pi
     assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
 
-    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
+    ra, dec, _, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)

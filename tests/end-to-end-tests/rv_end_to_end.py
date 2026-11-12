@@ -55,7 +55,6 @@ def gen_data():
     rv_epochs = np.linspace(51544, 52426, 200)
     # epochs and errors for astrometry
     astro_epochs = np.linspace(51500, 52500, 10)
-    astro_err = 0
     # generate rv trend
     rvset = kepler.calc_orbit(
         rv_epochs, sma, ecc, inc, aop, pan, tau, plx, mtot, mass_for_Kamp=mass_for_kamp
@@ -194,25 +193,19 @@ def run_fit(fname):
     thin = 1
     # set up sampler object and run it
     mcmc_sampler = sampler.MCMC(sys, n_temps, n_walkers, n_threads)
-    orbits = mcmc_sampler.run_sampler(
-        total_orbits_MCMC, burn_steps=burn_steps, thin=thin
-    )
+    _ = mcmc_sampler.run_sampler(total_orbits_MCMC, burn_steps=burn_steps, thin=thin)
     myResults = mcmc_sampler.results
-    try:
-        save_path = "."
-        filename = "post.hdf5"
-        hdf5_filename = os.path.join(save_path, filename)
-        myResults.save_results(hdf5_filename)  # saves results object as an hdf5 file
-    except:
-        print("Something went wrong while saving the results")
-    finally:
-        corner_figure = myResults.plot_corner()
-        corner_name = "corner.png"
-        corner_figure.savefig(corner_name)
+    save_path = "."
+    filename = "post.hdf5"
+    hdf5_filename = os.path.join(save_path, filename)
+    myResults.save_results(hdf5_filename)  # saves results object as an hdf5 file
+    corner_figure = myResults.plot_corner()
+    corner_name = "corner.png"
+    corner_figure.savefig(corner_name)
 
-        orbit_figure = myResults.plot_orbits(rv_time_series=True)
-        orbit_name = "joint_orbit.png"
-        orbit_figure.savefig(orbit_name)
+    orbit_figure = myResults.plot_orbits(rv_time_series=True)
+    orbit_name = "joint_orbit.png"
+    orbit_figure.savefig(orbit_name)
 
     print("Done!")
 

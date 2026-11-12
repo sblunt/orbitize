@@ -133,7 +133,7 @@ def test_valueerror():
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
     )
     try:
-        myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
+        _ = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
         assert False, "Test failed!"
     except ValueError:
         pass

@@ -55,9 +55,7 @@ def test_draw_samples():
     """
     Test basic functionality of `draw_samples()` method of each `Prior` class.
     """
-    for Prior in initialization_inputs:
-        inputs = initialization_inputs[Prior]
-
+    for Prior, inputs in initialization_inputs.items():
         TestPrior = Prior(*inputs)
         samples = TestPrior.draw_samples(10000)
 
@@ -71,9 +69,7 @@ def test_compute_lnprob():
     """
     Test basic functionality of `compute_lnprob()` method of each `Prior` class.
     """
-    for Prior in initialization_inputs:
-        inputs = initialization_inputs[Prior]
-
+    for Prior, inputs in initialization_inputs.items():
         TestPrior = Prior(*inputs)
         values2test = lnprob_inputs[Prior]
 

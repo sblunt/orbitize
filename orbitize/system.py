@@ -303,43 +303,43 @@ class System:
 
         self.secondary_mass_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("m") and not i.endswith("0"))
         ]
 
         self.sma_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("sma"))
         ]
         self.ecc_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("ecc"))
         ]
         self.inc_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("inc"))
         ]
         self.aop_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("aop"))
         ]
         self.pan_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("pan"))
         ]
         self.tau_indx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("tau"))
         ]
         self.mpl_idx = [
             self.basis.standard_basis_idx[i]
-            for i in self.basis.standard_basis_idx.keys()
+            for i in self.basis.standard_basis_idx
             if (i.startswith("m") and i[1:] not in ["tot", "0"])
         ]
 
@@ -490,31 +490,17 @@ class System:
 
         else:
             for body_num in np.arange(self.num_secondary_bodies) + 1:
-                sma = params_arr[
-                    self.basis.standard_basis_idx[f"sma{body_num}"]
-                ]
-                ecc = params_arr[
-                    self.basis.standard_basis_idx[f"ecc{body_num}"]
-                ]
-                inc = params_arr[
-                    self.basis.standard_basis_idx[f"inc{body_num}"]
-                ]
-                argp = params_arr[
-                    self.basis.standard_basis_idx[f"aop{body_num}"]
-                ]
-                lan = params_arr[
-                    self.basis.standard_basis_idx[f"pan{body_num}"]
-                ]
-                tau = params_arr[
-                    self.basis.standard_basis_idx[f"tau{body_num}"]
-                ]
+                sma = params_arr[self.basis.standard_basis_idx[f"sma{body_num}"]]
+                ecc = params_arr[self.basis.standard_basis_idx[f"ecc{body_num}"]]
+                inc = params_arr[self.basis.standard_basis_idx[f"inc{body_num}"]]
+                argp = params_arr[self.basis.standard_basis_idx[f"aop{body_num}"]]
+                lan = params_arr[self.basis.standard_basis_idx[f"pan{body_num}"]]
+                tau = params_arr[self.basis.standard_basis_idx[f"tau{body_num}"]]
                 plx = params_arr[self.basis.standard_basis_idx["plx"]]
 
                 if self.fit_secondary_mass:
                     # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
-                    mass = params_arr[
-                        self.basis.standard_basis_idx[f"m{body_num}"]
-                    ]
+                    mass = params_arr[self.basis.standard_basis_idx[f"m{body_num}"]]
                     m0 = params_arr[self.basis.standard_basis_idx["m0"]]
 
                     # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet.

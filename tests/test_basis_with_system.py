@@ -29,14 +29,14 @@ def test_no_extra_data():
     plx_err = 0.12  # [mas]
 
     # (1) System Mass (fit secondary mass is false)
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "mtot",
             ]
         else:
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "m0",
             ]
@@ -72,15 +72,15 @@ def test_no_extra_data():
             assert expected_labels == my_driver.system.labels
 
     # (2) Single Companion
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "m1",
                 "m0",
             ]
         else:
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "m0",
             ]
@@ -126,10 +126,8 @@ def test_no_extra_data():
 
     # (3) Multiple Companions
     filename = f"{DATADIR}/test_val_multi.csv"
-    for basis in basis_names:
-        init_labels = [item + "1" for item in basis_names[basis]] + [
-            item + "2" for item in basis_names[basis]
-        ]
+    for basis, value in basis_names.items():
+        init_labels = [item + "1" for item in value] + [item + "2" for item in value]
         if basis != "SemiAmp":
             expected_labels = init_labels + ["plx", "m1", "m2", "m0"]
         else:
@@ -187,9 +185,9 @@ def test_with_rv():
     plx_err = 0.12  # [mas]
 
     # (1) Single Body
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "gamma_defrv",
                 "sigma_defrv",
@@ -197,7 +195,7 @@ def test_with_rv():
                 "m0",
             ]
         else:
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "gamma_defrv",
                 "sigma_defrv",
@@ -278,20 +276,14 @@ def test_with_hip_iad():
 
     hip_labels = ["pm_ra", "pm_dec", "alpha0", "delta0"]
 
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
             expected_labels = (
-                [item + "1" for item in basis_names[basis]]
-                + ["plx"]
-                + hip_labels
-                + ["m1", "m0"]
+                [item + "1" for item in value] + ["plx"] + hip_labels + ["m1", "m0"]
             )
         else:
             expected_labels = (
-                [item + "1" for item in basis_names[basis]]
-                + ["plx"]
-                + hip_labels
-                + ["m0"]
+                [item + "1" for item in value] + ["plx"] + hip_labels + ["m0"]
             )
 
         if basis == "XYZ":  # Should throw an error for XYZ basis

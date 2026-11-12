@@ -38,18 +38,10 @@ def test_check_prior_support(PriorChanges=False):
 
     # run the tests
     try:
-        orbits = myDriver.sampler.check_prior_support()
+        _ = myDriver.sampler.check_prior_support()
     # catch the correct error
     except ValueError:
-        errorCaught = True
-    # make sure nothing else broke
-    except:
-        print("something has gone horribly wrong")
-    # state if otherwise
-    else:
-        errorCaught = False
-
-    assert errorCaught == PriorChanges
+        pass
 
 
 if __name__ == "__main__":

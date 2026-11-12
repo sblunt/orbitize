@@ -49,13 +49,13 @@ def dynesty_e2e_test():
 
     start = time.time()
 
-    samples, num_iter = nested_sampler.run_sampler(num_threads=50)
+    _, num_iter = nested_sampler.run_sampler(num_threads=50)
     nested_sampler.results.save_results(f"{savedir}/nested_sampler_test.hdf5")
     print("iteration number is: " + str(num_iter))
 
     print(f"iteration time: {(time.time() - start) / 60.0:.f} mins")
 
-    fig, ax = plt.subplots(2, 1)
+    _, ax = plt.subplots(2, 1)
     accepted_eccentricities = nested_sampler.results.post[:, lab["ecc1"]]
     accepted_inclinations = nested_sampler.results.post[:, lab["inc1"]]
     ax[0].hist(accepted_eccentricities, bins=50)
@@ -65,7 +65,7 @@ def dynesty_e2e_test():
     plt.tight_layout()
     plt.savefig(f"{savedir}/nested_sampler_test.png")
 
-    fig, axes = dyplot.traceplot(nested_sampler.dynesty_sampler.results)
+    _, _ = dyplot.traceplot(nested_sampler.dynesty_sampler.results)
     plt.savefig(f"{savedir}/nested_sampler_traceplot.png")
 
 

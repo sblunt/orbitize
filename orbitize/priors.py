@@ -144,16 +144,16 @@ class KDEPrior(Prior):
 
     is_correlated = True
 
-    def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
+    def __init__(self, gaussian_kde, total_params, bounds=None, log_scale_arr=None):
         self.gaussian_kde = gaussian_kde
         self.total_params = total_params
         self.param_num = 0
         self.logparam_corr = 1
-        if not bounds:
+        if bounds is None:
             self.bounds = [[-np.inf, np.inf] for i in range(total_params)]
         else:
             self.bounds = bounds
-        if not log_scale_arr:
+        if log_scale_arr is None:
             self.log_scale_arr = [False for i in range(total_params)]
         else:
             self.log_scale_arr = log_scale_arr

@@ -314,30 +314,16 @@ class OFTI(
         samples = self.system.basis.to_standard_basis(samples)
 
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
-            sma = samples[
-                self.system.basis.standard_basis_idx[f"sma{body_num}"], :
-            ]
-            ecc = samples[
-                self.system.basis.standard_basis_idx[f"ecc{body_num}"], :
-            ]
-            inc = samples[
-                self.system.basis.standard_basis_idx[f"inc{body_num}"], :
-            ]
-            argp = samples[
-                self.system.basis.standard_basis_idx[f"aop{body_num}"], :
-            ]
-            lan = samples[
-                self.system.basis.standard_basis_idx[f"pan{body_num}"], :
-            ]
-            tau = samples[
-                self.system.basis.standard_basis_idx[f"tau{body_num}"], :
-            ]
+            sma = samples[self.system.basis.standard_basis_idx[f"sma{body_num}"], :]
+            ecc = samples[self.system.basis.standard_basis_idx[f"ecc{body_num}"], :]
+            inc = samples[self.system.basis.standard_basis_idx[f"inc{body_num}"], :]
+            argp = samples[self.system.basis.standard_basis_idx[f"aop{body_num}"], :]
+            lan = samples[self.system.basis.standard_basis_idx[f"pan{body_num}"], :]
+            tau = samples[self.system.basis.standard_basis_idx[f"tau{body_num}"], :]
             plx = samples[self.system.basis.standard_basis_idx["plx"], :]
             if self.system.fit_secondary_mass:
                 m0 = samples[self.system.basis.standard_basis_idx["m0"], :]
-                m1 = samples[
-                    self.system.basis.standard_basis_idx[f"m{body_num}"], :
-                ]
+                m1 = samples[self.system.basis.standard_basis_idx[f"m{body_num}"], :]
                 mtot = m0 + m1
             else:
                 mtot = samples[self.system.basis.standard_basis_idx["mtot"], :]
@@ -396,18 +382,10 @@ class OFTI(
             tau = (self.epochs[min_epoch] / period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
-            samples[
-                self.system.basis.standard_basis_idx[f"sma{body_num}"], :
-            ] = sma
-            samples[
-                self.system.basis.standard_basis_idx[f"aop{body_num}"], :
-            ] = argp
-            samples[
-                self.system.basis.standard_basis_idx[f"pan{body_num}"], :
-            ] = lan
-            samples[
-                self.system.basis.standard_basis_idx[f"tau{body_num}"], :
-            ] = tau
+            samples[self.system.basis.standard_basis_idx[f"sma{body_num}"], :] = sma
+            samples[self.system.basis.standard_basis_idx[f"aop{body_num}"], :] = argp
+            samples[self.system.basis.standard_basis_idx[f"pan{body_num}"], :] = lan
+            samples[self.system.basis.standard_basis_idx[f"tau{body_num}"], :] = tau
 
         return samples
 
@@ -645,13 +623,12 @@ class OFTI(
 
                 if len(accepted_orbits) == 0:
                     check_time = time.time() - start_time
-                    if OFTI_warning is not None:
-                        if check_time > OFTI_warning:
-                            print(
-                                "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
-                                end="\n",
-                            )
-                            OFTI_warning = None
+                    if OFTI_warning is not None and check_time > OFTI_warning:
+                        print(
+                            "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
+                            end="\n",
+                        )
+                        OFTI_warning = None
                 else:
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
@@ -947,9 +924,8 @@ class MCMC(Sampler):
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
 
-        if output_filename is not None:
-            if output_filename.endswith(".hdf5"):
-                output_filename = output_filename.split(".hdf5")[0]
+        if output_filename is not None and output_filename.endswith(".hdf5"):
+            output_filename = output_filename.split(".hdf5")[0]
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
@@ -983,12 +959,13 @@ class MCMC(Sampler):
                         end="\r",
                     )
 
-                if periodic_save_freq is not None:
-                    if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
-                        self.results.curr_pos = self.curr_pos
-                        self.results.save_results(
-                            f"{output_filename}_{i + 1}burnsteps.hdf5"
-                        )
+                if (
+                    periodic_save_freq is not None and (i + 1) % periodic_save_freq == 0
+                ):  # we've completed i+1 steps
+                    self.results.curr_pos = self.curr_pos
+                    self.results.save_results(
+                        f"{output_filename}_{i + 1}burnsteps.hdf5"
+                    )
 
             sampler.reset()
             print()
@@ -1004,35 +981,36 @@ class MCMC(Sampler):
                 if (i + 1) % 5 == 0:
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
-                if periodic_save_freq is not None:
-                    if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
-                        self._update_chains_from_sampler(sampler, num_steps=i + 1)
+                if (
+                    periodic_save_freq is not None and (i + 1) % periodic_save_freq == 0
+                ):  # we've completed i+1 steps
+                    self._update_chains_from_sampler(sampler, num_steps=i + 1)
 
-                        # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
-                        # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
-                        post_shape = self.post.shape
-                        curr_chain_shape = (
-                            self.num_walkers,
-                            post_shape[0] // self.num_walkers,
-                            post_shape[-1],
-                        )
-                        curr_chain = self.post.reshape(curr_chain_shape)
-                        curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
-                        # use the reshaped arrays and find the new steps we computed
-                        curr_chunk = curr_chain[:, saved_upto : i + 1]
-                        curr_chunk = curr_chunk.reshape(
-                            -1, curr_chunk.shape[-1]
-                        )  # flatten nwalkers x nsteps dim
-                        curr_lnlike_chunk = curr_lnlike_chain[
-                            :, saved_upto : i + 1
-                        ].flatten()
+                    # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
+                    # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
+                    post_shape = self.post.shape
+                    curr_chain_shape = (
+                        self.num_walkers,
+                        post_shape[0] // self.num_walkers,
+                        post_shape[-1],
+                    )
+                    curr_chain = self.post.reshape(curr_chain_shape)
+                    curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                    # use the reshaped arrays and find the new steps we computed
+                    curr_chunk = curr_chain[:, saved_upto : i + 1]
+                    curr_chunk = curr_chunk.reshape(
+                        -1, curr_chunk.shape[-1]
+                    )  # flatten nwalkers x nsteps dim
+                    curr_lnlike_chunk = curr_lnlike_chain[
+                        :, saved_upto : i + 1
+                    ].flatten()
 
-                        # add this current chunk to the results object (which already has all the previous chunks saved)
-                        self.results.add_samples(
-                            curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
-                        )
-                        self.results.save_results(output_filename)
-                        saved_upto = i + 1
+                    # add this current chunk to the results object (which already has all the previous chunks saved)
+                    self.results.add_samples(
+                        curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
+                    )
+                    self.results.save_results(output_filename)
+                    saved_upto = i + 1
 
             print()
             self._update_chains_from_sampler(sampler)
@@ -1131,7 +1109,7 @@ class MCMC(Sampler):
                 if i in self.system.basis.param_idx:
                     params_plot_list.append(self.system.basis.param_idx[i])
                 else:
-                    raise Exception(
+                    raise ValueError(
                         f"Invalid param name: {i}. See system.basis.param_idx."
                     )
             params_to_plot = np.array(params_plot_list)
@@ -1334,7 +1312,7 @@ class NestedSampler(BaseNestedSampler):
         pfrac=1.0,
         num_threads=1,
         start_method="fork",
-        run_nested_kwargs={},
+        run_nested_kwargs=None,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1369,6 +1347,9 @@ class NestedSampler(BaseNestedSampler):
 
                 int: number of iterations it took to converge
         """
+
+        if run_nested_kwargs is None:
+            run_nested_kwargs = {}
 
         mp.set_start_method(start_method, force=True)
 
@@ -1695,8 +1676,8 @@ class NautilusSampler(BaseNestedSampler):
         verbose=False,
         num_threads=1,
         savefile=None,
-        sampler_kwargs={},
-        run_kwargs={},
+        sampler_kwargs=None,
+        run_kwargs=None,
     ):
         """Runs the nested sampler from the Nautilus package.
 
@@ -1723,6 +1704,10 @@ class NautilusSampler(BaseNestedSampler):
         Returns:
             numpy.array of float: equal-weighted posterior samples
         """
+        if sampler_kwargs is None:
+            sampler_kwargs = {}
+        if run_kwargs is None:
+            run_kwargs = {}
         if (
             sys.version_info < (3, 9, 0)
             and isinstance(num_threads, int)
@@ -1741,7 +1726,7 @@ class NautilusSampler(BaseNestedSampler):
                     **sampler_kwargs,
                 )
 
-                success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+                _ = self.naut_sampler.run(verbose=verbose, **run_kwargs)
         else:
             self.naut_sampler = nautilus.Sampler(
                 prior=self.nautilus_ptform,
@@ -1755,7 +1740,7 @@ class NautilusSampler(BaseNestedSampler):
                 **sampler_kwargs,
             )
 
-            success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+            _ = self.naut_sampler.run(verbose=verbose, **run_kwargs)
         points, _, log_l = self.naut_sampler.posterior(equal_weight=True)
         weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 

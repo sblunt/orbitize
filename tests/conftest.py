@@ -15,9 +15,8 @@ def pytest_addoption(parser):
 def pytest_runtest_setup(item):
     global codeastro_mode
     envnames = [mark.args[0] for mark in item.iter_markers(name="mode")]
-    if envnames:
-        if item.config.getoption("--mode") == "codeastro":
-            codeastro_mode = True
+    if envnames and item.config.getoption("--mode") == "codeastro":
+        codeastro_mode = True
 
 
 a1 = [

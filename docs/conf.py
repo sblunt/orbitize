@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-# -*- coding: utf-8 -*-
 #
 # orbitize documentation build configuration file, created by
 # sphinx-quickstart on Wed Jan 17 17:19:48 2018.

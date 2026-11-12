@@ -7,6 +7,8 @@ from astropy.coordinates import get_body_barycentric_posvel
 from astropy.time import Time
 from scipy.stats import norm
 
+HIPPARCOS_ALPHADEC0_EPOCH = Time("J1991.25", format="jyear_str").jyear
+
 
 class PMPlx_Motion:
     """
@@ -175,7 +177,7 @@ class HipparcosLogProb:
         path_to_iad_file,
         hip_num,
         num_secondary_bodies,
-        alphadec0_epoch=Time("J1991.25", format="jyear_str").jyear,
+        alphadec0_epoch=HIPPARCOS_ALPHADEC0_EPOCH,
         renormalize_errors=False,
         brandt_correction=False,
         hip_data=None,
