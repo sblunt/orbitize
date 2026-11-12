@@ -1,6 +1,6 @@
-from setuptools import setup, Extension
 import numpy
 from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 
 def get_extensions():

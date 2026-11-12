@@ -1,7 +1,8 @@
-import numpy as np
 import os
 
-from orbitize import DATADIR, read_input, system, sampler, results
+import numpy as np
+
+from orbitize import DATADIR, read_input, results, sampler, system
 from orbitize.gaia import GaiaLogProb
 from orbitize.hipparcos import HipparcosLogProb, nielsen_iad_refitting_test
 
@@ -39,7 +40,7 @@ def test_hipparcos_api():
     # check sol type != 5 error message
     hip_num = "000025"
     num_secondary_bodies = 1
-    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}H{hip_num}.d"
 
     try:
         _ = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
@@ -50,7 +51,7 @@ def test_hipparcos_api():
     # check sol type == 1 doesn't throw an error message
     hip_num = "027989"
     num_secondary_bodies = 1
-    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}H{hip_num}.d"
 
     # just make sure it doesn't throw an error
     myFirstHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
@@ -59,7 +60,7 @@ def test_hipparcos_api():
     # check that RV + Hip gives correct prior array labels
     hip_num = "027321"  # beta Pic
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
     myHip = HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
@@ -123,7 +124,7 @@ def test_hipparcos_api():
     # check that negative residuals are rejected properly
     hip_num = "000026"  # contains one negative residual
     num_secondary_bodies = 1
-    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}H{hip_num}.d"
 
     raw_iad_data = np.transpose(np.loadtxt(path_to_iad_file))
 
@@ -142,8 +143,8 @@ def test_dvd_vs_2021catalog():
 
     hip_num = "027321"
     num_secondary_bodies = 1
-    iad_file_2021 = "{}H{}.d".format(DATADIR, hip_num)
-    iad_file_dvd = "{}HIP{}.d".format(DATADIR, hip_num)
+    iad_file_2021 = f"{DATADIR}H{hip_num}.d"
+    iad_file_dvd = f"{DATADIR}HIP{hip_num}.d"
 
     # first, test reading of 2021 catalog
     new_iadHipLogProb = HipparcosLogProb(iad_file_2021, hip_num, num_secondary_bodies)
@@ -189,7 +190,7 @@ def test_iad_refitting():
     """
 
     post, myHipLogProb = nielsen_iad_refitting_test(
-        "{}/HIP027321.d".format(DATADIR),
+        f"{DATADIR}/HIP027321.d",
         burn_steps=10,
         mcmc_steps=50,
         saveplot=None,
@@ -210,7 +211,7 @@ def test_save_load_dvd():
     hip_num = "027321"  # beta Pic
 
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
     myHip = HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
@@ -262,7 +263,7 @@ def test_save_load_2021():
     hip_num = "027321"  # beta Pic
 
     num_secondary_bodies = 1
-    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}H{hip_num}.d"
 
     myHip = HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
     myGaia = GaiaLogProb(4792774797545800832, myHip, gaia_edr3_data, dr="edr3")

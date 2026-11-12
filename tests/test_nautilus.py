@@ -1,8 +1,8 @@
-import pytest
-from orbitize import sampler, system, results
 import numpy as np
+import pytest
+
+from orbitize import sampler, system
 from orbitize.system import generate_synthetic_data
-import matplotlib.pyplot as plt
 
 """ This is pytest for Nautilus_Sampler, it assumes values for all the priors except 
 

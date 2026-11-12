@@ -1,8 +1,6 @@
-import os
 import matplotlib.pyplot as plt
 
-import orbitize
-from orbitize import system, read_input, priors, sampler
+from orbitize import read_input, sampler, system
 
 """
 Attempts to reproduce the 1 planet orbit fit in GRAVITY Collaboration et al. (2019)
@@ -11,11 +9,9 @@ Attempts to reproduce the 1 planet orbit fit in GRAVITY Collaboration et al. (20
 # End to end example with beta Pic astrometry
 # Based on driver.py
 
-import numpy as np
-from orbitize import read_input, system, sampler, priors
 import multiprocessing as mp
-import orbitize
 
+import numpy as np
 
 # System parameters
 datafile = "hr8799e_1epochgravity.csv"
@@ -75,9 +71,7 @@ for i in range(len(labels)):
     if labels[i] == "inc":
         med_val = np.degrees(med_val)
         ci_vals = np.degrees(ci_vals)
-    print("{0}: paper value is {1}".format(labels[i], paper_vals[i]))
+    print(f"{labels[i]}: paper value is {paper_vals[i]}")
     print(
-        "{3}: this fit obtained {0:.2f} (+{1:.2f}/-{2:.2f})".format(
-            med_val, ci_vals[0], ci_vals[1], labels[i]
-        )
+        f"{labels[i]}: this fit obtained {med_val:.2f} (+{ci_vals[0]:.2f}/-{ci_vals[1]:.2f})"
     )

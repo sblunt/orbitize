@@ -1,7 +1,8 @@
-import numpy as np
-from orbitize.kepler import tau_to_manom
-import rebound
 import astropy.units as u
+import numpy as np
+import rebound
+
+from orbitize.kepler import tau_to_manom
 
 
 def calc_orbit(

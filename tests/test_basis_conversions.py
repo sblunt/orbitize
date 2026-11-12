@@ -1,6 +1,6 @@
-import orbitize
 import numpy as np
-from orbitize import system, read_input, DATADIR
+
+from orbitize import DATADIR, read_input, system
 
 
 def test_period_basis():
@@ -10,7 +10,7 @@ def test_period_basis():
     this with system mass parameter, single companion, and two companions.
     """
     # 1. With System Total Mass
-    filename = "{}/GJ504.csv".format(DATADIR)
+    filename = f"{DATADIR}/GJ504.csv"
     data_table = read_input.read_file(filename)
     my_system = system.System(
         1, data_table, 1.75, 51.44, mass_err=0.05, plx_err=0.12, fitting_basis="Period"
@@ -37,7 +37,7 @@ def test_period_basis():
     assert np.allclose(original, sample_copy)
 
     # 2. Single Body (with RV)
-    filename = "{}/HD4747.csv".format(DATADIR)
+    filename = f"{DATADIR}/HD4747.csv"
     data_table = read_input.read_file(filename)
     my_system = system.System(
         1,
@@ -67,7 +67,7 @@ def test_period_basis():
     assert np.allclose(original, sample_copy[:, 0])
 
     # 3. Multi Body
-    filename = "{}/test_val_multi.csv".format(DATADIR)
+    filename = f"{DATADIR}/test_val_multi.csv"
     data_table = read_input.read_file(filename)
     my_system = system.System(
         2,
@@ -106,7 +106,7 @@ def test_obspriors_basis():
     """Check that converting from the ObsPriors basis and back results in the
     same starting condition."""
 
-    filename = "{}/GJ504.csv".format(DATADIR)
+    filename = f"{DATADIR}/GJ504.csv"
     data_table = read_input.read_file(filename)
     my_system = system.System(1, data_table, 1.75, 51.44, fitting_basis="ObsPriors")
 
@@ -138,7 +138,7 @@ def test_semi_amp_basis():
     this with a single companion and with two companions.
     """
     # 1. Single Body (with RV)
-    filename = "{}/HD4747.csv".format(DATADIR)
+    filename = f"{DATADIR}/HD4747.csv"
     data_table = read_input.read_file(filename)
     my_system = system.System(
         1,
@@ -169,7 +169,7 @@ def test_semi_amp_basis():
     assert np.allclose(original, sample_copy[:, 0])
 
     # 2. Multi Body
-    filename = "{}/test_val_multi.csv".format(DATADIR)
+    filename = f"{DATADIR}/test_val_multi.csv"
     data_table = read_input.read_file(filename)
     my_system = system.System(
         2,
@@ -206,7 +206,7 @@ def test_xyz_basis():
     with a single companion and with two companions.
     """
     # 1. Single Body
-    filename = "{}/xyz_test_data.csv".format(DATADIR)
+    filename = f"{DATADIR}/xyz_test_data.csv"
     data = read_input.read_file(filename)
     single = data[np.where(data["object"] == 1)[0]]
     my_system = system.System(

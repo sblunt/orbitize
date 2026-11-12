@@ -1,24 +1,22 @@
 import abc
 import multiprocessing as mp
+import sys
 import time
 import warnings
 
-import astropy.units as u
 import astropy.constants as consts
+import astropy.units as u
 import dynesty
 import matplotlib.pyplot as plt
 import nautilus
 import numpy as np
 import ptemcee
-
 from astropy.time import Time
 
 import orbitize.kepler
 import orbitize.lnlike
 import orbitize.priors
 import orbitize.results
-
-import sys
 
 
 class Sampler(abc.ABC):
@@ -173,7 +171,7 @@ class OFTI(
     def __init__(
         self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
     ):
-        super(OFTI, self).__init__(
+        super().__init__(
             system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike
         )
 
@@ -317,28 +315,28 @@ class OFTI(
 
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
             sma = samples[
-                self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"sma{body_num}"], :
             ]
             ecc = samples[
-                self.system.basis.standard_basis_idx["ecc{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"ecc{body_num}"], :
             ]
             inc = samples[
-                self.system.basis.standard_basis_idx["inc{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"inc{body_num}"], :
             ]
             argp = samples[
-                self.system.basis.standard_basis_idx["aop{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"aop{body_num}"], :
             ]
             lan = samples[
-                self.system.basis.standard_basis_idx["pan{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"pan{body_num}"], :
             ]
             tau = samples[
-                self.system.basis.standard_basis_idx["tau{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"tau{body_num}"], :
             ]
             plx = samples[self.system.basis.standard_basis_idx["plx"], :]
             if self.system.fit_secondary_mass:
                 m0 = samples[self.system.basis.standard_basis_idx["m0"], :]
                 m1 = samples[
-                    self.system.basis.standard_basis_idx["m{}".format(body_num)], :
+                    self.system.basis.standard_basis_idx[f"m{body_num}"], :
                 ]
                 mtot = m0 + m1
             else:
@@ -399,16 +397,16 @@ class OFTI(
 
             # updates samples with new values of sma, pan, tau
             samples[
-                self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"sma{body_num}"], :
             ] = sma
             samples[
-                self.system.basis.standard_basis_idx["aop{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"aop{body_num}"], :
             ] = argp
             samples[
-                self.system.basis.standard_basis_idx["pan{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"pan{body_num}"], :
             ] = lan
             samples[
-                self.system.basis.standard_basis_idx["tau{}".format(body_num)], :
+                self.system.basis.standard_basis_idx[f"tau{body_num}"], :
             ] = tau
 
         return samples
@@ -447,7 +445,7 @@ class OFTI(
 
         # account for user-set priors on PAN that were destroyed by scale-and-rotate
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
-            pan_idx = self.system.basis.standard_basis_idx["pan{}".format(body_num)]
+            pan_idx = self.system.basis.standard_basis_idx[f"pan{body_num}"]
 
             pan_prior = self.system.sys_priors[pan_idx]
             if pan_prior is not orbitize.priors.UniformPrior:
@@ -654,7 +652,6 @@ class OFTI(
                                 end="\n",
                             )
                             OFTI_warning = None
-                    pass
                 else:
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
@@ -717,7 +714,7 @@ class MCMC(Sampler):
         custom_lnlike=None,
         prev_result_filename=None,
     ):
-        super(MCMC, self).__init__(
+        super().__init__(
             system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike
         )
 
@@ -780,9 +777,7 @@ class MCMC(Sampler):
             expected_shape = (self.num_temps,) + (self.num_walkers, len(self.priors))
             if prev_pos.shape != expected_shape:
                 raise ValueError(
-                    "Unable to restart chain. Saved walker positions has shape {0}, while current sampler needs {1}".format(
-                        prev_pos.shape, expected_shape
-                    )
+                    f"Unable to restart chain. Saved walker positions has shape {prev_pos.shape}, while current sampler needs {expected_shape}"
                 )
 
             self.curr_pos = prev_pos
@@ -849,7 +844,7 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(MCMC, self)._logl(full_params) + logp
+        return super()._logl(full_params) + logp
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
@@ -996,7 +991,7 @@ class MCMC(Sampler):
                         )
 
             sampler.reset()
-            print("")
+            print()
             print("Burn in complete. Sampling posterior now.")
 
             saved_upto = 0
@@ -1039,7 +1034,7 @@ class MCMC(Sampler):
                         self.results.save_results(output_filename)
                         saved_upto = i + 1
 
-            print("")
+            print()
             self._update_chains_from_sampler(sampler)
 
             if periodic_save_freq is None:
@@ -1137,7 +1132,7 @@ class MCMC(Sampler):
                     params_plot_list.append(self.system.basis.param_idx[i])
                 else:
                     raise Exception(
-                        "Invalid param name: {}. See system.basis.param_idx.".format(i)
+                        f"Invalid param name: {i}. See system.basis.param_idx."
                     )
             params_to_plot = np.array(params_plot_list)
 
@@ -1260,7 +1255,6 @@ class MCMC(Sampler):
                     )
 
         # otherwise exit the function and continue.
-        return
 
 
 class BaseNestedSampler(Sampler):
@@ -1314,7 +1308,7 @@ class NestedSampler(BaseNestedSampler):
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(NestedSampler, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
@@ -1467,7 +1461,7 @@ class MultiNest(Sampler):
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(MultiNest, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
@@ -1671,7 +1665,7 @@ class NautilusSampler(BaseNestedSampler):
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(NautilusSampler, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,

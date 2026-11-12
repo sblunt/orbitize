@@ -2,14 +2,12 @@
 Tests for the reflected-light calculation in system.compute_all_orbits
 """
 
-from orbitize import system, sampler, plot
-from orbitize import DATADIR, read_input
 import os
+
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from astropy.time import Time
 import pytest
+
+from orbitize import DATADIR, read_input, sampler, system
 
 
 def test_brightness_calculation():

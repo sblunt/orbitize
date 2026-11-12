@@ -1,11 +1,12 @@
-import numpy as np
 import os
-import astropy.table as table
-from astropy.time import Time
+
 import astropy.units as u
+import numpy as np
+from astropy import table
+from astropy.time import Time
 
 import orbitize
-from orbitize import kepler, read_input, system, hipparcos, DATADIR
+from orbitize import DATADIR, hipparcos, kepler, read_input, system
 
 
 def test_1planet():
@@ -70,7 +71,7 @@ def test_1planet():
     assert np.all(np.abs(star_dec + (mass_b / mtot) * planet_dec) < 1e-16)
 
     # remove the created csv file to clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
 
 def test_arbitrary_abs_astrom():
@@ -83,7 +84,7 @@ def test_arbitrary_abs_astrom():
     # just read in any file since we're not computing Hipparcos-related likelihoods.
     hip_num = "027321"
     num_secondary_bodies = 1
-    path_to_iad_file = "{}H{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}H{hip_num}.d"
     testHiPIAD = hipparcos.HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies
     )

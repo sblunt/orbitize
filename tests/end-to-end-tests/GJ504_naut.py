@@ -1,14 +1,11 @@
+import multiprocessing as mp
+import time
+
 import matplotlib.pyplot as plt
 
-import orbitize
-
 # Based on driver.py
-
-import numpy as np
-from orbitize import read_input, system, sampler, priors
-import multiprocessing as mp
 import orbitize
-import time
+from orbitize import read_input, sampler, system
 
 savedir = ""
 

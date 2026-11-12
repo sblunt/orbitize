@@ -3,10 +3,9 @@ Module to read user input from files and create standardized input for orbitize
 """
 
 import numpy as np
-import orbitize
-from astropy.table import Table
-from astropy.io.ascii import read, write
 from astropy import units as u
+from astropy.io.ascii import read, write
+from astropy.table import Table
 
 VALID_ATTRS = [
     "raoff",
@@ -149,9 +148,7 @@ def read_file(filename):
 
     except:
         raise Exception(
-            "Unable to read file: {}. \n Please check file path and format.".format(
-                filename
-            )
+            f"Unable to read file: {filename}. \n Please check file path and format."
         )
     num_measurements = len(input_table)
 
@@ -219,9 +216,7 @@ def read_file(filename):
                     default_insts.append("defrv")
                 else:
                     raise Exception(
-                        "Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(
-                            this_quant_type
-                        )
+                        f"Invalid 'quant_type' {this_quant_type}. Valid values are 'radec', 'seppa' or 'rv'"
                     )
             input_table.add_column(default_insts, name="instrument")
 
@@ -272,9 +267,7 @@ def read_file(filename):
                     quant12_corr = row["quant12_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
-                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
-                                index, quant12_corr
-                            )
+                            f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
                 else:
                     quant12_corr = None
@@ -305,9 +298,7 @@ def read_file(filename):
                     quant12_corr = row["radec_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
-                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
-                                index, quant12_corr
-                            )
+                            f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
                 else:
                     quant12_corr = None
@@ -338,9 +329,7 @@ def read_file(filename):
                     quant12_corr = row["seppa_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
-                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
-                                index, quant12_corr
-                            )
+                            f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
                 else:
                     quant12_corr = None
@@ -476,11 +465,11 @@ def from_ohp_file(filename):
         column = output_table[name]
         if column.ndim != 1 or np.iscomplexobj(column):
             raise ValueError(
-                "OHP column '{}' must contain real scalar values.".format(name)
+                f"OHP column '{name}' must contain real scalar values."
             )
         # Inspect the mask before converting: np.asarray discards Astropy masks.
         if np.any(np.ma.getmaskarray(column)):
-            raise ValueError("OHP column '{}' contains missing values.".format(name))
+            raise ValueError(f"OHP column '{name}' contains missing values.")
         input_unit = getattr(column, "unit", None)
         if input_unit is not None and input_unit != unit:
             raise ValueError(
@@ -492,10 +481,10 @@ def from_ohp_file(filename):
             values = np.asarray(column, dtype=np.float64)
         except (TypeError, ValueError) as exc:
             raise ValueError(
-                "OHP column '{}' must contain numeric scalars.".format(name)
+                f"OHP column '{name}' must contain numeric scalars."
             ) from exc
         if not np.all(np.isfinite(values)):
-            raise ValueError("OHP column '{}' contains nonfinite values.".format(name))
+            raise ValueError(f"OHP column '{name}' contains nonfinite values.")
         output_table[name] = values
         output_table[name].unit = unit
 
@@ -544,9 +533,7 @@ def from_dl2(filename, source_id, agis_only=True):
     ):
         if [np.shape(value) for value in data[name]] != [(size,) for size in sizes]:
             raise ValueError(
-                "EAS column '{}' must have one aligned CCD array per transit.".format(
-                    name
-                )
+                f"EAS column '{name}' must have one aligned CCD array per transit."
             )
         output_table[name] = np.ma.concatenate(data[name])
     transit_rows = np.repeat(np.arange(len(data)), sizes)

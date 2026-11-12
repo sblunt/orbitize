@@ -1,11 +1,11 @@
-from matplotlib import pyplot as plt
-from astropy.time import Time
-from orbitize import sampler
-from orbitize.system import System
-from orbitize import DATADIR
-from orbitize.read_input import read_file
 import astropy.units as u
 import numpy as np
+from astropy.time import Time
+from matplotlib import pyplot as plt
+
+from orbitize import DATADIR, sampler
+from orbitize.read_input import read_file
+from orbitize.system import System
 
 # Test Data
 mass_in_mjup = 10
@@ -30,12 +30,12 @@ years = 365.25 * 5
 
 # need a properly formatted data table for the code to run but it doesn't
 # matter what's in it
-input_file = "{}/GJ504.csv".format(DATADIR)
+input_file = f"{DATADIR}/GJ504.csv"
 data_table = read_file(input_file)
 num_secondary_bodies = 4
 
-epochs = Time(np.linspace(2020, 2022, num=int(1000)), format="decimalyear").mjd
-epochs2 = Time(np.linspace(2020, 2080, num=int(1000)), format="decimalyear").mjd
+epochs = Time(np.linspace(2020, 2022, num=1000), format="decimalyear").mjd
+epochs2 = Time(np.linspace(2020, 2080, num=1000), format="decimalyear").mjd
 
 sma1 = sma[0]
 ecc1 = ecc[0]
@@ -165,7 +165,7 @@ def test_8799_1planet_rebound_vs_kepler(plotname=None):
         ax1.legend()
         ax2.legend()
         ax3.legend()
-        plt.savefig("{}_differences.png".format(plotname), dpi=250)
+        plt.savefig(f"{plotname}_differences.png", dpi=250)
 
         # plot 2: orbit tracks over time
         fig, (ax1, ax2) = plt.subplots(2)
@@ -181,7 +181,7 @@ def test_8799_1planet_rebound_vs_kepler(plotname=None):
         ax2.plot(yepochs, kvz[:, 1, 0], "indigo", label="Orbitize approx", alpha=0.25)
         ax2.plot(yepochs, rvz[:, 1, 0], "r", label="Rebound")
         ax2.legend()
-        plt.savefig("{}_orbittracks.png".format(plotname), dpi=250)
+        plt.savefig(f"{plotname}_orbittracks.png", dpi=250)
 
         # plot 3: primary orbit track over time
         fig, (ax1, ax2) = plt.subplots(2)
@@ -197,7 +197,7 @@ def test_8799_1planet_rebound_vs_kepler(plotname=None):
         ax2.plot(yepochs, kvz[:, 0, 0], "indigo", label="Orbitize approx", alpha=0.25)
         ax2.plot(yepochs, rvz[:, 0, 0], "r", label="Rebound")
         ax2.legend()
-        plt.savefig("{}_primaryorbittrack.png".format(plotname), dpi=250)
+        plt.savefig(f"{plotname}_primaryorbittrack.png", dpi=250)
 
 
 def test_8799_rebound_vs_kepler(plotname=None):
@@ -262,7 +262,7 @@ def test_8799_rebound_vs_kepler(plotname=None):
         plt.ylabel("milliarcseconds")
         ax1.legend()
         ax2.legend()
-        plt.savefig("{}_differences.png".format(plotname), dpi=250)
+        plt.savefig(f"{plotname}_differences.png", dpi=250)
 
         # plot 2: orbit tracks over time
         plt.figure()
@@ -274,7 +274,7 @@ def test_8799_rebound_vs_kepler(plotname=None):
 
         plt.plot(0, 0, "*")
         plt.legend()
-        plt.savefig("{}_orbittracks.png".format(plotname), dpi=250)
+        plt.savefig(f"{plotname}_orbittracks.png", dpi=250)
 
         # plot 3: primary orbit track over time
         plt.figure()
@@ -286,7 +286,7 @@ def test_8799_rebound_vs_kepler(plotname=None):
 
         plt.plot(0, 0, "*")
         plt.legend()
-        plt.savefig("{}_primaryorbittrack.png".format(plotname), dpi=250)
+        plt.savefig(f"{plotname}_primaryorbittrack.png", dpi=250)
 
 
 def test_rebound_mcmc():
@@ -294,7 +294,7 @@ def test_rebound_mcmc():
     Test that a rebound fit runs through one MCMC iteration successfully.
     """
 
-    input_file = "{}/GJ504.csv".format(DATADIR)
+    input_file = f"{DATADIR}/GJ504.csv"
     data_table = read_file(input_file)
 
     my_sys = System(

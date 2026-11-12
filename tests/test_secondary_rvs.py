@@ -1,10 +1,11 @@
-import numpy as np
 import os
+
+import numpy as np
 from astropy.time import Time
 from pandas import DataFrame
 
+from orbitize import DATADIR, read_input, sampler, system
 from orbitize.kepler import calc_orbit
-from orbitize import read_input, system, sampler, DATADIR
 
 
 def test_secondary_rv_lnlike_calc():
@@ -83,7 +84,7 @@ def test_read_input():
     works. Added in response to issue #351.
     """
 
-    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data = read_input.read_file(f"{DATADIR}/HD4747.csv")
     input_data["object"] = (
         1  # make sure all astrometry and RV is marked as of the secondary
     )
@@ -95,7 +96,7 @@ def test_secondary_rvs_inst_specified():
     Check that orbitize! sets up the System object correctly (i.e. doesn't fit for
     gamma and jitter) even with multiple instruments specified for relative RVs.
     """
-    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data = read_input.read_file(f"{DATADIR}/HD4747.csv")
     input_data["object"] = (
         1  # make sure all astrometry and RV is marked as of the secondary
     )

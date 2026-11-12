@@ -1,6 +1,6 @@
 import orbitize.read_input
-import orbitize.system
 import orbitize.sampler
+import orbitize.system
 
 """
 This module reads input and constructs ``orbitize`` objects
@@ -8,7 +8,7 @@ in a standardized way.
 """
 
 
-class Driver(object):
+class Driver:
     """
     Runs through ``orbitize`` methods in a standardized way.
 

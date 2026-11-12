@@ -2,9 +2,9 @@
 Make sure orbit plotting can still occur after chopping chains.
 """
 
-import orbitize
-from orbitize import driver, DATADIR
 import multiprocessing as mp
+
+from orbitize import DATADIR, driver
 
 
 def verify_results_data(res, sys):
@@ -30,7 +30,7 @@ def test_chop_chains():
     function afterwards.
     """
 
-    filename = "{}/HD4747.csv".format(DATADIR)
+    filename = f"{DATADIR}/HD4747.csv"
 
     num_secondary_bodies = 1
     system_mass = 0.84

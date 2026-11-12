@@ -5,17 +5,18 @@ https://iopscience.iop.org/article/10.3847/1538-4357/ad58d3#apjad58d3t5
 """
 
 import os
+
+import matplotlib.pyplot as plt
+
 from orbitize import (
     DATADIR,
-    hipparcos,
     gaia,
+    hipparcos,
     read_input,
-    system,
-    priors,
-    sampler,
     results,
+    sampler,
+    system,
 )
-import matplotlib.pyplot as plt
 
 # the necessary input data for beta Pic is part of the orbitize! example data!
 iad_filepath = os.path.join(DATADIR, "H024332.d")

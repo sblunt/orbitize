@@ -1,13 +1,13 @@
+import os
+
 import numpy as np
 import pytest
-import os
 from scipy.stats import norm as nm
 
-import orbitize.priors as priors
-from orbitize.system import System
+from orbitize import DATADIR, priors
 from orbitize.read_input import read_file
 from orbitize.sampler import MCMC
-from orbitize import DATADIR
+from orbitize.system import System
 
 threshold = 1e-1
 
@@ -55,7 +55,7 @@ def test_draw_samples():
     """
     Test basic functionality of `draw_samples()` method of each `Prior` class.
     """
-    for Prior in initialization_inputs.keys():
+    for Prior in initialization_inputs:
         inputs = initialization_inputs[Prior]
 
         TestPrior = Prior(*inputs)
@@ -71,7 +71,7 @@ def test_compute_lnprob():
     """
     Test basic functionality of `compute_lnprob()` method of each `Prior` class.
     """
-    for Prior in initialization_inputs.keys():
+    for Prior in initialization_inputs:
         inputs = initialization_inputs[Prior]
 
         TestPrior = Prior(*inputs)

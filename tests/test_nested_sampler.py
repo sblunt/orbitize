@@ -2,11 +2,13 @@
 Tests the NestedSampler and MultiNest classes by fixing all parameters except for eccentricity.
 """
 
-from orbitize import system, sampler
+import sys
+
 import numpy as np
 import pytest
+
+from orbitize import sampler, system
 from orbitize.system import generate_synthetic_data
-import sys
 
 
 def test_nested_sampler():

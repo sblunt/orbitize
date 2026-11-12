@@ -1,7 +1,8 @@
-import orbitize.driver
 import numpy as np
-import orbitize.lnlike as lnlike
 import pytest
+
+import orbitize.driver
+from orbitize import lnlike
 
 
 def test_chi2lnlike():
@@ -98,7 +99,7 @@ def test_2x2_analytical_solution():
 def test_chi2_log():
     # initiate OFTI driver with chi2 log
     myDriver = orbitize.driver.Driver(
-        "{}/GJ504.csv".format(orbitize.DATADIR),
+        f"{orbitize.DATADIR}/GJ504.csv",
         "OFTI",
         1,
         1.22,
@@ -149,7 +150,7 @@ def test_chi2_log():
 def test_log_vs_standard():
     # initiate driver with standard chi2
     myDriver_standard = orbitize.driver.Driver(
-        "{}/GJ504.csv".format(orbitize.DATADIR),
+        f"{orbitize.DATADIR}/GJ504.csv",
         "OFTI",
         1,
         1.22,
@@ -160,7 +161,7 @@ def test_log_vs_standard():
 
     # initiate driver with log chi2
     myDriver_log = orbitize.driver.Driver(
-        "{}/GJ504.csv".format(orbitize.DATADIR),
+        f"{orbitize.DATADIR}/GJ504.csv",
         "OFTI",
         1,
         1.22,

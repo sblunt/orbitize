@@ -1,9 +1,10 @@
-import orbitize
-from orbitize import read_input, system, sampler, priors
-import matplotlib.pyplot as plt
-from dynesty import plotting as dyplot
 import time
 
+import matplotlib.pyplot as plt
+from dynesty import plotting as dyplot
+
+import orbitize
+from orbitize import priors, read_input, sampler, system
 
 savedir = "."
 
@@ -16,7 +17,7 @@ Written: Thea McKenna, 2023
 
 def dynesty_e2e_test():
 
-    data_table = read_input.read_file("{}/GJ504.csv".format(orbitize.DATADIR))
+    data_table = read_input.read_file(f"{orbitize.DATADIR}/GJ504.csv")
 
     # number of secondary bodies in system
     num_planets = 1
@@ -49,10 +50,10 @@ def dynesty_e2e_test():
     start = time.time()
 
     samples, num_iter = nested_sampler.run_sampler(num_threads=50)
-    nested_sampler.results.save_results("{}/nested_sampler_test.hdf5".format(savedir))
+    nested_sampler.results.save_results(f"{savedir}/nested_sampler_test.hdf5")
     print("iteration number is: " + str(num_iter))
 
-    print("iteration time: {:.f} mins".format((time.time() - start) / 60.0))
+    print(f"iteration time: {(time.time() - start) / 60.0:.f} mins")
 
     fig, ax = plt.subplots(2, 1)
     accepted_eccentricities = nested_sampler.results.post[:, lab["ecc1"]]
@@ -62,10 +63,10 @@ def dynesty_e2e_test():
     ax[0].set_xlabel("ecc")
     ax[1].set_xlabel("inc")
     plt.tight_layout()
-    plt.savefig("{}/nested_sampler_test.png".format(savedir))
+    plt.savefig(f"{savedir}/nested_sampler_test.png")
 
     fig, axes = dyplot.traceplot(nested_sampler.dynesty_sampler.results)
-    plt.savefig("{}/nested_sampler_traceplot.png".format(savedir))
+    plt.savefig(f"{savedir}/nested_sampler_traceplot.png")
 
 
 if __name__ == "__main__":

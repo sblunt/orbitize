@@ -1,11 +1,10 @@
-from orbitize import read_input, system, priors, sampler, results, kepler
-
-import numpy as np
+import os
 
 import matplotlib.pyplot as plt
-
+import numpy as np
 import pandas as pd
-import os
+
+from orbitize import kepler, read_input, sampler, system
 
 """
 Simulates RV data from multiple instruments and relative astroemtric data 

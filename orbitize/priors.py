@@ -1,11 +1,13 @@
-import numpy as np
 import abc
-from astropy import units as u, constants as cst
 
-from orbitize import basis
-from orbitize.kepler import tau_to_manom, calc_ecc_anom
+import numpy as np
 import scipy.special
 import scipy.stats
+from astropy import constants as cst
+from astropy import units as u
+
+from orbitize import basis
+from orbitize.kepler import calc_ecc_anom, tau_to_manom
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -414,7 +416,7 @@ class LogUniformPrior(Prior):
         """
         normalizer = self.logmax - self.logmin
 
-        lnprob = -np.log((element_array * normalizer))
+        lnprob = -np.log(element_array * normalizer)
 
         # account for scalar inputs
         if np.shape(lnprob) == ():

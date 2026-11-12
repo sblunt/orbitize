@@ -2,14 +2,15 @@
 Test the orbitize.kepler module which solves for the orbits of the planets
 """
 
-import pytest
-import sys
-import pstats
 import cProfile
 import os
+import pstats
+import sys
+
 import numpy as np
-import orbitize.kepler as kepler
-from orbitize import cext
+import pytest
+
+from orbitize import cext, kepler
 
 solver_threshold = 1e-7  # max precision on true data
 ecc_threshold = 2e-9  # a bit more than the tolerance
@@ -125,7 +126,7 @@ def test_orbit_e03_array():
         [[0.86448656, 0.86448656, 0.86448656], [0.97591289, 0.97591289, 0.97591289]]
     )
 
-    for ii in range(0, 3):
+    for ii in range(3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
             assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
@@ -244,7 +245,7 @@ def test_orbit_with_mass_array():
         ]
     )
 
-    for ii in range(0, 3):
+    for ii in range(3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
             assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
@@ -341,7 +342,7 @@ def profile_solve(reps=10, n_params=100000, n_epochs=5):
     s = pstats.Stats(profile_name)
     d[f"Py\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
 
-    for i in d.keys():
+    for i in d:
         print(f"{i}\t{d[i]:.2f}")
 
     os.remove(profile_name)
@@ -361,7 +362,7 @@ def profile_all(n_orbits, print_profiles=False):
         )
         s = pstats.Stats(profile_name)
         if print_profiles:
-            print("Profiling Newton: C with {} orbits".format(n_orbits**2))
+            print(f"Profiling Newton: C with {n_orbits**2} orbits")
             s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
         d["Newton C Solver"] = s.__dict__["total_tt"]
     else:
@@ -375,7 +376,7 @@ def profile_all(n_orbits, print_profiles=False):
     )
     s = pstats.Stats(profile_name)
     if print_profiles:
-        print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
+        print(f"Profiling Newton: Python with {n_orbits**2} orbits")
         s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
     d["Newton Python Solver"] = s.__dict__["total_tt"]
 
@@ -388,7 +389,7 @@ def profile_all(n_orbits, print_profiles=False):
         )
         s = pstats.Stats(profile_name)
         if print_profiles:
-            print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
+            print(f"Profiling Mikkola: C with {n_orbits**2} orbits")
             s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
         d["Mikkola C Solver"] = s.__dict__["total_tt"]
 
@@ -400,11 +401,11 @@ def profile_all(n_orbits, print_profiles=False):
     )
     s = pstats.Stats(profile_name)
     if print_profiles:
-        print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
+        print(f"Profiling Mikkola: Python with {n_orbits**2} orbits")
         s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
     d["Mikkola Python Solver"] = s.__dict__["total_tt"]
 
-    for i in d.keys():
+    for i in d:
         print(f"{i}: {d[i]:.2f} seconds")
 
     os.remove(profile_name)

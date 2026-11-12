@@ -2,12 +2,13 @@
 Tests functionality of methods in system.py
 """
 
+import os
+
 import numpy as np
 import pytest
-import os
+
 import orbitize
-import orbitize.read_input as read_input
-import orbitize.system as system
+from orbitize import read_input, system
 
 
 def test_convert_data_table_radec2seppa():

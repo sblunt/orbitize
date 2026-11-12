@@ -1,17 +1,17 @@
 import os
+
 import numpy as np
-from astropy import units as u
-import astropy.io.fits as fits
-from astropy.time import Time
-from astropy.io.ascii import read
-from astropy.coordinates import get_body_barycentric_posvel
 import numpy.linalg
-from orbitize import priors
-from orbitize import DATADIR, read_input
+from astropy import units as u
+from astropy.io import fits
+from astropy.io.ascii import read
+from astropy.time import Time
+
 import orbitize.lnlike
+from orbitize import DATADIR, priors, read_input
 
 
-class GaiaLogProb(object):
+class GaiaLogProb:
     """
     Class to compute the log probability of an orbit with respect to a single
     astrometric position point from Gaia. To be used in conjunction with
@@ -161,7 +161,7 @@ class GaiaLogProb(object):
         return np.sum(lnlike)  # TODO: figure out what is adding a dimensions
 
 
-class HGCALogProb(object):
+class HGCALogProb:
     """
     Class to compute the log probability of an orbit with respect to the proper
     motion anomalies derived jointly from Gaia and Hipparcos using the HGCA catalogs
@@ -211,15 +211,13 @@ class HGCALogProb(object):
             # check we matched on a single target. mainly check if we typed hip id number incorrectly
             if len(entry_raw) != 1:
                 raise ValueError(
-                    "HIP {0} encountered {1} matches. Expected 1 match.".format(
-                        hip_id, len(entry_raw)
-                    )
+                    f"HIP {hip_id} encountered {len(entry_raw)} matches. Expected 1 match."
                 )
             cols = entry_raw.columns.names
             entry = dict(zip(cols, entry_raw[0]))
         else:
             if not isinstance(hgca_entry, dict):
-                raise TypeError("hgca_entry must be a dict {}".format(hgca_entry))
+                raise TypeError(f"hgca_entry must be a dict {hgca_entry}")
             entry = hgca_entry
         self.hgca_entry = entry
         self.hip_id = hip_id
@@ -433,7 +431,7 @@ class HGCALogProb(object):
         return x
 
 
-class DR4LogProb(object):
+class DR4LogProb:
     r"""
     Class to compute the log probability of an orbit with respect to Gaia DR4
     astrometric measurements (epoch astrometry).

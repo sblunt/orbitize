@@ -1,12 +1,13 @@
-import numpy as np
-from orbitize import nbody, kepler, basis, hipparcos
-from astropy import table
-from orbitize.read_input import read_file
-from orbitize.gaia import DR4LogProb
 import matplotlib.pyplot as plt
+import numpy as np
+from astropy import table
+
+from orbitize import basis, hipparcos, kepler, nbody
+from orbitize.gaia import DR4LogProb
+from orbitize.read_input import read_file
 
 
-class System(object):
+class System:
     """
     A class to store information about a system (data & priors)
     and calculate model predictions given a set of orbital
@@ -358,7 +359,7 @@ class System(object):
         # h5py doesn't support numpy unicode dtypes; encode string columns as bytes
         data_arr = np.array(self.input_table)
         encoded_dtype = [
-            (name, "S{}".format(dt.itemsize // 4)) if dt.kind == "U" else (name, dt)
+            (name, f"S{dt.itemsize // 4}") if dt.kind == "U" else (name, dt)
             for name, (dt, _) in data_arr.dtype.fields.items()
         ]
         hf.create_dataset("data", data=data_arr.astype(encoded_dtype))
@@ -490,29 +491,29 @@ class System(object):
         else:
             for body_num in np.arange(self.num_secondary_bodies) + 1:
                 sma = params_arr[
-                    self.basis.standard_basis_idx["sma{}".format(body_num)]
+                    self.basis.standard_basis_idx[f"sma{body_num}"]
                 ]
                 ecc = params_arr[
-                    self.basis.standard_basis_idx["ecc{}".format(body_num)]
+                    self.basis.standard_basis_idx[f"ecc{body_num}"]
                 ]
                 inc = params_arr[
-                    self.basis.standard_basis_idx["inc{}".format(body_num)]
+                    self.basis.standard_basis_idx[f"inc{body_num}"]
                 ]
                 argp = params_arr[
-                    self.basis.standard_basis_idx["aop{}".format(body_num)]
+                    self.basis.standard_basis_idx[f"aop{body_num}"]
                 ]
                 lan = params_arr[
-                    self.basis.standard_basis_idx["pan{}".format(body_num)]
+                    self.basis.standard_basis_idx[f"pan{body_num}"]
                 ]
                 tau = params_arr[
-                    self.basis.standard_basis_idx["tau{}".format(body_num)]
+                    self.basis.standard_basis_idx[f"tau{body_num}"]
                 ]
                 plx = params_arr[self.basis.standard_basis_idx["plx"]]
 
                 if self.fit_secondary_mass:
                     # mass of secondary bodies are in order from -1-num_bodies until -2 in order.
                     mass = params_arr[
-                        self.basis.standard_basis_idx["m{}".format(body_num)]
+                        self.basis.standard_basis_idx[f"m{body_num}"]
                     ]
                     m0 = params_arr[self.basis.standard_basis_idx["m0"]]
 
@@ -615,7 +616,7 @@ class System(object):
                     if body_num > 0:
                         # for companions, only perturb companion orbits at larger SMAs than this one.
                         sma = params_arr[
-                            self.basis.standard_basis_idx["sma{}".format(body_num)]
+                            self.basis.standard_basis_idx[f"sma{body_num}"]
                         ]
                         all_smas = params_arr[self.sma_indx]
                         outside_orbit = np.where(all_smas > sma)[0]
@@ -731,14 +732,14 @@ class System(object):
             for rv_idx in range(len(self.rv_instruments)):
                 jitter[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[  # [km/s]
                     self.basis.standard_basis_idx[
-                        "sigma_{}".format(self.rv_instruments[rv_idx])
+                        f"sigma_{self.rv_instruments[rv_idx]}"
                     ]
                 ]
                 jitter[self.rv_inst_indices[rv_idx], 1] = np.nan
 
                 gamma[self.rv_inst_indices[rv_idx], 0] = standard_params_arr[
                     self.basis.standard_basis_idx[
-                        "gamma_{}".format(self.rv_instruments[rv_idx])
+                        f"gamma_{self.rv_instruments[rv_idx]}"
                     ]
                 ]
                 gamma[self.rv_inst_indices[rv_idx], 1] = np.nan

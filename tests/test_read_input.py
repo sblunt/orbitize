@@ -1,15 +1,17 @@
-import pytest
-import numpy as np
 import os
-import orbitize
+
+import numpy as np
+import pytest
 from astropy import units as u
 from astropy.table import Table
+
+import orbitize
 from orbitize.read_input import (
+    bootstrap_transit,
     from_dl2,
     from_ohp_file,
     read_file,
     write_orbitize_input,
-    bootstrap_transit,
 )
 
 
