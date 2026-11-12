@@ -33,6 +33,8 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install ruff
       uses: astral-sh/ruff-action@v4.1.0
+      with:
+        args: "--version"
     - name: Run ruff
       run: |
          ruff check --fix
