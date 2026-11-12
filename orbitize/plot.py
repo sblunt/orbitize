@@ -2746,6 +2746,125 @@ class Plotter(object):
         resid_ax.set(xlabel="Epoch [year]", ylabel="O − C [mas]")
         return fig
 
+    @staticmethod
+    @plt.style.context("default")
+    def plot_planet_position(
+        results,
+        date,
+        object_to_plot=1,
+        iwa=None,
+        owa=None,
+        percentiles=(68, 95),
+        num_samples=5000,
+        name=None,
+    ):
+        """Plot the sky plane posterior of a companion at one epoch.
+
+        Args:
+            results (orbitize.results.Results): Results of the orbital fit.
+            date (str or astropy.time.Time): UTC date or timestamp as a string,
+                converted to MJD(TCB), or a scalar Time in the fit's time scale.
+            object_to_plot (int): Companion index, starting at 1.
+            iwa (float, optional): Instrument inner working angle in mas.
+            owa (float, optional): Instrument outer working angle in mas.
+            percentiles (sequence of float): Enclosed posterior percentages for
+                the position contours, such as (68, 95).
+            num_samples (int): Maximum number of posterior draws to propagate.
+            name (str, optional): Companion name for the figure title.
+
+        Returns:
+            matplotlib.figure.Figure: Predicted companion offsets relative to
+            the host star, with optional working angle rings.
+        """
+        system = results.system
+        if not isinstance(object_to_plot, (int, np.integer)) or not (
+            1 <= object_to_plot <= system.num_secondary_bodies
+        ):
+            raise ValueError("object_to_plot must be a fitted companion index.")
+
+        angles = np.array([angle for angle in (iwa, owa) if angle is not None])
+        if not np.all(np.isfinite(angles) & (angles > 0)) or (
+            len(angles) == 2 and iwa >= owa
+        ):
+            raise ValueError(
+                "Working angles must be positive, finite, and satisfy iwa < owa."
+            )
+
+        levels = np.sort(np.atleast_1d(np.asarray(percentiles, dtype=float)))
+        if (
+            levels.ndim != 1
+            or levels.size == 0
+            or not np.all((0 < levels) & (levels < 100))
+            or np.any(np.diff(levels) == 0)
+        ):
+            raise ValueError("Provide distinct percentiles between 0 and 100.")
+
+        epoch = date if isinstance(date, Time) else Time(date, scale="utc").tcb
+        if not epoch.isscalar:
+            raise ValueError("Provide a single forecast date.")
+        epochs = np.atleast_1d(epoch.mjd)
+
+        posterior = results.weighted_post
+        if posterior is None or len(posterior) < 2 or num_samples < 2:
+            raise ValueError("Position contours require at least two posterior draws.")
+        draws, _ = results.downsample(
+            min(num_samples, len(posterior)), duplicates=results.weights is not None
+        )
+
+        offsets = np.empty((len(draws), 2))
+        for i, draw in enumerate(draws):
+            ra, dec, *_ = system.compute_all_orbits(
+                draw, epochs=epochs, params_basis="fitting"
+            )
+            offsets[i] = ra[0, object_to_plot, 0], dec[0, object_to_plot, 0]
+        if not np.isfinite(offsets).all():
+            raise ValueError("The predicted companion positions must be finite.")
+
+        fig, ax = plt.subplots(figsize=(6, 6), layout="constrained")
+        corner.hist2d(
+            *offsets.T,
+            ax=ax,
+            bins=45,
+            smooth=1,
+            levels=levels / 100,
+            color="#B2185B",
+            plot_datapoints=False,
+            plot_density=False,
+            no_fill_contours=True,
+            fill_contours=True,
+        )
+
+        ax.scatter(0, 0, marker="*", s=160, color="gold", edgecolor="black", zorder=5)
+        for label, angle, linestyle in (("IWA", iwa, "--"), ("OWA", owa, ":")):
+            if angle is not None:
+                ax.add_patch(
+                    mpl.patches.Circle(
+                        (0, 0),
+                        angle,
+                        fill=False,
+                        edgecolor="tab:orange",
+                        linewidth=2,
+                        linestyle=linestyle,
+                        label=f"{label} ({angle:g} mas)",
+                    )
+                )
+        if len(angles):
+            ax.legend(loc="upper right", frameon=False)
+
+        limit = 1.10 * max([np.max(np.abs(offsets)), *angles])
+        name = name or f"Companion {object_to_plot}"
+        date_label = epoch.utc.to_value("iso", subfmt="date")
+        level_label = ", ".join(f"{level:g}%" for level in levels)
+        ax.set(
+            xlim=(limit, -limit),
+            ylim=(-limit, limit),
+            aspect="equal",
+            xlabel=r"$\Delta\alpha\cos\delta$ [mas]",
+            ylabel=r"$\Delta\delta$ [mas]",
+            title=f"{name} · {date_label}\nPosition regions ({level_label})",
+        )
+        return fig
+
     def plot_corner(
         self, param_list=None, plot_priors=True, downsample=None, **corner_kwargs
     ):
