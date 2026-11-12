@@ -5,10 +5,18 @@ import astropy.io.fits as fits
 from astropy.time import Time
 from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
-import numpy.linalg
 from orbitize import priors
 from orbitize import DATADIR, read_input
 import orbitize.lnlike
+
+
+def _linear_pm_fit(along_scan, ra_projection, dec_projection, dt_ra, dt_dec, errs):
+    """Fit RA and Dec offsets and proper motions from along-scan values."""
+    design = np.column_stack(
+        (ra_projection, dec_projection, dt_ra * ra_projection, dt_dec * dec_projection)
+    )
+    errs = np.asarray(errs)
+    return np.linalg.lstsq(design / errs[..., None], along_scan / errs, rcond=None)[0]
 
 
 class GaiaLogProb(object):
@@ -414,23 +422,14 @@ class HGCALogProb(object):
         cos_phi,
         errs,
     ):
-        """
-        Performs a linear leastsq fit to determine the inferred proper motion given the stellar orbit around the barycenter
-        """
-        # Sovle y = A * x
-        # construct A matrix
-        A_pmra = cos_phi * (epochs.jyear - epoch_ref_ra) / errs
-        A_raoff = cos_phi / errs
-        A_pmdec = sin_phi * (epochs.jyear - epoch_ref_dec) / errs
-        A_decoff = sin_phi / errs
-        A_matrix = np.vstack((A_raoff, A_decoff, A_pmra, A_pmdec)).T
-
-        # construct y matrix
-        y_vec = (raoff_planet * cos_phi + decoff_planet * sin_phi) / errs
-
-        x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
-
-        return x
+        return _linear_pm_fit(
+            raoff_planet * cos_phi + decoff_planet * sin_phi,
+            cos_phi,
+            sin_phi,
+            epochs.jyear - epoch_ref_ra,
+            epochs.jyear - epoch_ref_dec,
+            errs,
+        )
 
 
 class DR4LogProb(object):
@@ -497,7 +496,7 @@ class DR4LogProb(object):
             remain zero when fitting the jitter.
 
     Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
-    scale for joint fits. This class does not convert RV or relative-astrometry
+    scale for joint fits. This class does not convert RV or relative astrometry
     timestamps whose time scale is unspecified.
 
     Written: Clarissa Do O, 2026
@@ -565,6 +564,20 @@ class DR4LogProb(object):
         self.gaia_epoch = Time(
             self.epochs_mjd, format="mjd", scale=self.time_scale
         ).decimalyear
+
+    def guess_initial_astrometry(self, raoff, decoff, plx, jitter):
+        """Return [alpha0, delta0, pm_ra, pm_dec] for one trial orbit.
+
+        Supply the primary's orbital offsets at the Gaia epochs, parallax,
+        and jitter in mas.
+        """
+        orbit_al = raoff * self.sin_scan + decoff * self.cos_scan
+        residual = self.centroid_pos_al - plx * self.parallax_factor_al - orbit_al
+        sigma = np.hypot(self.centroid_pos_error_al, jitter)
+
+        return _linear_pm_fit(
+            residual, self.sin_scan, self.cos_scan, self.dt_yr, self.dt_yr, sigma
+        )
 
     def _save(self, hf):
         """Save to an open HDF5 file."""
