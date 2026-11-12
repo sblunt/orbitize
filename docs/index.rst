@@ -353,7 +353,6 @@ Small changes:
 * Added some informative error messages for input tables.
 * Bugfixes.
 
-
 **1.3.1 (2019-6-19)**
 
 * Bugfix for RA/Dec inputs to the OFTI sampler (Issue #108).
@@ -390,3 +389,19 @@ Small changes:
 **1.0.0 (2018-10-30)**
 
 * Initial release.
+
+**Early contributions:**
+
+* Sarah Blunt -- team leader/organizer; collaboratively designed basic API; wrote basic API; collaboratively developed OFTI sampler; designed orbit plot
+* Jason Wang -- team leader/organizer; collaboratively designed basic API; collaboratively developed kepler.py; wrote MCMC sampler
+* Henry Ngo -- wrote code to read inputs, save/load results, and make basic plots; collaboratively developed kepler.py and results.py
+* Rob De Rosa -- collaboratively developed kepler.py
+* Devin Cody -- wrote C implementation of kepler module
+* Isabel Angelo -- led development of OFTI sampler and tutorial
+* Logan Pearce -- assisted with OFTI development and provided test data
+* Vighnesh Nagpal -- wrote parallel processing OFTI implementation; collaboratively developed RV/astrometry joint fitting code
+* Malena Rice -- wrote code to customize colorbar in orbit plots
+* James Graham -- wrote orbit-solving code that kepler.py inherits from
+* Lea Hirsch -- advising RT on development of RV/astrometry joint fitting code
+* Eric Nielsen -- came up with idea for OFTI algorithm; advised SB on development of OFTI code that sampler.py inherits from
+* Roberto Tejada -- collaboratively developed RV/astrometry joint fitting code
