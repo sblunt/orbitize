@@ -231,7 +231,7 @@ class HipparcosLogProb(object):
         else:
             # read the Hipparcos best-fit solution from the IAD file
             astrometric_solution = pd.read_csv(
-                path_to_iad_file, skiprows=9, sep="\s+", nrows=1
+                path_to_iad_file, skiprows=9, sep=r"\s+", nrows=1
             )
             self.plx0 = astrometric_solution["Plx"].values[0]  # [mas]
             self.pm_ra0 = astrometric_solution["pm_RA"].values[0]  # [mas/yr]
@@ -245,7 +245,7 @@ class HipparcosLogProb(object):
             self.delta0_err = astrometric_solution["e_DE"].values[0]  # [mas]
 
             solution_details = pd.read_csv(
-                path_to_iad_file, skiprows=5, sep="\s+", nrows=1
+                path_to_iad_file, skiprows=5, sep=r"\s+", nrows=1
             )
 
             self.solution_type = solution_details["isol_n"].values[0]
@@ -530,7 +530,7 @@ def nielsen_iad_refitting_test(
         axes[0].plot(
             xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), color="k"
         )
-        axes[0].set_xlabel("$\pi$ [mas]")
+        axes[0].set_xlabel(r"$\pi$ [mas]")
 
         # PM RA
         xs = np.linspace(
@@ -542,7 +542,7 @@ def nielsen_iad_refitting_test(
         axes[1].plot(
             xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), color="k"
         )
-        axes[1].set_xlabel("$\mu_{{\\alpha_0^*}}$ [mas/yr]")
+        axes[1].set_xlabel(r"$\mu_{{\alpha_0^*}}$ [mas/yr]")
 
         # PM Dec
         xs = np.linspace(
@@ -554,7 +554,7 @@ def nielsen_iad_refitting_test(
         axes[2].plot(
             xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), color="k"
         )
-        axes[2].set_xlabel("$\mu_{{\\delta_0}}$ [mas/yr]")
+        axes[2].set_xlabel(r"$\mu_{{\delta_0}}$ [mas/yr]")
 
         # RA offset
         axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="grey")
@@ -570,7 +570,7 @@ def nielsen_iad_refitting_test(
         )
         axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="grey")
         axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color="k")
-        axes[4].set_xlabel("$\delta_0$ [mas]")
+        axes[4].set_xlabel(r"$\delta_0$ [mas]")
 
         for a in axes:
             a.set_ylabel("relative prob.")
