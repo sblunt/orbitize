@@ -53,3 +53,7 @@ prerelease**, not a DR3 epoch-astrometry product.
 - Kane et al. (2011), *Revised Orbit and Transit Exclusion for HD 114762b*,
   ApJ 735, L41. [doi:10.1088/2041-8205/735/2/L41](https://doi.org/10.1088/2041-8205/735/2/L41),
   [arXiv:1106.1434](https://arxiv.org/abs/1106.1434).
+
+If you use the bundled tutorial data in a publication, cite the original data
+sources alongside orbitize!. For the Gaia DR4 prerelease astrometry, follow the
+ESA/Gaia/DPAC acknowledgement and citation guidance linked above.

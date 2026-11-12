@@ -552,6 +552,9 @@ def from_dl2(filename, source_id, agis_only=True):
     transit_rows = np.repeat(np.arange(len(data)), sizes)
     for name in ("source_id", "transit_id", "ra0", "dec0", "parallax_factor_al"):
         output_table[name] = data[name][transit_rows]
+    if "parallax_factor_ac" in data.colnames:
+        output_table["parallax_factor_ac"] = data["parallax_factor_ac"][transit_rows]
+        output_table["parallax_factor_ac"].unit = u.dimensionless_unscaled
     output_table["component_index"] = np.concatenate(
         [np.arange(size) for size in sizes]
     )
@@ -649,7 +652,8 @@ def combine_transits(data, method=bootstrap_transit, **kwargs):
         kwargs["rng"] = np.random.default_rng(kwargs.get("rng"))
 
     rows = []
-    for ccd in data.group_by(["source_id", "transit_id"]).groups:
+    grouped = data.group_by(["source_id", "transit_id"])
+    for ccd in grouped.groups:
         first = ccd[0]
         position, error = method(ccd, **kwargs)
 
@@ -689,6 +693,11 @@ def combine_transits(data, method=bootstrap_transit, **kwargs):
         "scan_pos_angle",
     ):
         output[name].unit = data[name].unit
+
+    if "parallax_factor_ac" in grouped.colnames:
+        output["parallax_factor_ac"] = grouped["parallax_factor_ac"][
+            grouped.groups.indices[:-1]
+        ]
 
     output.meta.update(data.meta, observation_level="transit")
     return output

@@ -7,12 +7,53 @@ from orbitize import kepler
 DR4_START_MJD = 56863.4375  # 2014-07-25
 DR4_END_MJD = 58868.9167  # 2020-01-20
 DR4_REF_EPOCH_MJD = 57936.375
-ORBIT_AL_SIGN = -1.0
 
-# Base grid to lookup uncertainties based on G magnitude [mas]
-_G_GRID = np.array([4, 5, 6, 7, 8.2, 10, 12, 14, 16, 18, 20])
+# Approximate per-CCD along scan uncertainties [mas].
+# Tabulation from Gaiamock, based on the "EDR3 adjusted" curve in
+# Holl et al. (2023), Fig. 3:
+# https://arxiv.org/abs/2206.05439
+# https://github.com/kareemelbadry/gaiamock/blob/main/gaiamock.py
+_G_GRID = np.array(
+    [
+        4,
+        5,
+        6,
+        7,
+        8.2,
+        8.4,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+    ]
+)
 _SIGMA_CCD_GRID_MAS = np.array(
-    [0.40, 0.35, 0.15, 0.17, 0.23, 0.13, 0.125, 0.15, 0.36, 1.05, 4.10]
+    [
+        0.40,
+        0.35,
+        0.15,
+        0.17,
+        0.23,
+        0.13,
+        0.13,
+        0.135,
+        0.125,
+        0.13,
+        0.15,
+        0.23,
+        0.36,
+        0.63,
+        1.05,
+        2.05,
+        4.10,
+    ]
 )
 
 
@@ -26,6 +67,7 @@ def read_gost(gost_file_path):
         "ObservationTimeAtBarycentre[BarycentricJulianDateInTCB]": "obs_time_tcb",
         "scanAngle[rad]": "scan_pos_angle",
         "parallaxFactorAlongScan": "parallax_factor_al",
+        "parallaxFactorAcrossScan": "parallax_factor_ac",
         "Fov[FovP=preceding/FovF=following]": "field_of_view",
     }
     for old_name in list(raw_table.colnames):
@@ -51,6 +93,9 @@ def read_gost(gost_file_path):
     out["transit_id"] = np.arange(len(clean_table), dtype=int)
     out["obs_time_tcb"] = clean_table["obs_time_tcb"]
     out["parallax_factor_al"] = clean_table["parallax_factor_al"]
+    if "parallax_factor_ac" in clean_table.colnames:
+        out["parallax_factor_ac"] = clean_table["parallax_factor_ac"]
+        out["parallax_factor_ac"].unit = u.dimensionless_unscaled
     out["scan_pos_angle"] = clean_table["scan_pos_angle"]
     out["field_of_view"] = (
         clean_table["field_of_view"]
@@ -89,31 +134,33 @@ def simulate_dr4(
     pm_dec = params.get("pm_dec", 0.0)
     plx = params.get("plx", 0.0)
 
-    # 3. Compute the relative orbit, then the star's reflex motion.
+    # 3. Sum the stellar reflex contributions from all supplied companions.
     ra_star = np.zeros(len(epochs))
     dec_star = np.zeros(len(epochs))
 
-    if "sma1" in params:
-        m0 = params["m0"]
-        m1 = params["m1"]
-
+    bodies = sorted(int(name[3:]) for name in params if name.startswith("sma"))
+    for body in bodies:
+        # Match System's enclosed-mass convention for each orbit.
+        mtot = params["m0"] + sum(
+            params[f"m{other}"]
+            for other in bodies
+            if params[f"sma{other}"] <= params[f"sma{body}"]
+        )
         ra_relative, dec_relative, *_ = kepler.calc_orbit(
             np.asarray(epochs, dtype=float),
-            params["sma1"],
-            params["ecc1"],
-            params["inc1"],
-            params["aop1"],
-            params["pan1"],
-            params["tau1"],
+            params[f"sma{body}"],
+            params[f"ecc{body}"],
+            params[f"inc{body}"],
+            params[f"aop{body}"],
+            params[f"pan{body}"],
+            params[f"tau{body}"],
             plx,
-            m0 + m1,
+            mtot,
             tau_ref_epoch=tau_ref_epoch,
         )
-
-        # The star moves oppositely to the planet, scaled by its mass ratio.
-        reflex_scale = -m1 / (m0 + m1)
-        ra_star = reflex_scale * np.asarray(ra_relative).reshape(-1)
-        dec_star = reflex_scale * np.asarray(dec_relative).reshape(-1)
+        reflex_scale = -params[f"m{body}"] / mtot
+        ra_star += reflex_scale * np.asarray(ra_relative).reshape(-1)
+        dec_star += reflex_scale * np.asarray(dec_relative).reshape(-1)
 
     # 4. Math: Run the transit forward model projection equation
     # Along-Scan Position = Position Offset + Proper Motion + Parallax + Companion Perturbation
@@ -121,12 +168,14 @@ def simulate_dr4(
         (alpha0 * np.sin(psi) + delta0 * np.cos(psi))
         + (pm_ra * dt * np.sin(psi) + pm_dec * dt * np.cos(psi))
         + (plx * table["parallax_factor_al"])
-        + (ORBIT_AL_SIGN * (ra_star * np.sin(psi) + dec_star * np.cos(psi)))
+        + ra_star * np.sin(psi)
+        + dec_star * np.cos(psi)
     )
 
     # 5. Add random scan tracking noise to data columns
     sigma_al = al_uncertainty(g_mag)
-    noise = np.random.normal(0.0, sigma_al, size=len(epochs))
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(0.0, sigma_al, size=len(epochs))
 
     # Attach generated data arrays directly onto Table rows
     table["centroid_pos_al"] = al_model + noise

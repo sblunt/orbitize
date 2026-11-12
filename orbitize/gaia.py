@@ -5,10 +5,18 @@ import astropy.io.fits as fits
 from astropy.time import Time
 from astropy.io.ascii import read
 from astropy.coordinates import get_body_barycentric_posvel
-import numpy.linalg
 from orbitize import priors
 from orbitize import DATADIR, read_input
 import orbitize.lnlike
+
+
+def _linear_pm_fit(along_scan, ra_projection, dec_projection, dt_ra, dt_dec, errs):
+    """Fit RA and Dec offsets and proper motions from along-scan values."""
+    design = np.column_stack(
+        (ra_projection, dec_projection, dt_ra * ra_projection, dt_dec * dec_projection)
+    )
+    errs = np.asarray(errs)
+    return np.linalg.lstsq(design / errs[..., None], along_scan / errs, rcond=None)[0]
 
 
 class GaiaLogProb(object):
@@ -414,23 +422,14 @@ class HGCALogProb(object):
         cos_phi,
         errs,
     ):
-        """
-        Performs a linear leastsq fit to determine the inferred proper motion given the stellar orbit around the barycenter
-        """
-        # Sovle y = A * x
-        # construct A matrix
-        A_pmra = cos_phi * (epochs.jyear - epoch_ref_ra) / errs
-        A_raoff = cos_phi / errs
-        A_pmdec = sin_phi * (epochs.jyear - epoch_ref_dec) / errs
-        A_decoff = sin_phi / errs
-        A_matrix = np.vstack((A_raoff, A_decoff, A_pmra, A_pmdec)).T
-
-        # construct y matrix
-        y_vec = (raoff_planet * cos_phi + decoff_planet * sin_phi) / errs
-
-        x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
-
-        return x
+        return _linear_pm_fit(
+            raoff_planet * cos_phi + decoff_planet * sin_phi,
+            cos_phi,
+            sin_phi,
+            epochs.jyear - epoch_ref_ra,
+            epochs.jyear - epoch_ref_dec,
+            errs,
+        )
 
 
 class DR4LogProb(object):
@@ -465,9 +464,8 @@ class DR4LogProb(object):
     - :math:`\varpi` is ``plx`` [mas], and :math:`P_i` is the
       dimensionless along-scan parallax factor.
     - :math:`\eta_{\mathrm{orb},i}` is the orbital contribution [mas],
-      computed as ``-raoff_model[i, 0]*sin(psi_i)
-      - deoff_model[i, 0]*cos(psi_i)`` using the likelihood's
-      existing sign convention.
+      computed as ``raoff_model[i, 0]*sin(psi_i)
+      + deoff_model[i, 0]*cos(psi_i)`` from the barycentric stellar offsets.
 
     These parameters are added by the fitting basis when System is
     constructed with gaia=dr4. Users can customize their priors through
@@ -498,7 +496,7 @@ class DR4LogProb(object):
             remain zero when fitting the jitter.
 
     Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
-    scale for joint fits. This class does not convert RV or relative-astrometry
+    scale for joint fits. This class does not convert RV or relative astrometry
     timestamps whose time scale is unspecified.
 
     Written: Clarissa Do O, 2026
@@ -567,6 +565,32 @@ class DR4LogProb(object):
             self.epochs_mjd, format="mjd", scale=self.time_scale
         ).decimalyear
 
+    def guess_initial_astrometry(self, raoff, decoff, plx, jitter):
+        """Estimate the initial position offsets and proper motions for one trial orbit.
+
+        Args:
+            raoff (np.ndarray): Primary star's barycentric RA offsets, including
+                the cos(Dec) factor, at the Gaia observation epochs [mas].
+            decoff (np.ndarray): Primary star's barycentric Dec offsets at the
+                same epochs [mas].
+            plx (float): Trial parallax [mas].
+            jitter (float): Gaia jitter added in quadrature to the reported
+                along-scan uncertainties [mas].
+
+        Returns:
+            np.ndarray: Four starting values in the order
+                ``[alpha0, delta0, pm_ra, pm_dec]``. The position offsets are
+                in mas at ``ref_epoch_mjd``, and the proper motions are in
+                mas per Julian year.
+        """
+        orbit_al = raoff * self.sin_scan + decoff * self.cos_scan
+        residual = self.centroid_pos_al - plx * self.parallax_factor_al - orbit_al
+        sigma = np.hypot(self.centroid_pos_error_al, jitter)
+
+        return _linear_pm_fit(
+            residual, self.sin_scan, self.cos_scan, self.dt_yr, self.dt_yr, sigma
+        )
+
     def _save(self, hf):
         """Save to an open HDF5 file."""
         hf.attrs["gaia_num"] = self.gaia_num
@@ -610,9 +634,7 @@ class DR4LogProb(object):
         pmra = samples[param_idx["pm_ra"]]  # mas/yr
         pmdec = samples[param_idx["pm_dec"]]  # mas/yr
         # project orbital perturbation onto along-scan direction
-        orbit_al = -(
-            raoff_model[:, 0] * self.sin_scan + deoff_model[:, 0] * self.cos_scan
-        )
+        orbit_al = raoff_model[:, 0] * self.sin_scan + deoff_model[:, 0] * self.cos_scan
 
         # full along-scan model: position + PM + parallax + orbit
         model_al = (
@@ -631,7 +653,6 @@ class DR4LogProb(object):
             jitter = samples[param_idx["dr4_jitter"]]
         else:
             jitter = self.jitter
-
         variance = self.centroid_pos_error_al**2 + jitter**2
         chi2 = np.sum(residuals**2 / variance)
         log_norm = np.sum(np.log(2.0 * np.pi * variance))

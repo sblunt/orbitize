@@ -657,11 +657,8 @@ class Results(object):
         )
 
     def plot_dr4_orbit(self, system, **kwargs):
-        """Wrapper for plot_dr4_orbit;
-        DR4 sky-projected orbit. See orbitize.plot.plot_dr4_orbit."""
-        from orbitize.plot import plot_dr4_orbit
-
-        return plot_dr4_orbit(self, system, **kwargs)
+        """Plot the stellar reflex motion from a Gaia DR4 fit."""
+        return orbitize.plot.Plotter.plot_dr4_orbit(self, system, **kwargs)
 
 
 def array_not_none(raw):
