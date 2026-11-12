@@ -566,10 +566,22 @@ class DR4LogProb(object):
         ).decimalyear
 
     def guess_initial_astrometry(self, raoff, decoff, plx, jitter):
-        """Return [alpha0, delta0, pm_ra, pm_dec] for one trial orbit.
+        """Estimate the initial position offsets and proper motions for one trial orbit.
 
-        Supply the primary's orbital offsets at the Gaia epochs, parallax,
-        and jitter in mas.
+        Args:
+            raoff (np.ndarray): Primary star's barycentric RA offsets, including
+                the cos(Dec) factor, at the Gaia observation epochs [mas].
+            decoff (np.ndarray): Primary star's barycentric Dec offsets at the
+                same epochs [mas].
+            plx (float): Trial parallax [mas].
+            jitter (float): Gaia jitter added in quadrature to the reported
+                along-scan uncertainties [mas].
+
+        Returns:
+            np.ndarray: Four starting values in the order
+                ``[alpha0, delta0, pm_ra, pm_dec]``. The position offsets are
+                in mas at ``ref_epoch_mjd``, and the proper motions are in
+                mas per Julian year.
         """
         orbit_al = raoff * self.sin_scan + decoff * self.cos_scan
         residual = self.centroid_pos_al - plx * self.parallax_factor_al - orbit_al

@@ -17,6 +17,7 @@ import matplotlib.transforms as transforms
 from erfa import ErfaWarning
 
 import orbitize
+from orbitize import read_input
 
 
 cmap = mpl.cm.Purples_r
@@ -2407,6 +2408,7 @@ class Plotter(object):
         plot_map=False,
         include_planet=False,
         planet_to_plot=1,
+        mode="keplerian",
     ):
         """
         Plot the stellar reflex motion from a Gaia DR4 fit.
@@ -2440,6 +2442,9 @@ class Plotter(object):
         Written: Clarissa Do O, 2026
         """
 
+        if mode not in ("keplerian", "full_motion"):
+            raise ValueError("mode must be 'keplerian' or 'full_motion'.")
+
         dr4 = system.gaia
         post = results.post
         epochs_mjd = dr4.epochs_mjd
@@ -2462,6 +2467,34 @@ class Plotter(object):
             choose = np.random.randint(0, high=len(post), size=n_draws)
 
         t_fine_mjd = np.linspace(epochs_mjd.min(), epochs_mjd.max(), num_epochs_to_plot)
+        if mode == "full_motion":
+            if "parallax_factor_ac" not in dr4.data_table.colnames:
+                raise ValueError("Full motion requires parallax_factor_ac.")
+
+            ac = dr4.data_table["parallax_factor_ac"]
+            if np.ma.getmaskarray(ac).any() or not np.isfinite(np.asarray(ac)).all():
+                raise ValueError(
+                    "Full motion requires finite, unmasked across-scan factors."
+                )
+
+            al = dr4.parallax_factor_al
+            s, c = dr4.sin_scan, dr4.cos_scan
+            parallax_sky = np.column_stack((al * s - ac * c, al * c + ac * s))
+            epoch_order = np.argsort(epochs_mjd)
+            t_fine_mjd = epochs_mjd[epoch_order]
+
+            param_idx = system.param_idx
+            offset_cols = [param_idx["alpha0"], param_idx["delta0"]]
+            pm_cols = [param_idx["pm_ra"], param_idx["pm_dec"]]
+            plx_col = param_idx["plx"]
+
+            def sky_baseline(params):
+                return (
+                    params[offset_cols]
+                    + dr4.dt_yr[:, None] * params[pm_cols]
+                    + params[plx_col] * parallax_sky
+                )
+
         t_fine_decyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).decimalyear
 
         norm_yr = mpl.colors.Normalize(vmin=t_fine_decyr.min(), vmax=t_fine_decyr.max())
@@ -2513,7 +2546,10 @@ class Plotter(object):
             params = post[idx]
             ra_fine, de_fine = _get_star_offsets_dr4(params, system, t_fine_mjd)
 
-            points = np.array([ra_fine, de_fine]).T.reshape(-1, 1, 2)
+            points = np.column_stack((ra_fine, de_fine))
+            if mode == "full_motion":
+                points += sky_baseline(params)[epoch_order]
+            points = points[:, None, :]
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             lc = LineCollection(
                 segments,
@@ -2530,6 +2566,8 @@ class Plotter(object):
         scan_unit = np.column_stack((dr4.sin_scan, dr4.cos_scan))
         ra_anchor, de_anchor = _get_star_offsets_dr4(data_params, system, epochs_mjd)
         anchor_points = np.column_stack((ra_anchor, de_anchor))
+        if mode == "full_motion":
+            anchor_points += sky_baseline(data_params)
         al_residual = dr4.centroid_pos_al - _model_along_scan_dr4(
             data_params, system, dr4
         )
@@ -2558,8 +2596,11 @@ class Plotter(object):
             zorder=10,
         )
 
-        ax.plot(0, 0, "+", color="k", ms=15, mew=2, zorder=10)
-        ax.set_title("Stellar reflex + Gaia (Keplerian)")
+        if mode == "full_motion":
+            ax.set_title("Full stellar motion + Gaia")
+        else:
+            ax.plot(0, 0, "+", color="k", ms=15, mew=2, zorder=10)
+            ax.set_title("Stellar reflex + Gaia (Keplerian)")
 
         if square_plot:
             ax.set_aspect("equal", adjustable="datalim")
@@ -2628,6 +2669,81 @@ class Plotter(object):
                 )
                 cbar.ax.tick_params(labelsize=fontsize - 5)
                 cbar.set_label(planet_plotter.cbar_param, size=fontsize)
+        return fig
+
+    @staticmethod
+    @plt.style.context("default")
+    def plot_dr4_al_residuals(results, combine_transits=True):
+        """Plot the Gaia DR4 along-scan stellar reflex and residuals.
+
+        Args:
+            results (orbitize.results.Results): Fit results with a Gaia DR4
+                likelihood attached to the system. The plot uses the posterior
+                draw with the highest stored log-likelihood.
+            combine_transits (bool, optional): Group CCD residuals into one
+                point per transit when the required columns are available.
+                If False, plot one point per fitted observation. Default: True.
+
+        Returns:
+            matplotlib.figure.Figure: The top panel shows the fitted stellar
+                reflex and the Gaia measurements after subtracting position,
+                proper motion, and parallax. The bottom panel shows observed
+                minus calculated residuals. Both panels use mas.
+        """
+        system = results.system
+        dr4 = system.gaia
+        best = results.post[np.nanargmax(results.lnlike)]
+
+        observations = dr4.data_table.copy()
+        observations["centroid_pos_al"][:] = (
+            dr4.centroid_pos_al - _model_along_scan_dr4(best, system, dr4)
+        )
+        if (
+            combine_transits
+            and observations.meta.get("observation_level") != "transit"
+            and {"source_id", "transit_id", "ipd_error_al"}.issubset(
+                observations.colnames
+            )
+        ):
+            observations = read_input.combine_transits(observations, rng=42)
+
+        epochs = np.asarray(observations["obs_time_tcb"])
+        years = Time(epochs, format="mjd", scale=dr4.time_scale).decimalyear
+        psi = np.asarray(observations["scan_pos_angle"])
+        ra, dec = _get_star_offsets_dr4(best, system, epochs)
+        reflex_al = ra * np.sin(psi) + dec * np.cos(psi)
+
+        oc = np.asarray(observations["centroid_pos_al"])
+        sigma = np.asarray(observations["centroid_pos_error_al"])
+        pink = "#C73573"
+
+        fig, (ax, resid_ax) = plt.subplots(
+            2, 1, sharex=True, figsize=(10, 6), layout="constrained"
+        )
+        ax.errorbar(
+            years,
+            reflex_al + oc,
+            yerr=sigma,
+            fmt="k.",
+            ms=4,
+            label="Gaia − position, proper motion, and parallax",
+        )
+        ax.scatter(
+            years,
+            reflex_al,
+            color=pink,
+            marker="x",
+            s=34,
+            label="Fitted stellar reflex",
+            zorder=3,
+        )
+        ax.set_ylabel("Along-scan offset [mas]")
+        ax.legend(frameon=False)
+
+        resid_ax.axhline(0, color="0.5", linewidth=1)
+        resid_ax.errorbar(years, oc, yerr=sigma, fmt="none", ecolor="0.6")
+        resid_ax.scatter(years, oc, color=pink, s=20, zorder=3)
+        resid_ax.set(xlabel="Epoch [year]", ylabel="O − C [mas]")
         return fig
 
     def plot_corner(
