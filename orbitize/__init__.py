@@ -1,3 +1,4 @@
+import importlib.util
 import os
 
 __version__ = "4.0.0"
@@ -6,9 +7,10 @@ __version__ = "4.0.0"
 orbitize_dir = os.path.dirname(__file__)
 DATADIR = os.path.join(orbitize_dir, "example_data/")
 
-try:
-    from . import _kepler
 
-    cext = True
-except ImportError:
+spec = importlib.util.find_spec("._kepler", package=__name__)
+
+if spec is None:
     cext = False
+else:
+    cext = True

@@ -134,22 +134,16 @@ def read_file(filename):
     # dict string to array of bools of which rows have each input attribute
     have = {}
 
-    # read file
-    try:
-        # load from file, unless a table is passed in
-        if not isinstance(filename, Table):
-            input_table = read(filename)
-        else:
-            input_table = filename
+    # read file: load from file, unless a table is passed in
+    if not isinstance(filename, Table):
+        input_table = read(filename)
+    else:
+        input_table = filename
 
-        # convert to masked table
-        if input_table.has_masked_columns:
-            input_table = Table(input_table, masked=True, copy=False)
+    # convert to masked table
+    if input_table.has_masked_columns:
+        input_table = Table(input_table, masked=True, copy=False)
 
-    except:
-        raise Exception(
-            f"Unable to read file: {filename}. \n Please check file path and format."
-        )
     num_measurements = len(input_table)
 
     # Decide if input was given in the orbitize style
@@ -162,19 +156,19 @@ def read_file(filename):
         if "epoch" in input_table.columns:
             have_epoch = ~input_table["epoch"].mask
             if not have_epoch.all():
-                raise Exception("Invalid input format: missing some epoch entries")
+                raise ValueError("Invalid input format: missing some epoch entries")
         else:
-            raise Exception("Input table MUST have epoch!")
+            raise ValueError("Input table MUST have epoch!")
         if "object" in input_table.columns:
             have_object = ~input_table["object"].mask
             if not have_object.all():
-                raise Exception("Invalid input format: missing some object entries")
+                raise ValueError("Invalid input format: missing some object entries")
         else:
-            raise Exception("Input table MUST have object id!")
+            raise ValueError("Input table MUST have object id!")
         if (
             orbitize_style
         ):  # proper orbitize style should NEVER have masked entries (nan required)
-            raise Exception("Input table in orbitize style may NOT have empty cells")
+            raise ValueError("Input table in orbitize style may NOT have empty cells")
         else:  # Check for these things when not orbitize style
             for attr in VALID_ATTRS:
                 if attr in input_table.columns:
@@ -185,9 +179,9 @@ def read_file(filename):
                     )  # zeros are False
     else:  # no masked entries, just check for required columns
         if "epoch" not in input_table.columns:
-            raise Exception("Input table MUST have epoch!")
+            raise ValueError("Input table MUST have epoch!")
         if "object" not in input_table.columns:
-            raise Exception("Input table MUST have object id!")
+            raise ValueError("Input table MUST have object id!")
         if (
             not orbitize_style
         ):  # Set these flags only when not already in orbitize style
@@ -215,7 +209,7 @@ def read_file(filename):
                 elif this_quant_type == "rv":
                     default_insts.append("defrv")
                 else:
-                    raise Exception(
+                    raise ValueError(
                         f"Invalid 'quant_type' {this_quant_type}. Valid values are 'radec', 'seppa' or 'rv'"
                     )
             input_table.add_column(default_insts, name="instrument")
@@ -224,9 +218,9 @@ def read_file(filename):
     for index, row in enumerate(input_table):
         # First check if epoch is a number
         try:
-            float_epoch = np.float64(row["epoch"])
-        except:
-            raise Exception(
+            np.float64(row["epoch"])
+        except ValueError:
+            raise ValueError(
                 "Problem reading epoch in the input file. Epoch should be given in MJD."
             )
         # check epoch format and put in MJD
@@ -238,7 +232,7 @@ def read_file(filename):
 
         # check that "object" is an integer (instead of ABC/bcd)
         if not isinstance(row["object"], (int, np.int32, np.int64)):
-            raise Exception("Invalid object ID. Object IDs must be integers.")
+            raise TypeError("Invalid object ID. Object IDs must be integers.")
 
         # determine input quantity type (RA/DEC, SEP/PA, RV, or BRIGHTNESS)
         if orbitize_style:
@@ -285,10 +279,8 @@ def read_file(filename):
                     ]
                 )
             else:  # catch wrong formats
-                raise Exception(
-                    "Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(
-                        row["quant_type"]
-                    )
+                raise ValueError(
+                    f"Invalid 'quant_type' {row['quant_type']}. Valid values are 'radec', 'seppa' or 'rv'"
                 )
 
         else:  # When not in orbitize style
@@ -712,7 +704,7 @@ def write_orbitize_input(table, output_filename, file_type="csv"):
         "tab",
     ]
     if file_type not in valid_formats:
-        raise Exception("Invalid output format specified.")
+        raise ValueError("Invalid output format specified.")
 
     # write file
     write(table, output=output_filename, format=file_type)

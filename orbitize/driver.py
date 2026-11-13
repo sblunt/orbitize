@@ -55,13 +55,7 @@ class Driver:
     ):
 
         # Read in data
-        # Try to interpret input as a filename first
-        try:
-            data_table = orbitize.read_input.read_file(input_data)
-        except:
-            # Check if input might be an orbitize style astropy.table.Table
-            if "quant_type" in input_data.columns:
-                data_table = input_data.copy()
+        data_table = orbitize.read_input.read_file(input_data)
 
         if system_kwargs is None:
             system_kwargs = {}
