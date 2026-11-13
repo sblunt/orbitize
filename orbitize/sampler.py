@@ -65,8 +65,8 @@ class Sampler(abc.ABC):
                 self.system.num_secondary_bodies == 1
                 and len({"radec", "seppa"} & start_quants) > 0
                 and self.system.mass_err != 0
-                and not (set(orbitize.marginalizer.OFTeI_sma_pan.MARG_PARAMS) - params)
-                and not (set(orbitize.marginalizer.OFTeI_sma_pan.REQ_PARAMS) - params)
+                and not (set(orbitize.marginalizer.OFTeI_seppa.MARG_PARAMS) - params)
+                and not (set(orbitize.marginalizer.OFTeI_seppa.REQ_PARAMS) - params)
             ):
                 # Automatically use OFTeI
                 self.system.convert_data_table_radec2seppa()
@@ -96,7 +96,7 @@ class Sampler(abc.ABC):
                 )
                 reweight_prior = orbitize.priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, self.system.basis)
                 self.system.reweight_priors.append(reweight_prior)
-                marg = orbitize.marginalizer.OFTeI_sma_pan(
+                marg = orbitize.marginalizer.OFTeI_seppa(
                     epochs,
                     sep,
                     pa,

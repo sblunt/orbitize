@@ -145,7 +145,7 @@ def test_incompatible():
     sep_err = data_table["quant1_err"][ind]
     pa_err = data_table["quant2_err"][ind]
     covar = np.zeros(len(epochs))
-    marg = marginalizer.OFTeI_sma_pan(epochs, sep, pa, sep_err, pa_err, covar)
+    marg = marginalizer.OFTeI_seppa(epochs, sep, pa, sep_err, pa_err, covar)
     try:
         mySampler = sampler.MCMC(
             mySystem, num_temps=1, num_walkers=100, num_threads=1, marginalizers=[marg]
@@ -204,7 +204,7 @@ def test_OFTeI():
     implicit_mass_prior = priors.OFTeIMassPrior(
         sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
     )
-    marg = marginalizer.OFTeI_sma_pan(
+    marg = marginalizer.OFTeI_seppa(
         epochs,
         sep,
         pa,
@@ -289,7 +289,7 @@ def test_OFTeI_RV():
     implicit_mass_prior = priors.OFTeIMassPrior(
         sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
     )
-    marg = marginalizer.OFTeI_sma_pan(
+    marg = marginalizer.OFTeI_seppa(
         epochs,
         sep,
         pa,
@@ -367,7 +367,7 @@ def test_OFTeI_RV_auto():
     )
     assert len(mySampler.marginalizers) == 1
     marg = mySampler.marginalizers[0]
-    assert isinstance(marg, marginalizer.OFTeI_sma_pan)
+    assert isinstance(marg, marginalizer.OFTeI_seppa)
 
     ind = data_table["quant_type"] == "seppa"
     epochs = data_table["epoch"][ind]
@@ -383,7 +383,7 @@ def test_OFTeI_RV_auto():
     implicit_mass_prior = priors.OFTeIMassPrior(
         sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
     )
-    true_marg = marginalizer.OFTeI_sma_pan(
+    true_marg = marginalizer.OFTeI_seppa(
         epochs,
         sep,
         pa,
@@ -486,7 +486,7 @@ def test_OFTeI_radec():
         implicit_mass_prior = priors.OFTeIMassPrior(
             sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
         )
-        marg = marginalizer.OFTeI_sma_pan(
+        marg = marginalizer.OFTeI_seppa(
             epochs,
             sep,
             pa,
@@ -542,7 +542,7 @@ def test_OFTeI_radec():
     implicit_mass_prior = priors.OFTeIMassPrior(
         sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
     )
-    marg = marginalizer.OFTeI_sma_pan(
+    marg = marginalizer.OFTeI_seppa(
         epochs,
         sep,
         pa,

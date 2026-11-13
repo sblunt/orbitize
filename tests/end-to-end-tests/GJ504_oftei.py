@@ -70,7 +70,7 @@ per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
 implicit_mass_prior = priors.OFTeIMassPrior(
     sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
 )
-marg = marginalizer.OFTeI_sma_pan(
+marg = marginalizer.OFTeI_seppa(
     epochs,
     sep,
     pa,

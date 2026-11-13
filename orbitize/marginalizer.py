@@ -84,7 +84,7 @@ class Marginalizer(abc.ABC):
 
         return -0.5 * chi2_map + error_norm_term
 
-class OFTeI_sma_pan(Marginalizer):
+class OFTeI_seppa(Marginalizer):
     """
     OFTeI marginalizer for relative astrometry.
 
