@@ -2694,7 +2694,7 @@ def _get_star_offsets_dr4(params, system, epochs_mjd):
     """
     standard_params = system.basis.to_standard_basis(np.copy(params))
     raoff, deoff, _, _ = system.compute_all_orbits(standard_params, epochs=epochs_mjd)
-    return -raoff[:, 0, 0], -deoff[:, 0, 0]
+    return raoff[:, 0, 0], deoff[:, 0, 0]
 
 
 def _model_along_scan_dr4(params, system, dr4):
@@ -2801,8 +2801,8 @@ def plot_dr4_orbit(
     epochs_mjd = dr4.epochs_mjd
 
     t_fine_mjd = np.linspace(
-        epochs_mjd.min() - 0.5 * 365.25,
-        epochs_mjd.max() + 0.5 * 365.25,
+        epochs_mjd.min(),
+        epochs_mjd.max(),
         num_epochs_to_plot,
     )
     t_fine_decyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).decimalyear

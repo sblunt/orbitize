@@ -8,12 +8,54 @@ from orbitize import kepler
 DR4_START_MJD = 56863.4375  # 2014-07-25
 DR4_END_MJD = 58868.9167  # 2020-01-20
 DR4_REF_EPOCH_MJD = 57936.375
-ORBIT_AL_SIGN = -1.0
+ORBIT_AL_SIGN = 1.0
 
-# Base grid to lookup uncertainties based on G magnitude [mas]
-_G_GRID = np.array([4, 5, 6, 7, 8.2, 10, 12, 14, 16, 18, 20])
+# Approximate per-CCD along scan uncertainties [mas].
+# Tabulation from Gaiamock, based on the "EDR3 adjusted" curve in
+# Holl et al. (2023), Fig. 3:
+# https://arxiv.org/abs/2206.05439
+# https://github.com/kareemelbadry/gaiamock/blob/main/gaiamock.py
+_G_GRID = np.array(
+    [
+        4,
+        5,
+        6,
+        7,
+        8.2,
+        8.4,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+    ]
+)
 _SIGMA_CCD_GRID_MAS = np.array(
-    [0.40, 0.35, 0.15, 0.17, 0.23, 0.13, 0.125, 0.15, 0.36, 1.05, 4.10]
+    [
+        0.40,
+        0.35,
+        0.15,
+        0.17,
+        0.23,
+        0.13,
+        0.13,
+        0.135,
+        0.125,
+        0.13,
+        0.15,
+        0.23,
+        0.36,
+        0.63,
+        1.05,
+        2.05,
+        4.10,
+    ]
 )
 
 
@@ -127,7 +169,8 @@ def simulate_dr4(
 
     # 5. Add random scan tracking noise to data columns
     sigma_al = al_uncertainty(g_mag)
-    noise = np.random.normal(0.0, sigma_al, size=len(epochs))
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(0.0, sigma_al, size=len(epochs))
 
     # Attach generated data arrays directly onto Table rows
     table["centroid_pos_al"] = al_model + noise

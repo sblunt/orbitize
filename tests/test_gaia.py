@@ -374,11 +374,11 @@ def test_dr4_likelihood():
     raoff = np.array([[1.0], [2.0]])
     decoff = np.array([[3.0], [4.0]])
 
-    # Hand calculated model: [21, 7]; data model: [1, -2].
+    # Hand-calculated model: [27, 11]; data - model: [-5, -6].
     # Expected values include the Gaussian normalization.
     for jitter, expected in [
-        (0.0, -3.5310242469692907),
-        (1.0, -3.639169612906368),
+        (0.0, -19.531024246969295),
+        (1.0, -12.83916961290637),
     ]:
         samples[param_idx["dr4_jitter"]] = jitter
         actual = dr4.compute_lnlike(raoff, decoff, samples, param_idx)
