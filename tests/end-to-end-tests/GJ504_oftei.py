@@ -70,6 +70,8 @@ per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
 implicit_mass_prior = priors.OFTeIMassPrior(
     sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
 )
+reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+mySystem.reweight_priors.append(reweight_prior)
 marg = marginalizer.OFTeI_seppa(
     epochs,
     sep,
@@ -77,10 +79,6 @@ marg = marginalizer.OFTeI_seppa(
     sep_err,
     pa_err,
     covar,
-    sma_prior,
-    pan_prior,
-    mass_prior,
-    implicit_mass_prior,
 )
 mySampler = sampler.MCMC(
     mySystem,
