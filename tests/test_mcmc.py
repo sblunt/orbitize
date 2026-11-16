@@ -96,7 +96,13 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    try:
+        computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    except ValueError:
+        assert True
+    else:
+        assert False, "Expected ValueError due to passing in fixed params to MCMC._logl"
+    computed_lnlike_test = super(sampler.MCMC, myDriver.sampler)._logl(myDriver.sampler.results.post[0])
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 

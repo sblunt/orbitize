@@ -793,33 +793,31 @@ class MCMC(Sampler):
         Comptues the sum of the log likelihoods of the data given the input model
 
         Args:
-            params (np.array of float): MxR array
-                of fitting parameters, where R is the number of
-                parameters being fit, and M is the number of orbits
-                we need model predictions for. Must be in the same order
-                documented in System() above. If M=1, this can be a 1d array.
+            params (np.array of float): 1d array of fitting parameters,
+                with the length being the number of fitted non-fixed parameters.
+                Must be in the same order documented in System() above
             include_logp (bool): if True, also include log prior in this function
 
         Returns:
             lnlikes (float): sum of all log likelihoods of the data given input model
 
         """
+        if params.ndim != 1:
+            raise ValueError(f"MCMC._logl only accepts a single set of parameters \
+                             but received {params.shape=}. \
+                             Please use super(MCMC, self)._logl to evaluate likelihood.")
+        if params.shape[0] != self.num_params:
+            raise ValueError(f"MCMC._logl expects only the non-fixed fitted parameters ({self.num_params}) but received input {params.shape=}")
+        
         if include_logp:
-            if np.ndim(params) == 1:
-                logp = orbitize.priors.all_lnpriors(params, self.priors)
-                # escape if logp == -np.inf
-                if np.isinf(logp):
-                    return -np.inf
-            else:
-                logp = np.array(
-                    [orbitize.priors.all_lnpriors(pset, self.priors) for pset in params]
-                )
+            logp = orbitize.priors.all_lnpriors(params, self.priors)
+            # escape if logp == -np.inf
+            if np.isinf(logp):
+                return -np.inf
         else:
             logp = 0  # don't include prior
 
         full_params = self._fill_in_fixed_params(params)
-        if np.ndim(full_params) == 2:
-            full_params = full_params.T
 
         return super()._logl(full_params) + logp
 
