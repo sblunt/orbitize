@@ -782,7 +782,7 @@ class OFTeIBasis(Basis):
         self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
         self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
 
-        self.standard_basis_idx["mtot"] = self.param_idx["per1"]
+        self.standard_basis_idx["mtot"] = self.standard_basis_idx.pop("per1")
 
         return basis_priors, basis_labels
 
