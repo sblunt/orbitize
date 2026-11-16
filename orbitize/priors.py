@@ -817,9 +817,19 @@ class ReweightPrior(abc.ABC):
         self.new_prior = new_prior
         self.basis = basis
 
-    def compute_lnprob(self, element_array):
-        param_value = self.get_param_value(element_array)
-        return self.new_prior.compute_lnprob(param_value) - self.implied_prior.compute_lnprob(param_value)
+    def compute_lnprob(self, param_arr):
+        param_value = self.get_param_value(param_arr)
+        new_prob = prev_prob = 0
+        if self.new_prior is not None:
+            new_prob = self.new_prior.compute_lnprob(param_value)
+        if self.implied_prior is not None:
+            prev_prob = self.implied_prior.compute_lnprob(param_value)
+        if np.isneginf(prev_prob):
+            raise ValueError(f"The implied prior probability is 0 ({param_value=} is \
+                             outside the expected bounds) with {param_arr=}. \
+                             The reweighed probability would be infinite.")
+        logprob = new_prob - prev_prob
+        return logprob
 
     @abc.abstractmethod
     def get_param_value():

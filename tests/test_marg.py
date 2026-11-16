@@ -627,16 +627,14 @@ def test_OFTeI_gaia():
     mySystem.sys_priors[pi["tau1"]] = priors.UniformPrior(0., 1.)
     mySystem.sys_priors[pi["plx"]] = priors.GaussianPrior(plx_guess, plx_err, no_negatives=True)
     m0_prior = priors.GaussianPrior(m0_guess, m0_err, no_negatives=True)
-    # mySystem.sys_priors[pi["m1"]] = priors.LogUniformPrior(m1_lo, m1_hi) TODO: reweight
-    plx_prior = mySystem.sys_priors[pi["plx"]]
-    # TODO: mtot intead of m0
     period_prior_min_yr = np.sqrt(sma_lo**3 / m0_guess)
     period_prior_max_yr = np.sqrt(sma_hi**3 / m0_guess)
-    implicit_mass_prior = priors.OFTeIMassPrior(sma_lo, sma_hi, period_prior_min_yr, period_prior_max_yr)
     mySystem.sys_priors[pi["per1"]] = priors.LogUniformPrior(period_prior_min_yr, period_prior_max_yr)
 
     myMarginalizer = marginalizer.OFTeI_DR4_gaia(dr4, TAU_REF_EPOCH)
 
+    # implicit_mass_prior = priors.OFTeIMassPrior(sma_lo, sma_hi, period_prior_min_yr, period_prior_max_yr)
+    implicit_mass_prior = None # TODO
     mySystem.reweight_priors.append(priors.OFTeIMassReweightPrior(implicit_mass_prior, m0_prior, mySystem.basis))
     mySystem.reweight_priors.append(priors.OFTeIUVReweightPrior(sma_prior, pan_prior, mySystem.basis))
 
