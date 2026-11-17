@@ -6,6 +6,7 @@ from astropy import table
 
 import orbitize.basis
 import orbitize.gaia
+import orbitize.priors
 import orbitize.hipparcos
 import orbitize.plot
 import orbitize.system
@@ -425,6 +426,21 @@ class Results:
             fitting_basis,
             use_rebound,
         )
+
+        priors_group = hf.get("sys_priors")
+        if priors_group is not None:
+            for index, prior_values in priors_group.items():
+                i = int(index)
+                prior_type = prior_values.attrs["prior_type"]
+                if prior_type == "fixed":
+                    self.system.sys_priors[i] = float(prior_values.attrs["value"])
+                # Check in the future for priors with nonstandard saving
+                else:
+                    params_raw = prior_values.get("params")
+                    params = {key: params_raw[key][()] for key in params_raw}
+                    prior_class = getattr(orbitize.priors, prior_type)
+                    prior = prior_class(**params)
+                    self.system.sys_priors[i] = prior
 
         self.tau_ref_epoch = self.system.tau_ref_epoch
         self.labels = self.system.labels
