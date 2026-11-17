@@ -1,11 +1,10 @@
-import pytest
-import numpy as np
 import os
+
+import numpy as np
+import pytest
+
 import orbitize
 from orbitize.driver import Driver
-import orbitize.sampler as sampler
-import orbitize.system as system
-import orbitize.read_input as read_input
 
 
 def test_pt_mcmc_runs(num_threads=1):

@@ -1,19 +1,17 @@
-#!/usr/bin/env python
-
 """
 Test the orbitize.sampler OFTI class which performs OFTI on astrometric data
 """
 
-import numpy as np
 import os
-import pytest
 import time
+
+import numpy as np
+import pytest
+
 import orbitize
-import orbitize.sampler as sampler
 import orbitize.driver
-import orbitize.priors as priors
-import orbitize.system as system
 import orbitize.system
+from orbitize import priors, sampler, system
 from orbitize.hipparcos import HipparcosLogProb
 
 input_file = os.path.join(orbitize.DATADIR, "GJ504.csv")
@@ -33,7 +31,7 @@ def test_scale_and_rotate():
 
     sma, ecc, inc, argp, lan, tau, plx, mtot = [samp for samp in samples]
 
-    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
+    ra, dec, _, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
@@ -60,7 +58,7 @@ def test_scale_and_rotate():
     plx = samples[:, 6]
     mtot = samples[:, 7]
 
-    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
+    ra, dec, _, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     assert np.max(lan) > np.pi
@@ -90,7 +88,7 @@ def test_scale_and_rotate():
     assert np.max(lan) < np.pi
     assert np.max(argp) > np.pi and np.max(argp) < 2 * np.pi
 
-    ra, dec, vc, _ = orbitize.kepler.calc_orbit(
+    ra, dec, _, _ = orbitize.kepler.calc_orbit(
         s.epochs, sma, ecc, inc, argp, lan, tau, plx, mtot, tau_ref_epoch=0
     )
     sep, pa = orbitize.system.radec2seppa(ra, dec)
@@ -201,7 +199,7 @@ def test_not_implemented():
     try:
         hip_num = "027321"
         num_secondary_bodies = 1
-        iad_file = "{}/HIP{}.d".format(orbitize.DATADIR, hip_num)
+        iad_file = f"{orbitize.DATADIR}/HIP{hip_num}.d"
         myHip = HipparcosLogProb(
             iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
         )

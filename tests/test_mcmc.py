@@ -1,15 +1,13 @@
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 
-import os
-import numpy as np
 import orbitize
+from orbitize import read_input, results, sampler, system
 from orbitize.driver import Driver
-import orbitize.sampler as sampler
-import orbitize.system as system
-import orbitize.read_input as read_input
-import orbitize.results as results
 from orbitize.plot import plot_corner
-import matplotlib.pyplot as plt
 
 std_param_idx_fixed_mtot_plx = {
     "sma1": 0,

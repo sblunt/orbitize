@@ -2,12 +2,13 @@
 Test the routines in the orbitize.Results module
 """
 
-import orbitize
-from orbitize import results, read_input, system, DATADIR, hipparcos, gaia, sampler, priors
+import os
+
 import numpy as np
 import pytest
-import os
-from astropy.table import Table
+
+import orbitize
+from orbitize import DATADIR, gaia, hipparcos, read_input, results, sampler, system
 
 std_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "mtot"]
 std_param_idx = {
@@ -28,7 +29,7 @@ def test_load_v1_results():
     """
 
     myResults = results.Results()
-    myResults.load_results("{}v1_posterior.hdf5".format(DATADIR))
+    myResults.load_results(f"{DATADIR}v1_posterior.hdf5")
 
     n_draws = 100
 
@@ -319,7 +320,7 @@ def test_save_and_load_hipparcos_only():
 
     hip_num = "027321"
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
     hip_data = {
         "RArad": 86.82118072,
         "e_RArad": 0.1,
@@ -367,7 +368,7 @@ def test_save_and_load_hipparcos_only():
     )
     assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
 
-    os.system("rm {}".format(save_name))
+    os.system(f"rm {save_name}")
 
 
 def test_save_and_load_gaia_and_hipparcos():
@@ -379,7 +380,7 @@ def test_save_and_load_gaia_and_hipparcos():
     hip_num = "027321"
     gaia_num = 4792774797545105664
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
     hip_data = {
         "RArad": 86.82118072,
         "e_RArad": 0.1,
@@ -436,19 +437,21 @@ def test_save_and_load_gaia_and_hipparcos():
     assert np.all(loadedResults.system.tau_ref_epoch == mySys.tau_ref_epoch)
     assert np.all(loadedResults.system.gaia.ra == mySys.gaia.ra)
 
-    os.system("rm {}".format(save_name))
+    os.system(f"rm {save_name}")
 
 
 def test_save_and_load_dr4(tmp_path):
     for fit_jitter in (False, True):
-        data = Table({
-            "obs_time_tcb": [58000.0, 58001.0],
-            "centroid_pos_al": [1.2, -0.4],
-            "centroid_pos_error_al": [0.1, 0.2],
-            "scan_pos_angle": [0.0, np.pi / 2],
-            "parallax_factor_al": [0.25, -0.5],
-            "field_of_view": ["P", "F"],
-        })
+        data = Table(
+            {
+                "obs_time_tcb": [58000.0, 58001.0],
+                "centroid_pos_al": [1.2, -0.4],
+                "centroid_pos_error_al": [0.1, 0.2],
+                "scan_pos_angle": [0.0, np.pi / 2],
+                "parallax_factor_al": [0.25, -0.5],
+                "field_of_view": ["P", "F"],
+            }
+        )
         data.meta.update(time_format="mjd", time_scale="tcb")
 
         dr4 = gaia.DR4LogProb(
@@ -459,7 +462,12 @@ def test_save_and_load_dr4(tmp_path):
             jitter_prior=priors.UniformPrior(0.0, 2.0) if fit_jitter else None,
         )
         fit_system = system.System(
-            1, None, 1.0, 20.0, fit_secondary_mass=True, gaia=dr4,
+            1,
+            None,
+            1.0,
+            20.0,
+            fit_secondary_mass=True,
+            gaia=dr4,
         )
         original = results.Results(
             system=fit_system,

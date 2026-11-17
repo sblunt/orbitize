@@ -2,12 +2,14 @@
 Test the different Driver class creation options
 """
 
-import pytest
+import os
+
 import numpy as np
+import pytest
+
 import orbitize
 from orbitize import driver
 from orbitize.read_input import read_file
-import os
 
 
 def _compare_table(input_table):

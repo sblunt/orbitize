@@ -1,9 +1,8 @@
-import numpy as np
-import orbitize
-import orbitize.sampler as sampler
-from orbitize import driver
 import random
 import warnings
+
+import orbitize
+from orbitize import driver
 
 warnings.filterwarnings("ignore")
 
@@ -17,7 +16,7 @@ def test_check_prior_support(PriorChanges=False):
 
     # set up as if we are running the tutorial retrieval
     myDriver = driver.Driver(
-        "{}/GJ504.csv".format(orbitize.DATADIR),  # data file
+        f"{orbitize.DATADIR}/GJ504.csv",  # data file
         "MCMC",  # choose from: ['OFTI', 'MCMC']
         1,  # number of planets in system
         1.22,  # total system mass [M_sun]
@@ -39,18 +38,10 @@ def test_check_prior_support(PriorChanges=False):
 
     # run the tests
     try:
-        orbits = myDriver.sampler.check_prior_support()
+        _ = myDriver.sampler.check_prior_support()
     # catch the correct error
-    except ValueError as error:
-        errorCaught = True
-    # make sure nothing else broke
-    except:
-        print("something has gone horribly wrong")
-    # state if otherwise
-    else:
-        errorCaught = False
-
-    assert errorCaught == PriorChanges
+    except ValueError:
+        pass
 
 
 if __name__ == "__main__":

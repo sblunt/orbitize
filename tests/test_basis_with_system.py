@@ -1,6 +1,7 @@
-from orbitize import driver, system, basis, DATADIR, read_input, hipparcos
 import numpy as np
 import pytest
+
+from orbitize import DATADIR, driver, hipparcos, read_input, system
 
 basis_names = {
     "Standard": ["sma", "ecc", "inc", "aop", "pan", "tau"],
@@ -19,7 +20,7 @@ def test_no_extra_data():
 
     For XYZ, expect there to be exceptions thrown when making the driver.
     """
-    filename = "{}/GJ504.csv".format(DATADIR)
+    filename = f"{DATADIR}/GJ504.csv"
 
     num_secondary_bodies = 1
     system_mass = 1.75  # [Msol]
@@ -28,14 +29,14 @@ def test_no_extra_data():
     plx_err = 0.12  # [mas]
 
     # (1) System Mass (fit secondary mass is false)
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "mtot",
             ]
         else:
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "m0",
             ]
@@ -71,15 +72,15 @@ def test_no_extra_data():
             assert expected_labels == my_driver.system.labels
 
     # (2) Single Companion
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "m1",
                 "m0",
             ]
         else:
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "m0",
             ]
@@ -124,11 +125,9 @@ def test_no_extra_data():
             assert expected_labels == my_driver.system.labels
 
     # (3) Multiple Companions
-    filename = "{}/test_val_multi.csv".format(DATADIR)
-    for basis in basis_names:
-        init_labels = [item + "1" for item in basis_names[basis]] + [
-            item + "2" for item in basis_names[basis]
-        ]
+    filename = f"{DATADIR}/test_val_multi.csv"
+    for basis, value in basis_names.items():
+        init_labels = [item + "1" for item in value] + [item + "2" for item in value]
         if basis != "SemiAmp":
             expected_labels = init_labels + ["plx", "m1", "m2", "m0"]
         else:
@@ -177,7 +176,7 @@ def test_with_rv():
     Make sure the labels are generated correctly for all of the basis sets for the configuration of
     the driver where RV data is supplied. Again, for the XYZ basis, expect there to be errors thrown.
     """
-    filename = "{}/HD4747.csv".format(DATADIR)
+    filename = f"{DATADIR}/HD4747.csv"
 
     num_secondary_bodies = 1
     system_mass = 0.84  # [Msol]
@@ -186,9 +185,9 @@ def test_with_rv():
     plx_err = 0.12  # [mas]
 
     # (1) Single Body
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "gamma_defrv",
                 "sigma_defrv",
@@ -196,7 +195,7 @@ def test_with_rv():
                 "m0",
             ]
         else:
-            expected_labels = [item + "1" for item in basis_names[basis]] + [
+            expected_labels = [item + "1" for item in value] + [
                 "plx",
                 "gamma_defrv",
                 "sigma_defrv",
@@ -246,9 +245,9 @@ def test_with_hip_iad():
     Make sure the labels are generated correctly for all of the basis sets for the configuration of
     the driver where Hipparcos data is supplied. Again, for the XYZ basis, expect there to be errors thrown.
     """
-    filename = "{}/betaPic.csv".format(DATADIR)
+    filename = f"{DATADIR}/betaPic.csv"
     hip_num = "027321"
-    hipp_filename = "{}/HIP{}.d".format(DATADIR, hip_num)
+    hipp_filename = f"{DATADIR}/HIP{hip_num}.d"
     hip_data = {  # 027321 beta pic
         "RArad": 86.82118072,
         "e_RArad": 0.1,
@@ -277,20 +276,14 @@ def test_with_hip_iad():
 
     hip_labels = ["pm_ra", "pm_dec", "alpha0", "delta0"]
 
-    for basis in basis_names:
+    for basis, value in basis_names.items():
         if basis != "SemiAmp":
             expected_labels = (
-                [item + "1" for item in basis_names[basis]]
-                + ["plx"]
-                + hip_labels
-                + ["m1", "m0"]
+                [item + "1" for item in value] + ["plx"] + hip_labels + ["m1", "m0"]
             )
         else:
             expected_labels = (
-                [item + "1" for item in basis_names[basis]]
-                + ["plx"]
-                + hip_labels
-                + ["m0"]
+                [item + "1" for item in value] + ["plx"] + hip_labels + ["m0"]
             )
 
         if basis == "XYZ":  # Should throw an error for XYZ basis
@@ -340,7 +333,7 @@ def test_XYZ():
     companion is supplied and its mass is being fitted, and (3) two companions are supplied
     and their masses are being fitted.
     """
-    filename = "{}/xyz_test_data.csv".format(DATADIR)
+    filename = f"{DATADIR}/xyz_test_data.csv"
     data = read_input.read_file(filename)
 
     # (1) Single Companion (mtot)

@@ -1,11 +1,13 @@
-import numpy as np
 import abc
-from astropy import units as u, constants as cst
 
-from orbitize import basis
-from orbitize.kepler import tau_to_manom, calc_ecc_anom
+import numpy as np
 import scipy.special
 import scipy.stats
+from astropy import constants as cst
+from astropy import units as u
+
+from orbitize import basis
+from orbitize.kepler import calc_ecc_anom, tau_to_manom
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -142,16 +144,16 @@ class KDEPrior(Prior):
 
     is_correlated = True
 
-    def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
+    def __init__(self, gaussian_kde, total_params, bounds=None, log_scale_arr=None):
         self.gaussian_kde = gaussian_kde
         self.total_params = total_params
         self.param_num = 0
         self.logparam_corr = 1
-        if not bounds:
+        if bounds is None:
             self.bounds = [[-np.inf, np.inf] for i in range(total_params)]
         else:
             self.bounds = bounds
-        if not log_scale_arr:
+        if log_scale_arr is None:
             self.log_scale_arr = [False for i in range(total_params)]
         else:
             self.log_scale_arr = log_scale_arr
@@ -414,7 +416,7 @@ class LogUniformPrior(Prior):
         """
         normalizer = self.logmax - self.logmin
 
-        lnprob = -np.log((element_array * normalizer))
+        lnprob = -np.log(element_array * normalizer)
 
         # account for scalar inputs
         if np.shape(lnprob) == ():
