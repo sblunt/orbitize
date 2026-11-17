@@ -3,12 +3,13 @@ Stellar RVs + astrometry, using data for HD 4747.
 """
 
 import matplotlib.pyplot as plt
-from orbitize import DATADIR, driver, plot, results
 import numpy as np
-from astropy import units as u, constants as cst
+from astropy import units as u
+
+from orbitize import DATADIR, driver, plot, results
 
 # Initialize Driver to Run MCMC
-filename = "{}/HD4747.csv".format(DATADIR)
+filename = f"{DATADIR}/HD4747.csv"
 
 num_secondary_bodies = 1
 system_mass = 0.84  # [Msol]

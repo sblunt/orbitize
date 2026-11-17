@@ -1,18 +1,18 @@
-import numpy as np
-import h5py
 import os
 
-import astropy.table as table
+import h5py
+import numpy as np
+from astropy import table
 
-import orbitize.system
 import orbitize.basis
+import orbitize.gaia
+import orbitize.hipparcos
 import orbitize.plot
-import orbitize.gaia, orbitize.hipparcos
+import orbitize.system
 from orbitize import DATADIR
 
 
-
-class Results(object):
+class Results:
     """
     A class to store accepted orbital configurations from the sampler
 
@@ -332,11 +332,9 @@ class Results(object):
             tmpfile = "tmpfile_iad_OkToDeleteAfterFitFinishes"
             with open(tmpfile, "w+") as f:
                 try:
-                    for l in np.array(iad_data):
-                        f.write(l)
+                    f.writelines(np.array(iad_data))
                 except TypeError:
-                    for l in np.array(iad_data):
-                        f.write(l.decode("UTF-8"))
+                    f.writelines(l.decode("UTF-8") for l in np.array(iad_data))
 
             hip_num = str(hf.attrs["hip_num"])
             alphadec0_epoch = float(hf.attrs["alphadec0_epoch"])
@@ -344,7 +342,7 @@ class Results(object):
 
             hip_data_raw = hf.get("hip_data", default=None)
             if hip_data_raw is not None:
-                hip_data = {key: hip_data_raw[key][()] for key in hip_data_raw.keys()}
+                hip_data = {key: hip_data_raw[key][()] for key in hip_data_raw}
             else:
                 hip_data = None
             brandt_correction = bool(hf.attrs.get("brandt_correction", False))
@@ -366,9 +364,7 @@ class Results(object):
                 gaia_data_raw = hf.get("gaia_data")
                 if gaia_data_raw is None:
                     raise KeyError
-                gaia_data = {
-                    key: gaia_data_raw[key][()] for key in gaia_data_raw.keys()
-                }
+                gaia_data = {key: gaia_data_raw[key][()] for key in gaia_data_raw}
                 gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, gaia_data, dr)
             except KeyError:
                 gaia = None
@@ -388,13 +384,11 @@ class Results(object):
                         hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
                     else:
                         raise KeyError(
-                            "HGCA Entry not found in {} for initializing HGCALogProb".format(
-                                filename
-                            )
+                            f"HGCA Entry not found in {filename} for initializing HGCALogProb"
                         )
                 else:
                     hgca_entry = {
-                        key: hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()
+                        key: hgca_entry_raw[key][()] for key in hgca_entry_raw
                     }
 
                 gaia = orbitize.gaia.HGCALogProb(
@@ -462,20 +456,16 @@ class Results(object):
                 self.sampler_name = sampler_name
             # otherwise only proceed if the sampler_names match
             elif self.sampler_name != sampler_name:
-                raise Exception(
-                    "Unable to append file {} to Results object. sampler_name of object and file do not match".format(
-                        filename
-                    )
+                raise ValueError(
+                    f"Unable to append file {filename} to Results object. sampler_name of object and file do not match"
                 )
             # if no version_number set, use the input file's value
             if self.version_number is None:
                 self.version_number = version_number
             # otherwise only proceed if the version_numbers match
             elif self.version_number != version_number:
-                raise Exception(
-                    "Unable to append file {} to Results object. version_number of object and file do not match".format(
-                        filename
-                    )
+                raise ValueError(
+                    f"Unable to append file {filename} to Results object. version_number of object and file do not match"
                 )
 
             # Now append post and lnlike
@@ -508,10 +498,8 @@ class Results(object):
                 )  # , self.labels)
 
             else:
-                raise Exception(
-                    "Unable to load file {} to Results object. append is set to False but object is not empty".format(
-                        filename
-                    )
+                raise ValueError(
+                    f"Unable to load file {filename} to Results object. append is set to False but object is not empty"
                 )
 
     def print_results(self):
@@ -564,13 +552,7 @@ class Results(object):
                 conversion = convert_deg
             else:
                 conversion = 1.0
-            self.results_str += "{}: {:.3f} [{:.3f} - {:.3f}] {}\n".format(
-                l,
-                np.median(self.post[:, idx] * conversion),
-                np.quantile(self.post[:, idx] * conversion, 0.16),
-                np.quantile(self.post[:, idx] * conversion, 0.84),
-                unit_dict[lookup_label],
-            )
+            self.results_str += f"{l}: {np.median(self.post[:, idx] * conversion):.3f} [{np.quantile(self.post[:, idx] * conversion, 0.16):.3f} - {np.quantile(self.post[:, idx] * conversion, 0.84):.3f}] {unit_dict[lookup_label]}\n"
 
         self.results_str += "-------------------\n"
         print(self.results_str)

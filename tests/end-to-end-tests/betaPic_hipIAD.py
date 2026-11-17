@@ -1,11 +1,12 @@
-import numpy as np
 import os
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 import orbitize
-from orbitize import system, read_input, priors, sampler
-from orbitize.hipparcos import HipparcosLogProb
+from orbitize import priors, read_input, sampler, system
 from orbitize.gaia import GaiaLogProb
+from orbitize.hipparcos import HipparcosLogProb
 
 """
 Attempts to reproduce case 3 (see table 3) of Nielsen+ 2020 (orbit fits of beta 
@@ -27,9 +28,9 @@ Begin keywords <<
 fit_IAD = True
 
 if fit_IAD:
-    savedir = "/data/user/{}/betaPic/hipIAD".format(os.getlogin())
+    savedir = f"/data/user/{os.getlogin()}/betaPic/hipIAD"
 else:
-    savedir = "/data/user/{}/betaPic/noIAD".format(os.getlogin())
+    savedir = f"/data/user/{os.getlogin()}/betaPic/noIAD"
 """
 >> End keywords
 """
@@ -186,12 +187,12 @@ betaPic_sampler = sampler.MCMC(
 betaPic_sampler.run_sampler(num_steps, burn_steps=burn_steps, thin=thin)
 
 # save chains
-betaPic_sampler.results.save_results("{}/betaPic_IAD{}.hdf5".format(savedir, fit_IAD))
+betaPic_sampler.results.save_results(f"{savedir}/betaPic_IAD{fit_IAD}.hdf5")
 
 # make corner plot
 fig = betaPic_sampler.results.plot_corner()
-plt.savefig("{}/corner_IAD{}.png".format(savedir, fit_IAD), dpi=250)
+plt.savefig(f"{savedir}/corner_IAD{fit_IAD}.png", dpi=250)
 
 # make orbit plot
 fig = betaPic_sampler.results.plot_orbits()
-plt.savefig("{}/orbit_IAD{}.png".format(savedir, fit_IAD), dpi=250)
+plt.savefig(f"{savedir}/orbit_IAD{fit_IAD}.png", dpi=250)

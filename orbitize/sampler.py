@@ -1,16 +1,17 @@
 import abc
 import multiprocessing as mp
+import sys
+import os
 import time
 import warnings
 
-import astropy.units as u
 import astropy.constants as consts
+import astropy.units as u
 import dynesty
 import matplotlib.pyplot as plt
 import nautilus
 import numpy as np
 import ptemcee
-
 from astropy.time import Time
 
 import orbitize.kepler
@@ -18,9 +19,6 @@ import orbitize.lnlike
 import orbitize.priors
 import orbitize.results
 import orbitize.marginalizer
-
-import sys
-import os
 
 
 class Sampler(abc.ABC):
@@ -399,12 +397,8 @@ class OFTI(
     def __init__(
         self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
     ):
-        super(OFTI, self).__init__(
-            system,
-            like=like,
-            chi2_type=chi2_type,
-            custom_lnlike=custom_lnlike,
-            marginalizers=[],
+        super().__init__(
+            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=[],
         )
 
         warnings.warn("OFTI is depracated. Please use MCMC with OFTeI marginalization for faster and more accurate results.")
@@ -552,30 +546,16 @@ class OFTI(
         samples = self.system.basis.to_standard_basis(samples)
 
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
-            sma = samples[
-                self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
-            ]
-            ecc = samples[
-                self.system.basis.standard_basis_idx["ecc{}".format(body_num)], :
-            ]
-            inc = samples[
-                self.system.basis.standard_basis_idx["inc{}".format(body_num)], :
-            ]
-            argp = samples[
-                self.system.basis.standard_basis_idx["aop{}".format(body_num)], :
-            ]
-            lan = samples[
-                self.system.basis.standard_basis_idx["pan{}".format(body_num)], :
-            ]
-            tau = samples[
-                self.system.basis.standard_basis_idx["tau{}".format(body_num)], :
-            ]
+            sma = samples[self.system.basis.standard_basis_idx[f"sma{body_num}"], :]
+            ecc = samples[self.system.basis.standard_basis_idx[f"ecc{body_num}"], :]
+            inc = samples[self.system.basis.standard_basis_idx[f"inc{body_num}"], :]
+            argp = samples[self.system.basis.standard_basis_idx[f"aop{body_num}"], :]
+            lan = samples[self.system.basis.standard_basis_idx[f"pan{body_num}"], :]
+            tau = samples[self.system.basis.standard_basis_idx[f"tau{body_num}"], :]
             plx = samples[self.system.basis.standard_basis_idx["plx"], :]
             if self.system.fit_secondary_mass:
                 m0 = samples[self.system.basis.standard_basis_idx["m0"], :]
-                m1 = samples[
-                    self.system.basis.standard_basis_idx["m{}".format(body_num)], :
-                ]
+                m1 = samples[self.system.basis.standard_basis_idx[f"m{body_num}"], :]
                 mtot = m0 + m1
             else:
                 mtot = samples[self.system.basis.standard_basis_idx["mtot"], :]
@@ -634,18 +614,10 @@ class OFTI(
             tau = (self.epochs[min_epoch] / period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
-            samples[
-                self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
-            ] = sma
-            samples[
-                self.system.basis.standard_basis_idx["aop{}".format(body_num)], :
-            ] = argp
-            samples[
-                self.system.basis.standard_basis_idx["pan{}".format(body_num)], :
-            ] = lan
-            samples[
-                self.system.basis.standard_basis_idx["tau{}".format(body_num)], :
-            ] = tau
+            samples[self.system.basis.standard_basis_idx[f"sma{body_num}"], :] = sma
+            samples[self.system.basis.standard_basis_idx[f"aop{body_num}"], :] = argp
+            samples[self.system.basis.standard_basis_idx[f"pan{body_num}"], :] = lan
+            samples[self.system.basis.standard_basis_idx[f"tau{body_num}"], :] = tau
 
         return samples
 
@@ -683,7 +655,7 @@ class OFTI(
 
         # account for user-set priors on PAN that were destroyed by scale-and-rotate
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
-            pan_idx = self.system.basis.standard_basis_idx["pan{}".format(body_num)]
+            pan_idx = self.system.basis.standard_basis_idx[f"pan{body_num}"]
 
             pan_prior = self.system.sys_priors[pan_idx]
             if pan_prior is not orbitize.priors.UniformPrior:
@@ -883,14 +855,12 @@ class OFTI(
 
                 if len(accepted_orbits) == 0:
                     check_time = time.time() - start_time
-                    if OFTI_warning is not None:
-                        if check_time > OFTI_warning:
-                            print(
-                                "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
-                                end="\n",
-                            )
-                            OFTI_warning = None
-                    pass
+                    if OFTI_warning is not None and check_time > OFTI_warning:
+                        print(
+                            "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
+                            end="\n",
+                        )
+                        OFTI_warning = None
                 else:
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
@@ -957,12 +927,8 @@ class MCMC(Sampler):
         prev_result_filename=None,
         marginalizers=None,
     ):
-        super(MCMC, self).__init__(
-            system,
-            like=like,
-            chi2_type=chi2_type,
-            custom_lnlike=custom_lnlike,
-            marginalizers=marginalizers,
+        super().__init__(
+            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=marginalizers,
         )
 
         self.num_temps = num_temps
@@ -1026,9 +992,7 @@ class MCMC(Sampler):
             expected_shape = (self.num_temps,) + (self.num_walkers, len(self.priors))
             if prev_pos.shape != expected_shape:
                 raise ValueError(
-                    "Unable to restart chain. Saved walker positions has shape {0}, while current sampler needs {1}".format(
-                        prev_pos.shape, expected_shape
-                    )
+                    f"Unable to restart chain. Saved walker positions has shape {prev_pos.shape}, while current sampler needs {expected_shape}"
                 )
 
             self.curr_pos = prev_pos
@@ -1096,7 +1060,7 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        logprob, loglike, *marg_params = super(MCMC, self)._logl(full_params)
+        logprob, loglike, *marg_params = super()._logl(full_params)
         return logprob + logp, loglike, *marg_params
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
@@ -1290,7 +1254,7 @@ class MCMC(Sampler):
                         if os.path.exists(prev_file):
                             os.remove(prev_file)
             sampler.reset()
-            print("")
+            print()
             print("Burn in complete. Sampling posterior now.")
             self.force_valid_marg = True
 
@@ -1371,7 +1335,7 @@ class MCMC(Sampler):
                         if not using_unsaved_results:
                             self.results = None
 
-            print("")
+            print()
             self._update_chains_from_sampler(sampler)
 
             if using_unsaved_results:
@@ -1483,8 +1447,8 @@ class MCMC(Sampler):
                 if i in self.system.basis.param_idx:
                     params_plot_list.append(self.system.basis.param_idx[i])
                 else:
-                    raise Exception(
-                        "Invalid param name: {}. See system.basis.param_idx.".format(i)
+                    raise ValueError(
+                        f"Invalid param name: {i}. See system.basis.param_idx."
                     )
             params_to_plot = np.array(params_plot_list)
 
@@ -1607,7 +1571,6 @@ class MCMC(Sampler):
                     )
 
         # otherwise exit the function and continue.
-        return
 
 
 class BaseNestedSampler(Sampler):
@@ -1661,7 +1624,7 @@ class NestedSampler(BaseNestedSampler):
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(NestedSampler, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
@@ -1692,7 +1655,7 @@ class NestedSampler(BaseNestedSampler):
         pfrac=1.0,
         num_threads=1,
         start_method="fork",
-        run_nested_kwargs={},
+        run_nested_kwargs=None,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1727,6 +1690,9 @@ class NestedSampler(BaseNestedSampler):
 
                 int: number of iterations it took to converge
         """
+
+        if run_nested_kwargs is None:
+            run_nested_kwargs = {}
 
         mp.set_start_method(start_method, force=True)
 
@@ -1829,7 +1795,7 @@ class MultiNest(Sampler):
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(MultiNest, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
@@ -2034,7 +2000,7 @@ class NautilusSampler(BaseNestedSampler):
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(NautilusSampler, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
@@ -2066,8 +2032,8 @@ class NautilusSampler(BaseNestedSampler):
         verbose=False,
         num_threads=1,
         savefile=None,
-        sampler_kwargs={},
-        run_kwargs={},
+        sampler_kwargs=None,
+        run_kwargs=None,
     ):
         """Runs the nested sampler from the Nautilus package.
 
@@ -2094,6 +2060,10 @@ class NautilusSampler(BaseNestedSampler):
         Returns:
             numpy.array of float: equal-weighted posterior samples
         """
+        if sampler_kwargs is None:
+            sampler_kwargs = {}
+        if run_kwargs is None:
+            run_kwargs = {}
         if (
             sys.version_info < (3, 9, 0)
             and isinstance(num_threads, int)
@@ -2112,7 +2082,7 @@ class NautilusSampler(BaseNestedSampler):
                     **sampler_kwargs,
                 )
 
-                success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+                _ = self.naut_sampler.run(verbose=verbose, **run_kwargs)
         else:
             self.naut_sampler = nautilus.Sampler(
                 prior=self.nautilus_ptform,
@@ -2126,7 +2096,7 @@ class NautilusSampler(BaseNestedSampler):
                 **sampler_kwargs,
             )
 
-            success = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+            _ = self.naut_sampler.run(verbose=verbose, **run_kwargs)
         points, _, log_l = self.naut_sampler.posterior(equal_weight=True)
         weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 

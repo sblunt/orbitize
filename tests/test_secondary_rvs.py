@@ -1,10 +1,11 @@
-import numpy as np
 import os
+
+import numpy as np
 from astropy.time import Time
 from pandas import DataFrame
 
+from orbitize import DATADIR, read_input, sampler, system
 from orbitize.kepler import calc_orbit
-from orbitize import read_input, system, sampler, DATADIR
 
 
 def test_secondary_rv_lnlike_calc():
@@ -69,7 +70,6 @@ def test_secondary_rv_lnlike_calc():
 
     # assert that the secondary orbit is the primary orbit scaled
     _, _, rv, _ = mySys.compute_all_orbits(orbitize_params_list)
-    rv0 = rv[:, 0]
     rv1 = rv[:, 1]
 
     # check that the output of compute_model for the secondary is the difference between the primary
@@ -84,11 +84,11 @@ def test_read_input():
     works. Added in response to issue #351.
     """
 
-    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data = read_input.read_file(f"{DATADIR}/HD4747.csv")
     input_data["object"] = (
         1  # make sure all astrometry and RV is marked as of the secondary
     )
-    mySystem = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
+    _ = system.System(1, input_data, 1, 1, fit_secondary_mass=False)
 
 
 def test_secondary_rvs_inst_specified():
@@ -96,7 +96,7 @@ def test_secondary_rvs_inst_specified():
     Check that orbitize! sets up the System object correctly (i.e. doesn't fit for
     gamma and jitter) even with multiple instruments specified for relative RVs.
     """
-    input_data = read_input.read_file("{}/HD4747.csv".format(DATADIR))
+    input_data = read_input.read_file(f"{DATADIR}/HD4747.csv")
     input_data["object"] = (
         1  # make sure all astrometry and RV is marked as of the secondary
     )
@@ -105,7 +105,7 @@ def test_secondary_rvs_inst_specified():
 
     # check that inclusion of secondary RVs doesn't trigger gamma/jitter params to be created
     assert not mySystem.fit_secondary_mass
-    for param in mySystem.param_idx.keys():
+    for param in mySystem.param_idx:
         assert not param.startswith("gamma") and not param.startswith("jit")
 
 
