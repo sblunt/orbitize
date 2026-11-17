@@ -1,9 +1,10 @@
 import abc
+import warnings
+
 import numpy as np
 from astropy import units
-import orbitize.basis as basis
-import orbitize.kepler as kepler
-import warnings
+
+from orbitize import basis, kepler
 
 """
 This module defines marginalizations to draw
@@ -19,15 +20,15 @@ class Marginalizer(abc.ABC):
     Written: Eshel Dror, 2026
     """
 
-    QUANT_TYPES = []
-    REQ_PARAMS = []
-    MARG_PARAMS = []
+    QUANT_TYPES = ()
+    REQ_PARAMS = ()
+    MARG_PARAMS = ()
     LNLIKE_TYPE = None
     MULTIBODY = False
     GAIA = False
 
     @abc.abstractmethod
-    def apply(self, param_arr, calculated_values={}):
+    def apply(self, param_arr, calculated_values):
         """
         Apply the marginalization and get the calculated probabilities and sampled parameters.
 
@@ -46,7 +47,6 @@ class Marginalizer(abc.ABC):
                 and M is the number of orbits. In the order of `self.MARG_PARAMS`. May be 1D if M=1.
             dict: `calculated_values` including any updates.
         """
-        pass
 
     @staticmethod
     def lnlike(y, X, beta_hat, W, W_inv=None, W_absdet=None, add_error_norm=True):
@@ -102,9 +102,9 @@ class OFTeI_seppa(Marginalizer):
         tau_ref_epoch (float): Tau Reference Epoch
     """
 
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
-    MARG_PARAMS = ["sma1", "pan1"]
-    QUANT_TYPES = ["seppa"]
+    REQ_PARAMS = ("ecc1", "inc1", "aop1", "tau1", "plx", "per1")
+    MARG_PARAMS = ("sma1", "pan1")
+    QUANT_TYPES = ("seppa",)
     LNLIKE_TYPE = "chi2"
 
     def __init__(
@@ -307,8 +307,8 @@ class OFTeI_DR4_gaia(Marginalizer):
     OFTeI marginalizer for Gaia DR4 absolute astrometry.
 
     Currently only applicable to 1 massive companion.
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"] + ["dr4_jitter"] if fitting jitter
-    MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
+    REQ_PARAMS = ("ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1") + ("dr4_jitter",) if fitting jitter
+    MARG_PARAMS = ("alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v")
 
     where:
     u = plx * sma_photo * cos(pan)
@@ -319,10 +319,10 @@ class OFTeI_DR4_gaia(Marginalizer):
         tau_ref_epoch (float): Tau Reference Epoch
     """
 
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"]
-    MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
+    REQ_PARAMS = ("ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1")
+    MARG_PARAMS = ("alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v")
     LNLIKE_TYPE = "chi2"
-    QUANT_TYPES = []
+    QUANT_TYPES = ()
     GAIA = True
 
     def __init__(
@@ -333,7 +333,7 @@ class OFTeI_DR4_gaia(Marginalizer):
         self.gaia = gaia
         self.tau_ref_epoch=tau_ref_epoch
         if self.gaia.fit_jitter:
-            self.REQ_PARAMS.append("dr4_jitter")
+            self.REQ_PARAMS = self.REQ_PARAMS + ("dr4_jitter",)
 
     def calc_As_and_Bs(self, manoms, ecc, inc, aop):
         """

@@ -1,7 +1,7 @@
 import abc
 import multiprocessing as mp
-import sys
 import os
+import sys
 import time
 import warnings
 
@@ -16,9 +16,9 @@ from astropy.time import Time
 
 import orbitize.kepler
 import orbitize.lnlike
+import orbitize.marginalizer
 import orbitize.priors
 import orbitize.results
-import orbitize.marginalizer
 
 
 class Sampler(abc.ABC):
@@ -1249,7 +1249,7 @@ class MCMC(Sampler):
                         new_file = f"{output_filename}_{i + 1}burnsteps.hdf5"
                         self.results.save_results(new_file)
                         if not os.path.exists(new_file):
-                            raise IOError(f"Failed to save results to {new_file}")
+                            raise OSError(f"Failed to save results to {new_file}")
                         prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
                         if os.path.exists(prev_file):
                             os.remove(prev_file)
@@ -1325,7 +1325,7 @@ class MCMC(Sampler):
                         new_file = f"{output_filename}_{i + 1}steps.hdf5"
                         self.results.save_results(new_file)
                         if not os.path.exists(new_file):
-                            raise IOError(f"Failed to save results to {new_file}")
+                            raise OSError(f"Failed to save results to {new_file}")
                         prev_file = (
                             f"{output_filename}_{i + 1 - periodic_save_freq}steps.hdf5"
                         )
@@ -1644,7 +1644,7 @@ class NestedSampler(BaseNestedSampler):
         self.dynesty_sampler = None
 
     def _logl(self, params):
-        lnlike, *blobs = super(NestedSampler, self)._logl(params)
+        lnlike, *blobs = super()._logl(params)
         return lnlike, blobs
 
     def run_sampler(

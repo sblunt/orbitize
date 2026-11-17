@@ -697,7 +697,7 @@ class OFTeIBasis(Basis):
         gaia_dr4=None,
     ):
 
-        super(OFTeIBasis, self).__init__(
+        super().__init__(
             stellar_or_system_mass,
             mass_err,
             plx,
@@ -810,7 +810,7 @@ class OFTeIGaiaBasis(Basis):
         gaia_dr4=None,
     ):
 
-        super(OFTeIGaiaBasis, self).__init__(
+        super().__init__(
             stellar_or_system_mass,
             mass_err,
             plx,

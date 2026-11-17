@@ -58,8 +58,6 @@ class Plotter:
 
     """
 
-    # Color Map
-    CMAP = cmap
     # color bar
     CBAR_SPACING = 0.005
     CBAR_WIDTH = 0.02
@@ -93,14 +91,6 @@ class Plotter:
     RV_SYMBOLS = (".", "*", "p", "s")
     BORDER_COLOR = "k"
     RADEC_ERR_COLORS = "k"
-    # Latex for rv error
-    RV_ERR_MATH = {
-        "offset": "\\mathrm{{std}}(\\gamma)",
-        "observation": "\\epsilon",
-        "jitter": "\\mathrm{{med}}(\\sigma)",
-    }
-    # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
-    OBJECT_LABELS = {0: "*"}
 
     def __init__(
         self,
@@ -116,6 +106,17 @@ class Plotter:
         rv_time_series2=False,
         post_to_use=None,
     ):
+        # Color Map
+        self.CMAP = cmap
+        # Latex for rv error
+        self.RV_ERR_MATH = {
+            "offset": "\\mathrm{{std}}(\\gamma)",
+            "observation": "\\epsilon",
+            "jitter": "\\mathrm{{med}}(\\sigma)",
+        }
+        # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
+        self.OBJECT_LABELS = {0: "*"}
+
         self.results = results
         self.system = results.system
 
@@ -1465,7 +1466,7 @@ class Plotter:
                 nitems = len(self.rv_inst_inds)
                 if plot_errorbars:
                     nitems += len(rv_err_grouping)
-                plt.legend(fontsize=20, ncol=((nitems - 1) // 5 + 1))
+                plt.legend(loc=0, fontsize=20, ncol=((nitems - 1) // 5 + 1))
 
         if rv_time_series2 and len(self.rv_data2) > 0:
             med_ga2 = [np.median(self.results.post[:, i]) for i in self.gam_idx2]
@@ -2518,10 +2519,7 @@ def plot_corner(
                 label_key = "m"
             elif (
                 label_key == "m0" or label_key == "mtot" or label_key.startswith("plx")
-            ) or label_key in ["pm_ra", "pm_dec", "alpha0", "delta0"]:
-                body_num = ""
-                # maintain original label key
-            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0", "u", "v"]:
+            ) or label_key in ["pm_ra", "pm_dec", "alpha0", "delta0", "u", "v"]:
                 body_num = ""
             elif label_key.startswith(("gamma", "sigma")):
                 body_num = ""

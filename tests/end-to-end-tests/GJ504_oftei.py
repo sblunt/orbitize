@@ -1,14 +1,12 @@
-import matplotlib.pyplot as plt
 
-import orbitize
+import multiprocessing as mp
+import time
 
 # Based on driver.py
-
 import numpy as np
-from orbitize import read_input, system, sampler, priors, marginalizer, plot
-import multiprocessing as mp
+
 import orbitize
-import time
+from orbitize import marginalizer, plot, priors, read_input, sampler, system
 
 savedir = ""
 savefile = f"{savedir}GJ504_oftei.hdf5"

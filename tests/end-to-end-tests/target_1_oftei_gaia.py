@@ -1,6 +1,10 @@
+import os
+
+import numpy as np
 import pandas as pd
-import numpy as np, os
-from orbitize import system as osys, priors, sampler, gaia, DATADIR, marginalizer
+
+from orbitize import DATADIR, gaia, marginalizer, priors, sampler
+from orbitize import system as osys
 
 # read solutions to pull pmra, pmdec, ra, dec that will be provided in the catalog.
 solutions = pd.read_csv(os.path.join(DATADIR, "injected_solutions.csv"))

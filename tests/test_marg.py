@@ -1,52 +1,42 @@
-import pytest
-
+import multiprocessing as mp
 import os
+
 import numpy as np
 import pandas as pd
-import orbitize
-from orbitize.driver import Driver
-import orbitize.sampler as sampler
-import orbitize.marginalizer as marginalizer
-import orbitize.priors as priors
-import orbitize.system as system
-import orbitize.read_input as read_input
-import orbitize.gaia as gaia
-import orbitize.results as results
-from orbitize.plot import plot_corner
-import matplotlib.pyplot as plt
 import pytest
-import multiprocessing as mp
 
+import orbitize
+from orbitize import gaia, marginalizer, priors, read_input, sampler, system
 
 
 class Marg1(marginalizer.Marginalizer):
-    REQ_PARAMS = ["tau", "per"]
-    MARG_PARAMS = ["sma", "pan"]
+    REQ_PARAMS = ("tau", "per")
+    MARG_PARAMS = ("sma", "pan")
 
 
 class Marg2(marginalizer.Marginalizer):
-    REQ_PARAMS = ["tau", "sma", "pan"]
-    MARG_PARAMS = ["gamma"]
+    REQ_PARAMS = ("tau", "sma", "pan")
+    MARG_PARAMS = ("gamma",)
 
 
 class MargConstNoInput(marginalizer.Marginalizer):
-    MARG_PARAMS = ["test"]
+    MARG_PARAMS = ("test",)
 
     def apply(self, param_arr, calculated_values):
         shape = param_arr.shape
         if len(shape) > 1:
             n_orbits = shape[1]
-            return 0, np.zeros((n_orbits)), np.ones((n_orbits)), calculated_values
+            return 0, np.zeros(n_orbits), np.ones(n_orbits), calculated_values
         else:
             return 0, 0, 1, calculated_values
 
 
 class MargPriorNoInput(marginalizer.Marginalizer):
-    MARG_PARAMS = ["test"]
+    MARG_PARAMS = ("test",)
 
     def __init__(self, priors):
         self.dim = len(priors)
-        self.MARG_PARAMS = ["test{}".format(i) for i in range(self.dim)]
+        self.MARG_PARAMS = tuple(f"test{i}" for i in range(self.dim))
         self.priors = priors
 
     def apply(self, param_arr, calculated_values):
@@ -62,7 +52,7 @@ class MargPriorNoInput(marginalizer.Marginalizer):
             )
             assert samples.shape == (self.dim, n_orbits)
             assert not np.isnan(samples).any(), samples
-            return 0, np.zeros((n_orbits)), samples, calculated_values
+            return 0, np.zeros(n_orbits), samples, calculated_values
         else:
             samples = np.array([prior.draw_samples(1).item() for prior in self.priors])
             assert samples.shape == (self.dim,), samples
@@ -169,7 +159,7 @@ def test_OFTeI():
     mtot = 1.22  # Msol
     plx = 56.95  # mas
     mass_err = 0.08  # Msol
-    plx_err = 0.26  # mas
+    # plx_err = 0.26  # mas
     tau_ref_epoch = 0
 
     mySystem = system.System(
@@ -198,7 +188,6 @@ def test_OFTeI():
     pa_err = data_table["quant2_err"][ind]
     covar = np.zeros(len(epochs))
     sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
-    pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
     mass_prior = priors.GaussianPrior(mtot, mass_err)
     per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
     implicit_mass_prior = priors.OFTeIMassPrior(
@@ -283,7 +272,6 @@ def test_OFTeI_RV():
     pa_err = data_table["quant2_err"][ind]
     covar = np.zeros(len(epochs))
     sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
-    pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
     mass_prior = priors.GaussianPrior(mtot, mass_err)
     per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
     implicit_mass_prior = priors.OFTeIMassPrior(
@@ -377,7 +365,6 @@ def test_OFTeI_RV_auto():
     pa_err = data_table["quant2_err"][ind]
     covar = np.zeros(len(epochs))
     sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
-    pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
     mass_prior = priors.GaussianPrior(mtot, mass_err)
     per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
     implicit_mass_prior = priors.OFTeIMassPrior(
@@ -480,7 +467,6 @@ def test_OFTeI_radec():
         pa_err = data_table["quant2_err"][ind]
         covar = np.zeros(len(epochs))
         sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
-        pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
         mass_prior = priors.GaussianPrior(mtot, mass_err)
         per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
         implicit_mass_prior = priors.OFTeIMassPrior(
@@ -536,7 +522,6 @@ def test_OFTeI_radec():
     pa_err = data_table["quant2_err"][ind]
     covar = np.zeros(len(epochs))
     sma_prior = mySystem.sys_priors[mySystem.param_idx["sma1"]]
-    pan_prior = mySystem.sys_priors[mySystem.param_idx["pan1"]]
     mass_prior = priors.GaussianPrior(mtot, mass_err)
     per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
     implicit_mass_prior = priors.OFTeIMassPrior(
