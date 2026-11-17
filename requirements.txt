@@ -2,7 +2,7 @@ astropy>=4
 numpy
 scipy
 emcee>=3
-ptemcee_for_orbitize
+ptemcee_for_orbitize>=1.1.0
 matplotlib
 corner
 h5py

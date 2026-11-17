@@ -1,28 +1,24 @@
-import numpy as np
-import corner
-import warnings
 import itertools
+import warnings
 
-import astropy.units as u
 import astropy.constants as consts
-from astropy.time import Time
-
+import astropy.units as u
+import corner
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-import matplotlib.colors as colors
-from matplotlib.ticker import FormatStrFormatter
-import matplotlib.transforms as transforms
-
+import numpy as np
+from astropy.time import Time
 from erfa import ErfaWarning
+from matplotlib import colors, transforms
+from matplotlib.collections import LineCollection
+from matplotlib.ticker import FormatStrFormatter
 
 import orbitize
 from orbitize import read_input
 
-
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
-    "trunc({n},{a:.2f},{b:.2f})".format(n=cmap.name, a=0.0, b=0.7),
+    f"trunc({cmap.name},{0.0:.2f},{0.7:.2f})",
     cmap(np.linspace(0.0, 0.7, 1000)),
 )
 
@@ -33,7 +29,7 @@ dr4_cmap = colors.LinearSegmentedColormap.from_list(
 )
 
 
-class Plotter(object):
+class Plotter:
     """
     A class to plot results
 
@@ -188,15 +184,13 @@ class Plotter(object):
 
         if cbar_param is not None:
             # Check cbar_param
-            if cbar_param in ["Epoch [year]", "Epoch (year)"]:
-                pass
-            elif (
+            if cbar_param in ["Epoch [year]", "Epoch (year)"] or (
                 cbar_param in self.results.param_idx
                 or cbar_param in self.results.standard_param_idx
             ):
                 pass
             else:
-                raise Exception(
+                raise ValueError(
                     "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
                 )
             self.cbar_param = cbar_param
@@ -206,9 +200,7 @@ class Plotter(object):
 
         if max(self.objects_to_plot) > self.results.num_secondary_bodies:
             raise ValueError(
-                "Only {0} secondary bodies being fit. Requested to plot body {1} which is out of range".format(
-                    self.results.num_secondary_bodies, self.objects_to_plot
-                )
+                f"Only {self.results.num_secondary_bodies} secondary bodies being fit. Requested to plot body {self.objects_to_plot} which is out of range"
             )
 
         if 0 in self.objects_to_plot and not (
@@ -763,10 +755,20 @@ class Plotter(object):
             # Use longest secondary period
             secondaries = np.arange(self.results.num_secondary_bodies) + 1
             sma_indexes = [
-                self.results.standard_param_idx["sma{}".format(i)] for i in secondaries
+                self.results.standard_param_idx[f"sma{i}"] for i in secondaries
             ]
             smas = standard_post[:, sma_indexes]
-            if "mtot" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
+                m0 = standard_post[:, self.results.standard_param_idx["m0"]]
+                m1_indexes = [
+                    self.results.standard_param_idx[f"m{i}"] for i in secondaries
+                ]
+                m1s = standard_post[:, m1_indexes]
+                mtots = (m0 + m1s.T).T
+                periods = np.sqrt(
+                    4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+                )
+            else:
                 mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
                 periods = np.sqrt(
                     4
@@ -774,31 +776,20 @@ class Plotter(object):
                     * (smas.T * u.AU) ** 3
                     / (consts.G * (mtots * u.Msun))
                 ).T
-            elif "m0" in self.results.labels:
-                m0 = standard_post[:, self.results.standard_param_idx["m0"]]
-                m1_indexes = [
-                    self.results.standard_param_idx["m{}".format(i)]
-                    for i in secondaries
-                ]
-                m1s = standard_post[:, m1_indexes]
-                mtots = (m0 + m1s.T).T
-                periods = np.sqrt(
-                    4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
-                )
             periods = periods.to(u.day).value
             period = np.max(periods, axis=1)
         else:
             sma = standard_post[
-                :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
+                :, self.results.standard_param_idx[f"sma{object_to_plot}"]
             ]
-            if "mtot" in self.results.labels:
-                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
-            elif "m0" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1 = standard_post[
-                    :, self.results.standard_param_idx["m{}".format(object_to_plot)]
+                    :, self.results.standard_param_idx[f"m{object_to_plot}"]
                 ]
                 mtot = m0 + m1
+            else:
+                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
             period = np.sqrt(
                 4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
             )
@@ -1439,7 +1430,7 @@ class Plotter(object):
                             for err_type in grouping:
                                 primary_rv_err2 += np.square(primary_errors[err_type])
                                 primary_rv_err_labels.append(
-                                    "{0}^2".format(self.RV_ERR_MATH[err_type])
+                                    f"{self.RV_ERR_MATH[err_type]}^2"
                                 )
                             primary_rv_err_label = (
                                 "$("
@@ -1449,9 +1440,7 @@ class Plotter(object):
                             primary_rv_err = np.sqrt(primary_rv_err2)
                         else:
                             primary_rv_err = primary_errors[grouping]
-                            primary_rv_err_label = "${0}$".format(
-                                self.RV_ERR_MATH[grouping]
-                            )
+                            primary_rv_err_label = f"${self.RV_ERR_MATH[grouping]}$"
                         plt.errorbar(
                             x=epochs,
                             y=rvs - med_ga[i],
@@ -1471,7 +1460,7 @@ class Plotter(object):
                     or (not plot_errorbars)
                 )
                 and len(self.rv_inst_inds.keys()) == 1
-                and "defrv" in self.rv_inst_inds.keys()
+                and "defrv" in self.rv_inst_inds
             ):
                 pass
             else:
@@ -1527,7 +1516,7 @@ class Plotter(object):
                                     secondary_errors[err_type]
                                 )
                                 secondary_rv_err_labels.append(
-                                    "{0}^2".format(self.RV_ERR_MATH[err_type])
+                                    f"{self.RV_ERR_MATH[err_type]}^2"
                                 )
                             secondary_rv_err_label = (
                                 "$("
@@ -1537,9 +1526,7 @@ class Plotter(object):
                             secondary_rv_err = np.sqrt(secondary_rv_err2)
                         else:
                             secondary_rv_err = secondary_errors[grouping]
-                            secondary_rv_err_label = "${0}$".format(
-                                self.RV_ERR_MATH[grouping]
-                            )
+                            secondary_rv_err_label = f"${self.RV_ERR_MATH[grouping]}$"
                         plt.errorbar(
                             x=epochs2,
                             y=rvs2 - med_ga2[i],
@@ -1556,7 +1543,7 @@ class Plotter(object):
             if (
                 rv_err_grouping == [("observation", "offset", "jitter")]
                 and len(self.rv_inst_inds2.keys()) == 1
-                and "defrv" in self.rv_inst_inds2.keys()
+                and "defrv" in self.rv_inst_inds2
             ):
                 pass
             else:
@@ -1653,7 +1640,7 @@ class Plotter(object):
         n_std=1.0,
         rv_time_series=False,
         rv_time_series2=False,
-        rv_err_grouping=[("observation", "offset", "jitter")],
+        rv_err_grouping=None,
         fontsize=20,
         fig=None,
     ):
@@ -1702,6 +1689,9 @@ class Plotter(object):
         Refactoring and additions by Eshel Dror, 2026
 
         """
+
+        if rv_err_grouping is None:
+            rv_err_grouping = [("observation", "offset", "jitter")]
 
         if cmap is None:
             cmap = self.CMAP
@@ -1825,9 +1815,7 @@ class Plotter(object):
                             bright_shape, (4 + i, 12), rowspan=1, colspan=4
                         )
                         bright_ax.set_ylabel(
-                            "$Brightness_{{{0}}}$".format(
-                                self._get_object_label(object_index)
-                            ),
+                            f"$Brightness_{{{self._get_object_label(object_index)}}}$",
                             fontsize=fontsize,
                         )
                         bright_ax.set_xlabel("Epoch", fontsize=fontsize)
@@ -1840,15 +1828,11 @@ class Plotter(object):
                         )
                         bright_ax = None
                     sep_ax.set_ylabel(
-                        "$\\rho_{{{0}}}$ (mas)".format(
-                            self._get_object_label(object_index)
-                        ),
+                        f"$\\rho_{{{self._get_object_label(object_index)}}}$ (mas)",
                         fontsize=fontsize,
                     )
                     pa_ax.set_ylabel(
-                        "PA$_{{{0}}}$ ($^{{\\circ}}$)".format(
-                            self._get_object_label(object_index)
-                        ),
+                        f"PA$_{{{self._get_object_label(object_index)}}}$ ($^{{\\circ}}$)",
                         fontsize=fontsize,
                     )
                     sep_ax.set_xlabel("Epoch", fontsize=fontsize)
@@ -2076,9 +2060,7 @@ class Plotter(object):
             object_axes[0].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
                 object_axes[0].set_ylabel(
-                    "Residual $\\rho_{{{0}}}$ [mas]".format(
-                        self._get_object_label(object_index)
-                    )
+                    f"Residual $\\rho_{{{self._get_object_label(object_index)}}}$ [mas]"
                 )
             else:
                 object_axes[0].set_ylabel("Residual $\\rho$ [mas]")
@@ -2136,9 +2118,7 @@ class Plotter(object):
             object_axes[1].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
                 object_axes[1].set_ylabel(
-                    "Residual PA$_{{{0}}}$ [$^{{\\circ}}$]".format(
-                        self._get_object_label(object_index)
-                    )
+                    f"Residual PA$_{{{self._get_object_label(object_index)}}}$ [$^{{\\circ}}$]"
                 )
             else:
                 object_axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
@@ -2362,7 +2342,7 @@ class Plotter(object):
         if show_colorbar:
             cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
 
-            cbar = mpl.colorbar.ColorbarBase(
+            _ = mpl.colorbar.ColorbarBase(
                 cbar_ax,
                 cmap=cmap,
                 norm=self.norm,
@@ -2882,6 +2862,7 @@ def plot_corner(
     plot_priors=True,
     downsample=None,
     prior_color="orange",
+    use_standard_params=False,
     **corner_kwargs,
 ):
     """
@@ -2912,6 +2893,8 @@ def plot_corner(
         plot priors (bool): overplot prior probabilites on the 1d histograms (default: True)
         downsample (int):
             amount of samples to randomly draw from the posterior using ``results.downsample``
+        use_standard_params (bool): convert posterior to standard basis to plot posteriors of those parameters
+            (default: False)
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
@@ -2958,28 +2941,17 @@ def plot_corner(
     }
 
     if param_list is None:
-        param_list = results.labels
+        if use_standard_params:
+            param_list = list(results.standard_param_idx.keys())
+        else:
+            param_list = results.labels
 
     param_indices = []
+    sys_param_indices = []
+    converted_sys_param_indices = []
     angle_indices = []
     secondary_mass_indices = []
     fixed_indices = []
-    for i, label_key in enumerate(param_list):
-        index_num = results.param_idx[label_key]
-
-        # only plot non-fixed parameters
-        if not np.isclose(0.0, np.std(results.post[:, index_num])):
-            param_indices.append(index_num)
-            if (
-                label_key.startswith("aop")
-                or label_key.startswith("pan")
-                or label_key.startswith("inc")
-            ):
-                angle_indices.append(i - len(fixed_indices))
-            if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
-                secondary_mass_indices.append(i - len(fixed_indices))
-        else:
-            fixed_indices.append(i)
 
     if downsample is not None:
         post, _ = results.downsample(downsample)
@@ -2987,9 +2959,32 @@ def plot_corner(
     else:
         post = results.weighted_post
         weights = results.weights
+    if use_standard_params:
+        post = results.basis.to_standard_basis(np.copy(post).T).T
+
+    for i, label_key in enumerate(param_list):
+        if use_standard_params:
+            index_num = results.standard_param_idx[label_key]
+        else:
+            index_num = results.param_idx[label_key]
+
+        # only plot non-fixed parameters
+        if not np.isclose(0.0, np.std(post[:, index_num])):
+            param_indices.append(i)
+            sys_param_indices.append(index_num)
+            if use_standard_params and label_key not in results.param_idx:
+                converted_sys_param_indices.append(index_num)
+            if (
+                label_key.startswith(("aop", "pan", "inc"))
+            ):
+                angle_indices.append(i - len(fixed_indices))
+            if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
+                secondary_mass_indices.append(i - len(fixed_indices))
+        else:
+            fixed_indices.append(i)
 
     samples = np.copy(
-        post[:, param_indices]
+        post[:, sys_param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -3002,25 +2997,25 @@ def plot_corner(
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in range(len(param_indices)):
+        for i in param_indices:
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
                 label_key = "m"
             elif (
                 label_key == "m0" or label_key == "mtot" or label_key.startswith("plx")
-            ):
+            ) or label_key in ["pm_ra", "pm_dec", "alpha0", "delta0"]:
                 body_num = ""
                 # maintain original label key
-            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0"]:
+            elif label_key in ["pm_ra", "pm_dec", "alpha0", "delta0", "u", "v"]:
                 body_num = ""
-            elif label_key.startswith("gamma") or label_key.startswith("sigma"):
+            elif label_key.startswith(("gamma", "sigma")):
                 body_num = ""
                 label_key = label_key[0:3]
             else:
                 body_num = label_key[-1]
                 label_key = label_key[0:-1]
-            reduced_labels_list.append(default_labels[label_key].format(body_num))
+            reduced_labels_list.append(default_labels.get(label_key, label_key+"{}").format(body_num))
 
         corner_kwargs["labels"] = reduced_labels_list
 
@@ -3033,8 +3028,10 @@ def plot_corner(
 
     if plot_priors:
         axes = figure.axes
-        num_params = len(param_indices)
-        for i, param_i in enumerate(param_indices):
+        num_params = len(sys_param_indices)
+        for i, param_i in enumerate(sys_param_indices):
+            if param_i in converted_sys_param_indices:
+                continue
             prior = results.system.sys_priors[param_i]
             if not hasattr(prior, "compute_lnprob"):
                 continue
@@ -3054,9 +3051,7 @@ def plot_corner(
             if (
                 y.shape != x.shape
             ):  # Some priors may require specific input procedures (ObsPrior)
-                warnings.warn(
-                    "Could not compute prior probability for {0}".format(prior)
-                )
+                warnings.warn(f"Could not compute prior probability for {prior}")
                 continue
             if i in angle_indices:
                 y_plot = y / 180 * np.pi

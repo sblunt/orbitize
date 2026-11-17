@@ -1,15 +1,16 @@
+import emcee
+import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import emcee
-from scipy.stats import norm
-import matplotlib.pyplot as plt
-import h5py
-
-from astropy.time import Time
 from astropy.coordinates import get_body_barycentric_posvel
+from astropy.time import Time
+from scipy.stats import norm
+
+HIPPARCOS_ALPHADEC0_EPOCH = Time("J1991.25", format="jyear_str").jyear
 
 
-class PMPlx_Motion(object):
+class PMPlx_Motion:
     """
     Class to compute the predicted position at an array of epochs given a
     parallax and proper motion model (NO orbital motion is added in this class).
@@ -121,7 +122,7 @@ class PMPlx_Motion(object):
         return alpha_C_st_array, delta_C_array
 
 
-class HipparcosLogProb(object):
+class HipparcosLogProb:
     """
     Class to compute the log probability of an orbit with respect to the
     Hipparcos Intermediate Astrometric Data (IAD). If using a DVD file,
@@ -176,7 +177,7 @@ class HipparcosLogProb(object):
         path_to_iad_file,
         hip_num,
         num_secondary_bodies,
-        alphadec0_epoch=Time("J1991.25", format="jyear_str").jyear,
+        alphadec0_epoch=HIPPARCOS_ALPHADEC0_EPOCH,
         renormalize_errors=False,
         brandt_correction=False,
         hip_data=None,
@@ -206,9 +207,7 @@ class HipparcosLogProb(object):
         if dvd_file:
             if not isinstance(hip_data, dict):
                 raise TypeError(
-                    "Expected kwarg `hip_data` to be a dict but encountered {} instead".format(
-                        type(hip_data)
-                    )
+                    f"Expected kwarg `hip_data` to be a dict but encountered {type(hip_data)} instead"
                 )
             self.plx0 = hip_data["Plx"]  # [mas]
             self.pm_ra0 = hip_data["pmRA"]  # [mas/yr]
@@ -263,9 +262,9 @@ class HipparcosLogProb(object):
         # there were significant residuals. 5 = standard 5-param fit.
         if self.solution_type not in [1, 5]:
             raise ValueError(
+                f"""
+                Currently, we only handle stars with solution types 1 and 5. Your star has type {self.solution_type}. Let us know if you want us to add another solution type!
                 """
-                Currently, we only handle stars with solution types 1 and 5. Your star has type {}. Let us know if you want us to add another solution type!
-                """.format(self.solution_type)
             )
 
         # read in IAD
@@ -291,7 +290,7 @@ class HipparcosLogProb(object):
         good_scans = np.where(self.eps > 0)[0]
 
         if n_lines - len(good_scans) > 0:
-            print("{} Hipparcos scans rejected.".format(n_lines - len(good_scans)))
+            print(f"{n_lines - len(good_scans)} Hipparcos scans rejected.")
         self.epochs = self.epochs[good_scans]
         self.cos_phi = self.cos_phi[good_scans]
         self.sin_phi = self.sin_phi[good_scans]
@@ -542,7 +541,7 @@ def nielsen_iad_refitting_test(
         axes[1].plot(
             xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), color="k"
         )
-        axes[1].set_xlabel(r"$\mu_{{\alpha_0^*}}$ [mas/yr]")
+        axes[1].set_xlabel("$\\mu_{{\\alpha_0^*}}$ [mas/yr]")
 
         # PM Dec
         xs = np.linspace(
@@ -554,7 +553,7 @@ def nielsen_iad_refitting_test(
         axes[2].plot(
             xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), color="k"
         )
-        axes[2].set_xlabel(r"$\mu_{{\delta_0}}$ [mas/yr]")
+        axes[2].set_xlabel("$\\mu_{{\\delta_0}}$ [mas/yr]")
 
         # RA offset
         axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="grey")

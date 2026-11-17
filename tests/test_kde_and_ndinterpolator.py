@@ -1,14 +1,11 @@
 import numpy as np
-import pytest
-from scipy.stats import norm as nm
-from scipy.stats import gaussian_kde
-from scipy.interpolate import NearestNDInterpolator
-
-import orbitize.priors as priors
-import orbitize.results as results
-import orbitize
-
 import pandas as pd
+import pytest
+from scipy.interpolate import NearestNDInterpolator
+from scipy.stats import gaussian_kde
+
+import orbitize
+from orbitize import priors
 
 
 def test_kde():

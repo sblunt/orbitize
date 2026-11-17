@@ -1,6 +1,6 @@
 import orbitize.read_input
-import orbitize.system
 import orbitize.sampler
+import orbitize.system
 
 """
 This module reads input and constructs ``orbitize`` objects
@@ -8,7 +8,7 @@ in a standardized way.
 """
 
 
-class Driver(object):
+class Driver:
     """
     Runs through ``orbitize`` methods in a standardized way.
 
@@ -55,16 +55,7 @@ class Driver(object):
     ):
 
         # Read in data
-        # Try to interpret input as a filename first
-        try:
-            data_table = orbitize.read_input.read_file(input_data)
-        except:
-            try:
-                # Check if input might be an orbitize style astropy.table.Table
-                if "quant_type" in input_data.columns:
-                    data_table = input_data.copy()
-            except:
-                raise Exception("Invalid value of input_data for Driver")
+        data_table = orbitize.read_input.read_file(input_data)
 
         if system_kwargs is None:
             system_kwargs = {}
@@ -74,7 +65,7 @@ class Driver(object):
             "fit_secondary_mass" not in system_kwargs
             or system_kwargs["fit_secondary_mass"] == False
         ):
-            raise Exception(
+            raise ValueError(
                 "If including RV data in orbit fit, set fit_secondary_mass=True"
             )
 
@@ -82,7 +73,7 @@ class Driver(object):
             "fit_secondary_mass" in system_kwargs
             and True == system_kwargs["fit_secondary_mass"]
         ):
-            raise Exception("Run Astrometry+RV in MCMC for now.")
+            raise NotImplementedError("Run Astrometry+RV in MCMC for now.")
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
             num_secondary_bodies,

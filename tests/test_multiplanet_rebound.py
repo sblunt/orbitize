@@ -1,15 +1,15 @@
 import os
-import numpy as np
-from astropy.table import Table, vstack
-import astropy.units as u
-import orbitize
-import orbitize.read_input as read_input
-import orbitize.kepler as kepler
-import orbitize.system as system
 
 # Skip this test on Windows since REBOUND doesn't work on Windows
 import sys
+
+import astropy.units as u
+import numpy as np
 import pytest
+from astropy.table import Table, vstack
+
+import orbitize
+from orbitize import kepler, read_input, system
 
 if sys.platform.startswith("win"):
     pytest.skip("Skipping REBOUND tests on Windows", allow_module_level=True)
@@ -169,7 +169,7 @@ def test_1planet():
     assert np.all(np.abs(diff_rv_pl) < 1e-7)
 
     # clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
 
 def test_2planet_massive():
@@ -371,7 +371,7 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_rv_pl) / K_amp_b < 1e-3)
 
     # clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
     # NOW TEST THE INNER PLANET
 
@@ -482,7 +482,7 @@ def test_2planet_massive():
     assert np.all(np.abs(diff_relative_rv) / K_amp_c < 7e-3)
 
     # clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
 
 def test_2planet_massive_stellar_rv():
@@ -660,7 +660,7 @@ def test_2planet_massive_reverse_order():
     # doesn't matter that this is right, just needs to be the same size. below doesn't
     # include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
+    b_ra_model, b_dec_model, _, _ = kepler.calc_orbit(
         epochs,
         params[6 + 0],
         params[6 + 1],
@@ -777,7 +777,7 @@ def test_2planet_massive_reverse_order():
     assert np.all(np.abs(diff_dec) / (params[6]) < 1e-3)
 
     # clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
 
 def test_2planet_nomass():
@@ -821,7 +821,7 @@ def test_2planet_nomass():
     # doesn't matter that this is right, just needs to be the same size. below
     # doesn't include effect of c
     # just want to generate some measurements of plaent b to test compute model
-    b_ra_model, b_dec_model, b_vz_model, _ = kepler.calc_orbit(
+    b_ra_model, b_dec_model, _, _ = kepler.calc_orbit(
         epochs,
         params[0],
         params[1],
@@ -929,7 +929,7 @@ def test_2planet_nomass():
     assert np.all(np.abs(diff_dec) / (params[0] * params[6 * 2]) < 1e-9)
 
     # clean up
-    os.system("rm {}".format(filename))
+    os.system(f"rm {filename}")
 
 
 if __name__ == "__main__":
