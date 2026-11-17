@@ -280,7 +280,7 @@ class OFTeI_seppa(Marginalizer):
             warnings.warn(
                 f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0"
             )
-            return -np.inf, -np.inf, None, dict()
+            return -np.inf, -np.inf, None, calculated_values
 
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
@@ -350,8 +350,6 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         """
 
-        n_dates = np.size(manoms)
-
         # compute eccentric anomalies (size: n_dates)
         eanom = kepler.calc_ecc_anom(manoms, ecc)
 
@@ -418,9 +416,9 @@ class OFTeI_DR4_gaia(Marginalizer):
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
         if self.gaia.fit_jitter:
-            ecc, inc, aop, tau, period_yr, mfrac1, jitter = param_arr
+            ecc, inc, aop, tau, period_yr, _mfrac1, jitter = param_arr
         else:
-            ecc, inc, aop, tau, period_yr, mfrac1 = param_arr
+            ecc, inc, aop, tau, period_yr, _mfrac1 = param_arr
             jitter = self.gaia.jitter
         if not period_yr > 0:
             raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
@@ -461,7 +459,7 @@ class OFTeI_DR4_gaia(Marginalizer):
             warnings.warn(
                 f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0"
             )
-            return -np.inf, -np.inf, None, {}
+            return -np.inf, -np.inf, None, calculated_values
 
         chi2lnlike = self.lnlike(Y, D, map_fit, W, W_inv, W_det, add_error_norm=True)
 

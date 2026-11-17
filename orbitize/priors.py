@@ -907,7 +907,7 @@ class OFTeIUVReweightPrior(ReweightPrior):
         u = param_arr[self.basis.param_idx["u"]]
         plx = param_arr[self.basis.param_idx["plx"]]
         mfrac1 = param_arr[self.basis.param_idx["mfrac1"]] # m1 / mtot
-        period_yr = param_arr[self.basis.param_idx["per1"]]
+        # period_yr = param_arr[self.basis.param_idx["per1"]]
         pan = np.atan(v / u)
         if u < 0:
             pan += np.pi
