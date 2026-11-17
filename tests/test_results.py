@@ -6,9 +6,19 @@ import os
 
 import numpy as np
 import pytest
+from astropy.table import Table
 
 import orbitize
-from orbitize import DATADIR, gaia, hipparcos, read_input, results, sampler, system
+from orbitize import (
+    DATADIR,
+    gaia,
+    hipparcos,
+    priors,
+    read_input,
+    results,
+    sampler,
+    system,
+)
 
 std_labels = ["sma1", "ecc1", "inc1", "aop1", "pan1", "tau1", "plx", "mtot"]
 std_param_idx = {
