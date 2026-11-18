@@ -9,6 +9,14 @@ from scipy.optimize import fsolve
 from orbitize import kepler, priors
 
 
+def jacobi_mtot(sma, all_smas, all_masses, m0):
+    """Return the primary mass plus companion masses with semimajor axes <= sma.
+
+    Companion arrays have shape (n_bodies,) or (n_bodies, n_orbits).
+    """
+    return m0 + np.sum(np.where(all_smas <= sma, all_masses, 0.0), axis=0)
+
+
 class Basis(abc.ABC):
     """
     Abstract base class for different basis sets. All new basis objects should inherit from
@@ -1193,7 +1201,9 @@ class SemiAmp(Basis):
                 in each orbit rather than period, appends stellar rv semi-amplitude parameters, and
                 removes companion masses
         """
-        # Cache these before their slots become periods and K.
+        # Preserve all semimajor axes and masses before the conversion
+        # replaces them with periods and RV semi-amplitudes. Each companion's
+        # Jacobi total mass must use the original values for all companions.
         bodies = np.arange(1, self.num_secondary_bodies + 1)
         all_smas = param_arr[
             [self.standard_basis_idx[f"sma{body}"] for body in bodies]
@@ -1208,7 +1218,7 @@ class SemiAmp(Basis):
             inc = param_arr[self.standard_basis_idx[f"inc{body_num}"]]
             m_n = param_arr[self.standard_basis_idx[f"m{body_num}"]]
             m0 = param_arr[self.standard_basis_idx["m0"]]
-            mtot = m0 + np.sum(np.where(all_smas <= sma, all_masses, 0.0), axis=0)
+            mtot = jacobi_mtot(sma, all_smas, all_masses, m0)
 
             # Get stellar semi-amplitude
             K_n = (
