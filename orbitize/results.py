@@ -412,14 +412,26 @@ class Results:
                 time_format=hf.attrs["dr4_time_format"],
                 time_scale=hf.attrs["dr4_time_scale"],
             )
+            fit_jitter = bool(hf.attrs["dr4_fit_jitter"])
+            if fit_jitter:
+                jitter = 0.0
+                prior_values = hf.get("dr4_jitter_prior")
+                prior_type = prior_values.attrs["prior_type"]
+                params_raw = prior_values.get("params")
+                params = {key: params_raw[key][()] for key in params_raw}
+                prior_class = getattr(orbitize.priors, prior_type)
+                jitter_prior = prior_class(**params)
+            else:
+                jitter = float(hf.attrs["dr4_jitter"])
+                jitter_prior = None
+
             gaia = orbitize.gaia.DR4LogProb(
                 int(hf.attrs["gaia_num"]),
                 dr4_table,
                 ref_epoch_mjd=float(hf.attrs["dr4_ref_epoch_mjd"]),
-                jitter=float(hf.attrs["dr4_jitter"]),
+                jitter=jitter,
+                jitter_prior=jitter_prior,
             )
-            # Keep the fitted jitter column. Its prior is not serialized.
-            gaia.fit_jitter = bool(hf.attrs["dr4_fit_jitter"])
 
         try:
             fitting_basis = str(hf.attrs["fitting_basis"])

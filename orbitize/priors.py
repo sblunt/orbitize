@@ -938,6 +938,10 @@ class OFTeIMassPrior(Prior):
         with np.errstate(divide="ignore"):
             return np.log(f_Z / element_array)
 
+    def _save(self, hf, name=None):
+        kwargs = ("sma_min", "sma_max", "per_min", "per_max")
+        self._simple_save(hf, name, "OFTeIMassPrior", kwargs)
+
 class OFTeIMassReweightPrior(ReweightPrior):
     def get_param_value(self, param_arr):
         standard_param_arr = self.basis.to_standard_basis(np.copy(param_arr))
