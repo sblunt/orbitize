@@ -998,6 +998,68 @@ class MCMC(Sampler):
             self.curr_pos = prev_pos
             self.results = None  # Clear variable
 
+    def warm_start_dr4(self, rv_results, rng=None, max_delta_logl=None):
+        """Seed RV+DR4 walkers from a completed SemiAmp RV-only MCMC fit.
+
+        Both fits must have the same companions and phase reference epoch.
+        Draw one RV chain row uniformly per walker and initialize the Gaia position
+        offsets and proper motions by weighted least squares. Inclinations,
+        nodes, and Gaia jitter retain their starting values. Priors are unchanged.
+
+        Args:
+            rv_results (orbitize.results.Results): Results from the RV-only MCMC fit.
+            rng (numpy.random.Generator or int, optional): Generator or seed.
+            max_delta_logl (float, optional): Keep RV draws within this nonnegative
+                log-likelihood difference from the best finite draw. None uses all draws.
+        """
+        system = self.system
+        dr4 = system.gaia
+        rv_system = rv_results.system
+        rv_post = rv_results.post
+        if (
+            system.fitting_basis != "SemiAmp"
+            or rv_system.fitting_basis != "SemiAmp"
+            or system.num_secondary_bodies != rv_system.num_secondary_bodies
+            or system.tau_ref_epoch != rv_system.tau_ref_epoch
+        ):
+            raise ValueError(
+                "The fits must use SemiAmp with the same companion count and tau_ref_epoch."
+            )
+
+        if max_delta_logl is not None:
+            logl = np.asarray(rv_results.lnlike)
+            finite = np.isfinite(logl)
+            rv_post = rv_post[finite & (logl >= logl[finite].max() - max_delta_logl)]
+
+        sampled_idx = self.sampled_param_idx
+        positions = self.curr_pos.reshape(-1, self.num_params).copy()
+        shared = [
+            name
+            for name in sampled_idx
+            if name in rv_results.param_idx and not name.startswith(("inc", "pan"))
+        ]
+        draws = np.random.default_rng(rng).integers(len(rv_post), size=len(positions))
+        positions[:, [sampled_idx[name] for name in shared]] = rv_post[draws][
+            :, [rv_results.param_idx[name] for name in shared]
+        ]
+
+        full_positions = self._fill_in_fixed_params(positions)
+        ra, dec, *_ = system.compute_all_orbits(
+            full_positions.T, epochs=dr4.epochs_mjd, params_basis="fitting"
+        )
+        idx = system.param_idx
+        linear_columns = [
+            sampled_idx[name] for name in ("alpha0", "delta0", "pm_ra", "pm_dec")
+        ]
+        for walker, params in enumerate(full_positions):
+            jitter = params[idx["dr4_jitter"]] if dr4.fit_jitter else dr4.jitter
+            positions[walker, linear_columns] = dr4.guess_initial_astrometry(
+                ra[:, 0, walker], dec[:, 0, walker], params[idx["plx"]], jitter
+            )
+
+        self.curr_pos = positions.reshape(self.curr_pos.shape)
+        self.check_prior_support()
+
     def _fill_in_fixed_params(self, sampled_params):
         """
         Fills in the missing parameters from the chain that aren't being sampled
