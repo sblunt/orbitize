@@ -54,37 +54,36 @@ authors:
 - name: Rifah Tasnim
   affiliation: '8'
 - name: David Trevascus
-  affiliation: '13'
+  affiliation: '12'
 - name: Edward Turner
   affiliation: '6'
 - name: Vidya Venkatesan
-  affiliation: '14'
+  affiliation: '13'
 - name: Jason J. Wang
   orcid: 0000-0003-0774-6502
-  affiliation: "5,16"
+  affiliation: '5'
 - name: Marie Ygouf
   affiliation: '4'
 - name: Jingwen Zhang
   orcid: 0000-0002-2696-2406
-  affiliation: '15'
+  affiliation: '14'
 affiliations:
-- name: California Institute of Technology, Pasadena, CA, USA
+- name: Department of Astronomy, California Institute of Technology, Pasadena, CA, USA
   index: 1
-- name: University of California, Santa Cruz, Santa Cruz, CA, USA
+- name: Department of Astronomy and Astrophysics, University of California, Santa Cruz, Santa Cruz, CA, USA
   index: 2
-- name: University of Colorado Boulder, Boulder, CO, USA
+- name: Department of Astrophysical and Planetary Sciences, University of Colorado Boulder, Boulder, CO, USA
   index: 3
 - name: Jet Propulsion Laboratory, California Institute of Technology, Pasadena, CA, USA
   index: 4
-- name: Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA), Northwestern University,
-    Evanston, IL, USA
+- name: Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA) and Department of Physics and Astronomy, Northwestern University, Evanston, IL, USA
   index: 5
 - name: Institute for Astronomy, School of Physics and Astronomy, University of Edinburgh, Edinburgh,
     UK
   index: 6
 - name: European Southern Observatory, Santiago, Chile
   index: 7
-- name: Cornell University, Ithaca, NY, USA
+- name: Department of Astronomy and Carl Sagan Institute, Cornell University, Ithaca, NY, USA
   index: 8
 - name: Department of Physics and Engineering, University of St. Thomas, Houston, TX, USA
   index: 9
@@ -92,17 +91,12 @@ affiliations:
   index: 10
 - name: Leiden Observatory, Leiden University, Leiden, The Netherlands
   index: 11
-- name: Herzberg Astronomy and Astrophysics Research Centre, National Research Council Canada, Victoria,
-    BC, Canada
-  index: 12
 - name: Max Planck Institute for Astronomy, Heidelberg, Germany
-  index: 13
+  index: 12
 - name: University of California, Riverside, Riverside, CA, USA
+  index: 13
+- name: Department of Physics, University of California, Santa Barbara, Santa Barbara, CA, USA
   index: 14
-- name: University of California, Santa Barbara, Santa Barbara, CA, USA
-  index: 15
-- name: Department of Physics and Astronomy Northwestern University, Evanston, IL 60208, USA
-  index: 16
 date: 19 November 2026
 bibliography: paper.bib
 ---
@@ -234,17 +228,17 @@ since v3 include:
     passed directly to the DR4 likelihood for injection recovery tests.
 
 3.  Worked examples demonstrate the new fitting and plotting capabilities. The [Gaia BH3
-    Tutorial](https://github.com/sblunt/orbitize/blob/dr4-sign-and-tutorials-v4/docs/tutorials/Gaia_DR4_BH3.ipynb)
+    Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Gaia_DR4_BH3.html)
     demonstrates fitting Gaia epoch astrometry alone for the black hole binary
     discovered by @{2024A&A...686L...2G}. The [Gaia-4
-    Tutorial](https://github.com/sblunt/orbitize/blob/dr4-sign-and-tutorials-v4/docs/tutorials/Gaia_DR4_Gaia4.ipynb)
+    Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Gaia_DR4_Gaia4.html)
     demonstrates a joint fit with stellar radial velocities from @{2025AJ....169..107S},
     while the [HD 114762
-    Tutorial](https://github.com/sblunt/orbitize/blob/dr4-sign-and-tutorials-v4/docs/tutorials/Gaia_DR4_EAS.ipynb)
+    Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/Gaia_DR4_EAS.html)
     provides another example of joint RV and Gaia epoch astrometry fitting. These three
     tutorials use epoch astrometry from the [June 2026 Gaia DR4
     prerelease](https://www.cosmos.esa.int/web/gaia/dr4-prerelease). The [$\mu$ Ara
-    Tutorial](https://github.com/sblunt/orbitize/blob/dr4-sign-and-tutorials-v4/docs/tutorials/HD160691_Joint_Fit.ipynb)
+    Tutorial](https://orbitize.readthedocs.io/en/latest/tutorials/HD160691_Joint_Fit.html)
     demonstrates generating mock Gaia DR4 astrometry for a four-planet system and
     jointly fitting it with observed stellar radial velocities. All four examples
     illustrate posterior sampling and visualization of the inferred orbits.
