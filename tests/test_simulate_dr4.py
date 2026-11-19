@@ -40,13 +40,13 @@ def test_simulate_dr4_linear_model(gost_file, monkeypatch):
     monkeypatch.setattr(sim, "al_uncertainty", lambda g_mag: 0.0)
 
     # make ra0, dec0, pmra, pmdec, plx
-    params = dict(
-        alpha0=2.0,
-        delta0=-3.0,
-        pm_ra=0.5,
-        pm_dec=-0.25,
-        plx=20.0,
-    )
+    params = {
+        "alpha0": 2.0,
+        "delta0": -3.0,
+        "pm_ra": 0.5,
+        "pm_dec": -0.25,
+        "plx": 20.0,
+    }
     table = sim.simulate_dr4(gost_file, params, seed=123)
 
     # dt = [-1, 0, 1] yr. scan angles = [0, pi/2, 0].
@@ -82,17 +82,17 @@ def test_simulate_dr4_stellar_reflex(tmp_path, monkeypatch):
     )
 
     # make arbitrary orbit (face on, circular)
-    params = dict(
-        sma1=1.0,
-        ecc1=0.0,
-        inc1=0.0,
-        aop1=0.0,
-        pan1=0.0,
-        tau1=0.0,
-        plx=20.0,
-        m0=0.99,
-        m1=0.01,
-    )
+    params = {
+        "sma1": 1.0,
+        "ecc1": 0.0,
+        "inc1": 0.0,
+        "aop1": 0.0,
+        "pan1": 0.0,
+        "tau1": 0.0,
+        "plx": 20.0,
+        "m0": 0.99,
+        "m1": 0.01,
+    }
     # make mock dr4 data
     table = sim.simulate_dr4(path, params, seed=123, tau_ref_epoch=ref)
 
