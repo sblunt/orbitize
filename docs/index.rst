@@ -55,7 +55,7 @@ User Guide:
 Changelog:
 ++++++++++
 
-**4.0.0 (release date TBD)**
+**4.0.0 (2026-11-19)**
 
 - fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
 - implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
@@ -75,6 +75,7 @@ Changelog:
 - use julian year instead of decimal year throughout; bug affected long-period datasets like HGCA (@seffal, @sblunt)
 - bugfix for relative RVs with massive secondary (@sblunt)
 - relative and stellar RVs now correctly implement the epicycle/Jacobi approximation (@wbalmer, @sblunt)
+- add marginalization framework and add OFTeI marginalization for Sep/PA and Gaia DR4!! (@eshelDror)
 
 **3.4.0 (2026-7-20)**
 
