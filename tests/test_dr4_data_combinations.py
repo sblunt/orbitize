@@ -117,17 +117,17 @@ def astrometry_table(tmp_path, objects):
 def make_system(fit_type, data, tmp_path):
     parts = data.split("+")
     objects = [obj for name, obj in (("abs", 0), ("rel", 1)) if name in parts]
-    kwargs = dict(
-        data_table=astrometry_table(tmp_path, objects) if objects else None,
-        gaia=mock_dr4() if "dr4" in parts else None,
-        hipparcos_IAD=(
+    kwargs = {
+        "data_table": astrometry_table(tmp_path, objects) if objects else None,
+        "gaia": mock_dr4() if "dr4" in parts else None,
+        "hipparcos_IAD": (
             hipparcos.HipparcosLogProb(
-                "{}HIP027321.d".format(DATADIR), "027321", 1, hip_data=HIP_DATA
+                f"{DATADIR}HIP027321.d", "027321", 1, hip_data=HIP_DATA
             )
             if "hip" in parts
             else None
         ),
-    )
+    }
     if fit_type == "acc_only":
         return system.System(
             num_secondary_bodies=0,

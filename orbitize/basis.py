@@ -227,7 +227,7 @@ class Basis(abc.ABC):
         if missing:
             raise ValueError(
                 "Acceleration fits require the Gaia DR4 priors to be set first "
-                "(call set_gaia_dr4_priors); missing: {}".format(missing)
+                f"(call set_gaia_dr4_priors); missing: {missing}"
             )
 
         acc_priors = [

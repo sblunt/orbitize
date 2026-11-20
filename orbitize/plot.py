@@ -7,11 +7,14 @@ import corner
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from astropy.coordinates import get_body_barycentric_posvel
 from astropy.time import Time
 from erfa import ErfaWarning
 from matplotlib import colors, transforms
 from matplotlib.collections import LineCollection
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FormatStrFormatter
+from scipy.optimize import least_squares
 
 import orbitize
 from orbitize import read_input

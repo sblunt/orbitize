@@ -169,7 +169,7 @@ def test_needs_data():
 def test_rejects_hipparcos():
     """Hipparcos IAD are not supported in an acceleration-only fit."""
     hip = hipparcos.HipparcosLogProb(
-        "{}HIP027321.d".format(DATADIR), "027321", 0, hip_data=HIP_DATA
+        f"{DATADIR}HIP027321.d", "027321", 0, hip_data=HIP_DATA
     )
     with pytest.raises(ValueError, match="hipparcos_IAD"):
         acc_system(dr4=mock_dr4(), hipparcos_IAD=hip)
@@ -325,7 +325,7 @@ def test_mcmc_runs(tmp_path, use_radec, use_dr4):
     returns finite log-likelihoods."""
     kwargs = {}
     if use_radec:
-        kwargs = dict(data_table=radec_table(tmp_path))
+        kwargs = {"data_table": radec_table(tmp_path)}
     sys = acc_system(dr4=mock_dr4(truth=TRUTH, ra=ALPHA0_DEG, dec=DELTA0_DEG), **kwargs)
 
     n_walkers = 2 * len(sys.labels)

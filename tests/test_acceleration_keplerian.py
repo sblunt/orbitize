@@ -91,14 +91,14 @@ def radec_table(tmp_path, obj, years=(2015.0, 2017.0, 2018.5, 2020.0), err=0.5):
         ],
         names=["epoch", "object", "raoff", "raoff_err", "decoff", "decoff_err"],
     )
-    filename = tmp_path / "astrometry_{}.csv".format(obj)
+    filename = tmp_path / f"astrometry_{obj}.csv"
     t.write(filename, overwrite=True)
     return read_input.read_file(str(filename))
 
 
 def hip_iad():
     return hipparcos.HipparcosLogProb(
-        "{}HIP027321.d".format(DATADIR), "027321", 1, hip_data=HIP_DATA
+        f"{DATADIR}HIP027321.d", "027321", 1, hip_data=HIP_DATA
     )
 
 
@@ -339,14 +339,14 @@ def test_user_priors_replace_plx_and_mass():
     stellar_or_system_mass, and take priority over them."""
     plx_prior = priors.GaussianPrior(20.0, 0.5)
     mass_prior = priors.GaussianPrior(1.0, 0.1)
-    kwargs = dict(
-        num_secondary_bodies=1,
-        data_table=None,
-        fit_secondary_mass=True,
-        gaia=mock_dr4(),
-        plx_prior=plx_prior,
-        stellar_or_system_mass_prior=mass_prior,
-    )
+    kwargs = {
+        "num_secondary_bodies": 1,
+        "data_table": None,
+        "fit_secondary_mass": True,
+        "gaia": mock_dr4(),
+        "plx_prior": plx_prior,
+        "stellar_or_system_mass_prior": mass_prior,
+    }
     for sys in (
         system.System(**kwargs),
         system.System(
@@ -368,8 +368,8 @@ def test_total_mass_prior(tmp_path):
 @pytest.mark.parametrize(
     "kwargs, match",
     [
-        (dict(plx=20.0), "stellar_or_system_mass"),
-        (dict(stellar_or_system_mass=1.0), "plx"),
+        ({"plx": 20.0}, "stellar_or_system_mass"),
+        ({"stellar_or_system_mass": 1.0}, "plx"),
     ],
 )
 def test_needs_plx_and_mass(tmp_path, kwargs, match):
