@@ -92,7 +92,9 @@ class Sampler(abc.ABC):
                     per_prior.minval,
                     per_prior.maxval,
                 )
-                reweight_prior = orbitize.priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, self.system.basis)
+                reweight_prior = orbitize.priors.OFTeIMassReweightPrior(
+                    implicit_mass_prior, mass_prior, self.system.basis
+                )
                 self.system.reweight_priors.append(reweight_prior)
                 marg = orbitize.marginalizer.OFTeI_seppa(
                     epochs,
@@ -155,7 +157,7 @@ class Sampler(abc.ABC):
         # Quantity types which will not be evaluated during marginalization (i.e. rv for seppa OFTeI)
         self.non_marg_quants = list(quants - marg_quants)
         # Instead of performing marginalization, draw the marginalized parameters
-        # directly from their priors so they are guaranteed to be within prior domain 
+        # directly from their priors so they are guaranteed to be within prior domain
         self.force_valid_marg = False
 
         if not orbitize.marginalizer.compatible_params(
@@ -198,8 +200,6 @@ class Sampler(abc.ABC):
         total_lnprob = 0
         all_calculated_values = {}
         if self.force_valid_marg:
-            # reweight_prob = -np.inf
-            # while np.isneginf(reweight_prob):
             samples = [
                 (
                     np.squeeze(prior.draw_samples(num_orbits))
@@ -209,13 +209,6 @@ class Sampler(abc.ABC):
                 for prior in self.marg_priors
             ]
             params[self.marg_param_sys_idx] = samples
-
-                # if len(self.system.reweight_priors) == 0:
-                #     reweight_prob = 0
-                # else:
-                #     for reweight_prior in self.system.reweight_priors:
-                #         reweight_prob = reweight_prior.compute_lnprob(params)
-            # total_lnprob += reweight_prob
 
         else:
             for marg in self.marginalizers:
@@ -230,12 +223,22 @@ class Sampler(abc.ABC):
                     marg.apply(req_params, all_calculated_values)
                 )
                 if np.isscalar(marg_params):
-                    if hasattr(self.system.sys_priors[marg_param_idx[0]], "compute_lnprob"):
-                        partial_lnprob += self.system.sys_priors[marg_param_idx[0]].compute_lnprob(np.array([marg_params]))
+                    if hasattr(
+                        self.system.sys_priors[marg_param_idx[0]], "compute_lnprob"
+                    ):
+                        partial_lnprob += (
+                            self.system.sys_priors[marg_param_idx[0]]
+                            .compute_lnprob(np.array([marg_params]))
+                            .item()
+                        )
                 else:
                     for i, param in zip(marg_param_idx, marg_params):
                         if hasattr(self.system.sys_priors[i], "compute_lnprob"):
-                            partial_lnprob += self.system.sys_priors[i].compute_lnprob(np.array([param]))
+                            partial_lnprob += (
+                                self.system.sys_priors[i].compute_lnprob(
+                                    np.array([param])
+                                )
+                            ).item()
                 if np.isneginf(partial_lnprob):
                     return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
                 total_lnprob += partial_lnprob
@@ -246,7 +249,7 @@ class Sampler(abc.ABC):
                 )  # i.e. astr_tanom, rv_eanom
 
             for reweight_prior in self.system.reweight_priors:
-                total_lnprob += reweight_prior.compute_lnprob(params)
+                total_lnprob += reweight_prior.compute_lnprob(params).item()
 
             if np.isneginf(total_lnprob):
                 return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
@@ -341,7 +344,9 @@ class Sampler(abc.ABC):
                 self.system.param_idx,
             )
 
-        if self.system.gaia is not None and (not self.gaia_marg or self.force_valid_marg):
+        if self.system.gaia is not None and (
+            not self.gaia_marg or self.force_valid_marg
+        ):
             if hasattr(self.system.gaia, "epochs_mjd"):
                 # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
                 gaiahip_epochs = self.system.gaia.epochs_mjd
@@ -398,10 +403,16 @@ class OFTI(
         self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
     ):
         super().__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=[],
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+            marginalizers=[],
         )
 
-        warnings.warn("OFTI is depracated. Please use MCMC with OFTeI marginalization for faster and more accurate results.")
+        warnings.warn(
+            "OFTI is depracated. Please use MCMC with OFTeI marginalization for faster and more accurate results."
+        )
 
         if (self.system.hipparcos_IAD is not None) or (len(self.system.rv[0] > 0)):
             raise NotImplementedError(
@@ -928,7 +939,11 @@ class MCMC(Sampler):
         marginalizers=None,
     ):
         super().__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike, marginalizers=marginalizers,
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+            marginalizers=marginalizers,
         )
 
         self.num_temps = num_temps
@@ -1247,10 +1262,10 @@ class MCMC(Sampler):
             and output_filename is not None
             and self.prev_result_filename.endswith(".hdf5")
             and self.prev_result_filename.startswith(output_filename)
-            ):
-                raise ValueError(
-                    f"Output file {output_filename} may overwrite previous results {self.prev_result_filename} "
-                )
+        ):
+            raise ValueError(
+                f"Output file {output_filename} may overwrite previous results {self.prev_result_filename} "
+            )
 
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
@@ -1311,7 +1326,9 @@ class MCMC(Sampler):
                     self.results.save_results(new_file)
                     if not os.path.exists(new_file):
                         raise OSError(f"Failed to save results to {new_file}")
-                    prev_file = f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
+                    prev_file = (
+                        f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
+                    )
                     if os.path.exists(prev_file):
                         os.remove(prev_file)
             sampler.reset()
@@ -1343,9 +1360,7 @@ class MCMC(Sampler):
                             post_shape[-1],
                         )
                         curr_chain = self.full_post.reshape(curr_chain_shape)
-                        curr_lnlike_chain = self.lnlikes.reshape(
-                            curr_chain_shape[:2]
-                        )
+                        curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
                         # use the reshaped arrays and find the new steps we computed
                         curr_chunk = curr_chain[:, saved_upto : i + 1]
                         curr_chunk = curr_chunk.reshape(
