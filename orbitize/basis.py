@@ -9,6 +9,14 @@ from scipy.optimize import fsolve
 from orbitize import kepler, priors
 
 
+def jacobi_mtot(sma, all_smas, all_masses, m0):
+    """Return the primary mass plus companion masses with semimajor axes <= sma.
+
+    Companion arrays have shape (n_bodies,) or (n_bodies, n_orbits).
+    """
+    return m0 + np.sum(np.where(all_smas <= sma, all_masses, 0.0), axis=0)
+
+
 class Basis(abc.ABC):
     """
     Abstract base class for different basis sets. All new basis objects should inherit from
@@ -681,6 +689,252 @@ class Period(Basis):
         return param_arr
 
 
+class OFTeIBasis(Basis):
+    def __init__(
+        self,
+        stellar_or_system_mass,
+        mass_err,
+        plx,
+        plx_err,
+        num_secondary_bodies,
+        fit_secondary_mass,
+        angle_upperlim=2 * np.pi,
+        hipparcos_IAD=None,
+        rv=False,
+        rv_instruments=None,
+        gaia_dr4=None,
+    ):
+
+        super().__init__(
+            stellar_or_system_mass,
+            mass_err,
+            plx,
+            plx_err,
+            num_secondary_bodies,
+            fit_secondary_mass,
+            angle_upperlim,
+            hipparcos_IAD,
+            rv,
+            rv_instruments,
+            gaia_dr4,
+        )
+        if fit_secondary_mass:
+            raise ValueError("Secondary mass not supported yet for OFTeI basis")
+        if not num_secondary_bodies == 1:
+            raise ValueError("Multiplanet not supported yet")
+        if gaia_dr4 is not None:
+            raise ValueError(
+                "DR4 not supported with OFTeI basis, use OFTeIGaia Basis instead."
+            )
+
+    def construct_priors(self):
+        """
+
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the standard basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
+
+        Returns:
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        """
+        base_labels = ["sma", "ecc", "inc", "aop", "pan", "tau", "per"]
+        basis_priors = []
+        basis_labels = []
+
+        # Define param label dictionary in current basis & standard basis
+        # self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        # self.standard_basis_idx = dict(
+        #     zip(basis_labels[:-1], np.arange(len(basis_labels) - 1))
+        # )
+        # self.standard_basis_idx["mtot"] = 7
+
+        # Add the priors common to each companion
+        for body in np.arange(self.num_secondary_bodies):
+            for elem in base_labels:
+                basis_priors.append(self.default_priors[elem])
+                basis_labels.append(elem + str(body + 1))
+
+        # Add parallax prior
+        basis_labels.append("plx")
+        if self.plx_err > 0:
+            basis_priors.append(priors.GaussianPrior(self.plx, self.plx_err))
+        else:
+            basis_priors.append(self.plx)
+
+        # Add hipparcos priors if necessary
+        if self.hipparcos_IAD is not None:
+            self.set_hip_iad_priors(basis_priors, basis_labels)
+
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
+        # Add rv priors
+        if self.rv and self.fit_secondary_mass:
+            self.set_rv_priors(basis_priors, basis_labels)
+
+        # Add mass priors TODO: Implicit mass prior
+        # self.set_default_mass_priors(basis_priors, basis_labels)
+
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        self.standard_basis_idx["mtot"] = self.standard_basis_idx.pop("per1")
+
+        return basis_priors, basis_labels
+
+    def to_standard_basis(self, param_arr):
+        # everything is the same except per goes to mtot
+        sma = param_arr[self.param_idx["sma1"]]
+        per = param_arr[self.param_idx["per1"]]
+
+        mtot = (sma**3) / (per**2)
+
+        param_arr[self.standard_basis_idx["mtot"]] = mtot
+
+        return param_arr
+
+
+class OFTeIGaiaBasis(Basis):
+    def __init__(
+        self,
+        stellar_or_system_mass,
+        mass_err,
+        plx,
+        plx_err,
+        num_secondary_bodies,
+        fit_secondary_mass,
+        angle_upperlim=2 * np.pi,
+        hipparcos_IAD=None,
+        rv=False,
+        rv_instruments=None,
+        gaia_dr4=None,
+    ):
+
+        super().__init__(
+            stellar_or_system_mass,
+            mass_err,
+            plx,
+            plx_err,
+            num_secondary_bodies,
+            fit_secondary_mass,
+            angle_upperlim,
+            hipparcos_IAD,
+            rv,
+            rv_instruments,
+            gaia_dr4,
+        )
+        # TODO: raise error
+        if not fit_secondary_mass:
+            raise ValueError("Secondary mass must be used with Gaia")
+        if not num_secondary_bodies == 1:
+            raise ValueError("Multiplanet not supported yet")
+        if gaia_dr4 is None:
+            raise ValueError("DR4 must be used")
+
+    def construct_priors(self):
+        """
+
+        Generates the parameter label array and initializes the corresponding priors for each
+        parameter that's to be sampled. For the standard basis, the parameters common to each
+        companion are: per, ecc, inc, aop, pan, tau. Parallax, hipparcos (optional), rv (optional),
+        and mass priors are added at the end.
+
+        Returns:
+            tuple:
+
+                list: list of strings (labels) that indicate the names of each parameter to sample
+
+                list: list of orbitize.priors.Prior objects that indicate the prior distribution of each label
+        """
+        base_labels = ["ecc", "inc", "aop", "tau", "per"]
+        basis_priors = []
+        basis_labels = []
+
+        # Add the priors common to each companion
+        for body in np.arange(self.num_secondary_bodies):
+            for elem in base_labels:
+                basis_priors.append(self.default_priors[elem])
+                basis_labels.append(elem + str(body + 1))
+
+        basis_labels.append("u")
+        basis_priors.append(priors.UniformPrior(-1e7, 1e7))
+        basis_labels.append("v")
+        basis_priors.append(priors.UniformPrior(-1e7, 1e7))
+
+        # Add parallax prior
+        basis_labels.append("plx")
+        if self.plx_err > 0:
+            basis_priors.append(priors.GaussianPrior(self.plx, self.plx_err))
+        else:
+            basis_priors.append(self.plx)
+
+        # Add hipparcos priors if necessary
+        if self.hipparcos_IAD is not None:
+            self.set_hip_iad_priors(basis_priors, basis_labels)
+
+        # add Gaia DR4 priors if necessary
+        elif self.gaia_dr4 is not None:
+            self.set_gaia_dr4_priors(basis_priors, basis_labels)
+        # Add Gaia DR4 jitter prior if fitted
+        if self.gaia_dr4 is not None and self.gaia_dr4.fit_jitter:
+            basis_priors.append(self.gaia_dr4.jitter_prior)
+            basis_labels.append("dr4_jitter")
+        # Add rv priors
+        if self.rv and self.fit_secondary_mass:
+            self.set_rv_priors(basis_priors, basis_labels)
+
+        # Add mass priors TODO: Implicit mass prior
+        # self.set_default_mass_priors(basis_priors, basis_labels)
+        basis_labels.append("mfrac1")
+        basis_priors.append(priors.LogUniformPrior(1e-6, 1.0))
+
+        # Define param label dictionary in current basis & standard basis
+        self.param_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+        self.standard_basis_idx = dict(zip(basis_labels, np.arange(len(basis_labels))))
+
+        self.standard_basis_idx["m0"] = self.standard_basis_idx.pop("per1")
+        self.standard_basis_idx["m1"] = self.standard_basis_idx.pop("mfrac1")
+        self.standard_basis_idx["pan1"] = self.standard_basis_idx.pop("u")
+        self.standard_basis_idx["sma1"] = self.standard_basis_idx.pop("v")
+
+        return basis_priors, basis_labels
+
+    def to_standard_basis(self, param_arr):
+        u = param_arr[self.param_idx["u"]]
+        v = param_arr[self.param_idx["v"]]
+        plx = param_arr[self.param_idx["plx"]]
+        mfrac1 = param_arr[self.param_idx["mfrac1"]]
+        per = param_arr[self.param_idx["per1"]]
+        pan = np.atan(v / u)
+        if u.shape == ():
+            if u < 0:
+                pan += np.pi
+        else:
+            pan[u < 0] += np.pi
+        pan %= 2 * np.pi
+        sma_photo = u / np.cos(pan) / plx
+        sma = sma_photo / mfrac1  # TODO: bright companion
+        mtot = (sma**3) / (per**2)
+        m1 = mtot * mfrac1
+        m0 = mtot - m1
+
+        param_arr[self.standard_basis_idx["m0"]] = m0
+        param_arr[self.standard_basis_idx["m1"]] = m1
+        param_arr[self.standard_basis_idx["pan1"]] = pan
+        param_arr[self.standard_basis_idx["sma1"]] = sma
+        return param_arr
+
+
 class SemiAmp(Basis):
     """
     Modification of the standard basis, swapping our sma for period and additionally sampling in
@@ -818,20 +1072,38 @@ class SemiAmp(Basis):
                 in each orbit rather than period, removes stellar rv semi-amplitude parameters for
                 each companion, and appends the companion masses to 'param_arr'
         """
-        m0 = param_arr[self.param_idx["m0"]]
+        samples = param_arr[:, None] if param_arr.ndim == 1 else param_arr
+        bodies = np.arange(1, self.num_secondary_bodies + 1)
+        indices = {
+            name: np.array([self.param_idx[f"{name}{body}"] for body in bodies])
+            for name in ("per", "ecc", "inc", "K")
+        }
 
-        # Compute each companion's mass and sma
-        for body_num in np.arange(self.num_secondary_bodies) + 1:
-            period = param_arr[self.param_idx[f"per{body_num}"]]
-            ecc = param_arr[self.param_idx[f"ecc{body_num}"]]
-            inc = param_arr[self.param_idx[f"inc{body_num}"]]
-            semi_amp = param_arr[self.param_idx[f"K{body_num}"]]
+        # Process inner planets first, separately for each sample.
+        order = np.argsort(samples[indices["per"]], axis=0)
+        columns = np.arange(samples.shape[1])
+        interior_mass = samples[self.param_idx["m0"]].copy()
 
-            # Replace semi-amp with companion mass and period with sma
-            companion_m = self.compute_companion_mass(period, ecc, inc, semi_amp, m0)
-            param_arr[self.standard_basis_idx[f"m{body_num}"]] = companion_m
-            companion_sma = self.compute_companion_sma(period, m0, companion_m)
-            param_arr[self.standard_basis_idx[f"sma{body_num}"]] = companion_sma
+        for rank in range(self.num_secondary_bodies):
+            body = order[rank]
+            per_rows = indices["per"][body]
+            mass_rows = indices["K"][body]
+
+            period = samples[per_rows, columns]
+            ecc = samples[indices["ecc"][body], columns]
+            inc = samples[indices["inc"][body], columns]
+            semi_amp = samples[mass_rows, columns]
+
+            companion_m = self.compute_companion_mass(
+                period, ecc, inc, semi_amp, interior_mass
+            )
+            companion_sma = self.compute_companion_sma(
+                period, interior_mass, companion_m
+            )
+
+            samples[per_rows, columns] = companion_sma
+            samples[mass_rows, columns] = companion_m
+            interior_mass += companion_m
 
         return param_arr
 
@@ -929,15 +1201,24 @@ class SemiAmp(Basis):
                 in each orbit rather than period, appends stellar rv semi-amplitude parameters, and
                 removes companion masses
         """
-
-        for body_num in np.arange(self.num_secondary_bodies) + 1:
+        # Preserve all semimajor axes and masses before the conversion
+        # replaces them with periods and RV semi-amplitudes. Each companion's
+        # Jacobi total mass must use the original values for all companions.
+        bodies = np.arange(1, self.num_secondary_bodies + 1)
+        all_smas = param_arr[
+            [self.standard_basis_idx[f"sma{body}"] for body in bodies]
+        ].copy()
+        all_masses = param_arr[
+            [self.standard_basis_idx[f"m{body}"] for body in bodies]
+        ].copy()
+        for body_num in bodies:
             # Grab necessary parameters for conversion
             sma = param_arr[self.standard_basis_idx[f"sma{body_num}"]]
             ecc = param_arr[self.standard_basis_idx[f"ecc{body_num}"]]
             inc = param_arr[self.standard_basis_idx[f"inc{body_num}"]]
             m_n = param_arr[self.standard_basis_idx[f"m{body_num}"]]
             m0 = param_arr[self.standard_basis_idx["m0"]]
-            mtot = m_n + m0
+            mtot = jacobi_mtot(sma, all_smas, all_masses, m0)
 
             # Get stellar semi-amplitude
             K_n = (
@@ -1678,3 +1959,28 @@ def tau_to_manom(date, sma, mtot, tau, tau_ref_epoch):
     """
 
     return kepler.tau_to_manom(date, sma, mtot, tau, tau_ref_epoch)
+
+
+def angle_diff(ang1, ang2):
+    """
+    Difference between two angles (in degrees), account for angle wrapping around 360.
+    """
+    return (ang1 - ang2 + 180.0) % 360.0 - 180.0
+
+
+def return_quadrant(angle):
+    """
+    Return quadrant of a particular angle
+
+    Args:
+        angle (np.array of float): radians
+
+    Returns:
+        int: quadrant 1, 2, 3, or 4
+    """
+    angle %= 2 * np.pi  # [-360, 0] if negative, [0, 360] if positive
+    angle += 2 * np.pi
+    angle %= 2 * np.pi
+
+    quadrant = np.floor((angle / (np.pi / 2)) % 4 + 1).astype(int)
+    return quadrant
