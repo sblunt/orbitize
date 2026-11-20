@@ -284,7 +284,7 @@ class System:
 
         self.basis.verify_params()
         self.sys_priors, self.labels = self.basis.construct_priors()
-        self.reweight_priors = [] # TODO: auto-construct
+        self.reweight_priors = []  # TODO: auto-construct
 
         # if we're fitting absolute astrometry of the star, create an object that
         # knows how to compute predicted astrometric motion due to parallax and
@@ -514,20 +514,12 @@ class System:
                     mass = params_arr[self.basis.standard_basis_idx[f"m{body_num}"]]
                     m0 = params_arr[self.basis.standard_basis_idx["m0"]]
 
-                    # For what mtot to use to calculate central potential, we should use the mass enclosed in a sphere with r <= distance of planet.
-                    # We need to select all planets with sma < this planet.
-                    all_smas = params_arr[self.sma_indx]
-                    within_orbit = all_smas <= sma
-                    all_pl_masses = params_arr[self.secondary_mass_indx]
-                    inside_masses = np.where(within_orbit, all_pl_masses, 0)
-                    if params_arr.ndim > 1:  # Multi-orbit
-                        if inside_masses.ndim > 1:  # Multi-(inner)planet
-                            mtot = np.sum(inside_masses, axis=0) + m0
-                        else:  # No inner companions, only primary
-                            # In this case inside_masses = mass
-                            mtot = inside_masses + m0
-                    else:  # Single orbit
-                        mtot = np.sum(inside_masses) + m0
+                    mtot = basis.jacobi_mtot(
+                        sma,
+                        params_arr[self.sma_indx],
+                        params_arr[self.secondary_mass_indx],
+                        m0,
+                    )
 
                 else:
                     m_pl = np.zeros(self.num_secondary_bodies)

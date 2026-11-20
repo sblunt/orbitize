@@ -1,11 +1,11 @@
 import abc
+import warnings
 
 import numpy as np
 import scipy.special
 import scipy.stats
 from astropy import constants as cst
 from astropy import units as u
-import warnings
 
 from orbitize import basis
 from orbitize.kepler import calc_ecc_anom, tau_to_manom
@@ -37,12 +37,11 @@ class Prior(abc.ABC):
     def _save(self, hf, name=None):
         """
         Save to an open HDF5 file or Group. Creates a group `name` if not None.
-        
+
         Args:
             hf (h5py.File or h5py.Group): Open file or group under which to save
             name (string): Name of subgroup to create in hf if not None (default: None)
         """
-        pass
 
     def _simple_save(self, hf, name, prior_type, kwargs):
         if name is not None:
@@ -52,6 +51,7 @@ class Prior(abc.ABC):
         hgroup.attrs["prior_type"] = prior_type
         params = {key: getattr(self, key) for key in kwargs}
         hgroup.create_group("params").update(params)
+
 
 class NearestNDInterpPrior(Prior):
     """
@@ -145,8 +145,10 @@ class NearestNDInterpPrior(Prior):
             return 0
 
     def _save(self, hf, name=None):
-        warnings.warn("NearestNDInterPrior cannot be automatically saved yet." \
-                        "If you changed it from the basis default recreate it when loading results.")
+        warnings.warn(
+            "NearestNDInterPrior cannot be automatically saved yet."
+            "If you changed it from the basis default recreate it when loading results."
+        )
 
 
 class KDEPrior(Prior):
@@ -275,8 +277,10 @@ class KDEPrior(Prior):
             return 0
 
     def _save(self, hf, name=None):
-        warnings.warn("KDEPrior cannot be automatically saved yet." \
-                        "If you changed it from the basis default recreate it when loading results.")
+        warnings.warn(
+            "KDEPrior cannot be automatically saved yet."
+            "If you changed it from the basis default recreate it when loading results."
+        )
 
 
 class GaussianPrior(Prior):
@@ -373,6 +377,7 @@ class GaussianPrior(Prior):
         kwargs = ("mu", "sigma", "no_negatives")
         self._simple_save(hf, name, "GaussianPrior", kwargs)
 
+
 class LogUniformPrior(Prior):
     """
     This is the probability distribution :math:`p(x) \\propto 1/x`
@@ -459,7 +464,7 @@ class LogUniformPrior(Prior):
             ] = -np.inf
 
         return lnprob
-    
+
     def _save(self, hf, name=None):
         kwargs = ("minval", "maxval")
         self._simple_save(hf, name, "LogUniformPrior", kwargs)
@@ -527,11 +532,6 @@ class UniformPrior(Prior):
             np.array: array of prior probabilities
         """
         size = np.size(element_array)
-        if size == 1:
-            if (element_array > self.maxval) or (element_array < self.minval):
-                return -np.inf
-            else:
-                return self.lnprob
 
         lnprob = np.ones(size) * self.lnprob
 
@@ -614,10 +614,11 @@ class SinPrior(Prior):
             lnprob[(element_array >= np.pi) | (element_array <= 0)] = -np.inf
 
         return lnprob
-    
+
     def _save(self, hf, name=None):
         kwargs = ()
         self._simple_save(hf, name, "SinPrior", kwargs)
+
 
 class LinearPrior(Prior):
     """
@@ -860,8 +861,11 @@ class ObsPrior(Prior):
             return 0
 
     def _save(self, hf, name=None):
-        warnings.warn("ObsPrior cannot be automatically saved yet." \
-                      "If you changed it from the basis default recreate it when loading results.")
+        warnings.warn(
+            "ObsPrior cannot be automatically saved yet."
+            "If you changed it from the basis default recreate it when loading results."
+        )
+
 
 class ReweightPrior(abc.ABC):
     def __init__(self, implied_prior, new_prior, basis):
@@ -877,15 +881,17 @@ class ReweightPrior(abc.ABC):
         if self.implied_prior is not None:
             prev_prob = self.implied_prior.compute_lnprob(param_value)
         if np.isneginf(prev_prob):
-            raise ValueError(f"The implied prior probability is 0 ({param_value=} is \
+            raise ValueError(
+                f"The implied prior probability is 0 ({param_value=} is \
                              outside the expected bounds) with {param_arr=}. \
-                             The reweighed probability would be infinite.")
+                             The reweighed probability would be infinite."
+            )
         logprob = new_prob - prev_prob
         return logprob
 
     @abc.abstractmethod
-    def get_param_value():
-        ...
+    def get_param_value(): ...
+
 
 class OFTeIMassPrior(Prior):
     """
@@ -942,6 +948,7 @@ class OFTeIMassPrior(Prior):
         kwargs = ("sma_min", "sma_max", "per_min", "per_max")
         self._simple_save(hf, name, "OFTeIMassPrior", kwargs)
 
+
 class OFTeIMassReweightPrior(ReweightPrior):
     def get_param_value(self, param_arr):
         standard_param_arr = self.basis.to_standard_basis(np.copy(param_arr))
@@ -950,25 +957,26 @@ class OFTeIMassReweightPrior(ReweightPrior):
         else:
             return np.array([standard_param_arr[self.basis.standard_basis_idx["mtot"]]])
 
+
 class OFTeIUVReweightPrior(ReweightPrior):
     def __init__(self, sma_prior, pan_prior, basis):
         self.sma_prior = sma_prior
         self.pan_prior = pan_prior
         self.basis = basis
-        
+
     def compute_lnprob(self, param_arr):
         v = param_arr[self.basis.param_idx["v"]]
         u = param_arr[self.basis.param_idx["u"]]
         plx = param_arr[self.basis.param_idx["plx"]]
-        mfrac1 = param_arr[self.basis.param_idx["mfrac1"]] # m1 / mtot
-        period_yr = param_arr[self.basis.param_idx["per1"]]
+        mfrac1 = param_arr[self.basis.param_idx["mfrac1"]]  # m1 / mtot
+        # period_yr = param_arr[self.basis.param_idx["per1"]]
         pan = np.atan(v / u)
         if u < 0:
             pan += np.pi
         pan %= 2 * np.pi
         sma_photo_sample = u / np.cos(pan) / plx
-        
-        logprob = - np.log(plx**2 * sma_photo_sample)
+
+        logprob = -np.log(plx**2 * sma_photo_sample)
         sma = sma_photo_sample / mfrac1
         # TODO: multiple orbits
         if self.sma_prior is not None:
@@ -980,6 +988,7 @@ class OFTeIUVReweightPrior(ReweightPrior):
 
     def get_param_value(self):
         pass
+
 
 def all_lnpriors(params, priors):
     """
