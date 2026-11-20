@@ -46,6 +46,7 @@ us if you are still confused).
    tutorials/Gaia_DR4_OHP.ipynb
    tutorials/Gaia_DR4_Gaia4.ipynb
    tutorials/HD160691_Joint_Fit.ipynb
+   tutorials/RelRV_DR4_InjectionRecovery.ipynb
 
 .. toctree::
    :maxdepth: 1
