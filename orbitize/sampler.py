@@ -2099,7 +2099,7 @@ class NautilusSampler(BaseNestedSampler):
 
     def nautilus_logl(self, u: np.ndarray):
         lnlike, *blobs = self._logl(u.T)
-        return lnlike, blobs
+        return lnlike, *blobs
 
     def run_sampler(
         self,
