@@ -47,6 +47,7 @@ us if you are still confused).
    tutorials/Modifying_MCMC_initial_positions.ipynb
    tutorials/dynesty_tutorial.ipynb
    tutorials/Nautilus_tutorial.ipynb
+   tutorials/OFTeI_tutorial.ipynb
 
 .. toctree::
    :maxdepth: 1
@@ -60,6 +61,10 @@ us if you are still confused).
    tutorials/HGCA_tutorial.ipynb
    tutorials/abs_astrometry.ipynb
    tutorials/ONeil-ObsPriors.ipynb
+   tutorials/Gaia_DR4_BH3.ipynb
+   tutorials/Gaia_DR4_EAS.ipynb
+   tutorials/Gaia_DR4_Gaia4.ipynb
+   tutorials/HD160691_Joint_Fit.ipynb
 
 
 

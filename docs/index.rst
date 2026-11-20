@@ -75,6 +75,7 @@ Changelog:
 - use julian year instead of decimal year throughout; bug affected long-period datasets like HGCA (@seffal, @sblunt)
 - bugfix for relative RVs with massive secondary (@sblunt)
 - relative and stellar RVs now correctly implement the epicycle/Jacobi approximation (@wbalmer, @sblunt)
+- add marginalization framework and add OFTeI marginalization for Sep/PA and Gaia DR4 (@eshelDror)
 
 **3.4.0 (2026-7-20)**
 
