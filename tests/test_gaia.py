@@ -308,21 +308,19 @@ def test_hgca():
     # params from GRAVITY Collaboration et al. 2020 fit to HGCA DR2
     params = np.array(
         [
-            [
-                1.04e01,
-                1.44e-01,
-                1.5534e00,
-                3.5325e00,
-                5.5670e-01,
-                1.80968e-01,
-                5.1456e01,
-                1.367e-02,
-                1.783,
-            ]
+            1.04e01,
+            1.44e-01,
+            1.5534e00,
+            3.5325e00,
+            5.5670e-01,
+            1.80968e-01,
+            5.1456e01,
+            1.367e-02,
+            1.783,
         ]
     )
 
-    chi2, *_ = this_sampler._logl(params)
+    chi2, *_ = super(sampler.MCMC, this_sampler)._logl(params)
 
     assert np.isfinite(chi2)
 
