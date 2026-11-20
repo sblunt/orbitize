@@ -6,9 +6,9 @@ from astropy import table
 
 import orbitize.basis
 import orbitize.gaia
-import orbitize.priors
 import orbitize.hipparcos
 import orbitize.plot
+import orbitize.priors
 import orbitize.system
 from orbitize import DATADIR
 
