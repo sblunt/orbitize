@@ -1,9 +1,10 @@
 import abc
+import warnings
+
 import numpy as np
 from astropy import units
-import orbitize.basis as basis
-import orbitize.kepler as kepler
-import warnings
+
+from orbitize import basis, kepler
 
 """
 This module defines marginalizations to draw
@@ -19,15 +20,15 @@ class Marginalizer(abc.ABC):
     Written: Eshel Dror, 2026
     """
 
-    QUANT_TYPES = []
-    REQ_PARAMS = []
-    MARG_PARAMS = []
+    QUANT_TYPES = ()
+    REQ_PARAMS = ()
+    MARG_PARAMS = ()
     LNLIKE_TYPE = None
     MULTIBODY = False
     GAIA = False
 
     @abc.abstractmethod
-    def apply(self, param_arr, calculated_values={}):
+    def apply(self, param_arr, calculated_values):
         """
         Apply the marginalization and get the calculated probabilities and sampled parameters.
 
@@ -46,7 +47,6 @@ class Marginalizer(abc.ABC):
                 and M is the number of orbits. In the order of `self.MARG_PARAMS`. May be 1D if M=1.
             dict: `calculated_values` including any updates.
         """
-        pass
 
     @staticmethod
     def lnlike(y, X, beta_hat, W, W_inv=None, W_absdet=None, add_error_norm=True):
@@ -84,6 +84,7 @@ class Marginalizer(abc.ABC):
 
         return -0.5 * chi2_map + error_norm_term
 
+
 class OFTeI_seppa(Marginalizer):
     """
     OFTeI marginalizer for relative astrometry.
@@ -102,9 +103,9 @@ class OFTeI_seppa(Marginalizer):
         tau_ref_epoch (float): Tau Reference Epoch
     """
 
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "plx", "per1"]
-    MARG_PARAMS = ["sma1", "pan1"]
-    QUANT_TYPES = ["seppa"]
+    REQ_PARAMS = ("ecc1", "inc1", "aop1", "tau1", "plx", "per1")
+    MARG_PARAMS = ("sma1", "pan1")
+    QUANT_TYPES = ("seppa",)
     LNLIKE_TYPE = "chi2"
 
     def __init__(
@@ -123,7 +124,7 @@ class OFTeI_seppa(Marginalizer):
         self.sigma_seps = sigma_seps
         self.sigma_pas = sigma_pas
         self.covar_seps_pas = covar_seps_pas
-        self.tau_ref_epoch=tau_ref_epoch
+        self.tau_ref_epoch = tau_ref_epoch
         self.n_obs = len(epochs)
         # compute variance-covariance matrix W of observational uncertainties
         self.W = (
@@ -247,8 +248,12 @@ class OFTeI_seppa(Marginalizer):
             raise IndexError("Only support 1 orbit at a time")
         ecc, inc, aop, tau, plx, period_yr = param_arr
         if not period_yr > 0:
-            raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
-        frac_date = (self.epochs - self.tau_ref_epoch) / (period_yr * units.yr.to(units.day))
+            raise ValueError(
+                f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}"
+            )
+        frac_date = (self.epochs - self.tau_ref_epoch) / (
+            period_yr * units.yr.to(units.day)
+        )
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi
@@ -280,7 +285,7 @@ class OFTeI_seppa(Marginalizer):
             warnings.warn(
                 f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0"
             )
-            return -np.inf, -np.inf, None, dict()
+            return -np.inf, -np.inf, None, calculated_values
 
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
@@ -307,8 +312,8 @@ class OFTeI_DR4_gaia(Marginalizer):
     OFTeI marginalizer for Gaia DR4 absolute astrometry.
 
     Currently only applicable to 1 massive companion.
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"] + ["dr4_jitter"] if fitting jitter
-    MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
+    REQ_PARAMS = ("ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1") + ("dr4_jitter",) if fitting jitter
+    MARG_PARAMS = ("alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v")
 
     where:
     u = plx * sma_photo * cos(pan)
@@ -319,21 +324,17 @@ class OFTeI_DR4_gaia(Marginalizer):
         tau_ref_epoch (float): Tau Reference Epoch
     """
 
-    REQ_PARAMS = ["ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1"]
-    MARG_PARAMS = ["alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v"]
+    REQ_PARAMS = ("ecc1", "inc1", "aop1", "tau1", "per1", "mfrac1")
+    MARG_PARAMS = ("alpha0", "pm_ra", "delta0", "pm_dec", "plx", "u", "v")
     LNLIKE_TYPE = "chi2"
-    QUANT_TYPES = []
+    QUANT_TYPES = ()
     GAIA = True
 
-    def __init__(
-        self,
-        gaia,
-        tau_ref_epoch=kepler.DEFAULT_TAU_REF_EPOCH
-    ):
+    def __init__(self, gaia, tau_ref_epoch=kepler.DEFAULT_TAU_REF_EPOCH):
         self.gaia = gaia
-        self.tau_ref_epoch=tau_ref_epoch
+        self.tau_ref_epoch = tau_ref_epoch
         if self.gaia.fit_jitter:
-            self.REQ_PARAMS.append("dr4_jitter")
+            self.REQ_PARAMS = self.REQ_PARAMS + ("dr4_jitter",)
 
     def calc_As_and_Bs(self, manoms, ecc, inc, aop):
         """
@@ -350,8 +351,6 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         """
 
-        n_dates = np.size(manoms)
-
         # compute eccentric anomalies (size: n_dates)
         eanom = kepler.calc_ecc_anom(manoms, ecc)
 
@@ -363,7 +362,7 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         aop_star = np.pi + aop
 
-        As = radius * ( # TODO: verify negative
+        As = radius * (  # TODO: verify negative
             np.cos(tanom + aop_star) * self.gaia.cos_scan
             + np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.sin_scan
         )
@@ -418,13 +417,17 @@ class OFTeI_DR4_gaia(Marginalizer):
         if len(shape) > 1:
             raise IndexError("Only support 1 orbit at a time")
         if self.gaia.fit_jitter:
-            ecc, inc, aop, tau, period_yr, mfrac1, jitter = param_arr
+            ecc, inc, aop, tau, period_yr, _mfrac1, jitter = param_arr
         else:
-            ecc, inc, aop, tau, period_yr, mfrac1 = param_arr
+            ecc, inc, aop, tau, period_yr, _mfrac1 = param_arr
             jitter = self.gaia.jitter
         if not period_yr > 0:
-            raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
-        frac_date = (self.gaia.epochs_mjd - self.tau_ref_epoch) / (period_yr * units.yr.to(units.day))
+            raise ValueError(
+                f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}"
+            )
+        frac_date = (self.gaia.epochs_mjd - self.tau_ref_epoch) / (
+            period_yr * units.yr.to(units.day)
+        )
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi
@@ -461,7 +464,7 @@ class OFTeI_DR4_gaia(Marginalizer):
             warnings.warn(
                 f"Encountered LinAlgError in marginalizatoin {e.args[0]}, assuming prob=0"
             )
-            return -np.inf, -np.inf, None, {}
+            return -np.inf, -np.inf, None, calculated_values
 
         chi2lnlike = self.lnlike(Y, D, map_fit, W, W_inv, W_det, add_error_norm=True)
 

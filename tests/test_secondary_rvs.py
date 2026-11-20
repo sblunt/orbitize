@@ -77,7 +77,6 @@ def test_secondary_rv_lnlike_calc():
     assert np.all(np.isclose(rv1.flatten(), rv_p - rv_s))
 
 
-
 def test_read_input():
     """
     Test that reading in a data file with only a companion RV and relative astrometry
