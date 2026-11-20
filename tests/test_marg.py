@@ -202,7 +202,9 @@ def test_OFTeI():
         covar,
         tau_ref_epoch,
     )
-    reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+    reweight_prior = priors.OFTeIMassReweightPrior(
+        implicit_mass_prior, mass_prior, mySystem.basis
+    )
     mySystem.reweight_priors.append(reweight_prior)
     mySampler = sampler.MCMC(
         mySystem,
@@ -222,7 +224,7 @@ def test_OFTeI():
     noMargSampler = TestSampler(mySystem, marginalizers=[])
     true_l = []
     for param in myResults.post:
-        l = noMargSampler._logl(param)[0]
+        l = noMargSampler._logl(param)[1]
         true_l.append(l)
     diff = np.abs(true_l - myResults.lnlike)
     print((true_l - myResults.lnlike)[np.where(diff > 0.2)])
@@ -286,7 +288,9 @@ def test_OFTeI_RV():
         covar,
         tau_ref_epoch,
     )
-    reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+    reweight_prior = priors.OFTeIMassReweightPrior(
+        implicit_mass_prior, mass_prior, mySystem.basis
+    )
     mySystem.reweight_priors.append(reweight_prior)
     mySampler = sampler.MCMC(
         mySystem,
@@ -306,7 +310,7 @@ def test_OFTeI_RV():
     noMargSampler = TestSampler(mySystem, marginalizers=[])
     true_l = []
     for param in myResults.post:
-        l = noMargSampler._logl(param)[0]
+        l = noMargSampler._logl(param)[1]
         true_l.append(l)
     diff = np.abs(true_l - myResults.lnlike)
     print((true_l - myResults.lnlike)[np.where(diff > 0.2)])
@@ -381,12 +385,22 @@ def test_OFTeI_RV_auto():
     )
 
     assert len(mySystem.reweight_priors) == 1
-    assert mass_prior.mu == mySystem.reweight_priors[0].new_prior.mu, mySystem.reweight_priors
+    assert mass_prior.mu == mySystem.reweight_priors[0].new_prior.mu, (
+        mySystem.reweight_priors
+    )
     assert mass_prior.sigma == mySystem.reweight_priors[0].new_prior.sigma
-    assert implicit_mass_prior.sma_min == mySystem.reweight_priors[0].implied_prior.sma_min
-    assert implicit_mass_prior.sma_max == mySystem.reweight_priors[0].implied_prior.sma_max
-    assert implicit_mass_prior.per_min == mySystem.reweight_priors[0].implied_prior.per_min
-    assert implicit_mass_prior.per_max == mySystem.reweight_priors[0].implied_prior.per_max
+    assert (
+        implicit_mass_prior.sma_min == mySystem.reweight_priors[0].implied_prior.sma_min
+    )
+    assert (
+        implicit_mass_prior.sma_max == mySystem.reweight_priors[0].implied_prior.sma_max
+    )
+    assert (
+        implicit_mass_prior.per_min == mySystem.reweight_priors[0].implied_prior.per_min
+    )
+    assert (
+        implicit_mass_prior.per_max == mySystem.reweight_priors[0].implied_prior.per_max
+    )
     assert (true_marg.epochs == marg.epochs).all()
     assert (true_marg.seps == marg.seps).all()
     assert (true_marg.pas == marg.pas).all()
@@ -481,7 +495,9 @@ def test_OFTeI_radec():
             covar,
             tau_ref_epoch,
         )
-        reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+        reweight_prior = priors.OFTeIMassReweightPrior(
+            implicit_mass_prior, mass_prior, mySystem.basis
+        )
         mySystem.reweight_priors.append(reweight_prior)
         mySampler = sampler.MCMC(
             mySystem,
@@ -536,7 +552,9 @@ def test_OFTeI_radec():
         covar,
         tau_ref_epoch,
     )
-    reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+    reweight_prior = priors.OFTeIMassReweightPrior(
+        implicit_mass_prior, mass_prior, mySystem.basis
+    )
     mySystem.reweight_priors.append(reweight_prior)
     mySampler = sampler.MCMC(
         mySystem,
@@ -556,7 +574,7 @@ def test_OFTeI_radec():
     noMargSampler = TestSampler(mySystem, marginalizers=[])
     true_l = []
     for param in myResults.post:
-        l = noMargSampler._logl(param)[0]
+        l = noMargSampler._logl(param)[1]
         true_l.append(l)
     diff = np.abs(true_l - myResults.lnlike)
     print((true_l - myResults.lnlike)[np.where(diff > 0.2)])
@@ -566,6 +584,7 @@ def test_OFTeI_radec():
 
 
 # TODO: test_OFTeI_radec_auto
+
 
 def test_OFTeI_gaia():
     # read solutions to pull pmra, pmdec, ra, dec that will be provided in the catalog.
@@ -581,7 +600,7 @@ def test_OFTeI_gaia():
     m1_lo, m1_hi = 1e-4, 0.1
     sma_lo, sma_hi = 0.05, 50.0
     ecc_lo, ecc_hi = 0.01, 0.99
-    GAIA_REF_MJD = 2457936.875-2400000.5
+    GAIA_REF_MJD = 2457936.875 - 2400000.5
     TAU_REF_EPOCH = 58849
 
     dr4 = gaia.DR4LogProb(
@@ -591,43 +610,64 @@ def test_OFTeI_gaia():
     )
 
     mySystem = system.System(
-        num_secondary_bodies=1, data_table=None,
-        stellar_or_system_mass=m0_guess, plx=plx_guess,
-        mass_err=m0_err, plx_err=plx_err,
-        fit_secondary_mass=True, gaia=dr4, tau_ref_epoch=TAU_REF_EPOCH, fitting_basis="OFTeIGaiaBasis"
+        num_secondary_bodies=1,
+        data_table=None,
+        stellar_or_system_mass=m0_guess,
+        plx=plx_guess,
+        mass_err=m0_err,
+        plx_err=plx_err,
+        fit_secondary_mass=True,
+        gaia=dr4,
+        tau_ref_epoch=TAU_REF_EPOCH,
+        fitting_basis="OFTeIGaiaBasis",
     )
 
-    #set up prior pdf in system
+    # set up prior pdf in system
     pi = mySystem.param_idx
     sma_prior = priors.LogUniformPrior(sma_lo, sma_hi)
     mySystem.sys_priors[pi["ecc1"]] = priors.UniformPrior(ecc_lo, ecc_hi)
     mySystem.sys_priors[pi["inc1"]] = priors.SinPrior()
-    mySystem.sys_priors[pi["aop1"]] = priors.UniformPrior(0, 2*np.pi)
+    mySystem.sys_priors[pi["aop1"]] = priors.UniformPrior(0, 2 * np.pi)
     sma_photo_hi = sma_hi * m1_hi / (m0_guess - 2 * m0_err)
     u_hi = sma_photo_hi * (plx_guess + 2 * plx_err)
-    mySystem.sys_priors[pi["mfrac1"]] = priors.UniformPrior(m1_lo/(m0_guess + 2 * m0_err), m1_hi/(m0_guess - 2 * m0_err))
+    mySystem.sys_priors[pi["mfrac1"]] = priors.UniformPrior(
+        m1_lo / (m0_guess + 2 * m0_err), m1_hi / (m0_guess - 2 * m0_err)
+    )
     mySystem.sys_priors[pi["u"]] = priors.UniformPrior(-u_hi, u_hi)
     mySystem.sys_priors[pi["v"]] = priors.UniformPrior(-u_hi, u_hi)
-    pan_prior = priors.UniformPrior(0, 2*np.pi)
-    mySystem.sys_priors[pi["tau1"]] = priors.UniformPrior(0., 1.)
-    mySystem.sys_priors[pi["plx"]] = priors.GaussianPrior(plx_guess, plx_err, no_negatives=True)
+    pan_prior = priors.UniformPrior(0, 2 * np.pi)
+    mySystem.sys_priors[pi["tau1"]] = priors.UniformPrior(0.0, 1.0)
+    mySystem.sys_priors[pi["plx"]] = priors.GaussianPrior(
+        plx_guess, plx_err, no_negatives=True
+    )
     m0_prior = priors.GaussianPrior(m0_guess, m0_err, no_negatives=True)
     period_prior_min_yr = np.sqrt(sma_lo**3 / m0_guess)
     period_prior_max_yr = np.sqrt(sma_hi**3 / m0_guess)
-    mySystem.sys_priors[pi["per1"]] = priors.LogUniformPrior(period_prior_min_yr, period_prior_max_yr)
+    mySystem.sys_priors[pi["per1"]] = priors.LogUniformPrior(
+        period_prior_min_yr, period_prior_max_yr
+    )
 
     myMarginalizer = marginalizer.OFTeI_DR4_gaia(dr4, TAU_REF_EPOCH)
 
     # implicit_mass_prior = priors.OFTeIMassPrior(sma_lo, sma_hi, period_prior_min_yr, period_prior_max_yr)
-    implicit_mass_prior = None # TODO
-    mySystem.reweight_priors.append(priors.OFTeIMassReweightPrior(implicit_mass_prior, m0_prior, mySystem.basis))
-    mySystem.reweight_priors.append(priors.OFTeIUVReweightPrior(sma_prior, pan_prior, mySystem.basis))
+    implicit_mass_prior = None  # TODO
+    mySystem.reweight_priors.append(
+        priors.OFTeIMassReweightPrior(implicit_mass_prior, m0_prior, mySystem.basis)
+    )
+    mySystem.reweight_priors.append(
+        priors.OFTeIUVReweightPrior(sma_prior, pan_prior, mySystem.basis)
+    )
 
-    #run mcmc sampler
+    # run mcmc sampler
     num_walkers, num_temps, num_threads = 20, 5, 1
     total_steps, burn_steps, thin = 200, 200, 5
-    mySampler = sampler.MCMC(mySystem, num_temps=num_temps,
-                        num_walkers=num_walkers, num_threads=num_threads, marginalizers=[myMarginalizer])
+    mySampler = sampler.MCMC(
+        mySystem,
+        num_temps=num_temps,
+        num_walkers=num_walkers,
+        num_threads=num_threads,
+        marginalizers=[myMarginalizer],
+    )
 
     mySampler.run_sampler(num_walkers * total_steps, burn_steps=burn_steps, thin=thin)
 
@@ -637,22 +677,22 @@ def test_OFTeI_gaia():
     assert post.shape[0] == num_walkers * total_steps / thin
 
     class TestSampler(sampler.Sampler):
-            def run_sampler(): ...
-    
+        def run_sampler(): ...
+
     noMargSampler = TestSampler(mySystem, marginalizers=[])
     assert noMargSampler.system.gaia
     assert noMargSampler.marginalizers == []
     assert not noMargSampler.gaia_marg
     true_l = []
     for param in myResults.post:
-        l = noMargSampler._logl(param)[0]
+        l = noMargSampler._logl(param)[1]
         true_l.append(l)
     diff = np.abs(true_l - myResults.lnlike)
     print(f"{true_l=}, {myResults.lnlike=}")
     n_small_diff = np.sum(diff < 0.2)
     n_tot = myResults.post.shape[0]
     assert n_small_diff / n_tot > 0.99, np.where(diff < 0.2)
-    
+
 
 if __name__ == "__main__":
     # test_MargConstNoInput()
