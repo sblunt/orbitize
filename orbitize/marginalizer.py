@@ -84,6 +84,7 @@ class Marginalizer(abc.ABC):
 
         return -0.5 * chi2_map + error_norm_term
 
+
 class OFTeI_seppa(Marginalizer):
     """
     OFTeI marginalizer for relative astrometry.
@@ -123,7 +124,7 @@ class OFTeI_seppa(Marginalizer):
         self.sigma_seps = sigma_seps
         self.sigma_pas = sigma_pas
         self.covar_seps_pas = covar_seps_pas
-        self.tau_ref_epoch=tau_ref_epoch
+        self.tau_ref_epoch = tau_ref_epoch
         self.n_obs = len(epochs)
         # compute variance-covariance matrix W of observational uncertainties
         self.W = (
@@ -247,8 +248,12 @@ class OFTeI_seppa(Marginalizer):
             raise IndexError("Only support 1 orbit at a time")
         ecc, inc, aop, tau, plx, period_yr = param_arr
         if not period_yr > 0:
-            raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
-        frac_date = (self.epochs - self.tau_ref_epoch) / (period_yr * units.yr.to(units.day))
+            raise ValueError(
+                f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}"
+            )
+        frac_date = (self.epochs - self.tau_ref_epoch) / (
+            period_yr * units.yr.to(units.day)
+        )
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi
@@ -325,13 +330,9 @@ class OFTeI_DR4_gaia(Marginalizer):
     QUANT_TYPES = ()
     GAIA = True
 
-    def __init__(
-        self,
-        gaia,
-        tau_ref_epoch=kepler.DEFAULT_TAU_REF_EPOCH
-    ):
+    def __init__(self, gaia, tau_ref_epoch=kepler.DEFAULT_TAU_REF_EPOCH):
         self.gaia = gaia
-        self.tau_ref_epoch=tau_ref_epoch
+        self.tau_ref_epoch = tau_ref_epoch
         if self.gaia.fit_jitter:
             self.REQ_PARAMS = self.REQ_PARAMS + ("dr4_jitter",)
 
@@ -361,7 +362,7 @@ class OFTeI_DR4_gaia(Marginalizer):
 
         aop_star = np.pi + aop
 
-        As = radius * ( # TODO: verify negative
+        As = radius * (  # TODO: verify negative
             np.cos(tanom + aop_star) * self.gaia.cos_scan
             + np.cos(inc) * np.sin(tanom + aop_star) * self.gaia.sin_scan
         )
@@ -421,8 +422,12 @@ class OFTeI_DR4_gaia(Marginalizer):
             ecc, inc, aop, tau, period_yr, _mfrac1 = param_arr
             jitter = self.gaia.jitter
         if not period_yr > 0:
-            raise ValueError(f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}")
-        frac_date = (self.gaia.epochs_mjd - self.tau_ref_epoch) / (period_yr * units.yr.to(units.day))
+            raise ValueError(
+                f"Marginalization encountered a non-positive period {period_yr} in {param_arr=}"
+            )
+        frac_date = (self.gaia.epochs_mjd - self.tau_ref_epoch) / (
+            period_yr * units.yr.to(units.day)
+        )
         frac_date %= 1
         manoms = (frac_date - tau) * 2 * np.pi
         manoms %= 2 * np.pi

@@ -2975,9 +2975,7 @@ def plot_corner(
             sys_param_indices.append(index_num)
             if use_standard_params and label_key not in results.param_idx:
                 converted_sys_param_indices.append(index_num)
-            if (
-                label_key.startswith(("aop", "pan", "inc"))
-            ):
+            if label_key.startswith(("aop", "pan", "inc")):
                 angle_indices.append(i - len(fixed_indices))
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 secondary_mass_indices.append(i - len(fixed_indices))
@@ -3013,7 +3011,9 @@ def plot_corner(
             else:
                 body_num = label_key[-1]
                 label_key = label_key[0:-1]
-            reduced_labels_list.append(default_labels.get(label_key, label_key+"{}").format(body_num))
+            reduced_labels_list.append(
+                default_labels.get(label_key, label_key + "{}").format(body_num)
+            )
 
         corner_kwargs["labels"] = reduced_labels_list
 

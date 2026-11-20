@@ -1,4 +1,3 @@
-
 import multiprocessing as mp
 import time
 
@@ -68,7 +67,9 @@ per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
 implicit_mass_prior = priors.OFTeIMassPrior(
     sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
 )
-reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+reweight_prior = priors.OFTeIMassReweightPrior(
+    implicit_mass_prior, mass_prior, mySystem.basis
+)
 mySystem.reweight_priors.append(reweight_prior)
 marg = marginalizer.OFTeI_seppa(
     epochs,
