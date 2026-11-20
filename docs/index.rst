@@ -31,13 +31,8 @@ create an `issue on GitHub <https://github.com/sblunt/orbitize/issues>`_.
 Attribution:
 ++++++++++++
 
-* If you use ``orbitize`` in your work, please cite `Blunt et al (2019) <https://ui.adsabs.harvard.edu/abs/2019arXiv191001756B/abstract>`_ and `Blunt et al (2024) <https://ui.adsabs.harvard.edu/abs/2024JOSS....9.6756B/abstract>`_
-* If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
-* If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
-* If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
-* If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_ and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
-* If you use Gaia data, please also cite `Gaia Collaboration et al (2018; for DR2) <https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract>`_, or `Gaia Collaboration et al (2021; for eDR3) <https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract>`_.
-
+Please use the `Citation Station <https://flatironinstitute.github.io/software-citation-station/>`_ to cite 
+``orbitize`` and its dependencies.
 
 User Guide:
 +++++++++++
@@ -55,7 +50,7 @@ User Guide:
 Changelog:
 ++++++++++
 
-**4.0.0 (release date TBD)**
+**4.0.0 (2026-11-19)**
 
 - fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
 - implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
@@ -75,6 +70,7 @@ Changelog:
 - use julian year instead of decimal year throughout; bug affected long-period datasets like HGCA (@seffal, @sblunt)
 - bugfix for relative RVs with massive secondary (@sblunt)
 - relative and stellar RVs now correctly implement the epicycle/Jacobi approximation (@wbalmer, @sblunt)
+- add marginalization framework and add OFTeI marginalization for Sep/PA and Gaia DR4!! (@eshelDror)
 
 **3.4.0 (2026-7-20)**
 

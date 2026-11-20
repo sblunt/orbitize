@@ -1,14 +1,11 @@
-import matplotlib.pyplot as plt
-
-import orbitize
+import multiprocessing as mp
+import time
 
 # Based on driver.py
-
 import numpy as np
-from orbitize import read_input, system, sampler, priors, marginalizer, plot
-import multiprocessing as mp
+
 import orbitize
-import time
+from orbitize import marginalizer, plot, priors, read_input, sampler, system
 
 savedir = ""
 savefile = f"{savedir}GJ504_oftei.hdf5"
@@ -70,7 +67,9 @@ per_prior = mySystem.sys_priors[mySystem.param_idx["per1"]]
 implicit_mass_prior = priors.OFTeIMassPrior(
     sma_prior.minval, sma_prior.maxval, per_prior.minval, per_prior.maxval
 )
-reweight_prior = priors.OFTeIMassReweightPrior(implicit_mass_prior, mass_prior, mySystem.basis)
+reweight_prior = priors.OFTeIMassReweightPrior(
+    implicit_mass_prior, mass_prior, mySystem.basis
+)
 mySystem.reweight_priors.append(reweight_prior)
 marg = marginalizer.OFTeI_seppa(
     epochs,
