@@ -37,6 +37,9 @@ Attribution:
 * If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
 * If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_ and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
 * If you use Gaia data, please also cite `Gaia Collaboration et al (2018; for DR2) <https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract>`_, or `Gaia Collaboration et al (2021; for eDR3) <https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract>`_.
+* If you use the Nested Sampling algorithm from ``dynesty``, please also cite `Speagle (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S>`_.
+* If you use the Multinest algorithm from ``pymultinest``, please also cite `Buchner et al (2014) <https://ui.adsabs.harvard.edu/abs/2014A&A...564A.125B>`_ and `Feroz et al (2019) <https://ui.adsabs.harvard.edu/abs/2019OJAp....2E..10F>`_.
+* If you use the Nautilus algorithm from ``nautilus-sampler``, please also cite `Lange (2023) <https://academic.oup.com/mnras/article-pdf/525/2/3181/51331635/stad2441.pdf>`_.
 
 
 User Guide:
