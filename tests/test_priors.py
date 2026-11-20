@@ -1,13 +1,13 @@
+import os
+
 import numpy as np
 import pytest
-import os
 from scipy.stats import norm as nm
 
-import orbitize.priors as priors
-from orbitize.system import System
+from orbitize import DATADIR, priors
 from orbitize.read_input import read_file
 from orbitize.sampler import MCMC
-from orbitize import DATADIR
+from orbitize.system import System
 
 threshold = 1e-1
 
@@ -40,8 +40,8 @@ expected_probs = {
         [
             0.0,
             0.0,
-            nm(1000.0, 1.0).pdf(1000.0) * np.sqrt(2 * np.pi),
-            nm(1000.0, 1.0).pdf(999.0) * np.sqrt(2 * np.pi),
+            nm(1000.0, 1.0).pdf(1000.0),
+            nm(1000.0, 1.0).pdf(999.0),
         ]
     ),
     priors.LogUniformPrior: np.array([0.0, 0.0, 1.0, 2.0 / 3.0, 0.5, 0.0]) / np.log(2),
@@ -55,9 +55,7 @@ def test_draw_samples():
     """
     Test basic functionality of `draw_samples()` method of each `Prior` class.
     """
-    for Prior in initialization_inputs.keys():
-        inputs = initialization_inputs[Prior]
-
+    for Prior, inputs in initialization_inputs.items():
         TestPrior = Prior(*inputs)
         samples = TestPrior.draw_samples(10000)
 
@@ -71,15 +69,31 @@ def test_compute_lnprob():
     """
     Test basic functionality of `compute_lnprob()` method of each `Prior` class.
     """
-    for Prior in initialization_inputs.keys():
-        inputs = initialization_inputs[Prior]
-
+    for Prior, inputs in initialization_inputs.items():
         TestPrior = Prior(*inputs)
         values2test = lnprob_inputs[Prior]
 
         lnprobs = TestPrior.compute_lnprob(values2test)
 
         assert np.log(expected_probs[Prior]) == pytest.approx(lnprobs, abs=threshold)
+
+
+def test_compute_lnprob_single_input():
+    """
+    Test that each Prior class returns a single-element array for a single-element array
+    input
+    """
+    for Prior, inputs in initialization_inputs.items():
+        TestPrior = Prior(*inputs)
+        values2test = lnprob_inputs[Prior]
+
+        print(values2test[:1])
+        print(TestPrior)
+        lnprobs = TestPrior.compute_lnprob(values2test[:1])
+        print(lnprobs)
+        print()
+
+        assert len(lnprobs) == 1
 
 
 def test_obsprior():
@@ -121,7 +135,8 @@ def test_obsprior():
 
 
 if __name__ == "__main__":
-    test_obsprior()
-    test_compute_lnprob()
-    test_draw_samples()
-    print("All tests passed!")
+    test_compute_lnprob_single_input()
+    # test_obsprior()
+    # test_compute_lnprob()
+    # test_draw_samples()
+    # print("All tests passed!")

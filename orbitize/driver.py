@@ -1,6 +1,6 @@
 import orbitize.read_input
-import orbitize.system
 import orbitize.sampler
+import orbitize.system
 
 """
 This module reads input and constructs ``orbitize`` objects
@@ -8,7 +8,7 @@ in a standardized way.
 """
 
 
-class Driver(object):
+class Driver:
     """
     Runs through ``orbitize`` methods in a standardized way.
 
@@ -31,7 +31,7 @@ class Driver(object):
             be used to compute likelihood. (default="chi2_lnlike")
         chi2_type (str, optional): either  "standard", or "log"
         system_kwargs (dict, optional): ``restrict_angle_ranges``, ``tau_ref_epoch``,
-            ``fit_secondary_mass``, ``hipparcos_IAD``, ``gaia``, 
+            ``fit_secondary_mass``, ``hipparcos_IAD``, ``gaia``,
             ``use_rebound``, ``fitting_basis`` for ``orbitize.system.System``.
         mcmc_kwargs (dict, optional): ``num_temps``, ``num_walkers``, and ``num_threads``
             kwargs for ``orbitize.sampler.MCMC``
@@ -40,44 +40,58 @@ class Driver(object):
     """
 
     def __init__(
-        self, input_data, sampler_str,
-        num_secondary_bodies, stellar_or_system_mass, plx,
-        mass_err=0, plx_err=0, lnlike='chi2_lnlike', chi2_type = 'standard',
-        system_kwargs=None, mcmc_kwargs=None
+        self,
+        input_data,
+        sampler_str,
+        num_secondary_bodies,
+        stellar_or_system_mass,
+        plx,
+        mass_err=0,
+        plx_err=0,
+        lnlike="chi2_lnlike",
+        chi2_type="standard",
+        system_kwargs=None,
+        mcmc_kwargs=None,
     ):
 
         # Read in data
-        # Try to interpret input as a filename first
-        try:
-            data_table = orbitize.read_input.read_file(input_data)
-        except:
-            try:
-                # Check if input might be an orbitize style astropy.table.Table
-                if 'quant_type' in input_data.columns:
-                    data_table = input_data.copy()
-            except:
-                raise Exception('Invalid value of input_data for Driver')
+        data_table = orbitize.read_input.read_file(input_data)
 
         if system_kwargs is None:
             system_kwargs = {}
 
-        #Check if RV data is included, make sure fit_secondary_mass=True
-        if 'rv' in data_table['quant_type'] and ('fit_secondary_mass' not in system_kwargs or system_kwargs['fit_secondary_mass'] == False):
-            raise Exception('If including RV data in orbit fit, set fit_secondary_mass=True')
+        # Check if RV data is included, make sure fit_secondary_mass=True
+        if "rv" in data_table["quant_type"] and (
+            "fit_secondary_mass" not in system_kwargs
+            or system_kwargs["fit_secondary_mass"] == False
+        ):
+            raise ValueError(
+                "If including RV data in orbit fit, set fit_secondary_mass=True"
+            )
 
-        if sampler_str == 'OFTI' and ('fit_secondary_mass' in system_kwargs and True == system_kwargs['fit_secondary_mass']):
-            raise Exception('Run Astrometry+RV in MCMC for now.')
+        if sampler_str == "OFTI" and (
+            "fit_secondary_mass" in system_kwargs
+            and True == system_kwargs["fit_secondary_mass"]
+        ):
+            raise NotImplementedError("Run Astrometry+RV in MCMC for now.")
         # Initialize System object which stores data & sets priors
         self.system = orbitize.system.System(
-            num_secondary_bodies, data_table, stellar_or_system_mass,
-            plx, mass_err=mass_err, plx_err=plx_err, **system_kwargs
+            num_secondary_bodies,
+            data_table,
+            stellar_or_system_mass,
+            plx,
+            mass_err=mass_err,
+            plx_err=plx_err,
+            **system_kwargs,
         )
 
         # Initialize Sampler object, which has System object as an attribute.
-        if mcmc_kwargs is not None and sampler_str == 'MCMC':
+        if mcmc_kwargs is not None and sampler_str == "MCMC":
             kwargs = mcmc_kwargs
         else:
             kwargs = {}
 
         sampler_func = getattr(orbitize.sampler, sampler_str)
-        self.sampler = sampler_func(self.system, like=lnlike, chi2_type=chi2_type, **kwargs)
+        self.sampler = sampler_func(
+            self.system, like=lnlike, chi2_type=chi2_type, **kwargs
+        )

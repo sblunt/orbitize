@@ -1,11 +1,13 @@
-import numpy as np
 import abc
-from astropy import units as u, constants as cst
 
-from orbitize import basis
-from orbitize.kepler import _calc_ecc_anom
+import numpy as np
 import scipy.special
 import scipy.stats
+from astropy import constants as cst
+from astropy import units as u
+
+from orbitize import basis
+from orbitize.kepler import calc_ecc_anom, tau_to_manom
 
 """
 This module defines priors with methods to draw samples and compute log(probability)
@@ -142,16 +144,16 @@ class KDEPrior(Prior):
 
     is_correlated = True
 
-    def __init__(self, gaussian_kde, total_params, bounds=[], log_scale_arr=[]):
+    def __init__(self, gaussian_kde, total_params, bounds=None, log_scale_arr=None):
         self.gaussian_kde = gaussian_kde
         self.total_params = total_params
         self.param_num = 0
         self.logparam_corr = 1
-        if not bounds:
+        if bounds is None:
             self.bounds = [[-np.inf, np.inf] for i in range(total_params)]
         else:
             self.bounds = bounds
-        if not log_scale_arr:
+        if log_scale_arr is None:
             self.log_scale_arr = [False for i in range(total_params)]
         else:
             self.log_scale_arr = log_scale_arr
@@ -270,6 +272,7 @@ class GaussianPrior(Prior):
         self.mu = mu
         self.sigma = sigma
         self.no_negatives = no_negatives
+        self.lnnorm = -(np.log(sigma) + 0.5 * np.log(2 * np.pi))
 
     def __repr__(self):
         return "Gaussian"
@@ -330,7 +333,7 @@ class GaussianPrior(Prior):
             corresponding to the probability of drawing each of the numbers
             in the input `element_array`.
         """
-        lnprob = -0.5 * ((element_array - self.mu) / self.sigma) ** 2
+        lnprob = -0.5 * ((element_array - self.mu) / self.sigma) ** 2 + self.lnnorm
 
         if self.no_negatives:
             bad_samples = np.where(element_array < 0)[0]
@@ -413,16 +416,16 @@ class LogUniformPrior(Prior):
         """
         normalizer = self.logmax - self.logmin
 
-        lnprob = -np.log((element_array * normalizer))
+        lnprob = -np.log(element_array * normalizer)
 
         # account for scalar inputs
         if np.shape(lnprob) == ():
             if (element_array > self.maxval) or (element_array < self.minval):
                 lnprob = -np.inf
         else:
-            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-                -np.inf
-            )
+            lnprob[
+                (element_array > self.maxval) | (element_array < self.minval)
+            ] = -np.inf
 
         return lnprob
 
@@ -440,6 +443,7 @@ class UniformPrior(Prior):
     def __init__(self, minval, maxval):
         self.minval = minval
         self.maxval = maxval
+        self.lnprob = np.log(1 / (self.maxval - self.minval))
 
     def __repr__(self):
         return "Uniform"
@@ -487,16 +491,11 @@ class UniformPrior(Prior):
         Returns:
             np.array: array of prior probabilities
         """
-        lnprob = np.log(np.ones(np.size(element_array)) / (self.maxval - self.minval))
+        size = np.size(element_array)
 
-        # account for scalar inputs
-        if np.shape(lnprob) == ():
-            if (element_array > self.maxval) or (element_array < self.minval):
-                lnprob = -np.inf
-        else:
-            lnprob[(element_array > self.maxval) | (element_array < self.minval)] = (
-                -np.inf
-            )
+        lnprob = np.ones(size) * self.lnprob
+
+        lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
 
@@ -760,7 +759,6 @@ class ObsPrior(Prior):
             )
 
         if self.param_num == (self.total_params - 1):
-
             period = self.correlated_input_samples[0]
             ecc = self.correlated_input_samples[1]
             tp = self.correlated_input_samples[2]
@@ -773,7 +771,6 @@ class ObsPrior(Prior):
                 or (tp < self.tp_lims[0])
                 or (tp > self.tp_lims[1])
             ):
-
                 self.increment_param_num()
                 return -np.inf
 
@@ -785,10 +782,10 @@ class ObsPrior(Prior):
 
             tau = basis.tp_to_tau(tp, self.tau_ref_epoch, period)
 
-            meananom = basis.tau_to_manom(
+            meananom = tau_to_manom(
                 self.epochs, sma, self.mtot, tau, self.tau_ref_epoch
             )
-            eccanom = _calc_ecc_anom(meananom, ecc)
+            eccanom = calc_ecc_anom(meananom, ecc)
 
             # sum Jacobian over all epochs (O'Neil 2019 eq 33)
             jacobian = np.sum(
@@ -808,9 +805,127 @@ class ObsPrior(Prior):
             return lnprob
 
         else:
-
             self.increment_param_num()
             return 0
+
+
+class ReweightPrior(abc.ABC):
+    def __init__(self, implied_prior, new_prior, basis):
+        self.implied_prior = implied_prior
+        self.new_prior = new_prior
+        self.basis = basis
+
+    def compute_lnprob(self, param_arr):
+        param_value = self.get_param_value(param_arr)
+        new_prob = prev_prob = 0
+        if self.new_prior is not None:
+            new_prob = self.new_prior.compute_lnprob(param_value)
+        if self.implied_prior is not None:
+            prev_prob = self.implied_prior.compute_lnprob(param_value)
+        if np.isneginf(prev_prob):
+            raise ValueError(
+                f"The implied prior probability is 0 ({param_value=} is \
+                             outside the expected bounds) with {param_arr=}. \
+                             The reweighed probability would be infinite."
+            )
+        logprob = new_prob - prev_prob
+        return logprob
+
+    @abc.abstractmethod
+    def get_param_value(): ...
+
+
+class OFTeIMassPrior(Prior):
+    """
+    Assuming loguniform priors on semimajor axis and orbital period,
+    this is the effective prior implicity applied to total mass
+
+    Args:
+        sma_min (float): minimum of the logUniform prior on semimajor axis [au]
+        sma_max (float): maximum of the logUniform prior on semimajor axis [au]
+        per_min (float): minimum of the logUniform prior on orbital period [yr]
+        per_max (float): maximum of the logUniform prior on orbital period [yr]
+    """
+
+    def __init__(self, sma_min, sma_max, per_min, per_max):
+        self.sma_min = sma_min
+        self.sma_max = sma_max
+        self.per_min = per_min
+        self.per_max = per_max
+
+        Wx = 3 * np.log(sma_max / sma_min)
+        Wy = 2 * np.log(per_max / per_min)
+        self.W1 = np.min([Wx, Wy])
+        self.W2 = np.max([Wx, Wy])
+
+        self.offset = 3 * np.log(sma_min) - 2 * np.log(per_max)
+
+    def draw_samples(self, num_samples):
+        sma_samples = np.exp(
+            np.random.uniform(np.log(self.sma_min), np.log(self.sma_max), num_samples)
+        )
+        per_samples = np.exp(
+            np.random.uniform(np.log(self.per_min), np.log(self.per_max), num_samples)
+        )
+        return sma_samples**3 / per_samples**2
+
+    def compute_lnprob(self, element_array):
+
+        element_array = np.asarray(element_array, dtype=float)
+
+        z = np.log(element_array) - self.offset
+
+        f_Z = np.zeros_like(element_array)
+        f_Z[z <= self.W1] = z[z <= self.W1] / (self.W1 * self.W2)
+        f_Z[(z >= self.W1) & (z <= self.W2)] = 1 / self.W2
+        f_Z[(z >= self.W2) & (z <= self.W1 + self.W2)] = (
+            self.W1 + self.W2 - z[(z >= self.W2) & (z <= self.W1 + self.W2)]
+        ) / (self.W1 * self.W2)
+        f_Z[(z < 0) | (z > self.W1 + self.W2)] = 0
+
+        with np.errstate(divide="ignore"):
+            return np.log(f_Z / element_array)
+
+
+class OFTeIMassReweightPrior(ReweightPrior):
+    def get_param_value(self, param_arr):
+        standard_param_arr = self.basis.to_standard_basis(np.copy(param_arr))
+        if "m0" in self.basis.standard_basis_idx:
+            return np.array([standard_param_arr[self.basis.standard_basis_idx["m0"]]])
+        else:
+            return np.array([standard_param_arr[self.basis.standard_basis_idx["mtot"]]])
+
+
+class OFTeIUVReweightPrior(ReweightPrior):
+    def __init__(self, sma_prior, pan_prior, basis):
+        self.sma_prior = sma_prior
+        self.pan_prior = pan_prior
+        self.basis = basis
+
+    def compute_lnprob(self, param_arr):
+        v = param_arr[self.basis.param_idx["v"]]
+        u = param_arr[self.basis.param_idx["u"]]
+        plx = param_arr[self.basis.param_idx["plx"]]
+        mfrac1 = param_arr[self.basis.param_idx["mfrac1"]]  # m1 / mtot
+        # period_yr = param_arr[self.basis.param_idx["per1"]]
+        pan = np.atan(v / u)
+        if u < 0:
+            pan += np.pi
+        pan %= 2 * np.pi
+        sma_photo_sample = u / np.cos(pan) / plx
+
+        logprob = -np.log(plx**2 * sma_photo_sample)
+        sma = sma_photo_sample / mfrac1
+        # TODO: multiple orbits
+        if self.sma_prior is not None:
+            logprob += np.sum(self.sma_prior.compute_lnprob(np.array([sma])))
+        if self.pan_prior is not None:
+            logprob += np.sum(self.pan_prior.compute_lnprob(np.array([pan])))
+
+        return logprob
+
+    def get_param_value(self):
+        pass
 
 
 def all_lnpriors(params, priors):
@@ -824,14 +939,15 @@ def all_lnpriors(params, priors):
     Returns:
         float: prior probability of this set of parameters
     """
-    logp = 0.0
+    logp = np.array(0.0)
 
-    for param, prior in zip(params, priors):
-        param = np.array([param])
+    params_2d = params.reshape(
+        (-1, 1)
+    )  # Make each item an array of size 1, i.e. [[1],[2],[3],...]
+    for param, prior in zip(params_2d, priors):
+        logp = logp + prior.compute_lnprob(param)
 
-        logp += np.squeeze(prior.compute_lnprob(param))
-
-    return float(logp)
+    return logp.item()
 
 
 if __name__ == "__main__":

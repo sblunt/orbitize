@@ -31,13 +31,8 @@ create an `issue on GitHub <https://github.com/sblunt/orbitize/issues>`_.
 Attribution:
 ++++++++++++
 
-* If you use ``orbitize`` in your work, please cite `Blunt et al (2019) <https://ui.adsabs.harvard.edu/abs/2019arXiv191001756B/abstract>`_ and `Blunt et al (2024) <https://ui.adsabs.harvard.edu/abs/2024JOSS....9.6756B/abstract>`_
-* If you use the OFTI algorithm, please also cite `Blunt et al (2017) <https://ui.adsabs.harvard.edu/#abs/2017AJ....153..229B/abstract>`_. 
-* If you use the Affine-invariant MCMC algorithm from ``emcee``, please also cite `Foreman-Mackey et al (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_. 
-* If you use the parallel-tempered Affine-invariant MCMC algorithm from ``ptemcee``, please also cite `Vousden et al (2016) <https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1919V/abstract>`_. 
-* If you use the Hipparcos intermediate astrometric data (IAD) fitting capability, please also cite `Nielsen et al (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....159...71N/abstract>`_ and `van Leeuwen et al (2007)  <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..653V/abstract>`_.
-* If you use Gaia data, please also cite `Gaia Collaboration et al (2018; for DR2) <https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract>`_, or `Gaia Collaboration et al (2021; for eDR3) <https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract>`_.
-
+Please use the `Citation Station <https://flatironinstitute.github.io/software-citation-station/>`_ to cite 
+``orbitize`` and its dependencies.
 
 User Guide:
 +++++++++++
@@ -55,9 +50,27 @@ User Guide:
 Changelog:
 ++++++++++
 
-**4.0.0 (TBD)**
+**4.0.0 (2026-11-19)**
 
-- ptemcee and emcee implementations now cleanly use mp.Pool
+- fixed a bug with the output units of RV fits when using the nbody backend (@eshelDror)
+- implementation of nautilus backend for posterior calculation (@AnCh2008, @eshelDror, @NiklasNucsc, @quintoon)
+- add an astrometry plotting utility function that folks can use to check if data were input correctly (@DTCupcakes)
+- Kepler solver optimization (@eshelDror)
+- major refresh and refactor of the plotting module (@eshelDror)
+- fix compute_model crash due to brightness when use_rebound=True (@eshelDror)
+- make tests deterministic (@eshelDror)
+- ptemcee and emcee implementations now cleanly use mp.Pool (@sblunt)
+- remove functionality that requires an internet connection (this was making several tests flaky; @eshelDror)
+- corrected bug with scaling of astrometric variance for non-DVD Hipparcos solutions (@sblunt)
+- addition of the "Brandt correction," kwarg in hipparcos.HipparcosLogProb, based on Brandt+ 23 (@sblunt)
+- some aesthetic improvements to the Nielsen test output plots (@sblunt)
+- slowdown when using `periodic_save` kwarg in MCMC fixed (@sblunt)
+- Gaia DR4 fitting and visualization capability!! (@clarissardoo)
+- utility function for simulating Gaia DR4 data (@clarissardoo, @astrovidee)
+- use julian year instead of decimal year throughout; bug affected long-period datasets like HGCA (@seffal, @sblunt)
+- bugfix for relative RVs with massive secondary (@sblunt)
+- relative and stellar RVs now correctly implement the epicycle/Jacobi approximation (@wbalmer, @sblunt)
+- add marginalization framework and add OFTeI marginalization for Sep/PA and Gaia DR4!! (@eshelDror)
 
 **3.4.0 (2026-7-20)**
 
@@ -336,7 +349,6 @@ Small changes:
 * Added some informative error messages for input tables.
 * Bugfixes.
 
-
 **1.3.1 (2019-6-19)**
 
 * Bugfix for RA/Dec inputs to the OFTI sampler (Issue #108).
@@ -373,3 +385,19 @@ Small changes:
 **1.0.0 (2018-10-30)**
 
 * Initial release.
+
+**Early contributions:**
+
+* Sarah Blunt -- team leader/organizer; collaboratively designed basic API; wrote basic API; collaboratively developed OFTI sampler; designed orbit plot
+* Jason Wang -- team leader/organizer; collaboratively designed basic API; collaboratively developed kepler.py; wrote MCMC sampler
+* Henry Ngo -- wrote code to read inputs, save/load results, and make basic plots; collaboratively developed kepler.py and results.py
+* Rob De Rosa -- collaboratively developed kepler.py
+* Devin Cody -- wrote C implementation of kepler module
+* Isabel Angelo -- led development of OFTI sampler and tutorial
+* Logan Pearce -- assisted with OFTI development and provided test data
+* Vighnesh Nagpal -- wrote parallel processing OFTI implementation; collaboratively developed RV/astrometry joint fitting code
+* Malena Rice -- wrote code to customize colorbar in orbit plots
+* James Graham -- wrote orbit-solving code that kepler.py inherits from
+* Lea Hirsch -- advising RT on development of RV/astrometry joint fitting code
+* Eric Nielsen -- came up with idea for OFTI algorithm; advised SB on development of OFTI code that sampler.py inherits from
+* Roberto Tejada -- collaboratively developed RV/astrometry joint fitting code

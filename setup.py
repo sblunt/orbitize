@@ -1,6 +1,6 @@
-from setuptools import setup, Extension
 import numpy
 from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 
 def get_extensions():
@@ -12,7 +12,7 @@ def get_extensions():
                 ["orbitize/_kepler.pyx"],
                 include_dirs=[numpy.get_include()],
             )
-        ]
+        ],
     )
     return extensions
 

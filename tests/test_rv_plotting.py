@@ -1,10 +1,11 @@
-from orbitize import driver, DATADIR, plot
 import multiprocessing as mp
+
+from orbitize import DATADIR, driver, plot
 
 
 def test_rv_default_inst():
     # Initialize Driver to Run MCMC
-    filename = "{}/HD4747.csv".format(DATADIR)
+    filename = f"{DATADIR}/HD4747.csv"
 
     num_secondary_bodies = 1
     system_mass = 0.84  # [Msol]
@@ -60,9 +61,8 @@ def test_rv_default_inst():
     )
 
 
-
 def test_rv_multiple_inst():
-    filename = "{}/HR7672_joint.csv".format(DATADIR)
+    filename = f"{DATADIR}/HR7672_joint.csv"
 
     num_secondary_bodies = 1
     system_mass = 1.08  # [Msol]
@@ -120,11 +120,12 @@ def test_rv_multiple_inst():
         plot_astrometry_insts=True,
     )
 
+
 def test_secondary_rv():
     """
     Make sure plotting works when all RVs are secondary RVs
     """
-    filename = "{}/HR7672_joint.csv".format(DATADIR)
+    filename = f"{DATADIR}/HR7672_joint.csv"
 
     num_secondary_bodies = 1
     system_mass = 1.08  # [Msol]
@@ -174,13 +175,15 @@ def test_secondary_rv():
     )
 
     import matplotlib.pyplot as plt
-    plt.savefig('foo.png')
+
+    plt.savefig("foo.png")
+
 
 def test_secondary_and_primary_rv():
     """
     Make sure plotting works RVs are a mix of primary and secondary
     """
-    filename = "{}/HR7672_joint.csv".format(DATADIR)
+    filename = f"{DATADIR}/HR7672_joint.csv"
 
     num_secondary_bodies = 1
     system_mass = 1.08  # [Msol]
@@ -230,8 +233,6 @@ def test_secondary_and_primary_rv():
         rv_time_series2=True,
         plot_astrometry_insts=True,
     )
-
-
 
 
 if __name__ == "__main__":

@@ -39,12 +39,24 @@ us if you are still confused).
 
 .. toctree::
    :maxdepth: 1
+   :caption: Gaia DR4 Tutorials
+
+   tutorials/Gaia_DR4_BH3.ipynb
+   tutorials/Gaia_DR4_EAS.ipynb
+   tutorials/Gaia_DR4_Gaia4.ipynb
+   tutorials/HD160691_Joint_Fit.ipynb
+
+.. toctree::
+   :maxdepth: 1
    :caption: Advanced Tutorials
 
    tutorials/Modifying_Priors.ipynb
    tutorials/Plotting_tutorial.ipynb
    tutorials/MCMC_vs_OFTI.ipynb
    tutorials/Modifying_MCMC_initial_positions.ipynb
+   tutorials/dynesty_tutorial.ipynb
+   tutorials/Nautilus_tutorial.ipynb
+   tutorials/OFTeI_tutorial.ipynb
 
 .. toctree::
    :maxdepth: 1
@@ -57,6 +69,7 @@ us if you are still confused).
    tutorials/Hipparcos_IAD.ipynb
    tutorials/HGCA_tutorial.ipynb
    tutorials/abs_astrometry.ipynb
+   tutorials/ONeil-ObsPriors.ipynb
 
 
 

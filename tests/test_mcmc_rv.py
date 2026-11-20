@@ -1,11 +1,10 @@
-import pytest
-import numpy as np
 import os
+
+import numpy as np
+import pytest
+
 import orbitize
 from orbitize.driver import Driver
-import orbitize.sampler as sampler
-import orbitize.system as system
-import orbitize.read_input as read_input
 
 
 def test_pt_mcmc_runs(num_threads=1):
@@ -14,13 +13,18 @@ def test_pt_mcmc_runs(num_threads=1):
     """
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val_rv.csv')
+    input_file = os.path.join(orbitize.DATADIR, "test_val_rv.csv")
 
-    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
-                      # mass_err=0.05, plx_err=0.01,
-                      system_kwargs={'fit_secondary_mass': True, 'tau_ref_epoch': 0},
-                      mcmc_kwargs={'num_temps': 2, 'num_threads': num_threads, 'num_walkers': 100}
-                      )
+    myDriver = Driver(
+        input_file,
+        "MCMC",
+        1,
+        1,
+        0.01,
+        # mass_err=0.05, plx_err=0.01,
+        system_kwargs={"fit_secondary_mass": True, "tau_ref_epoch": 0},
+        mcmc_kwargs={"num_temps": 2, "num_threads": num_threads, "num_walkers": 100},
+    )
 
     # run it a little (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)
@@ -36,7 +40,7 @@ def test_pt_mcmc_runs(num_threads=1):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(clean_params)
+    computed_lnlike_test, *_ = myDriver.sampler._logl(clean_params)
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
@@ -47,13 +51,17 @@ def test_ensemble_mcmc_runs(num_threads=1):
     """
 
     # use the test_csv dir
-    input_file = os.path.join(orbitize.DATADIR, 'test_val.csv')
+    input_file = os.path.join(orbitize.DATADIR, "test_val.csv")
 
-    myDriver = Driver(input_file, 'MCMC', 1, 1, 0.01,
-                      system_kwargs={'fit_secondary_mass': True,
-                                     'tau_ref_epoch': 0},
-                      mcmc_kwargs={'num_temps': 1, 'num_threads': num_threads, 'num_walkers': 100}
-                      )
+    myDriver = Driver(
+        input_file,
+        "MCMC",
+        1,
+        1,
+        0.01,
+        system_kwargs={"fit_secondary_mass": True, "tau_ref_epoch": 0},
+        mcmc_kwargs={"num_temps": 1, "num_threads": num_threads, "num_walkers": 100},
+    )
 
     # run it a little (tests 0 burn-in steps)
     myDriver.sampler.run_sampler(100)
@@ -69,7 +77,7 @@ def test_ensemble_mcmc_runs(num_threads=1):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(clean_params)
+    computed_lnlike_test, *_ = myDriver.sampler._logl(clean_params)
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 

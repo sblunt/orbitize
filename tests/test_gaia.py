@@ -1,7 +1,49 @@
-import numpy as np
 import os
-from orbitize import DATADIR
-from orbitize import hipparcos, gaia, basis, system, read_input, sampler, results
+
+import numpy as np
+from astropy.table import Table
+
+from orbitize import (
+    DATADIR,
+    basis,
+    gaia,
+    hipparcos,
+    priors,
+    read_input,
+    results,
+    sampler,
+    system,
+)
+
+gaia_edr3_data = {
+    "ra": 86.82123452009108,
+    "ra_error": 0.13713108,
+    "dec": -51.066136257823345,
+    "dec_error": 0.13109376,
+}
+
+gaia_dr2_data = {
+    "ra": 86.82123366090146,
+    "ra_error": 0.3136836085700656,
+    "dec": -51.06614803159093,
+    "dec_error": 0.34165541753173584,
+}
+
+hip_data = {
+    "RArad": 86.82118072,
+    "e_RArad": 0.1,
+    "DErad": -51.06671341,
+    "e_DErad": 0.11,
+    "Plx": 51.44,
+    "e_Plx": 0.12,
+    "pmRA": 4.65,
+    "e_pmRA": 0.11,
+    "pmDE": 83.1,
+    "e_pmDE": 0.15,
+    "F2": -1.63,
+    "Sn": 5,
+    "var": 0.0,
+}
 
 
 def test_dr2_edr3():
@@ -14,12 +56,14 @@ def test_dr2_edr3():
     dr2_number = 4792774797545105664
 
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
 
-    dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
-    dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, dr="dr2")
+    dr3Gaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
+    dr2Gaia = gaia.GaiaLogProb(dr2_number, myHip, gaia_dr2_data, dr="dr2")
 
     assert np.isclose(dr2Gaia.ra, dr3Gaia.ra, atol=0.1)  # abs tolerance in degrees
 
@@ -31,10 +75,12 @@ def test_system_setup():
     hip_num = "027321"  # beta Pic
     edr3_num = 4792774797545800832
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
+    myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
 
     input_file = os.path.join(DATADIR, "betaPic.csv")
     plx = 51.5
@@ -81,11 +127,13 @@ def test_valueerror():
     hip_num = "027321"  # beta Pic
     edr3_num = 4792774797545800832
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
     try:
-        myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="dr3")
+        _ = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
         assert False, "Test failed!"
     except ValueError:
         pass
@@ -124,10 +172,12 @@ def test_orbit_calculation():
     hip_num = "027321"  # beta Pic
     edr3_num = 4792774797545800832
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-    myGaia = gaia.GaiaLogProb(edr3_num, myHip, dr="edr3")
+    myHip = hipparcos.HipparcosLogProb(
+        path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
+    )
+    myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="edr3")
 
     param_idx = {
         "sma1": 0,
@@ -156,11 +206,11 @@ def test_orbit_calculation():
     myGaia.ra = myHip.alpha0 + (
         myGaia.mas2deg
         * pm_a
-        * (myGaia.gaia_epoch - myGaia.hipparcos_epoch)
+        * (myGaia.gaia_epoch.jyear - myGaia.hipparcos_epoch.jyear)
         / np.cos(np.radians(myHip.delta0))
     )
     myGaia.dec = myHip.delta0 + (
-        myGaia.mas2deg * pm_d * (myGaia.gaia_epoch - myGaia.hipparcos_epoch)
+        myGaia.mas2deg * pm_d * (myGaia.gaia_epoch.jyear - myGaia.hipparcos_epoch.jyear)
     )
     test_samples = [sma, ecc, inc, aop, pan, tau, plx, m0, m1, a0, d0, pm_a, pm_d]
 
@@ -194,7 +244,7 @@ def test_orbit_calculation():
     myGaia.dec = myHip.delta0 + 1
 
     sma = 2 * (myGaia.dec - myHip.delta0) * deg2arcsec * (plx * mas2arcsec)  # [au]
-    per = 2 * (myGaia.gaia_epoch - myGaia.hipparcos_epoch)  # [yr]
+    per = 2 * (myGaia.gaia_epoch.jyear - myGaia.hipparcos_epoch.jyear)  # [yr]
     mtot = sma**3 / per**2
 
     test_samples[param_idx["sma1"]] = sma
@@ -203,7 +253,7 @@ def test_orbit_calculation():
 
     # passes through peri (+sma decl for e=0 orbits) at Hipparcos epoch
     # -> @ Gaia epoch, primary should be at +sma decl
-    tau = basis.tp_to_tau(myGaia.hipparcos_epoch, 58849, per)
+    tau = basis.tp_to_tau(myGaia.hipparcos_epoch.jyear, 58849, per)
     test_samples[param_idx["tau1"]] = tau
 
     # choose sma and mass so that Hipparcos/Gaia difference is only due to orbit.
@@ -224,9 +274,14 @@ def test_hgca():
     iad_filepath = os.path.join(DATADIR, "HIP027321.d")
     gost_filepath = os.path.join(DATADIR, "gaia_edr3_betpic_epochs.csv")
     astrometry_filepath = os.path.join(DATADIR, "betaPic.csv")
+    hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3_betapic.fits")
 
-    hipparcos_lnprob = hipparcos.HipparcosLogProb(iad_filepath, "027321", 1)
-    hgca_lnprob = gaia.HGCALogProb(27321, hipparcos_lnprob, gost_filepath)
+    hipparcos_lnprob = hipparcos.HipparcosLogProb(
+        iad_filepath, "027321", 1, hip_data=hip_data
+    )
+    hgca_lnprob = gaia.HGCALogProb(
+        27321, hipparcos_lnprob, gost_filepath, hgca_filepath
+    )
 
     # test a few things were read in correctly
     assert np.all(np.isfinite(hgca_lnprob.hip_pm))
@@ -267,7 +322,7 @@ def test_hgca():
         ]
     )
 
-    chi2 = this_sampler._logl(params)
+    chi2, *_ = this_sampler._logl(params)
 
     assert np.isfinite(chi2)
 
@@ -285,31 +340,55 @@ def test_hgca():
     os.remove("hgca_test.hdf5")
 
 
-def test_nointernet():
-    """
-    Test that the internet-less object setup works
-    """
-    hip_num = "027321"  # beta Pic
-    dr2_number = 4792774797545105664
-
-    num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
-
-    myHip = hipparcos.HipparcosLogProb(path_to_iad_file, hip_num, num_secondary_bodies)
-
-    _ = gaia.GaiaLogProb(
-        dr2_number,
-        myHip,
-        dr="dr2",
-        query=False,
-        gaia_data={"ra": 0, "dec": 0, "ra_error": 0, "dec_error": 0},
+def test_dr4_likelihood():
+    """Check the AL model and Gaussian likelihood with sampled jitter."""
+    # make mock data
+    ref_epoch = 57936.375
+    data = Table(
+        {
+            "obs_time_tcb": [ref_epoch + 365.25, ref_epoch + 2 * 365.25],
+            "centroid_pos_al": [22.0, 5.0],
+            "centroid_pos_error_al": [1.0, 2.0],
+            "scan_pos_angle": [0.0, np.pi / 2],
+            "parallax_factor_al": [1.0, -1.0],
+            "field_of_view": [0, 1],
+        }
     )
+    data.meta.update(time_format="mjd", time_scale="tcb")
+
+    # buile dr4 likelihood
+    dr4 = gaia.DR4LogProb(
+        0,
+        data,
+        ref_epoch_mjd=ref_epoch,
+        jitter_prior=priors.UniformPrior(0.0, 2.0),
+    )
+    param_idx = dict(
+        zip(
+            ["plx", "alpha0", "delta0", "pm_ra", "pm_dec", "dr4_jitter"],
+            range(6),
+        )
+    )
+
+    samples = np.array([5.0, 10.0, 20.0, 2.0, -1.0, 0.0])
+    raoff = np.array([[1.0], [2.0]])
+    decoff = np.array([[3.0], [4.0]])
+
+    # Hand-calculated model: [27, 11]; data - model: [-5, -6].
+    # Expected values include the Gaussian normalization.
+    for jitter, expected in [
+        (0.0, -19.531024246969295),
+        (1.0, -12.83916961290637),
+    ]:
+        samples[param_idx["dr4_jitter"]] = jitter
+        actual = dr4.compute_lnlike(raoff, decoff, samples, param_idx)
+        np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
 
 
 if __name__ == "__main__":
-    test_nointernet()
     # test_dr2_edr3()
     # test_system_setup()
     # test_valueerror()
     # test_orbit_calculation()
-    test_hgca()
+    # test_hgca()
+    test_dr4_likelihood()

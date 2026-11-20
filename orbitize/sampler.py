@@ -1,20 +1,22 @@
 import abc
 import multiprocessing as mp
+import os
+import sys
 import time
 import warnings
 
-import astropy.units as u
 import astropy.constants as consts
+import astropy.units as u
 import dynesty
-import emcee
 import matplotlib.pyplot as plt
+import nautilus
 import numpy as np
 import ptemcee
-
 from astropy.time import Time
 
 import orbitize.kepler
 import orbitize.lnlike
+import orbitize.marginalizer
 import orbitize.priors
 import orbitize.results
 
@@ -28,7 +30,12 @@ class Sampler(abc.ABC):
     """
 
     def __init__(
-        self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
+        self,
+        system,
+        like="chi2_lnlike",
+        custom_lnlike=None,
+        chi2_type="standard",
+        marginalizers=None,
     ):
         self.system = system
 
@@ -43,11 +50,126 @@ class Sampler(abc.ABC):
         # check if need to handle covariances
         self.has_corr = np.any(~np.isnan(self.system.data_table["quant12_corr"]))
 
+        if marginalizers is None:
+            self.marginalizers = []
+            start_quants = set(
+                np.array(
+                    np.unique(self.system.data_table["quant_type"]),
+                    dtype=np.dtypes.StringDType,
+                )
+            )
+            params = set(self.system.labels)
+            if (
+                self.system.num_secondary_bodies == 1
+                and len({"radec", "seppa"} & start_quants) > 0
+                and self.system.mass_err != 0
+                and not (set(orbitize.marginalizer.OFTeI_seppa.MARG_PARAMS) - params)
+                and not (set(orbitize.marginalizer.OFTeI_seppa.REQ_PARAMS) - params)
+            ):
+                # Automatically use OFTeI
+                self.system.convert_data_table_radec2seppa()
+                self.has_corr = np.any(
+                    ~np.isnan(self.system.data_table["quant12_corr"])
+                )
+                ind = self.system.data_table["quant_type"] == "seppa"
+                epochs = self.system.data_table["epoch"][ind]
+                sep = self.system.data_table["quant1"][ind]
+                pa = self.system.data_table["quant2"][ind]
+                sep_err = self.system.data_table["quant1_err"][ind]
+                pa_err = self.system.data_table["quant2_err"][ind]
+                if self.has_corr:
+                    covar = self.system.data_table["quant12_corr"][ind]
+                else:
+                    covar = np.zeros(len(epochs))
+                sma_prior = self.system.sys_priors[self.system.param_idx["sma1"]]
+                mass_prior = orbitize.priors.GaussianPrior(
+                    self.system.stellar_or_system_mass, self.system.mass_err
+                )
+                per_prior = self.system.sys_priors[self.system.param_idx["per1"]]
+                implicit_mass_prior = orbitize.priors.OFTeIMassPrior(
+                    sma_prior.minval,
+                    sma_prior.maxval,
+                    per_prior.minval,
+                    per_prior.maxval,
+                )
+                reweight_prior = orbitize.priors.OFTeIMassReweightPrior(
+                    implicit_mass_prior, mass_prior, self.system.basis
+                )
+                self.system.reweight_priors.append(reweight_prior)
+                marg = orbitize.marginalizer.OFTeI_seppa(
+                    epochs,
+                    sep,
+                    pa,
+                    sep_err,
+                    pa_err,
+                    covar,
+                    self.system.tau_ref_epoch,
+                )
+                self.marginalizers = [marg]
+        else:
+            self.marginalizers = marginalizers
+
+        # TODO: multiplanet
+        marginalized_param_labels_set = {
+            label for marg in self.marginalizers for label in marg.MARG_PARAMS
+        }
+        fitted_param_labels_set = set(system.labels) - marginalized_param_labels_set
+
+        self.gaia_marg = np.any([marg.GAIA for marg in self.marginalizers])
+
+        self.fitted_param_labels = []
+        self.marg_param_labels = []
+        self.fitted_param_sys_idx = []
+        self.marg_param_sys_idx = []
+        self.fitted_priors = []
+        self.marg_priors = []
+        self.fitted_param_idx = {}
+        self.marg_param_idx = {}
+        fitted_param_counter = 0
+        marg_param_counter = 0
+        for i, (label, prior) in enumerate(
+            zip(self.system.labels, self.system.sys_priors)
+        ):
+            if label in fitted_param_labels_set:
+                self.fitted_priors.append(prior)
+                self.fitted_param_labels.append(label)
+                self.fitted_param_sys_idx.append(i)
+                self.fitted_param_idx[label] = fitted_param_counter
+                fitted_param_counter += 1
+            else:
+                self.marg_priors.append(prior)
+                self.marg_param_labels.append(label)
+                self.marg_param_sys_idx.append(i)
+                self.marg_param_idx[label] = marg_param_counter
+                marg_param_counter += 1
+        self.total_param_num = len(self.system.sys_priors)
+        quants = set(
+            np.array(
+                np.unique(self.system.data_table["quant_type"]),
+                dtype=np.dtypes.StringDType,
+            )
+        )
+        marg_quants = {
+            quant_type for marg in self.marginalizers for quant_type in marg.QUANT_TYPES
+        }
+        self.blob_labels = ["lnlike"] + self.marg_param_labels
+
+        # Quantity types which will not be evaluated during marginalization (i.e. rv for seppa OFTeI)
+        self.non_marg_quants = list(quants - marg_quants)
+        # Instead of performing marginalization, draw the marginalized parameters
+        # directly from their priors so they are guaranteed to be within prior domain
+        self.force_valid_marg = False
+
+        if not orbitize.marginalizer.compatible_params(
+            self.marginalizers, self.fitted_param_labels, quants
+        ):
+            raise ValueError("Marginalizers and basis or data are incompatible")
+
     @abc.abstractmethod
     def run_sampler(self, total_orbits):
         pass
 
-    def _logl(self, params):
+    def _logl(self, fitted_params):
         """
         log likelihood function that interfaces with the orbitize objects
         Comptues the sum of the log likelihoods of the data given the input model
@@ -60,38 +182,140 @@ class Sampler(abc.ABC):
                 documented in System() above. If M=1, this can be a 1d array.
 
         Returns:
-            float: sum of all log likelihoods of the data given input model
+            float: sum of all log probablities of the data given input model and marginalized parameters
+            float: sum of all loglikelihoods of the data and sampled marginalized parameters given input model
+            *floats: sampled marginalized parameters
 
         """
-        # compute the model based on system params
-        model, jitter = self.system.compute_model(params)
-
-        # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
-        data = np.array(
-            [self.system.data_table["quant1"], self.system.data_table["quant2"]]
-        ).T
-
-        # errors below required for lnlike function below
-        errs = np.array(
-            [self.system.data_table["quant1_err"], self.system.data_table["quant2_err"]]
-        ).T
-        # covariances/correlations, if applicable
-        # we're doing this check now because the likelihood computation is much faster if we can skip it.
-        if self.has_corr:
-            corrs = self.system.data_table["quant12_corr"]
+        input_shape = fitted_params.shape
+        if len(input_shape) == 1:
+            num_orbits = 1
+            params = np.full((self.total_param_num,), np.nan)
         else:
-            corrs = None
+            num_orbits = input_shape[1]
+            params = np.full((self.total_param_num, num_orbits), np.nan)
+        params[self.fitted_param_sys_idx] = fitted_params
 
-        # grab all seppa indices
-        seppa_indices = self.system.all_seppa
+        total_lnlike = 0
+        total_lnprob = 0
+        all_calculated_values = {}
+        if self.force_valid_marg:
+            samples = [
+                (
+                    np.squeeze(prior.draw_samples(num_orbits))
+                    if hasattr(prior, "draw_samples")
+                    else np.squeeze(np.ones(num_orbits) * prior)
+                )
+                for prior in self.marg_priors
+            ]
+            params[self.marg_param_sys_idx] = samples
 
-        # compute lnlike
-        lnlikes = self.lnlike(
-            data, errs, corrs, model, jitter, seppa_indices, chi2_type=self.chi2_type
-        )
+        else:
+            for marg in self.marginalizers:
+                req_param_idx = [
+                    self.system.param_idx[label] for label in marg.REQ_PARAMS
+                ]
+                marg_param_idx = [
+                    self.system.param_idx[label] for label in marg.MARG_PARAMS
+                ]
+                req_params = params[req_param_idx]
+                partial_lnprob, partial_lnlike, marg_params, calculated_values = (
+                    marg.apply(req_params, all_calculated_values)
+                )
+                if np.isscalar(marg_params):
+                    if hasattr(
+                        self.system.sys_priors[marg_param_idx[0]], "compute_lnprob"
+                    ):
+                        partial_lnprob += (
+                            self.system.sys_priors[marg_param_idx[0]]
+                            .compute_lnprob(np.array([marg_params]))
+                            .item()
+                        )
+                else:
+                    for i, param in zip(marg_param_idx, marg_params):
+                        if hasattr(self.system.sys_priors[i], "compute_lnprob"):
+                            partial_lnprob += (
+                                self.system.sys_priors[i].compute_lnprob(
+                                    np.array([param])
+                                )
+                            ).item()
+                if np.isneginf(partial_lnprob):
+                    return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
+                total_lnprob += partial_lnprob
+                total_lnlike += partial_lnlike
+                params[marg_param_idx] = marg_params
+                all_calculated_values.update(
+                    calculated_values
+                )  # i.e. astr_tanom, rv_eanom
 
-        # return sum of lnlikes (aka product of likeliehoods)
-        lnlikes_sum = np.nansum(lnlikes, axis=(0, 1))
+            for reweight_prior in self.system.reweight_priors:
+                total_lnprob += reweight_prior.compute_lnprob(params).item()
+
+            if np.isneginf(total_lnprob):
+                return -np.inf, -np.inf, *params[self.marg_param_sys_idx]
+
+        lnlikes_sum = 0
+        if self.force_valid_marg or len(self.non_marg_quants) > 0:
+            # compute the model based on system params
+            model, jitter = self.system.compute_model(params)
+
+            # fold data/errors to match model output shape. In particualr, quant1/quant2 are interleaved
+            data = np.array(
+                [self.system.data_table["quant1"], self.system.data_table["quant2"]]
+            ).T
+
+            # errors below required for lnlike function below
+            errs = np.array(
+                [
+                    self.system.data_table["quant1_err"],
+                    self.system.data_table["quant2_err"],
+                ]
+            ).T
+            # covariances/correlations, if applicable
+            # we're doing this check now because the likelihood computation is much faster if we can skip it.
+            if self.has_corr:
+                corrs = self.system.data_table["quant12_corr"]
+            else:
+                corrs = None
+
+            # grab all seppa indices
+            if "seppa" in self.non_marg_quants:
+                seppa_indices = self.system.all_seppa
+            else:
+                seppa_indices = ()
+            if self.force_valid_marg:
+                non_marg_data = data
+                non_marg_errs = errs
+                non_marg_corrs = corrs
+                non_marg_model = model
+                non_marg_jitter = jitter
+            else:
+                non_marg_mask = np.isin(
+                    np.astype(self.system.data_table["quant_type"], str),
+                    self.non_marg_quants,
+                )
+                non_marg_data = data[non_marg_mask]
+                non_marg_errs = errs[non_marg_mask]
+                if corrs is not None:
+                    non_marg_corrs = corrs[non_marg_mask]
+                else:
+                    non_marg_corrs = None
+                non_marg_model = model[non_marg_mask]
+                non_marg_jitter = jitter[non_marg_mask]
+
+            # compute lnlike
+            lnlikes = self.lnlike(
+                non_marg_data,
+                non_marg_errs,
+                non_marg_corrs,
+                non_marg_model,
+                non_marg_jitter,
+                seppa_indices,
+                chi2_type=self.chi2_type,
+            )
+
+            # return sum of lnlikes (aka product of likeliehoods)
+            lnlikes_sum += np.nansum(lnlikes, axis=(0, 1))
 
         if self.custom_lnlike is not None:
             lnlikes_sum += self.custom_lnlike(params)
@@ -102,12 +326,10 @@ class Sampler(abc.ABC):
                 params, epochs=self.system.hipparcos_IAD.epochs_mjd
             )
 
-            (
-                raoff_model_hip_epoch,
-                deoff_model_hip_epoch,
-                _, _
-            ) = self.system.compute_all_orbits(
-                params, epochs=Time([1991.25], format="decimalyear").mjd
+            (raoff_model_hip_epoch, deoff_model_hip_epoch, _, _) = (
+                self.system.compute_all_orbits(
+                    params, epochs=Time([1991.25], format="decimalyear").mjd
+                )
             )
 
             # subtract off position of star at reference Hipparcos epoch
@@ -122,17 +344,23 @@ class Sampler(abc.ABC):
                 self.system.param_idx,
             )
 
-        if self.system.gaia is not None:
-            gaiahip_epochs = Time(
-                np.append(
-                    self.system.gaia.hipparcos_epoch, self.system.gaia.gaia_epoch
-                ),
-                format="decimalyear",
-            ).mjd
+        if self.system.gaia is not None and (
+            not self.gaia_marg or self.force_valid_marg
+        ):
+            if hasattr(self.system.gaia, "epochs_mjd"):
+                # DR4 readers already provide MJD(TCB); do not reinterpret as UTC.
+                gaiahip_epochs = self.system.gaia.epochs_mjd
+            else:
+                gaiahip_epochs = np.append(
+                    self.system.gaia.hipparcos_epoch.mjd,
+                    self.system.gaia.gaia_epoch.mjd,
+                )
 
-            # compute Ra/Dec predictions at the Gaia epoch
+            # System handles conversion from the active fitting basis.
             raoff_model, deoff_model, _, _ = self.system.compute_all_orbits(
-                params, epochs=gaiahip_epochs
+                params,
+                epochs=gaiahip_epochs,
+                params_basis="fitting",
             )
 
             # select body 0 raoff/deoff predictions & feed into Gaia module lnlike fn
@@ -142,7 +370,12 @@ class Sampler(abc.ABC):
                 params,
                 self.system.param_idx,
             )
-        return lnlikes_sum
+        total_lnprob += lnlikes_sum
+        total_lnlike += lnlikes_sum
+
+        marg_params = params[self.marg_param_sys_idx]
+
+        return total_lnprob, total_lnlike, *marg_params
 
 
 class OFTI(
@@ -169,8 +402,16 @@ class OFTI(
     def __init__(
         self, system, like="chi2_lnlike", custom_lnlike=None, chi2_type="standard"
     ):
-        super(OFTI, self).__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike
+        super().__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+            marginalizers=[],
+        )
+
+        warnings.warn(
+            "OFTI is depracated. Please use MCMC with OFTeI marginalization for faster and more accurate results."
         )
 
         if (self.system.hipparcos_IAD is not None) or (len(self.system.rv[0] > 0)):
@@ -197,6 +438,10 @@ class OFTI(
                     )
                     convert_warning_print = True
                 self.system.convert_data_table_radec2seppa(body_num=body_num)
+        if "radec" in self.non_marg_quants:
+            self.non_marg_quants.remove("radec")
+            if "seppa" not in self.non_marg_quants:
+                self.non_marg_quants.append("seppa")
 
         # these are of type astropy.table.column
         self.sep_observed = self.system.data_table[
@@ -312,30 +557,16 @@ class OFTI(
         samples = self.system.basis.to_standard_basis(samples)
 
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
-            sma = samples[
-                self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
-            ]
-            ecc = samples[
-                self.system.basis.standard_basis_idx["ecc{}".format(body_num)], :
-            ]
-            inc = samples[
-                self.system.basis.standard_basis_idx["inc{}".format(body_num)], :
-            ]
-            argp = samples[
-                self.system.basis.standard_basis_idx["aop{}".format(body_num)], :
-            ]
-            lan = samples[
-                self.system.basis.standard_basis_idx["pan{}".format(body_num)], :
-            ]
-            tau = samples[
-                self.system.basis.standard_basis_idx["tau{}".format(body_num)], :
-            ]
+            sma = samples[self.system.basis.standard_basis_idx[f"sma{body_num}"], :]
+            ecc = samples[self.system.basis.standard_basis_idx[f"ecc{body_num}"], :]
+            inc = samples[self.system.basis.standard_basis_idx[f"inc{body_num}"], :]
+            argp = samples[self.system.basis.standard_basis_idx[f"aop{body_num}"], :]
+            lan = samples[self.system.basis.standard_basis_idx[f"pan{body_num}"], :]
+            tau = samples[self.system.basis.standard_basis_idx[f"tau{body_num}"], :]
             plx = samples[self.system.basis.standard_basis_idx["plx"], :]
             if self.system.fit_secondary_mass:
                 m0 = samples[self.system.basis.standard_basis_idx["m0"], :]
-                m1 = samples[
-                    self.system.basis.standard_basis_idx["m{}".format(body_num)], :
-                ]
+                m1 = samples[self.system.basis.standard_basis_idx[f"m{body_num}"], :]
                 mtot = m0 + m1
             else:
                 mtot = samples[self.system.basis.standard_basis_idx["mtot"], :]
@@ -353,7 +584,7 @@ class OFTI(
             meananno = self.epochs[min_epoch] / period_prescale - tau
 
             # compute sep/PA of generated orbits
-            ra, dec, _ = orbitize.kepler.calc_orbit(
+            ra, dec, _, _ = orbitize.kepler.calc_orbit(
                 self.epochs[min_epoch],
                 sma,
                 ecc,
@@ -394,18 +625,10 @@ class OFTI(
             tau = (self.epochs[min_epoch] / period_new - meananno) % 1
 
             # updates samples with new values of sma, pan, tau
-            samples[
-                self.system.basis.standard_basis_idx["sma{}".format(body_num)], :
-            ] = sma
-            samples[
-                self.system.basis.standard_basis_idx["aop{}".format(body_num)], :
-            ] = argp
-            samples[
-                self.system.basis.standard_basis_idx["pan{}".format(body_num)], :
-            ] = lan
-            samples[
-                self.system.basis.standard_basis_idx["tau{}".format(body_num)], :
-            ] = tau
+            samples[self.system.basis.standard_basis_idx[f"sma{body_num}"], :] = sma
+            samples[self.system.basis.standard_basis_idx[f"aop{body_num}"], :] = argp
+            samples[self.system.basis.standard_basis_idx[f"pan{body_num}"], :] = lan
+            samples[self.system.basis.standard_basis_idx[f"tau{body_num}"], :] = tau
 
         return samples
 
@@ -428,7 +651,7 @@ class OFTI(
 
         """
 
-        lnp = self._logl(samples)
+        lnp, *_ = self._logl(samples)
 
         # we just want the chi2 term for rejection, so compute the Gaussian normalization term and remove it
         errs = np.array(
@@ -443,7 +666,7 @@ class OFTI(
 
         # account for user-set priors on PAN that were destroyed by scale-and-rotate
         for body_num in np.arange(self.system.num_secondary_bodies) + 1:
-            pan_idx = self.system.basis.standard_basis_idx["pan{}".format(body_num)]
+            pan_idx = self.system.basis.standard_basis_idx[f"pan{body_num}"]
 
             pan_prior = self.system.sys_priors[pan_idx]
             if pan_prior is not orbitize.priors.UniformPrior:
@@ -470,7 +693,7 @@ class OFTI(
         return saved_orbits, lnlikes
 
     def _sampler_process(
-        self, output, total_orbits, num_samples=10000, Value=0, lock=None
+        self, output, total_orbits, num_samples=10000, Value=0, lock=None, seed=None
     ):
         """
         Runs OFTI until it finds the number of total accepted orbits desired.
@@ -484,6 +707,8 @@ class OFTI(
             Value (mp.Value(int)): global counter for the orbits generated
             lock: mp.lock object to prevent issues caused by access to shared
                   memory by multiple processes
+            seed (int): integer to initiate the random seed from, used for testing
+                (default: None)
         Returns:
             tuple:
 
@@ -495,7 +720,10 @@ class OFTI(
 
         """
 
-        np.random.seed()
+        if seed is not None:
+            np.random.seed(seed)
+        else:
+            np.random.seed()
 
         n_orbits_saved = 0
         output_orbits = np.empty((total_orbits, len(self.priors)))
@@ -527,7 +755,12 @@ class OFTI(
         return (np.array(output_orbits), output_lnlikes)
 
     def run_sampler(
-        self, total_orbits, num_samples=10000, num_cores=None, OFTI_warning=60.0
+        self,
+        total_orbits,
+        num_samples=10000,
+        num_cores=None,
+        OFTI_warning=60.0,
+        seed=None,
     ):
         """
         Runs OFTI in parallel on multiple cores until we get the number of total accepted orbits we want.
@@ -541,6 +774,8 @@ class OFTI(
             OFTI_warning (float): if OFTI doesn't accept a single orbit before
                 this amount of time (in seconds), print a warning suggesting to
                 try MCMC. If None, don't print a warning.
+            seed (int): integer seed to initialize sampler process,
+                used for testing (Default: None)
         Return:
             np.array: array of accepted orbits. Size: total_orbits.
 
@@ -568,7 +803,7 @@ class OFTI(
             processes = [
                 mp.Process(
                     target=self._sampler_process,
-                    args=(output, nrun_per_core, num_samples, orbits_saved, lock),
+                    args=(output, nrun_per_core, num_samples, orbits_saved, lock, seed),
                 )
                 for x in range(num_cores)
             ]
@@ -631,14 +866,12 @@ class OFTI(
 
                 if len(accepted_orbits) == 0:
                     check_time = time.time() - start_time
-                    if OFTI_warning is not None:
-                        if check_time > OFTI_warning:
-                            print(
-                                "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
-                                end="\n",
-                            )
-                            OFTI_warning = None
-                    pass
+                    if OFTI_warning is not None and check_time > OFTI_warning:
+                        print(
+                            "Warning! OFTI is taking a while, and you may want to consider MCMC, check out the MCMC vs OFTI tutorial.",
+                            end="\n",
+                        )
+                        OFTI_warning = None
                 else:
                     n_accepted = len(accepted_orbits)
                     maxindex2save = np.min([n_accepted, total_orbits - n_orbits_saved])
@@ -663,9 +896,8 @@ class OFTI(
 
 class MCMC(Sampler):
     """
-    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will be run if ``num_temps`` > 1
-    Parallel-Tempered MCMC Sampler uses ptemcee, a fork of the emcee Affine-infariant sampler
-    Affine-Invariant Ensemble MCMC Sampler uses emcee.
+    MCMC sampler. Supports either parallel tempering or just regular MCMC. Parallel tempering will
+    be run if ``num_temps`` > 1 using ptemcee, a fork of the emcee Affine-infariant sampler.
 
     .. Warning:: may not work well for multi-modal distributions
 
@@ -687,6 +919,9 @@ class MCMC(Sampler):
         prev_result_filename (str): if passed a filename to an HDF5 file
             containing a orbitize.Result data, MCMC will restart from where it
             left off.
+        marginalizers (list of orbitize.marginalizer.Marginalizer): list of marginalizers
+            to apply in order when fitting. If None, will attempt to automatically select
+            marginalizers (default: None). Disable marginalization by setting to an empty list [].
 
     Written: Jason Wang, Henry Ngo, 2018
     """
@@ -701,29 +936,22 @@ class MCMC(Sampler):
         like="chi2_lnlike",
         custom_lnlike=None,
         prev_result_filename=None,
+        marginalizers=None,
     ):
-        super(MCMC, self).__init__(
-            system, like=like, chi2_type=chi2_type, custom_lnlike=custom_lnlike
+        super().__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+            marginalizers=marginalizers,
         )
 
         self.num_temps = num_temps
         self.num_walkers = num_walkers
         self.num_threads = num_threads
+        self.prev_result_filename = prev_result_filename
 
-        # create an empty results object
-        self.results = orbitize.results.Results(
-            self.system,
-            sampler_name=self.__class__.__name__,
-            post=None,
-            lnlike=None,
-            version_number=orbitize.__version__,
-        )
-
-        if self.num_temps > 1:
-            self.use_pt = True
-        else:
-            self.use_pt = False
-            self.num_temps = 1
+        self.results = None
 
         # get priors from the system class. need to remove and record fixed priors
         self.priors = []
@@ -731,7 +959,7 @@ class MCMC(Sampler):
 
         self.sampled_param_idx = {}
         sampled_param_counter = 0
-        for i, prior in enumerate(system.sys_priors):
+        for i, prior in enumerate(self.fitted_priors):
             # check for fixed parameters
             if not hasattr(prior, "draw_samples"):
                 self.fixed_params.append((i, prior))
@@ -757,33 +985,95 @@ class MCMC(Sampler):
                 init_positions.append(random_init)
 
             # save this as the current position for the walkers
-            if self.use_pt:
-                # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
-                # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
-                self.curr_pos = np.dstack(init_positions)
-            else:
-                # make this an numpy array, but combine the parameters into a shape of (nwalkers, nparams)
-                # we currently have a list of arrays where each entry is num_walkers prior draws for each parameter
-                # We need to make nparams the second dimension, so we have to transpose the stacked array
-                self.curr_pos = np.stack(init_positions).T
+            # make this an numpy array, but combine the parameters into a shape of (ntemps, nwalkers, nparams)
+            # we currently have a list of [ntemps, nwalkers] with nparam arrays. We need to make nparams the third dimension
+            self.curr_pos = np.dstack(init_positions)
+
         else:
+            # create an empty results object
+            self.results = orbitize.results.Results(
+                self.system,
+                sampler_name=self.__class__.__name__,
+                post=None,
+                lnlike=None,
+                version_number=orbitize.__version__,
+            )
             # restart from previous walker positions
             self.results.load_results(prev_result_filename, append=True)
 
             prev_pos = self.results.curr_pos
 
             # check previous positions has the correct dimensions as we need given how this sampler was created.
-            expected_shape = (self.num_walkers, len(self.priors))
-            if self.use_pt:
-                expected_shape = (self.num_temps,) + expected_shape
+            expected_shape = (self.num_temps,) + (self.num_walkers, len(self.priors))
             if prev_pos.shape != expected_shape:
                 raise ValueError(
-                    "Unable to restart chain. Saved walker positions has shape {0}, while current sampler needs {1}".format(
-                        prev_pos.shape, expected_shape
-                    )
+                    f"Unable to restart chain. Saved walker positions has shape {prev_pos.shape}, while current sampler needs {expected_shape}"
                 )
 
             self.curr_pos = prev_pos
+            self.results = None  # Clear variable
+
+    def warm_start_dr4(self, rv_results, rng=None, max_delta_logl=None):
+        """Seed RV+DR4 walkers from a completed SemiAmp RV-only MCMC fit.
+
+        Both fits must have the same companions and phase reference epoch.
+        Draw one RV chain row uniformly per walker and initialize the Gaia position
+        offsets and proper motions by weighted least squares. Inclinations,
+        nodes, and Gaia jitter retain their starting values. Priors are unchanged.
+
+        Args:
+            rv_results (orbitize.results.Results): Results from the RV-only MCMC fit.
+            rng (numpy.random.Generator or int, optional): Generator or seed.
+            max_delta_logl (float, optional): Keep RV draws within this nonnegative
+                log-likelihood difference from the best finite draw. None uses all draws.
+        """
+        system = self.system
+        dr4 = system.gaia
+        rv_system = rv_results.system
+        rv_post = rv_results.post
+        if (
+            system.fitting_basis != "SemiAmp"
+            or rv_system.fitting_basis != "SemiAmp"
+            or system.num_secondary_bodies != rv_system.num_secondary_bodies
+            or system.tau_ref_epoch != rv_system.tau_ref_epoch
+        ):
+            raise ValueError(
+                "The fits must use SemiAmp with the same companion count and tau_ref_epoch."
+            )
+
+        if max_delta_logl is not None:
+            logl = np.asarray(rv_results.lnlike)
+            finite = np.isfinite(logl)
+            rv_post = rv_post[finite & (logl >= logl[finite].max() - max_delta_logl)]
+
+        sampled_idx = self.sampled_param_idx
+        positions = self.curr_pos.reshape(-1, self.num_params).copy()
+        shared = [
+            name
+            for name in sampled_idx
+            if name in rv_results.param_idx and not name.startswith(("inc", "pan"))
+        ]
+        draws = np.random.default_rng(rng).integers(len(rv_post), size=len(positions))
+        positions[:, [sampled_idx[name] for name in shared]] = rv_post[draws][
+            :, [rv_results.param_idx[name] for name in shared]
+        ]
+
+        full_positions = self._fill_in_fixed_params(positions)
+        ra, dec, *_ = system.compute_all_orbits(
+            full_positions.T, epochs=dr4.epochs_mjd, params_basis="fitting"
+        )
+        idx = system.param_idx
+        linear_columns = [
+            sampled_idx[name] for name in ("alpha0", "delta0", "pm_ra", "pm_dec")
+        ]
+        for walker, params in enumerate(full_positions):
+            jitter = params[idx["dr4_jitter"]] if dr4.fit_jitter else dr4.jitter
+            positions[walker, linear_columns] = dr4.guess_initial_astrometry(
+                ra[:, 0, walker], dec[:, 0, walker], params[idx["plx"]], jitter
+            )
+
+        self.curr_pos = positions.reshape(self.curr_pos.shape)
+        self.check_prior_support()
 
     def _fill_in_fixed_params(self, sampled_params):
         """
@@ -835,7 +1125,7 @@ class MCMC(Sampler):
                 logp = orbitize.priors.all_lnpriors(params, self.priors)
                 # escape if logp == -np.inf
                 if np.isinf(logp):
-                    return -np.inf
+                    return -np.inf, *[0.0 for i in range(len(self.blob_labels))]
             else:
                 logp = np.array(
                     [orbitize.priors.all_lnpriors(pset, self.priors) for pset in params]
@@ -847,42 +1137,42 @@ class MCMC(Sampler):
         if np.ndim(full_params) == 2:
             full_params = full_params.T
 
-        return super(MCMC, self)._logl(full_params) + logp
+        logprob, loglike, *marg_params = super()._logl(full_params)
+        return logprob + logp, loglike, *marg_params
 
     def _update_chains_from_sampler(self, sampler, num_steps=None):
         """
-        Updates self.post, self.chain, and self.lnlike from the MCMC sampler
+        Updates fitted_post and self.lnlike from the MCMC sampler
 
         Args:
-            sampler (emcee.EnsembleSampler or ptemcee.Sampler): sampler object.
+            sampler (ptemcee.Sampler): sampler object.
             num_steps (int): if not None, only stores the first num_steps number of steps
         """
         if num_steps is None:
             # use all the steps, grab total number of steps from dimension of chains
             num_steps = sampler.chain.shape[-2]
 
-        self.chain = sampler.chain
-        num_params = self.chain.shape[-1]
+        num_params = sampler.chain.shape[-1]
 
-        if self.use_pt:
-            # chain is shape: Ntemp x Nwalkers x Nsteps x Nparams
-            self.post = sampler.chain[0, :, :num_steps].reshape(
-                -1, num_params
-            )  # the reshaping flattens the chain
-            # should also be picking out the lowest temperature logps
-            self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
-            self.lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
-        else:
-            # chain is shape: Nwalkers x Nsteps x Nparams
-            self.post = sampler.chain[:, :num_steps].reshape(-1, num_params)
-            self.lnlikes = sampler.lnprobability[:, :num_steps].flatten()
-
-            # convert posterior probability (returned by sampler objects) to likelihood (required by orbitize.results.Results)
-            for i, orb in enumerate(self.post):
-                self.lnlikes[i] -= orbitize.priors.all_lnpriors(orb, self.priors)
+        # chain has shape Ntemp x Nwalkers x Nsteps x Nparams
+        fitted_post = sampler.chain[0, :, :num_steps].reshape(
+            -1, num_params
+        )  # the reshaping flattens the chain
+        # pick out the lowest temperature loglikelihoods
+        self.lnlikes = sampler.loglikelihood[0, :, :num_steps].flatten()
+        # lnlikes_alltemps = sampler.loglikelihood[:, :, :num_steps]
 
         # include fixed parameters in posterior
-        self.post = self._fill_in_fixed_params(self.post)
+        fitted_post = self._fill_in_fixed_params(fitted_post)
+
+        # Ntemp x Nwalkers x Nsteps x Nblobs
+        blobs = sampler.blobs[0, :, :num_steps, :].reshape(-1, len(self.blob_labels))
+        self.lnlikes = blobs[:, 0]
+        marginalized_param_blobs = blobs[:, 1:]
+        num_orbits = fitted_post.shape[0]
+        self.full_post = np.full((num_orbits, self.total_param_num), np.nan)
+        self.full_post[:, self.fitted_param_sys_idx] = fitted_post
+        self.full_post[:, self.marg_param_sys_idx] = marginalized_param_blobs
 
     def validate_xyz_positions(self):
         """
@@ -891,41 +1181,12 @@ class MCMC(Sampler):
         positions by new randomly generated positions until all are valid.
         """
         if self.system.fitting_basis == "XYZ":
-            if self.use_pt:
-                all_valid = False
-                while not all_valid:
-                    total_invalids = 0
-                    for temp in range(self.num_temps):
-                        to_stand = self.system.basis.to_standard_basis(
-                            self.curr_pos[temp, :, :].T.copy()
-                        ).T
-
-                        # Get invalids by checking ecc values for each companion
-                        indices = [
-                            ((i * 6) + 1)
-                            for i in range(self.system.num_secondary_bodies)
-                        ]
-                        invalids = np.where(
-                            (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
-                        )[0]
-
-                        # Redraw samples for the invalid ones
-                        if len(invalids) > 0:
-                            newpos = []
-                            for prior in self.priors:
-                                randompos = prior.draw_samples(len(invalids))
-                                newpos.append(randompos)
-                            self.curr_pos[temp, invalids, :] = np.stack(newpos).T
-                            total_invalids += len(invalids)
-                    if total_invalids == 0:
-                        all_valid = True
-                        print("All walker positions validated.")
-            else:
-                all_valid = False
-                while not all_valid:
-                    total_invalids = 0
+            all_valid = False
+            while not all_valid:
+                total_invalids = 0
+                for temp in range(self.num_temps):
                     to_stand = self.system.basis.to_standard_basis(
-                        self.curr_pos[:, :].T.copy()
+                        self.curr_pos[temp, :, :].T.copy()
                     ).T
 
                     # Get invalids by checking ecc values for each companion
@@ -936,17 +1197,17 @@ class MCMC(Sampler):
                         (to_stand[:, indices] < 0.0) | (to_stand[:, indices] >= 1.0)
                     )[0]
 
-                    # Redraw saples for the invalid ones
+                    # Redraw samples for the invalid ones
                     if len(invalids) > 0:
                         newpos = []
                         for prior in self.priors:
                             randompos = prior.draw_samples(len(invalids))
                             newpos.append(randompos)
-                        self.curr_pos[invalids, :] = np.stack(newpos).T
+                        self.curr_pos[temp, invalids, :] = np.stack(newpos).T
                         total_invalids += len(invalids)
-                    if total_invalids == 0:
-                        all_valid = True
-                        print("All walker positions validated.")
+                if total_invalids == 0:
+                    all_valid = True
+                    print("All walker positions validated.")
 
     def run_sampler(
         self,
@@ -958,7 +1219,7 @@ class MCMC(Sampler):
         periodic_save_freq=None,
     ):
         """
-        Runs PT MCMC sampler. Results are stored in ``self.chain`` and ``self.lnlikes``.
+        Runs PT MCMC sampler. Results are stored in ``self.lnlikes``.
         Results also added to ``orbitize.results.Results`` object (``self.results``)
 
         .. Note:: Can be run multiple times if you want to pause and inspect things.
@@ -979,7 +1240,7 @@ class MCMC(Sampler):
                 every nth step while running, where n is value passed into this variable.
 
         Returns:
-            ``emcee.sampler`` object: the sampler used to run the MCMC
+            ``ptemcee.sampler`` object: the sampler used to run the MCMC
         """
 
         if periodic_save_freq is not None and output_filename is None:
@@ -989,40 +1250,65 @@ class MCMC(Sampler):
         if periodic_save_freq is not None and not isinstance(periodic_save_freq, int):
             raise TypeError("periodic_save_freq must be an integer")
 
+        if output_filename is not None:
+            if output_filename.endswith(".hdf5"):
+                output_filename = output_filename.split(".hdf5")[0]
+            if output_filename.endswith(".h5"):
+                output_filename = output_filename.split(".h5")[0]
+
+        if (
+            self.prev_result_filename is not None
+            and periodic_save_freq is not None
+            and output_filename is not None
+            and self.prev_result_filename.endswith(".hdf5")
+            and self.prev_result_filename.startswith(output_filename)
+        ):
+            raise ValueError(
+                f"Output file {output_filename} may overwrite previous results {self.prev_result_filename} "
+            )
+
         nsteps = int(np.ceil(total_orbits / self.num_walkers))
         if nsteps <= 0:
             raise ValueError("Total_orbits must be greater than num_walkers.")
 
-        with mp.Pool(processes=self.num_threads) as pool:
-            if self.use_pt:
-                sampler = ptemcee.Sampler(
-                    self.num_walkers,
-                    self.num_params,
-                    self._logl,
-                    orbitize.priors.all_lnpriors,
-                    ntemps=self.num_temps,
-                    threads=self.num_threads,
-                    logpargs=[
-                        self.priors,
-                    ],
-                )
-            else:
-                sampler = emcee.EnsembleSampler(
-                    self.num_walkers,
-                    self.num_params,
-                    self._logl,
-                    pool=pool,
-                    kwargs={"include_logp": True},
-                )
+        using_unsaved_results = self.results is not None
+        if using_unsaved_results:
+            warnings.warn(
+                "Calling `run_sampler` multiple times with the same MCMC sampler forces orbitize! to keep a large Results object in memory."
+                " The fit will run much faster if you reinitialize the sampler and use the `prev_result_filename` kwarg to load the previous results.",
+                stacklevel=2,
+            )
+        else:
+            # Initialize results object to save curr_pos
+            self.results = orbitize.results.Results(
+                self.system,
+                sampler_name=self.__class__.__name__,
+                post=None,
+                lnlike=None,
+                version_number=orbitize.__version__,
+            )
 
+        with mp.Pool(processes=self.num_threads) as pool:
+            sampler = ptemcee.Sampler(
+                self.num_walkers,
+                self.num_params,
+                self._logl,
+                orbitize.priors.all_lnpriors,
+                ntemps=self.num_temps,
+                logpargs=[
+                    self.priors,
+                ],
+                pool=pool,
+                nblobs=len(self.blob_labels),
+            )
+
+            self.force_valid_marg = True
             print("Starting Burn in")
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=burn_steps, thin=thin)
             ):
-                if self.use_pt:
-                    self.curr_pos = state[0]
-                else:
-                    self.curr_pos = state.coords
+                self.curr_pos = state[0]
+                self.force_valid_marg = False
 
                 if (i + 1) % 5 == 0:
                     print(
@@ -1033,41 +1319,47 @@ class MCMC(Sampler):
                         end="\r",
                     )
 
-                if periodic_save_freq is not None:
-                    if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
-                        self.results.curr_pos = self.curr_pos
-                        self.results.save_results(output_filename)
-
+                if periodic_save_freq is not None and (i + 1) % periodic_save_freq == 0:
+                    # we've completed i+1 steps
+                    self.results.curr_pos = self.curr_pos
+                    new_file = f"{output_filename}_{i + 1}burnsteps.hdf5"
+                    self.results.save_results(new_file)
+                    if not os.path.exists(new_file):
+                        raise OSError(f"Failed to save results to {new_file}")
+                    prev_file = (
+                        f"{output_filename}_{i + 1 - periodic_save_freq}burnsteps.hdf5"
+                    )
+                    if os.path.exists(prev_file):
+                        os.remove(prev_file)
             sampler.reset()
-            print("")
+            print()
             print("Burn in complete. Sampling posterior now.")
+            self.force_valid_marg = True
 
-            saved_upto = 0  # keep track of how many steps of this chain we've saved. this is the next index that needs to be saved
+            saved_upto = 0
             for i, state in enumerate(
                 sampler.sample(self.curr_pos, iterations=nsteps, thin=thin)
             ):
-                if self.use_pt:
-                    self.curr_pos = state[0]
-                else:
-                    self.curr_pos = state.coords
+                self.curr_pos = state[0]
+                self.force_valid_marg = False
 
                 # print progress statement
                 if (i + 1) % 5 == 0:
                     print(str(i + 1) + "/" + str(nsteps) + " steps completed", end="\r")
 
-                if periodic_save_freq is not None:
-                    if (i + 1) % periodic_save_freq == 0:  # we've completed i+1 steps
-                        self._update_chains_from_sampler(sampler, num_steps=i + 1)
-
+                if periodic_save_freq is not None and (i + 1) % periodic_save_freq == 0:
+                    # we've completed i+1 steps
+                    self._update_chains_from_sampler(sampler, num_steps=i + 1)
+                    if using_unsaved_results:
                         # figure out what is the new chunk of the chain and corresponding lnlikes that have been computed before last save
                         # grab the current posterior and lnlikes and reshape them to have the Nwalkers x Nsteps dimension again
-                        post_shape = self.post.shape
+                        post_shape = self.full_post.shape
                         curr_chain_shape = (
                             self.num_walkers,
                             post_shape[0] // self.num_walkers,
                             post_shape[-1],
                         )
-                        curr_chain = self.post.reshape(curr_chain_shape)
+                        curr_chain = self.full_post.reshape(curr_chain_shape)
                         curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
                         # use the reshaped arrays and find the new steps we computed
                         curr_chunk = curr_chain[:, saved_upto : i + 1]
@@ -1082,43 +1374,92 @@ class MCMC(Sampler):
                         self.results.add_samples(
                             curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
                         )
-                        self.results.save_results(output_filename)
                         saved_upto = i + 1
+                    elif self.prev_result_filename is None:
+                        self.results = orbitize.results.Results(
+                            self.system,
+                            sampler_name=self.__class__.__name__,
+                            post=self.full_post,
+                            lnlike=self.lnlikes,
+                            curr_pos=self.curr_pos,
+                            version_number=orbitize.__version__,
+                        )
+                    else:
+                        self.results = orbitize.results.Results(
+                            self.system,
+                            sampler_name=self.__class__.__name__,
+                            post=None,
+                            lnlike=None,
+                            version_number=orbitize.__version__,
+                        )
+                        self.results.load_results(
+                            self.prev_result_filename, append=True
+                        )
+                        self.results.add_samples(
+                            self.full_post, self.lnlikes, curr_pos=self.curr_pos
+                        )
+                    new_file = f"{output_filename}_{i + 1}steps.hdf5"
+                    self.results.save_results(new_file)
+                    if not os.path.exists(new_file):
+                        raise OSError(f"Failed to save results to {new_file}")
+                    prev_file = (
+                        f"{output_filename}_{i + 1 - periodic_save_freq}steps.hdf5"
+                    )
+                    if os.path.exists(prev_file):
+                        os.remove(prev_file)
+                    self.full_post = self.lnlikes = None  # Clear large variables
+                    if not using_unsaved_results:
+                        self.results = None
 
-            print("")
+            print()
             self._update_chains_from_sampler(sampler)
 
-            if periodic_save_freq is None:
-                # need to save everything
-                self.results.add_samples(
-                    self.post, self.lnlikes, curr_pos=self.curr_pos
-                )
-            elif saved_upto < nsteps:
-                # just need to save the last few
-                # same code as above except we just need to grab the last few
-                post_shape = self.post.shape
-                curr_chain_shape = (
-                    self.num_walkers,
-                    post_shape[0] // self.num_walkers,
-                    post_shape[-1],
-                )
-                curr_chain = self.post.reshape(curr_chain_shape)
-                curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
-                curr_chunk = curr_chain[:, saved_upto:]
-                curr_chunk = curr_chunk.reshape(
-                    -1, curr_chunk.shape[-1]
-                )  # flatten nwalkers x nsteps dim
-                curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
+            if using_unsaved_results:
+                if periodic_save_freq is None:
+                    # need to save everything
+                    self.results.add_samples(
+                        self.full_post, self.lnlikes, curr_pos=self.curr_pos
+                    )
+                elif saved_upto < nsteps:
+                    # just need to save the last few
+                    # same code as above except we just need to grab the last few
+                    post_shape = self.full_post.shape
+                    curr_chain_shape = (
+                        self.num_walkers,
+                        post_shape[0] // self.num_walkers,
+                        post_shape[-1],
+                    )
+                    curr_chain = self.full_post.reshape(curr_chain_shape)
+                    curr_lnlike_chain = self.lnlikes.reshape(curr_chain_shape[:2])
+                    curr_chunk = curr_chain[:, saved_upto:]
+                    curr_chunk = curr_chunk.reshape(
+                        -1, curr_chunk.shape[-1]
+                    )  # flatten nwalkers x nsteps dim
+                    curr_lnlike_chunk = curr_lnlike_chain[:, saved_upto:].flatten()
 
+                    self.results.add_samples(
+                        curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
+                    )
+
+            else:
+                self.results = orbitize.results.Results(
+                    self.system,
+                    sampler_name=self.__class__.__name__,
+                    post=None,
+                    lnlike=None,
+                    version_number=orbitize.__version__,
+                )
+                if self.prev_result_filename is not None:
+                    self.results.load_results(self.prev_result_filename, append=True)
                 self.results.add_samples(
-                    curr_chunk, curr_lnlike_chunk, curr_pos=self.curr_pos
+                    self.full_post, self.lnlikes, curr_pos=self.curr_pos
                 )
 
             if output_filename is not None:
-                self.results.save_results(output_filename)
+                self.results.save_results(f"{output_filename}.hdf5")
 
             print("Run complete")
-        # Close pool
+
         if examine_chains:
             self.examine_chains()
 
@@ -1182,8 +1523,8 @@ class MCMC(Sampler):
                 if i in self.system.basis.param_idx:
                     params_plot_list.append(self.system.basis.param_idx[i])
                 else:
-                    raise Exception(
-                        "Invalid param name: {}. See system.basis.param_idx.".format(i)
+                    raise ValueError(
+                        f"Invalid param name: {i}. See system.basis.param_idx."
                     )
             params_to_plot = np.array(params_plot_list)
 
@@ -1306,10 +1647,34 @@ class MCMC(Sampler):
                     )
 
         # otherwise exit the function and continue.
-        return
 
 
-class NestedSampler(Sampler):
+class BaseNestedSampler(Sampler):
+    def ptform(self, u):
+        """
+        Prior transform function.
+
+        Args:
+            u (np.array of floats): RxM array of uniform
+                samples with values 0 < u < 1,
+                where R is the number of parameters
+                and M is the number of orbits
+
+        Returns:
+            numpy RxM array of floats: u samples transformed to
+                a chosen Prior Class distribution.
+        """
+        utform = np.zeros(u.shape)
+        for i in range(u.shape[0]):
+            if hasattr(self.system.sys_priors[i], "transform_samples"):
+                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
+            else:
+                # prior is a fixed number
+                utform[i] = self.system.sys_priors[i]
+        return utform
+
+
+class NestedSampler(BaseNestedSampler):
     """
     Implements nested sampling using the Dynesty package.
 
@@ -1328,17 +1693,19 @@ class NestedSampler(Sampler):
     Thea McKenna, Sarah Blunt, & Lea Hirsch 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(NestedSampler, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
             custom_lnlike=custom_lnlike,
+            marginalizers=[],
         )
 
         # create an empty results object
@@ -1352,25 +1719,9 @@ class NestedSampler(Sampler):
         self.start = time.time()
         self.dynesty_sampler = None
 
-    def ptform(self, u):
-        """
-        Prior transform function.
-
-        Args:
-            u (array of floats): list of samples with values 0 < u < 1.
-
-        Returns:
-            numpy array of floats: 1D u samples transformed to a chosen Prior
-                Class distribution.
-        """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
-            if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            else:
-                # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
-        return utform
+    def _logl(self, params):
+        lnlike, *blobs = super()._logl(params)
+        return lnlike, blobs
 
     def run_sampler(
         self,
@@ -1380,7 +1731,7 @@ class NestedSampler(Sampler):
         pfrac=1.0,
         num_threads=1,
         start_method="fork",
-        run_nested_kwargs={},
+        run_nested_kwargs=None,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1416,10 +1767,13 @@ class NestedSampler(Sampler):
                 int: number of iterations it took to converge
         """
 
+        if run_nested_kwargs is None:
+            run_nested_kwargs = {}
+
         mp.set_start_method(start_method, force=True)
 
         if not static:
-            run_nested_kwargs['wt_kwargs'] = {"pfrac": pfrac}
+            run_nested_kwargs["wt_kwargs"] = {"pfrac": pfrac}
 
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
@@ -1432,6 +1786,7 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                         nlive=nlive,
+                        blob=True,
                     )
                 else:
                     self.dynesty_sampler = dynesty.DynamicNestedSampler(
@@ -1441,7 +1796,8 @@ class NestedSampler(Sampler):
                         pool=pool,
                         bound=bound,
                         bootstrap=False,
-                        nlive=nlive
+                        nlive=nlive,
+                        blob=True,
                     )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
@@ -1453,6 +1809,7 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                     nlive=nlive,
+                    blob=True,
                 )
             else:
                 self.dynesty_sampler = dynesty.DynamicNestedSampler(
@@ -1461,18 +1818,27 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                     nlive=nlive,
+                    blob=True,
                 )
             self.dynesty_sampler.run_nested(**run_nested_kwargs)
 
-        self.results.add_samples(
-            self.dynesty_sampler.results["samples"],
-            self.dynesty_sampler.results["logl"],
-        )
+        blobs = self.dynesty_sampler.results["blob"]
+        samples = self.dynesty_sampler.results["samples"]
+        marginalized_params = blobs[:, 1:]
+        logl = self.dynesty_sampler.results["logl"]
+        num_orbits = len(logl)
+        full_post = np.full((num_orbits, self.total_param_num), np.nan)
+        full_post[:, self.fitted_param_sys_idx] = samples
+        full_post[:, self.marg_param_sys_idx] = marginalized_params
+
+        self.results.add_samples(full_post, logl)
 
         self.results.ln_evidence = self.dynesty_sampler.results["logz"][-1]
         self.results.ln_evidence_err = self.dynesty_sampler.results["logzerr"][-1]
 
-        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results["niter"]
+        return self.dynesty_sampler.results["samples"], self.dynesty_sampler.results[
+            "niter"
+        ]
 
 
 class MultiNest(Sampler):
@@ -1498,17 +1864,19 @@ class MultiNest(Sampler):
     Tomas Stolker 2024
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         system,
         chi2_type="standard",
         like="chi2_lnlike",
         custom_lnlike=None,
     ):
-        super(MultiNest, self).__init__(
+        super().__init__(
             system,
             like=like,
             chi2_type=chi2_type,
             custom_lnlike=custom_lnlike,
+            marginalizers=[],
         )
 
         # create an empty results object
@@ -1523,7 +1891,7 @@ class MultiNest(Sampler):
     def run_sampler(
         self,
         n_live_points=500,
-        output_basename='./multinest',
+        output_basename="./multinest",
         hdf5_file=None,
         multinest_kwargs=None,
     ):
@@ -1608,8 +1976,10 @@ class MultiNest(Sampler):
             """
 
             for i in range(n_param):
-                if hasattr(self.system.sys_priors[i], 'transform_samples'):
-                    param_cube[i] = self.system.sys_priors[i].transform_samples(param_cube[i])
+                if hasattr(self.system.sys_priors[i], "transform_samples"):
+                    param_cube[i] = self.system.sys_priors[i].transform_samples(
+                        param_cube[i]
+                    )
                 else:
                     # The prior is a fixed number
                     param_cube[i] = self.system.sys_priors[i]
@@ -1661,11 +2031,14 @@ class MultiNest(Sampler):
         # The log-likelihood is stored in the last column
         self.results.add_samples(post_samples[:, :-1], post_samples[:, -1])
         self.results.ln_evidence = sampling_stats["nested sampling global log-evidence"]
-        self.results.ln_evidence_err = sampling_stats["nested sampling global log-evidence error"]
+        self.results.ln_evidence_err = sampling_stats[
+            "nested sampling global log-evidence error"
+        ]
 
         # Get the MPI rank of the process
         try:
             from mpi4py import MPI
+
             mpi_rank = MPI.COMM_WORLD.Get_rank()
         except ModuleNotFoundError:
             mpi_rank = 0
@@ -1675,3 +2048,140 @@ class MultiNest(Sampler):
             self.results.save_results(filename=hdf5_file)
 
         return post_samples[:, :-1]
+
+
+class NautilusSampler(BaseNestedSampler):
+    """
+    Implements nested sampling using the Nautilus-Sampler package.
+
+    Args:
+        system (system.System): system.System object
+        chi2_type (str, optional): either  "standard", or "log"
+        like (str): name of likelihood function in ``lnlike.py``
+        custom_lnlike (func): ability to include an addition custom likelihood
+            function in the fit. The function looks like
+            ``clnlikes = custon_lnlike(params)`` where ``params`` is a RxM array
+            of fitting parameters, where R is the number of orbital paramters
+            (can be passed in system.compute_model()), and M is the number of
+            orbits we need model predictions for. It returns ``clnlikes``
+            which is an array of length M, or it can be a single float if M = 1.
+
+    Eshel Dror, Quinton Blackston, Aniruddh Chalagulla, & Niklas Naworal 2026
+    """
+
+    def __init__(
+        self,
+        system,
+        chi2_type="standard",
+        like="chi2_lnlike",
+        custom_lnlike=None,
+    ):
+        super().__init__(
+            system,
+            like=like,
+            chi2_type=chi2_type,
+            custom_lnlike=custom_lnlike,
+            marginalizers=[],
+        )
+
+        # create an empty results object
+        self.results = orbitize.results.Results(
+            self.system,
+            sampler_name=self.__class__.__name__,
+            post=None,
+            lnlike=None,
+            version_number=orbitize.__version__,
+        )
+        self.start = time.time()
+
+    def nautilus_ptform(self, u):
+        return self.ptform(u.T).T
+
+    def nautilus_logl(self, u: np.ndarray):
+        lnlike, *blobs = self._logl(u.T)
+        return lnlike, *blobs
+
+    def run_sampler(
+        self,
+        n_live=2000,
+        n_update=None,
+        verbose=False,
+        num_threads=1,
+        savefile=None,
+        sampler_kwargs=None,
+        run_kwargs=None,
+    ):
+        """Runs the nested sampler from the Nautilus package.
+
+        Args:
+            n_live (int): Number of live points. A larger numbers results
+                in a more finely sampled posterior and a more accurate
+                evidence, but also a larger number of iterations is
+                required to converge (default: 2000).
+            n_update (int): Number of points added to the live set before
+                creating a new shell. When None defaults to `n_live` (default: None).
+            verbose (bool): Print progress when running sampler (default: False).
+            num_threads (int, tuple, pool): number of threads to use for parallelization.
+                If a tuple of two integers, the number of threads for
+                likelihood evaluations and sampler calculations respectively. If a thread
+                pool, the pool used for parallelization (default=1).
+            savefile (str): File used by Nautilus to save progress.
+                If file already exists, resumes from saved progress.
+            sampler_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler,
+                such as `periodic`
+            run_kwargs (dict): dictionary of keywords to be passed into nautilus.Sampler.run,
+                such as `n_eff`
+
+
+        Returns:
+            numpy.array of float: equal-weighted posterior samples
+        """
+        if sampler_kwargs is None:
+            sampler_kwargs = {}
+        if run_kwargs is None:
+            run_kwargs = {}
+        if (
+            sys.version_info < (3, 9, 0)
+            and isinstance(num_threads, int)
+            and num_threads > 1
+        ):
+            with mp.Pool(processes=num_threads) as pool:
+                self.naut_sampler = nautilus.Sampler(
+                    prior=self.nautilus_ptform,
+                    likelihood=self.nautilus_logl,
+                    n_dim=len(self.system.sys_priors),
+                    vectorized=True,
+                    n_live=n_live,
+                    n_update=n_update,
+                    pool=pool,
+                    filepath=savefile,
+                    **sampler_kwargs,
+                )
+
+                _ = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+        else:
+            self.naut_sampler = nautilus.Sampler(
+                prior=self.nautilus_ptform,
+                likelihood=self.nautilus_logl,
+                n_dim=len(self.system.sys_priors),
+                vectorized=True,
+                n_live=n_live,
+                n_update=n_update,
+                pool=num_threads,
+                filepath=savefile,
+                **sampler_kwargs,
+            )
+
+            _ = self.naut_sampler.run(verbose=verbose, **run_kwargs)
+        points, _, log_l = self.naut_sampler.posterior(equal_weight=True)
+        weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
+
+        self.results.add_samples(
+            points,
+            log_l,
+            weighted_post=weighted_points,
+            weighted_lnlike=weighted_log_l,
+            lnweight=log_w,
+        )
+
+        return points

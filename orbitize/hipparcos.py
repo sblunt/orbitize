@@ -1,33 +1,32 @@
-import numpy as np
-from astropy.io import ascii
-import pandas as pd
 import emcee
-from scipy.stats import norm
-import matplotlib.pyplot as plt
 import h5py
-
-from astropy.time import Time
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from astropy.coordinates import get_body_barycentric_posvel
-from astroquery.vizier import Vizier
+from astropy.time import Time
+from scipy.stats import norm
+
+HIPPARCOS_ALPHADEC0_EPOCH = Time("J1991.25", format="jyear_str").jyear
 
 
-class PMPlx_Motion(object):
+class PMPlx_Motion:
     """
     Class to compute the predicted position at an array of epochs given a
     parallax and proper motion model (NO orbital motion is added in this class).
 
     Args:
-        times_mjd (np.array of float): times (in mjd) at which we have absolute astrometric
+        epochs_mjd (np.array of float): times (in mjd) at which we have absolute astrometric
             measurements
         alpha0 (float): measured RA position (in degrees) of the object at alphadec0_epoch (see below).
         delta0 (float): measured Dec position (in degrees) of the object at alphadec0_epoch (see below).
-        alphadec0_epoch (float): a (fixed) reference time. For stars with Hipparcos data, this
-            should generally be 1991.25, but you can define it however you want. Absolute
+        alphadec0_epoch (float): a (fixed) reference time (in jyear). For stars with Hipparcos data, this
+            should generally be J1991.25, but you can define it however you want. Absolute
             astrometric data (passed in via an orbitize! data table) should be defined
             as offsets from the reported position of the object at this epoch (with propagated
             uncertainties). For example, if you have two absolute astrometric measurements
-            taken with GRAVITY, as well as a Hipparcos-derived position (at epoch 1991.25),
-            alphadec0_epoch should be 1991.25, and you should pass in absolute astrometry
+            taken with GRAVITY, as well as a Hipparcos-derived position (at epoch J1991.25),
+            alphadec0_epoch should be J1991.25, and you should pass in absolute astrometry
             in terms of mas *offset* from the Hipparcos catalog position, with propagated
             errors of your measurement and the Hipparcos measurement.
     """
@@ -39,7 +38,6 @@ class PMPlx_Motion(object):
         self.delta0 = delta0
 
         epochs = Time(epochs_mjd, format="mjd")
-        self.epochs = epochs.decimalyear
 
         # compute Earth XYZ position in barycentric coordinates
         bary_pos, _ = get_body_barycentric_posvel("earth", epochs)
@@ -61,7 +59,7 @@ class PMPlx_Motion(object):
                 indices in an array of fitting parameters (generally
                 set to System.basis.param_idx).
             epochs: if None, use self.epochs for astrometric predictions. Otherwise,
-                use this array passed in [in decimalyear].
+                use this array passed in [in mjd].
 
         Returns:
             tuple of:
@@ -78,14 +76,14 @@ class PMPlx_Motion(object):
         delta_H0 = samples[param_idx["delta0"]]
 
         if epochs is None:
-            epochs = self.epochs
+            epochs = Time(self.epochs_mjd, format="mjd")
             X = self.X
             Y = self.Y
             Z = self.Z
         else:
             # compute Earth XYZ position in barycentric coordinates
             bary_pos, _ = get_body_barycentric_posvel(
-                "earth", Time(epochs, format="decimalyear")
+                "earth", Time(epochs, format="mjd")
             )
             X = bary_pos.x.value  # [au]
             Y = bary_pos.y.value  # [au]
@@ -105,7 +103,7 @@ class PMPlx_Motion(object):
                     X[i] * np.sin(np.radians(self.alpha0))
                     - Y[i] * np.cos(np.radians(self.alpha0))
                 )
-                + (epochs[i] - self.alphadec0_epoch) * pm_ra
+                + (epochs[i].jyear - self.alphadec0_epoch) * pm_ra
             )
             delta_C_array[i] = (
                 delta_H0
@@ -119,12 +117,12 @@ class PMPlx_Motion(object):
                     * np.sin(np.radians(self.delta0))
                     - Z[i] * np.cos(np.radians(self.delta0))
                 )
-                + (epochs[i] - self.alphadec0_epoch) * pm_dec
+                + (epochs[i].jyear - self.alphadec0_epoch) * pm_dec
             )
         return alpha_C_st_array, delta_C_array
 
 
-class HipparcosLogProb(object):
+class HipparcosLogProb:
     """
     Class to compute the log probability of an orbit with respect to the
     Hipparcos Intermediate Astrometric Data (IAD). If using a DVD file,
@@ -137,9 +135,9 @@ class HipparcosLogProb(object):
     are described here for completeness. See Nielsen+ 2020 for more detail.
 
     - alpha0: RA offset from the reported Hipparcos position at a particular
-        epoch (usually 1991.25) [mas]
+        epoch (usually J1991.25) [mas]
     - delta0: Dec offset from the reported Hipparcos position at a particular
-        epoch (usually 1991.25) [mas]
+        epoch (usually J1991.25) [mas]
     - pm_ra: RA proper motion [mas/yr]
     - pm_dec: Dec proper motion [mas/yr]
     - plx: parallax [mas]
@@ -157,14 +155,20 @@ class HipparcosLogProb(object):
             zeros in the prefix if number is <100,000. (i.e. 27321 should be
             passed in as '027321').
         num_secondary_bodies (int): number of companions in the system
-        alphadec0_epoch (float): epoch (in decimal year) that the fitting
+        alphadec0_epoch (float): epoch (in Julian decimal year) that the fitting
             parameters alpha0 and delta0 are defined relative to (see above).
         renormalize_errors (bool): if True, normalize the scan errors to get
             chisq_red = 1, following Nielsen+ 2020 (eq 10). In general, this
             should be False, but it's helpful for testing. Check out
             `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
-
+        brandt_correction (bool): if True, add delta_r = 0.140 mas and sigma_jit = 2.25 mas
+            to the residuals, following Brandt+ 2023.
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog
+            (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
+            "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
+            "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
+            or int as appropriate (default: None)
     Written: Sarah Blunt & Rob de Rosa, 2021
     """
 
@@ -173,8 +177,10 @@ class HipparcosLogProb(object):
         path_to_iad_file,
         hip_num,
         num_secondary_bodies,
-        alphadec0_epoch=1991.25,
+        alphadec0_epoch=HIPPARCOS_ALPHADEC0_EPOCH,
         renormalize_errors=False,
+        brandt_correction=False,
+        hip_data=None,
     ):
         self.path_to_iad_file = path_to_iad_file
         self.renormalize_errors = renormalize_errors
@@ -193,53 +199,38 @@ class HipparcosLogProb(object):
         self.num_secondary_bodies = num_secondary_bodies
         self.alphadec0_epoch = alphadec0_epoch
 
+        self.hip_data = hip_data
+        self.brandt_correction = brandt_correction
+
         # dvd files don't contain the Hipparcos astrometric solution, so
         # we need to look it up
         if dvd_file:
-            # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
-            # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
-            Vizier.ROW_LIMIT = -1
-            hip_cat = Vizier(
-                catalog="I/311/hip2",
-                columns=[
-                    "RArad",
-                    "e_RArad",
-                    "DErad",
-                    "e_DErad",
-                    "Plx",
-                    "e_Plx",
-                    "pmRA",
-                    "e_pmRA",
-                    "pmDE",
-                    "e_pmDE",
-                    "F2",
-                    "Sn",
-                    "var",
-                ],
-            ).query_constraints(HIP=self.hip_num)[0]
+            if not isinstance(hip_data, dict):
+                raise TypeError(
+                    f"Expected kwarg `hip_data` to be a dict but encountered {type(hip_data)} instead"
+                )
+            self.plx0 = hip_data["Plx"]  # [mas]
+            self.pm_ra0 = hip_data["pmRA"]  # [mas/yr]
+            self.pm_dec0 = hip_data["pmDE"]  # [mas/yr]
+            self.alpha0 = hip_data["RArad"]  # [deg]
+            self.delta0 = hip_data["DErad"]  # [deg]
+            self.plx0_err = hip_data["e_Plx"]  # [mas]
+            self.pm_ra0_err = hip_data["e_pmRA"]  # [mas/yr]
+            self.pm_dec0_err = hip_data["e_pmDE"]  # [mas/yr]
+            self.alpha0_err = hip_data["e_RArad"]  # [mas]
+            self.delta0_err = hip_data["e_DErad"]  # [mas]
 
-            self.plx0 = hip_cat["Plx"][0]  # [mas]
-            self.pm_ra0 = hip_cat["pmRA"][0]  # [mas/yr]
-            self.pm_dec0 = hip_cat["pmDE"][0]  # [mas/yr]
-            self.alpha0 = hip_cat["RArad"][0]  # [deg]
-            self.delta0 = hip_cat["DErad"][0]  # [deg]
-            self.plx0_err = hip_cat["e_Plx"][0]  # [mas]
-            self.pm_ra0_err = hip_cat["e_pmRA"][0]  # [mas/yr]
-            self.pm_dec0_err = hip_cat["e_pmDE"][0]  # [mas/yr]
-            self.alpha0_err = hip_cat["e_RArad"][0]  # [mas]
-            self.delta0_err = hip_cat["e_DErad"][0]  # [mas]
-
-            self.solution_type = hip_cat["Sn"][0]
-            f2 = hip_cat["F2"][0]
+            self.solution_type = hip_data["Sn"]
+            f2 = hip_data["F2"]
             if self.solution_type == 1:
-                self.var = hip_cat["var"][0]  # [mas]
+                self.var = hip_data["var"]  # [mas]
             else:
                 self.var = 0
 
         else:
             # read the Hipparcos best-fit solution from the IAD file
             astrometric_solution = pd.read_csv(
-                path_to_iad_file, skiprows=9, sep="\s+", nrows=1
+                path_to_iad_file, skiprows=9, sep=r"\s+", nrows=1
             )
             self.plx0 = astrometric_solution["Plx"].values[0]  # [mas]
             self.pm_ra0 = astrometric_solution["pm_RA"].values[0]  # [mas/yr]
@@ -253,13 +244,15 @@ class HipparcosLogProb(object):
             self.delta0_err = astrometric_solution["e_DE"].values[0]  # [mas]
 
             solution_details = pd.read_csv(
-                path_to_iad_file, skiprows=5, sep="\s+", nrows=1
+                path_to_iad_file, skiprows=5, sep=r"\s+", nrows=1
             )
 
             self.solution_type = solution_details["isol_n"].values[0]
 
             if self.solution_type == 1:
-                self.var = astrometric_solution["var"].values[0]
+                self.var = (
+                    10 * astrometric_solution["var"].values[0]
+                ) ** 2  # N.B. input is different units than var from Vizier catalog!!
             else:
                 self.var = 0
 
@@ -269,11 +262,9 @@ class HipparcosLogProb(object):
         # there were significant residuals. 5 = standard 5-param fit.
         if self.solution_type not in [1, 5]:
             raise ValueError(
+                f"""
+                Currently, we only handle stars with solution types 1 and 5. Your star has type {self.solution_type}. Let us know if you want us to add another solution type!
                 """
-                Currently, we only handle stars with solution types 1 and 5. Your star has type {}. Let us know if you want us to add another solution type!
-                """.format(
-                    self.solution_type
-                )
             )
 
         # read in IAD
@@ -282,31 +273,37 @@ class HipparcosLogProb(object):
         else:
             iad = np.transpose(np.loadtxt(path_to_iad_file))
 
-        n_lines = len(iad)
+        self.epochs = Time(
+            iad[1] * 365.25 + Time("J1991.25", format="jyear_str").jd, format="jd"
+        )
 
-        times = iad[1] + 1991.25
         self.cos_phi = iad[3]  # scan direction
         self.sin_phi = iad[4]
         self.R = iad[5]  # abscissa residual [mas]
+        if brandt_correction:
+            self.R += 0.140  # [mas]
         self.eps = iad[6]  # error on abscissa residual [mas]
+
+        n_lines = len(self.eps)
 
         # reject negative errors (scans that were rejected by Hipparcos team)
         good_scans = np.where(self.eps > 0)[0]
 
         if n_lines - len(good_scans) > 0:
-            print("{} Hipparcos scans rejected.".format(n_lines - len(good_scans)))
-        times = times[good_scans]
+            print(f"{n_lines - len(good_scans)} Hipparcos scans rejected.")
+        self.epochs = self.epochs[good_scans]
         self.cos_phi = self.cos_phi[good_scans]
         self.sin_phi = self.sin_phi[good_scans]
         self.R = self.R[good_scans]
         self.eps = self.eps[good_scans]
 
+        self.epochs_mjd = self.epochs.mjd
+
         # if the star has a type 1 (stochastic) solution, we need to undo the addition of a jitter term in quadrature
         self.eps = np.sqrt(self.eps**2 - self.var**2)
 
-        epochs = Time(times, format="decimalyear")
-        self.epochs = epochs.decimalyear
-        self.epochs_mjd = epochs.mjd
+        if brandt_correction:
+            self.eps = np.sqrt(self.eps**2 + 2.25**2)
 
         self.hipparcos_plxpm_predictor = PMPlx_Motion(
             self.epochs_mjd,
@@ -316,7 +313,7 @@ class HipparcosLogProb(object):
         )
 
         if self.renormalize_errors:
-            D = len(epochs) - 6
+            D = len(self.epochs) - 6
             G = f2
 
             f = (G * np.sqrt(2 / (9 * D)) + 1 - (2 / (9 * D))) ** (3 / 2)
@@ -333,7 +330,7 @@ class HipparcosLogProb(object):
                 self.hipparcos_plxpm_predictor.X * np.sin(np.radians(self.alpha0))
                 - self.hipparcos_plxpm_predictor.Y * np.cos(np.radians(self.alpha0))
             )
-            + (self.epochs - 1991.25) * self.pm_ra0
+            + (self.epochs.jyear - self.alphadec0_epoch) * self.pm_ra0
         )
 
         changein_delta = (
@@ -347,7 +344,7 @@ class HipparcosLogProb(object):
                 * np.sin(np.radians(self.delta0))
                 - self.hipparcos_plxpm_predictor.Z * np.cos(np.radians(self.delta0))
             )
-            + (self.epochs - 1991.25) * self.pm_dec0
+            + (self.epochs.jyear - self.alphadec0_epoch) * self.pm_dec0
         )
 
         # compute abcissa point (Nielsen+ Eq 3)
@@ -371,6 +368,11 @@ class HipparcosLogProb(object):
         hf.attrs["hip_num"] = self.hip_num
         hf.attrs["alphadec0_epoch"] = self.alphadec0_epoch
         hf.attrs["renormalize_errors"] = self.renormalize_errors
+
+        if self.hip_data is not None:
+            hip_data_group = hf.create_group("hip_data")
+            hip_data_group.update(self.hip_data)
+        hf.attrs["brandt_correction"] = self.brandt_correction
 
     def compute_lnlike(self, raoff_model, deoff_model, samples, param_idx):
         """
@@ -440,6 +442,7 @@ def nielsen_iad_refitting_test(
     saveplot="bPic_IADrefit.png",
     burn_steps=100,
     mcmc_steps=5000,
+    hip_data=None,
 ):
     """
     Reproduce the IAD refitting test from Nielsen+ 2020 (end of Section 3.1).
@@ -455,6 +458,11 @@ def nielsen_iad_refitting_test(
             plot
         burn_steps (int): number of MCMC burn-in steps to run.
         mcmc_steps (int): number of MCMC production steps to run.
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog
+            (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
+            "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
+            "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
+            or int as appropriate (default: None)
 
     Returns:
         tuple:
@@ -468,7 +476,11 @@ def nielsen_iad_refitting_test(
     num_secondary_bodies = 0
 
     myHipLogProb = HipparcosLogProb(
-        iad_file, hip_num, num_secondary_bodies, renormalize_errors=True
+        iad_file,
+        hip_num,
+        num_secondary_bodies,
+        renormalize_errors=True,
+        hip_data=hip_data,
     )
     n_epochs = len(myHipLogProb.epochs)
 
@@ -513,11 +525,11 @@ def nielsen_iad_refitting_test(
             myHipLogProb.plx0 + 3 * myHipLogProb.plx0_err,
             1000,
         )
-        axes[0].hist(sampler.flatchain[:, 0], bins=50, density=True, color="r")
+        axes[0].hist(sampler.flatchain[:, 0], bins=50, density=True, color="grey")
         axes[0].plot(
             xs, norm(myHipLogProb.plx0, myHipLogProb.plx0_err).pdf(xs), color="k"
         )
-        axes[0].set_xlabel("plx [mas]")
+        axes[0].set_xlabel(r"$\pi$ [mas]")
 
         # PM RA
         xs = np.linspace(
@@ -525,11 +537,11 @@ def nielsen_iad_refitting_test(
             myHipLogProb.pm_ra0 + 3 * myHipLogProb.pm_ra0_err,
             1000,
         )
-        axes[1].hist(sampler.flatchain[:, 1], bins=50, density=True, color="r")
+        axes[1].hist(sampler.flatchain[:, 1], bins=50, density=True, color="grey")
         axes[1].plot(
             xs, norm(myHipLogProb.pm_ra0, myHipLogProb.pm_ra0_err).pdf(xs), color="k"
         )
-        axes[1].set_xlabel("PM RA [mas/yr]")
+        axes[1].set_xlabel("$\\mu_{{\\alpha_0^*}}$ [mas/yr]")
 
         # PM Dec
         xs = np.linspace(
@@ -537,27 +549,30 @@ def nielsen_iad_refitting_test(
             myHipLogProb.pm_dec0 + 3 * myHipLogProb.pm_dec0_err,
             1000,
         )
-        axes[2].hist(sampler.flatchain[:, 2], bins=50, density=True, color="r")
+        axes[2].hist(sampler.flatchain[:, 2], bins=50, density=True, color="grey")
         axes[2].plot(
             xs, norm(myHipLogProb.pm_dec0, myHipLogProb.pm_dec0_err).pdf(xs), color="k"
         )
-        axes[2].set_xlabel("PM Dec [mas/yr]")
+        axes[2].set_xlabel("$\\mu_{{\\delta_0}}$ [mas/yr]")
 
         # RA offset
-        axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="r")
+        axes[3].hist(sampler.flatchain[:, 3], bins=50, density=True, color="grey")
         xs = np.linspace(
             -3 * myHipLogProb.alpha0_err, 3 * myHipLogProb.alpha0_err, 1000
         )
         axes[3].plot(xs, norm(0, myHipLogProb.alpha0_err).pdf(xs), color="k")
-        axes[3].set_xlabel("RA Offset [mas]")
+        axes[3].set_xlabel("$\\alpha_0^*$ [mas]")
 
         # Dec offset
         xs = np.linspace(
             -3 * myHipLogProb.delta0_err, 3 * myHipLogProb.delta0_err, 1000
         )
-        axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="r")
+        axes[4].hist(sampler.flatchain[:, 4], bins=50, density=True, color="grey")
         axes[4].plot(xs, norm(0, myHipLogProb.delta0_err).pdf(xs), color="k")
-        axes[4].set_xlabel("Dec Offset [mas]")
+        axes[4].set_xlabel(r"$\delta_0$ [mas]")
+
+        for a in axes:
+            a.set_ylabel("relative prob.")
 
         plt.tight_layout()
         plt.savefig(saveplot, dpi=250)

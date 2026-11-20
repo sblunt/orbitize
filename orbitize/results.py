@@ -1,22 +1,24 @@
-import numpy as np
-import h5py
 import os
 
-import astropy.table as table
+import h5py
+import numpy as np
+from astropy import table
 
-import orbitize.system
 import orbitize.basis
+import orbitize.gaia
+import orbitize.hipparcos
 import orbitize.plot
-import orbitize.gaia, orbitize.hipparcos
+import orbitize.system
+from orbitize import DATADIR
 
 
-class Results(object):
+class Results:
     """
     A class to store accepted orbital configurations from the sampler
 
     Args:
         system (orbitize.system.System): System object used to do the fit.
-        sampler_name (string): name of sampler class that generated these results 
+        sampler_name (string): name of sampler class that generated these results
             (default: None).
         post (np.array of float): MxN array of orbital parameters
             (posterior output from orbit-fitting process), where M is the
@@ -24,10 +26,19 @@ class Results(object):
             parameters in the fit (default: None).
         lnlike (np.array of float): M array of log-likelihoods corresponding to
             the orbits described in ``post`` (default: None).
-        version_number (str): version of orbitize that produced these results. 
+        version_number (str): version of orbitize that produced these results.
         data (astropy.table.Table): output from ``orbitize.read_input.read_file()``
-        curr_pos (np.array of float): for MCMC only. A multi-D array of the 
-            current walker positions that is used for restarting a MCMC sampler. 
+        curr_pos (np.array of float): for MCMC only. A multi-D array of the
+            current walker positions that is used for restarting a MCMC sampler.
+        weighted_post (np.array of float): RxN array of orbital parameters
+            (posterior output from weighted orbit-fitting process), where R is the
+            number of orbits generated, and N is the number of varying orbital
+            parameters in the fit (default: None).
+        weighted_lnlike (np.array of float): R array of log-likelihoods corresponding to
+            the orbits described in ``weighted_post`` (default: None).
+        lnweights (np.array of float): R array of log-weights corresponding to the orbits
+            and log-likelihoods described in ``weighted_post`` and ``weighted_lnlike`` (default: None)
+
 
     Written: Henry Ngo, Sarah Blunt, 2018
 
@@ -35,8 +46,16 @@ class Results(object):
     """
 
     def __init__(
-        self, system=None, sampler_name=None, post=None, lnlike=None,
-        version_number=None, curr_pos=None
+        self,
+        system=None,
+        sampler_name=None,
+        post=None,
+        lnlike=None,
+        version_number=None,
+        curr_pos=None,
+        weighted_post=None,
+        weighted_lnlike=None,
+        lnweight=None,
     ):
 
         self.system = system
@@ -45,6 +64,9 @@ class Results(object):
         self.lnlike = lnlike
         self.curr_pos = curr_pos
         self.version_number = version_number
+        self._weighted_post = weighted_post
+        self._weighted_lnlike = weighted_lnlike
+        self.lnweight = lnweight
         self.ln_evidence = None
         self.ln_evidence_err = None
 
@@ -58,23 +80,92 @@ class Results(object):
             self.param_idx = self.system.param_idx
             self.standard_param_idx = self.system.basis.standard_basis_idx
 
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
+    @property
+    def weighted_post(self):
         """
-        Add accepted orbits, their likelihoods, and the orbitize version number 
+        Returns the weighted posterior if it exists,
+        otherwise returns the unweighted posterior.
+        """
+        if self._weighted_post is not None:
+            return self._weighted_post
+        return self.post
+
+    @property
+    def weighted_lnlike(self):
+        """
+        Returns the weighted log-likelihoods if it exists,
+        otherwise returns the unweighted log-likelihoods.
+        """
+        if self._weighted_lnlike is not None:
+            return self._weighted_lnlike
+        return self.lnlike
+
+    @property
+    def weights(self):
+        """
+        Returns the weights of ``weighted_post`` and ``weighted_lnlike``
+        if it exists, otherwise returns None.
+        """
+        if self.lnweight is None:
+            return None
+        return np.exp(self.lnweight)
+
+    def downsample(self, amount, duplicates=True):
+        """
+        Samples from the posterior, or the weighted posterior if it exists.
+
+        Args:
+            amount (int): number of samples to draw from the posetrior
+            duplicates (bool): whether to replace sampled orbits from the posterior,
+                which may cause duplicate samples (default: True)
+
+        Returns:
+            tuple:
+
+                numpy.array of float: orbital parameters of the samples (``amount``xN, where N is number of varying orbital parameters)
+
+                numpy.array of float: log-likelihoods of the samples (length ``amount``)
+
+        """
+
+        indexes = np.random.choice(
+            len(self.weighted_post), amount, duplicates, self.weights
+        )
+        if self.weighted_lnlike is None:
+            return self.weighted_post[indexes], None
+        return self.weighted_post[indexes], self.weighted_lnlike[indexes]
+
+    def add_samples(
+        self,
+        orbital_params,
+        lnlikes,
+        curr_pos=None,
+        weighted_post=None,
+        weighted_lnlike=None,
+        lnweight=None,
+    ):
+        """
+        Add accepted orbits, their likelihoods, and the orbitize version number
         to the results
 
         Args:
-            orbital_params (np.array): add sets of orbital params (could be multiple) 
+            orbital_params (np.array): add sets of orbital params (could be multiple)
                 to results
             lnlike (np.array): add corresponding lnlike values to results
-            curr_pos (np.array of float): for MCMC only. A multi-D array of the 
+            curr_pos (np.array of float): for MCMC only. A multi-D array of the
                 current walker positions
+            weighted_post (np.array): for Nautilus only. Sets of orbital params
+                associated with ``lnweight`` to add to results.
+            weighted_lnlike (np.array): for Nautilus only. Corresponding weighted lnlike
+                values for ``weighted_post`` to add to results.
+            weighted_post (np.array): for Nautilus only. Log of weights associated
+                with ``weighted_post`` and ``weighted_lnlike``.
 
         Written: Henry Ngo, 2018
 
         API Update: Sarah Blunt, 2021
         """
-        
+
         # Adding the orbitize version number to the results
         if self.version_number is None:
             self.version_number = orbitize.__version__
@@ -88,6 +179,18 @@ class Results(object):
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
+
+        if weighted_post is not None:
+            if self._weighted_post is None:
+                self._weighted_post = weighted_post
+                self._weighted_lnlike = weighted_lnlike
+                self.lnweight = lnweight
+            else:
+                self._weighted_post = np.vstack((self._weighted_post, weighted_post))
+                self._weighted_lnlike = np.append(
+                    self._weighted_lnlike, weighted_lnlike
+                )
+                self.lnweight = np.append(self.lnweight, lnweight)
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
@@ -110,31 +213,38 @@ class Results(object):
         API Update: Sarah Blunt, 2021
         """
 
-        hf = h5py.File(filename, 'w')  # Creates h5py file object
-        # Add sampler_name as attribute of the root group
+        with h5py.File(filename, "w") as hf:  # Creates h5py file object
+            # Add sampler_name as attribute of the root group
 
-        hf.attrs['sampler_name'] = self.sampler_name
-        hf.attrs['version_number'] = self.version_number
+            hf.attrs["sampler_name"] = self.sampler_name
+            hf.attrs["version_number"] = self.version_number
 
-        if self.ln_evidence is not None:
-            hf.attrs['ln_evidence'] = self.ln_evidence
+            if self.ln_evidence is not None:
+                hf.attrs["ln_evidence"] = self.ln_evidence
 
-        if self.ln_evidence_err is not None:
-            hf.attrs['ln_evidence_err'] = self.ln_evidence_err
+            if self.ln_evidence_err is not None:
+                hf.attrs["ln_evidence_err"] = self.ln_evidence_err
 
-        # Now add post and lnlike from the results object as datasets
-        if self.post is not None:
-            hf.create_dataset('post', data=self.post)
-        # hf.create_dataset('data', data=self.data)
-        if self.lnlike is not None:
-            hf.create_dataset('lnlike', data=self.lnlike)
+            # Now add post and lnlike from the results object as datasets
+            if self.post is not None:
+                hf.create_dataset("post", data=self.post)
+            # hf.create_dataset('data', data=self.data)
+            if self.lnlike is not None:
+                hf.create_dataset("lnlike", data=self.lnlike)
 
-        if self.curr_pos is not None:
-            hf.create_dataset("curr_pos", data=self.curr_pos)
+            if self.curr_pos is not None:
+                hf.create_dataset("curr_pos", data=self.curr_pos)
 
-        self.system.save(hf)
+            if (
+                self._weighted_post is not None
+                and self._weighted_lnlike is not None
+                and self.lnweight is not None
+            ):
+                hf.create_dataset("weighted_post", data=self._weighted_post)
+                hf.create_dataset("weighted_lnlike", data=self._weighted_lnlike)
+                hf.create_dataset("lnweight", data=self.lnweight)
 
-        hf.close()  # Closes file object, which writes file to disk
+            self.system.save(hf)
 
     def load_results(self, filename, append=False):
         """
@@ -149,53 +259,60 @@ class Results(object):
         data is structured.
 
         Written: Henry Ngo, 2018
-        
+
         API Update: Sarah Blunt, 2021
         """
 
-        hf = h5py.File(filename, 'r')  # Opens file for reading
+        hf = h5py.File(filename, "r")  # Opens file for reading
         # Load up each dataset from hdf5 file
-        sampler_name = str(hf.attrs['sampler_name'])
-        if 'version_number' in hf.attrs:
-            version_number = str(hf.attrs['version_number'])
+        sampler_name = str(hf.attrs["sampler_name"])
+        if "version_number" in hf.attrs:
+            version_number = str(hf.attrs["version_number"])
         else:
             version_number = "<= 1.13"
-        post = hf.get('post')
-        if post is not None:
-            post = np.array(post)
-        lnlike = hf.get('lnlike')
-        if lnlike is not None:
-            lnlike = np.array(lnlike)
 
-        if 'num_secondary_bodies' in hf.attrs:
-            num_secondary_bodies = int(hf.attrs['num_secondary_bodies'])
+        post = array_not_none(hf.get("post"))
+        lnlike = array_not_none(hf.get("lnlike"))
+        weighted_post = array_not_none(hf.get("weighted_post"))
+        weighted_lnlike = array_not_none(hf.get("weighted_lnlike"))
+        lnweight = array_not_none(hf.get("lnweight"))
+
+        if "num_secondary_bodies" in hf.attrs:
+            num_secondary_bodies = int(hf.attrs["num_secondary_bodies"])
         else:
             # old, has to be single planet fit
             num_secondary_bodies = 1
 
         try:
-            data_table = table.Table(np.array(hf.get('data')))
+            data_table = table.Table(np.array(hf.get("data")))
             # Decode byte string columns to str for consistent in-memory types
             for col in data_table.colnames:
                 if data_table[col].dtype.kind == "S":
                     data_table[col] = np.char.decode(data_table[col], "utf-8")
-        except ValueError: # old version of results; add a dummy table
+        except ValueError:  # old version of results; add a dummy table
             data_table = table.Table(
-                names = (
-                    'epoch', 'object', 'quant1', 'quant1_err', 'quant2',
-                    'quant2_err', 'quant12_corr', 'quant_type', 'instrument'
+                names=(
+                    "epoch",
+                    "object",
+                    "quant1",
+                    "quant1_err",
+                    "quant2",
+                    "quant2_err",
+                    "quant12_corr",
+                    "quant_type",
+                    "instrument",
                 ),
-                dtype=('<f8', '<i8', '<f8', '<f8', '<f8', '<f8', '<f8', 'S5', 'S5')
+                dtype=("<f8", "<i8", "<f8", "<f8", "<f8", "<f8", "<f8", "S5", "S5"),
             )
 
-        try: # these are all saved keywords introduced in v2
-            restrict_angle_ranges = bool(hf.attrs['restrict_angle_ranges'])
-            stellar_or_system_mass = float(hf.attrs['stellar_or_system_mass'])
-            mass_err = float(hf.attrs['mass_err'])
-            plx_err = float(hf.attrs['plx_err'])
-            plx = float(hf.attrs['plx'])
-            fit_secondary_mass = bool(hf.attrs['fit_secondary_mass'])
-            use_rebound = bool(hf.attrs['use_rebound'])
+        try:  # these are all saved keywords introduced in v2
+            restrict_angle_ranges = bool(hf.attrs["restrict_angle_ranges"])
+            stellar_or_system_mass = float(hf.attrs["stellar_or_system_mass"])
+            mass_err = float(hf.attrs["mass_err"])
+            plx_err = float(hf.attrs["plx_err"])
+            plx = float(hf.attrs["plx"])
+            fit_secondary_mass = bool(hf.attrs["fit_secondary_mass"])
+            use_rebound = bool(hf.attrs["use_rebound"])
         except KeyError:
             restrict_angle_ranges = False
             stellar_or_system_mass = np.nan
@@ -205,26 +322,30 @@ class Results(object):
             fit_secondary_mass = False
             use_rebound = False
         try:
-            tau_ref_epoch = float(hf.attrs['tau_ref_epoch'])
+            tau_ref_epoch = float(hf.attrs["tau_ref_epoch"])
         except KeyError:
             # probably an old results file when reference epoch was fixed at MJD = 0
             tau_ref_epoch = 0
 
         iad_data = hf.get("IAD_datafile")
         if iad_data is not None:
-
-            tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
-            with open(tmpfile, 'w+') as f:
+            tmpfile = "tmpfile_iad_OkToDeleteAfterFitFinishes"
+            with open(tmpfile, "w+") as f:
                 try:
-                    for l in np.array(iad_data):
-                        f.write(l)
+                    f.writelines(np.array(iad_data))
                 except TypeError:
-                    for l in np.array(iad_data):
-                        f.write(l.decode('UTF-8'))
+                    f.writelines(l.decode("UTF-8") for l in np.array(iad_data))
 
-            hip_num = str(hf.attrs['hip_num'])
-            alphadec0_epoch = float(hf.attrs['alphadec0_epoch'])
-            renormalize_errors = bool(hf.attrs['renormalize_errors'])
+            hip_num = str(hf.attrs["hip_num"])
+            alphadec0_epoch = float(hf.attrs["alphadec0_epoch"])
+            renormalize_errors = bool(hf.attrs["renormalize_errors"])
+
+            hip_data_raw = hf.get("hip_data", default=None)
+            if hip_data_raw is not None:
+                hip_data = {key: hip_data_raw[key][()] for key in hip_data_raw}
+            else:
+                hip_data = None
+            brandt_correction = bool(hf.attrs.get("brandt_correction", False))
 
             hipparcos_IAD = orbitize.hipparcos.HipparcosLogProb(
                 tmpfile,
@@ -232,44 +353,93 @@ class Results(object):
                 num_secondary_bodies,
                 alphadec0_epoch,
                 renormalize_errors,
+                hip_data=hip_data,
+                brandt_correction=brandt_correction,
             )
 
             # load Gaia data
             try:
-                gaia_num = int(hf.attrs['gaia_num'])
-                dr = str(hf.attrs['dr'])
-                gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, dr)
+                gaia_num = int(hf.attrs["gaia_num"])
+                dr = str(hf.attrs["dr"])
+                gaia_data_raw = hf.get("gaia_data")
+                if gaia_data_raw is None:
+                    raise KeyError
+                gaia_data = {key: gaia_data_raw[key][()] for key in gaia_data_raw}
+                gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, gaia_data, dr)
             except KeyError:
                 gaia = None
 
             # alternatively load HGCA. Note requires hipparcos_IAD attribute
             gaiagost_data = hf.get("Gaia_GOST")
+            hgca_filepath = None
             if gaiagost_data is not None:
-                
-                tmpfile = 'tmpfile_OkToDeleteAfterFitFinishes'
+                tmpfile = "tmpfile_gost_OkToDeleteAfterFitFinishes"
                 tmptbl = table.Table(np.array(gaiagost_data))
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
-                gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile)
-                hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
+                hgca_entry_raw = hf.get("HGCA_entry")
+                hgca_entry = None
+                if hgca_entry_raw is None:
+                    if os.path.exists(os.path.join(DATADIR, "HGCA_vEDR3.fits")):
+                        hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
+                    else:
+                        raise KeyError(
+                            f"HGCA Entry not found in {filename} for initializing HGCALogProb"
+                        )
+                else:
+                    hgca_entry = {
+                        key: hgca_entry_raw[key][()] for key in hgca_entry_raw
+                    }
 
+                gaia = orbitize.gaia.HGCALogProb(
+                    int(hip_num),
+                    hipparcos_IAD,
+                    tmpfile,
+                    hgca_filepath=hgca_filepath,
+                    hgca_entry=hgca_entry,
+                )
+                hipparcos_IAD = None  # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system
 
         else:
             hipparcos_IAD = None
             gaia = None
 
+        if "Gaia_DR4" in hf:
+            dr4_table = table.Table(hf["Gaia_DR4"][()])
+            dr4_table.convert_bytestring_to_unicode()
+            dr4_table.meta.update(
+                time_format=hf.attrs["dr4_time_format"],
+                time_scale=hf.attrs["dr4_time_scale"],
+            )
+            gaia = orbitize.gaia.DR4LogProb(
+                int(hf.attrs["gaia_num"]),
+                dr4_table,
+                ref_epoch_mjd=float(hf.attrs["dr4_ref_epoch_mjd"]),
+                jitter=float(hf.attrs["dr4_jitter"]),
+            )
+            # Keep the fitted jitter column. Its prior is not serialized.
+            gaia.fit_jitter = bool(hf.attrs["dr4_fit_jitter"])
 
         try:
-            fitting_basis = str(hf.attrs['fitting_basis'])
+            fitting_basis = str(hf.attrs["fitting_basis"])
         except KeyError:
             # if key does not exist, then it was fit in the standard basis
-            fitting_basis = 'Standard'
+            fitting_basis = "Standard"
 
         self.system = orbitize.system.System(
-            num_secondary_bodies, data_table, stellar_or_system_mass,
-            plx, mass_err, plx_err, restrict_angle_ranges,
-            tau_ref_epoch, fit_secondary_mass,
-            hipparcos_IAD, gaia, fitting_basis, use_rebound
+            num_secondary_bodies,
+            data_table,
+            stellar_or_system_mass,
+            plx,
+            mass_err,
+            plx_err,
+            restrict_angle_ranges,
+            tau_ref_epoch,
+            fit_secondary_mass,
+            hipparcos_IAD,
+            gaia,
+            fitting_basis,
+            use_rebound,
         )
 
         self.tau_ref_epoch = self.system.tau_ref_epoch
@@ -281,16 +451,13 @@ class Results(object):
         self.param_idx = self.system.param_idx
         self.standard_param_idx = self.basis.standard_basis_idx
 
-        if 'ln_evidence' in hf.attrs:
-            self.ln_evidence = hf.attrs['ln_evidence']
+        if "ln_evidence" in hf.attrs:
+            self.ln_evidence = hf.attrs["ln_evidence"]
 
-        if 'ln_evidence_err' in hf.attrs:
-            self.ln_evidence_err = hf.attrs['ln_evidence_err']
+        if "ln_evidence_err" in hf.attrs:
+            self.ln_evidence_err = hf.attrs["ln_evidence_err"]
 
-        try:
-            curr_pos = np.array(hf.get('curr_pos'))
-        except KeyError:
-            curr_pos = None
+        curr_pos = array_not_none(hf.get("curr_pos"))
 
         hf.close()  # Closes file object
 
@@ -305,29 +472,51 @@ class Results(object):
                 self.sampler_name = sampler_name
             # otherwise only proceed if the sampler_names match
             elif self.sampler_name != sampler_name:
-                raise Exception(
-                    'Unable to append file {} to Results object. sampler_name of object and file do not match'.format(filename))
+                raise ValueError(
+                    f"Unable to append file {filename} to Results object. sampler_name of object and file do not match"
+                )
             # if no version_number set, use the input file's value
             if self.version_number is None:
                 self.version_number = version_number
             # otherwise only proceed if the version_numbers match
             elif self.version_number != version_number:
-                raise Exception(
-                    'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
+                raise ValueError(
+                    f"Unable to append file {filename} to Results object. version_number of object and file do not match"
+                )
 
             # Now append post and lnlike
-            self.add_samples(post, lnlike)#, self.labels)
+            self.add_samples(
+                post,
+                lnlike,
+                weighted_post=weighted_post,
+                weighted_lnlike=weighted_lnlike,
+                lnweight=lnweight,
+            )  # , self.labels)
         else:
-
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None:# and self.tau_ref_epoch is None :
+            if (
+                self.sampler_name is None
+                and self.post is None
+                and self.lnlike is None
+                and self.version_number is None
+                and self._weighted_lnlike is None
+                and self._weighted_post is None
+                and self.lnweight is None
+            ):  # and self.tau_ref_epoch is None :
                 self.sampler_name = sampler_name
                 self.version_number = version_number
-                self.add_samples(post, lnlike)#, self.labels)
+                self.add_samples(
+                    post,
+                    lnlike,
+                    weighted_post=weighted_post,
+                    weighted_lnlike=weighted_lnlike,
+                    lnweight=lnweight,
+                )  # , self.labels)
 
             else:
-                raise Exception(
-                    'Unable to load file {} to Results object. append is set to False but object is not empty'.format(filename))
+                raise ValueError(
+                    f"Unable to load file {filename} to Results object. append is set to False but object is not empty"
+                )
 
     def print_results(self):
         """
@@ -335,7 +524,7 @@ class Results(object):
         """
 
         # TODO: we should put this in basis, not here. Same for corner plot labels.
-        unit_dict = {  
+        unit_dict = {
             "sma": "au",
             "ecc": "",
             "inc": "deg",
@@ -362,12 +551,12 @@ class Results(object):
             "zdot": "km/s",
         }
 
-        convert_deg = 180.0/np.pi
+        convert_deg = 180.0 / np.pi
 
-        self.results_str = '' 
+        self.results_str = ""
 
-        self.results_str += '\nparam: med [68% CI]\n'
-        self.results_str += '-------------------\n'
+        self.results_str += "\nparam: med [68% CI]\n"
+        self.results_str += "-------------------\n"
 
         for l in self.system.labels:
             idx = self.system.param_idx[l]
@@ -375,73 +564,106 @@ class Results(object):
                 lookup_label = l[:-1]
             else:
                 lookup_label = l
-            if lookup_label in ['inc', 'aop', 'pan']:
+            if lookup_label in ["inc", "aop", "pan"]:
                 conversion = convert_deg
             else:
                 conversion = 1.0
-            self.results_str += '{}: {:.3f} [{:.3f} - {:.3f}] {}\n'.format(
-                    l, 
-                    np.median(self.post[:,idx]*conversion),
-                    np.quantile(self.post[:,idx]*conversion, 0.16),
-                    np.quantile(self.post[:,idx]*conversion, 0.84),
-                    unit_dict[lookup_label]
-                )
-            
-        self.results_str += '-------------------\n'
+            self.results_str += f"{l}: {np.median(self.post[:, idx] * conversion):.3f} [{np.quantile(self.post[:, idx] * conversion, 0.16):.3f} - {np.quantile(self.post[:, idx] * conversion, 0.84):.3f}] {unit_dict[lookup_label]}\n"
+
+        self.results_str += "-------------------\n"
         print(self.results_str)
-    
-    def plot_corner(self, param_list=None, **corner_kwargs):
+
+    def plot_corner(self, param_list=None, downsample=None, **corner_kwargs):
         """
         Wrapper for orbitize.plot.plot_corner
         """
-        return orbitize.plot.plot_corner(self, param_list, **corner_kwargs)
+        return orbitize.plot.plot_corner(self, param_list, downsample, **corner_kwargs)
 
-    def plot_orbits(self, object_to_plot=1, start_mjd=51544.,
-        num_orbits_to_plot=100, num_epochs_to_plot=100,
-        square_plot=True, show_colorbar=True, cmap=orbitize.plot.cmap,
-        sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
-        cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
+    def plot_orbits(
+        self,
+        object_to_plot=1,
+        start_mjd=51544.0,
+        num_orbits_to_plot=100,
+        num_epochs_to_plot=100,
+        square_plot=True,
+        show_colorbar=True,
+        cmap=orbitize.plot.cmap,
+        sep_pa_color="lightgrey",
+        sep_pa_end_year=2025.0,
+        cbar_param="Epoch [year]",
+        mod180=False,
+        rv_time_series=False,
         plot_astrometry=True,
         plot_astrometry_insts=False,
-        fig=None
+        fig=None,
     ):
         """
         Wrapper for orbitize.plot.plot_orbits
         """
 
         return orbitize.plot.plot_orbits(
-            self, object_to_plot=object_to_plot, start_mjd=start_mjd,
-            num_orbits_to_plot=num_orbits_to_plot, 
+            self,
+            object_to_plot=object_to_plot,
+            start_mjd=start_mjd,
+            num_orbits_to_plot=num_orbits_to_plot,
             num_epochs_to_plot=num_epochs_to_plot,
-            square_plot=square_plot, show_colorbar=show_colorbar, cmap=cmap,
-            sep_pa_color=sep_pa_color, sep_pa_end_year=sep_pa_end_year,
-            cbar_param=cbar_param, mod180=mod180, rv_time_series=rv_time_series, 
+            square_plot=square_plot,
+            show_colorbar=show_colorbar,
+            cmap=cmap,
+            sep_pa_color=sep_pa_color,
+            sep_pa_end_year=sep_pa_end_year,
+            cbar_param=cbar_param,
+            mod180=mod180,
+            rv_time_series=rv_time_series,
             plot_astrometry=plot_astrometry,
-            plot_astrometry_insts=plot_astrometry_insts, 
-            fig=fig
+            plot_astrometry_insts=plot_astrometry_insts,
+            fig=fig,
         )
 
-    def plot_propermotion(self,
-                          # system,
-                          object_to_plot=1, start_mjd=44239.,
-                          periods_to_plot=1, end_year=2030.0, alpha = 0.05,
-                          num_orbits_to_plot=100, num_epochs_to_plot=100,
-                          show_colorbar=True,
-                          cmap=orbitize.plot.cmap,
-                          cbar_param=None,
-                    # fig=None
-        ):
+    def plot_propermotion(
+        self,
+        # system,
+        object_to_plot=1,
+        start_mjd=44239.0,
+        periods_to_plot=1,
+        end_year=2030.0,
+        alpha=0.05,
+        num_orbits_to_plot=100,
+        num_epochs_to_plot=100,
+        show_colorbar=True,
+        cmap=orbitize.plot.cmap,
+        cbar_param=None,
+        # fig=None
+    ):
         """
         Wrapper for orbitize.plot.plot_propermotion
         """
 
-        return orbitize.plot.plot_propermotion(self, self.system,
-                        object_to_plot=object_to_plot, start_mjd=start_mjd,
-                        periods_to_plot=periods_to_plot, end_year=end_year,
-                        alpha = alpha, num_orbits_to_plot=num_orbits_to_plot,
-                        num_epochs_to_plot=num_epochs_to_plot,
-                        show_colorbar=show_colorbar,
-                        cmap=cmap,
-                        cbar_param=cbar_param,
-                        # fig=fig
-                        )
+        return orbitize.plot.plot_propermotion(
+            self,
+            self.system,
+            object_to_plot=object_to_plot,
+            start_mjd=start_mjd,
+            periods_to_plot=periods_to_plot,
+            end_year=end_year,
+            alpha=alpha,
+            num_orbits_to_plot=num_orbits_to_plot,
+            num_epochs_to_plot=num_epochs_to_plot,
+            show_colorbar=show_colorbar,
+            cmap=cmap,
+            cbar_param=cbar_param,
+            # fig=fig
+        )
+
+    def plot_dr4_orbit(self, system, **kwargs):
+        """Plot the stellar reflex motion from a Gaia DR4 fit."""
+        return orbitize.plot.Plotter.plot_dr4_orbit(self, system, **kwargs)
+
+
+def array_not_none(raw):
+    """
+    Returns a numpy.array of the input if it is not None, else returns None
+    """
+    if raw is not None:
+        return np.array(raw)
+    return raw
