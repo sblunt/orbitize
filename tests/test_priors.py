@@ -78,6 +78,24 @@ def test_compute_lnprob():
         assert np.log(expected_probs[Prior]) == pytest.approx(lnprobs, abs=threshold)
 
 
+def test_compute_lnprob_single_input():
+    """
+    Test that each Prior class returns a single-element array for a single-element array
+    input
+    """
+    for Prior, inputs in initialization_inputs.items():
+        TestPrior = Prior(*inputs)
+        values2test = lnprob_inputs[Prior]
+
+        print(values2test[:1])
+        print(TestPrior)
+        lnprobs = TestPrior.compute_lnprob(values2test[:1])
+        print(lnprobs)
+        print()
+
+        assert len(lnprobs) == 1
+
+
 def test_obsprior():
     """
     Test API setup with obs prior and run it a few MCMC steps to make sure nothing
@@ -117,7 +135,8 @@ def test_obsprior():
 
 
 if __name__ == "__main__":
-    test_obsprior()
-    test_compute_lnprob()
-    test_draw_samples()
-    print("All tests passed!")
+    test_compute_lnprob_single_input()
+    # test_obsprior()
+    # test_compute_lnprob()
+    # test_draw_samples()
+    # print("All tests passed!")

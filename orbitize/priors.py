@@ -492,11 +492,6 @@ class UniformPrior(Prior):
             np.array: array of prior probabilities
         """
         size = np.size(element_array)
-        if size == 1:
-            if (element_array > self.maxval) or (element_array < self.minval):
-                return -np.inf
-            else:
-                return self.lnprob
 
         lnprob = np.ones(size) * self.lnprob
 
@@ -813,6 +808,7 @@ class ObsPrior(Prior):
             self.increment_param_num()
             return 0
 
+
 class ReweightPrior(abc.ABC):
     def __init__(self, implied_prior, new_prior, basis):
         self.implied_prior = implied_prior
@@ -827,15 +823,17 @@ class ReweightPrior(abc.ABC):
         if self.implied_prior is not None:
             prev_prob = self.implied_prior.compute_lnprob(param_value)
         if np.isneginf(prev_prob):
-            raise ValueError(f"The implied prior probability is 0 ({param_value=} is \
+            raise ValueError(
+                f"The implied prior probability is 0 ({param_value=} is \
                              outside the expected bounds) with {param_arr=}. \
-                             The reweighed probability would be infinite.")
+                             The reweighed probability would be infinite."
+            )
         logprob = new_prob - prev_prob
         return logprob
 
     @abc.abstractmethod
-    def get_param_value():
-        ...
+    def get_param_value(): ...
+
 
 class OFTeIMassPrior(Prior):
     """
@@ -888,6 +886,7 @@ class OFTeIMassPrior(Prior):
         with np.errstate(divide="ignore"):
             return np.log(f_Z / element_array)
 
+
 class OFTeIMassReweightPrior(ReweightPrior):
     def get_param_value(self, param_arr):
         standard_param_arr = self.basis.to_standard_basis(np.copy(param_arr))
@@ -896,25 +895,26 @@ class OFTeIMassReweightPrior(ReweightPrior):
         else:
             return np.array([standard_param_arr[self.basis.standard_basis_idx["mtot"]]])
 
+
 class OFTeIUVReweightPrior(ReweightPrior):
     def __init__(self, sma_prior, pan_prior, basis):
         self.sma_prior = sma_prior
         self.pan_prior = pan_prior
         self.basis = basis
-        
+
     def compute_lnprob(self, param_arr):
         v = param_arr[self.basis.param_idx["v"]]
         u = param_arr[self.basis.param_idx["u"]]
         plx = param_arr[self.basis.param_idx["plx"]]
-        mfrac1 = param_arr[self.basis.param_idx["mfrac1"]] # m1 / mtot
+        mfrac1 = param_arr[self.basis.param_idx["mfrac1"]]  # m1 / mtot
         # period_yr = param_arr[self.basis.param_idx["per1"]]
         pan = np.atan(v / u)
         if u < 0:
             pan += np.pi
         pan %= 2 * np.pi
         sma_photo_sample = u / np.cos(pan) / plx
-        
-        logprob = - np.log(plx**2 * sma_photo_sample)
+
+        logprob = -np.log(plx**2 * sma_photo_sample)
         sma = sma_photo_sample / mfrac1
         # TODO: multiple orbits
         if self.sma_prior is not None:
@@ -926,6 +926,7 @@ class OFTeIUVReweightPrior(ReweightPrior):
 
     def get_param_value(self):
         pass
+
 
 def all_lnpriors(params, priors):
     """
