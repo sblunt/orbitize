@@ -61,7 +61,7 @@ authors:
   affiliation: '13'
 - name: Jason J. Wang
   orcid: 0000-0003-0774-6502
-  affiliation: '5'
+  affiliation: "5,15"
 - name: Marie Ygouf
   affiliation: '4'
 - name: Jingwen Zhang
@@ -76,7 +76,7 @@ affiliations:
   index: 3
 - name: Jet Propulsion Laboratory, California Institute of Technology, Pasadena, CA, USA
   index: 4
-- name: Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA) and Department of Physics and Astronomy, Northwestern University, Evanston, IL, USA
+- name: Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA), Northwestern University, Evanston, IL, USA
   index: 5
 - name: Institute for Astronomy, School of Physics and Astronomy, University of Edinburgh, Edinburgh,
     UK
@@ -97,6 +97,8 @@ affiliations:
   index: 13
 - name: Department of Physics, University of California, Santa Barbara, Santa Barbara, CA, USA
   index: 14
+- name: Department of Physics and Astronomy Northwestern University, Evanston, IL 60208, USA
+  index: 15
 date: 19 November 2026
 bibliography: paper.bib
 ---
