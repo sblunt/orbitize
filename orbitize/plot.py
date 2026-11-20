@@ -1,30 +1,24 @@
-import numpy as np
-import corner
-import warnings
 import itertools
+import warnings
 
-import astropy.units as u
 import astropy.constants as consts
-from astropy.time import Time
-from astropy.coordinates import get_body_barycentric_posvel
-
+import astropy.units as u
+import corner
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-from matplotlib.lines import Line2D
-import matplotlib.colors as colors
-from matplotlib.ticker import FormatStrFormatter
-import matplotlib.transforms as transforms
-
+import numpy as np
+from astropy.time import Time
 from erfa import ErfaWarning
-from scipy.optimize import least_squares
+from matplotlib import colors, transforms
+from matplotlib.collections import LineCollection
+from matplotlib.ticker import FormatStrFormatter
 
 import orbitize
-
+from orbitize import read_input
 
 cmap = mpl.cm.Purples_r
 cmap = colors.LinearSegmentedColormap.from_list(
-    "trunc({n},{a:.2f},{b:.2f})".format(n=cmap.name, a=0.0, b=0.7),
+    f"trunc({cmap.name},{0.0:.2f},{0.7:.2f})",
     cmap(np.linspace(0.0, 0.7, 1000)),
 )
 
@@ -35,7 +29,7 @@ dr4_cmap = colors.LinearSegmentedColormap.from_list(
 )
 
 
-class Plotter(object):
+class Plotter:
     """
     A class to plot results
 
@@ -65,8 +59,6 @@ class Plotter(object):
 
     """
 
-    # Color Map
-    CMAP = cmap
     # color bar
     CBAR_SPACING = 0.005
     CBAR_WIDTH = 0.02
@@ -100,14 +92,6 @@ class Plotter(object):
     RV_SYMBOLS = (".", "*", "p", "s")
     BORDER_COLOR = "k"
     RADEC_ERR_COLORS = "k"
-    # Latex for rv error
-    RV_ERR_MATH = {
-        "offset": "\\mathrm{{std}}(\\gamma)",
-        "observation": "\\epsilon",
-        "jitter": "\\mathrm{{med}}(\\sigma)",
-    }
-    # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
-    OBJECT_LABELS = {0: "*"}
 
     def __init__(
         self,
@@ -123,6 +107,17 @@ class Plotter(object):
         rv_time_series2=False,
         post_to_use=None,
     ):
+        # Color Map
+        self.CMAP = cmap
+        # Latex for rv error
+        self.RV_ERR_MATH = {
+            "offset": "\\mathrm{{std}}(\\gamma)",
+            "observation": "\\epsilon",
+            "jitter": "\\mathrm{{med}}(\\sigma)",
+        }
+        # Labels for objects by object index used when plotting multiple objects (the object index is used if not in the dictionary)
+        self.OBJECT_LABELS = {0: "*"}
+
         self.results = results
         self.system = results.system
 
@@ -190,15 +185,13 @@ class Plotter(object):
 
         if cbar_param is not None:
             # Check cbar_param
-            if cbar_param in ["Epoch [year]", "Epoch (year)"]:
-                pass
-            elif (
+            if cbar_param in ["Epoch [year]", "Epoch (year)"] or (
                 cbar_param in self.results.param_idx
                 or cbar_param in self.results.standard_param_idx
             ):
                 pass
             else:
-                raise Exception(
+                raise ValueError(
                     "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
                 )
             self.cbar_param = cbar_param
@@ -208,9 +201,7 @@ class Plotter(object):
 
         if max(self.objects_to_plot) > self.results.num_secondary_bodies:
             raise ValueError(
-                "Only {0} secondary bodies being fit. Requested to plot body {1} which is out of range".format(
-                    self.results.num_secondary_bodies, self.objects_to_plot
-                )
+                f"Only {self.results.num_secondary_bodies} secondary bodies being fit. Requested to plot body {self.objects_to_plot} which is out of range"
             )
 
         if 0 in self.objects_to_plot and not (
@@ -765,10 +756,20 @@ class Plotter(object):
             # Use longest secondary period
             secondaries = np.arange(self.results.num_secondary_bodies) + 1
             sma_indexes = [
-                self.results.standard_param_idx["sma{}".format(i)] for i in secondaries
+                self.results.standard_param_idx[f"sma{i}"] for i in secondaries
             ]
             smas = standard_post[:, sma_indexes]
-            if "mtot" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
+                m0 = standard_post[:, self.results.standard_param_idx["m0"]]
+                m1_indexes = [
+                    self.results.standard_param_idx[f"m{i}"] for i in secondaries
+                ]
+                m1s = standard_post[:, m1_indexes]
+                mtots = (m0 + m1s.T).T
+                periods = np.sqrt(
+                    4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
+                )
+            else:
                 mtots = standard_post[:, self.results.standard_param_idx["mtot"]]
                 periods = np.sqrt(
                     4
@@ -776,31 +777,20 @@ class Plotter(object):
                     * (smas.T * u.AU) ** 3
                     / (consts.G * (mtots * u.Msun))
                 ).T
-            elif "m0" in self.results.labels:
-                m0 = standard_post[:, self.results.standard_param_idx["m0"]]
-                m1_indexes = [
-                    self.results.standard_param_idx["m{}".format(i)]
-                    for i in secondaries
-                ]
-                m1s = standard_post[:, m1_indexes]
-                mtots = (m0 + m1s.T).T
-                periods = np.sqrt(
-                    4 * np.pi**2.0 * (smas * u.AU) ** 3 / (consts.G * (mtots * u.Msun))
-                )
             periods = periods.to(u.day).value
             period = np.max(periods, axis=1)
         else:
             sma = standard_post[
-                :, self.results.standard_param_idx["sma{}".format(object_to_plot)]
+                :, self.results.standard_param_idx[f"sma{object_to_plot}"]
             ]
-            if "mtot" in self.results.labels:
-                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
-            elif "m0" in self.results.labels:
+            if "m0" in self.results.standard_param_idx:
                 m0 = standard_post[:, self.results.standard_param_idx["m0"]]
                 m1 = standard_post[
-                    :, self.results.standard_param_idx["m{}".format(object_to_plot)]
+                    :, self.results.standard_param_idx[f"m{object_to_plot}"]
                 ]
                 mtot = m0 + m1
+            else:
+                mtot = standard_post[:, self.results.standard_param_idx["mtot"]]
             period = np.sqrt(
                 4 * np.pi**2.0 * (sma * u.AU) ** 3 / (consts.G * (mtot * u.Msun))
             )
@@ -901,8 +891,9 @@ class Plotter(object):
 
         elif cbar_param in ["Epoch [year]", "Epoch (year)"]:
             cbar_param_arr = epochss
-            min_cbar_date = np.min(epochss[:, :, 0])
-            max_cbar_date = np.max(epochss[:, :, -1])
+            plotted_epochs = epochss[list(self.objects_to_plot)]
+            min_cbar_date = np.min(plotted_epochs[:, :, 0])
+            max_cbar_date = np.max(plotted_epochs[:, :, -1])
 
             # if we're plotting orbital periods greater than 1,000 yrs, limit the colorbar dynamic range
             if max_cbar_date - min_cbar_date > 1000 * 365.25:
@@ -1440,7 +1431,7 @@ class Plotter(object):
                             for err_type in grouping:
                                 primary_rv_err2 += np.square(primary_errors[err_type])
                                 primary_rv_err_labels.append(
-                                    "{0}^2".format(self.RV_ERR_MATH[err_type])
+                                    f"{self.RV_ERR_MATH[err_type]}^2"
                                 )
                             primary_rv_err_label = (
                                 "$("
@@ -1450,9 +1441,7 @@ class Plotter(object):
                             primary_rv_err = np.sqrt(primary_rv_err2)
                         else:
                             primary_rv_err = primary_errors[grouping]
-                            primary_rv_err_label = "${0}$".format(
-                                self.RV_ERR_MATH[grouping]
-                            )
+                            primary_rv_err_label = f"${self.RV_ERR_MATH[grouping]}$"
                         plt.errorbar(
                             x=epochs,
                             y=rvs - med_ga[i],
@@ -1472,14 +1461,14 @@ class Plotter(object):
                     or (not plot_errorbars)
                 )
                 and len(self.rv_inst_inds.keys()) == 1
-                and "defrv" in self.rv_inst_inds.keys()
+                and "defrv" in self.rv_inst_inds
             ):
                 pass
             else:
                 nitems = len(self.rv_inst_inds)
                 if plot_errorbars:
                     nitems += len(rv_err_grouping)
-                plt.legend(fontsize=20, ncol=((nitems - 1) // 5 + 1))
+                plt.legend(loc=0, fontsize=20, ncol=((nitems - 1) // 5 + 1))
 
         if rv_time_series2 and len(self.rv_data2) > 0:
             med_ga2 = [np.median(self.results.post[:, i]) for i in self.gam_idx2]
@@ -1528,7 +1517,7 @@ class Plotter(object):
                                     secondary_errors[err_type]
                                 )
                                 secondary_rv_err_labels.append(
-                                    "{0}^2".format(self.RV_ERR_MATH[err_type])
+                                    f"{self.RV_ERR_MATH[err_type]}^2"
                                 )
                             secondary_rv_err_label = (
                                 "$("
@@ -1538,9 +1527,7 @@ class Plotter(object):
                             secondary_rv_err = np.sqrt(secondary_rv_err2)
                         else:
                             secondary_rv_err = secondary_errors[grouping]
-                            secondary_rv_err_label = "${0}$".format(
-                                self.RV_ERR_MATH[grouping]
-                            )
+                            secondary_rv_err_label = f"${self.RV_ERR_MATH[grouping]}$"
                         plt.errorbar(
                             x=epochs2,
                             y=rvs2 - med_ga2[i],
@@ -1557,7 +1544,7 @@ class Plotter(object):
             if (
                 rv_err_grouping == [("observation", "offset", "jitter")]
                 and len(self.rv_inst_inds2.keys()) == 1
-                and "defrv" in self.rv_inst_inds2.keys()
+                and "defrv" in self.rv_inst_inds2
             ):
                 pass
             else:
@@ -1572,6 +1559,7 @@ class Plotter(object):
         show_colorbar=True,
         plot_astrometry=True,
         fontsize=20,
+        object_to_plot=None,
     ):
         """Plot the sky panel using orbitize's standard orbit renderer.
 
@@ -1580,10 +1568,15 @@ class Plotter(object):
             show_colorbar (bool): display the orbit colorbar.
             plot_astrometry (bool): show companion astrometry, if available.
             fontsize (int): axis-label font size.
+            object_to_plot (int, optional): render one of the prepared objects.
+                Defaults to all objects selected when constructing the Plotter.
 
         Returns:
             matplotlib.figure.Figure: figure containing the sky panel.
         """
+        if object_to_plot is not None and object_to_plot not in self.objects_to_plot:
+            raise ValueError("object_to_plot must be one of the prepared objects.")
+
         if ax is None:
             fig, ax = plt.subplots(figsize=(8, 8))
             fig.subplots_adjust(right=0.82 if show_colorbar else 0.95)
@@ -1599,6 +1592,10 @@ class Plotter(object):
         )
         for object_i, style in enumerate(styles):
             object_index, astr_color, model_color, err_color = style
+            if object_to_plot is not None and object_index != object_to_plot:
+                if plot_astrometry:
+                    next(symbols)
+                continue
             self._plot_full_orbits(
                 ax=ax,
                 plot_astrometry=plot_astrometry,
@@ -1644,7 +1641,7 @@ class Plotter(object):
         n_std=1.0,
         rv_time_series=False,
         rv_time_series2=False,
-        rv_err_grouping=[("observation", "offset", "jitter")],
+        rv_err_grouping=None,
         fontsize=20,
         fig=None,
     ):
@@ -1693,6 +1690,9 @@ class Plotter(object):
         Refactoring and additions by Eshel Dror, 2026
 
         """
+
+        if rv_err_grouping is None:
+            rv_err_grouping = [("observation", "offset", "jitter")]
 
         if cmap is None:
             cmap = self.CMAP
@@ -1816,9 +1816,7 @@ class Plotter(object):
                             bright_shape, (4 + i, 12), rowspan=1, colspan=4
                         )
                         bright_ax.set_ylabel(
-                            "$Brightness_{{{0}}}$".format(
-                                self._get_object_label(object_index)
-                            ),
+                            f"$Brightness_{{{self._get_object_label(object_index)}}}$",
                             fontsize=fontsize,
                         )
                         bright_ax.set_xlabel("Epoch", fontsize=fontsize)
@@ -1831,15 +1829,11 @@ class Plotter(object):
                         )
                         bright_ax = None
                     sep_ax.set_ylabel(
-                        "$\\rho_{{{0}}}$ (mas)".format(
-                            self._get_object_label(object_index)
-                        ),
+                        f"$\\rho_{{{self._get_object_label(object_index)}}}$ (mas)",
                         fontsize=fontsize,
                     )
                     pa_ax.set_ylabel(
-                        "PA$_{{{0}}}$ ($^{{\\circ}}$)".format(
-                            self._get_object_label(object_index)
-                        ),
+                        f"PA$_{{{self._get_object_label(object_index)}}}$ ($^{{\\circ}}$)",
                         fontsize=fontsize,
                     )
                     sep_ax.set_xlabel("Epoch", fontsize=fontsize)
@@ -2067,9 +2061,7 @@ class Plotter(object):
             object_axes[0].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
                 object_axes[0].set_ylabel(
-                    "Residual $\\rho_{{{0}}}$ [mas]".format(
-                        self._get_object_label(object_index)
-                    )
+                    f"Residual $\\rho_{{{self._get_object_label(object_index)}}}$ [mas]"
                 )
             else:
                 object_axes[0].set_ylabel("Residual $\\rho$ [mas]")
@@ -2127,9 +2119,7 @@ class Plotter(object):
             object_axes[1].axhline(y=0, color="black", linestyle="-")
             if len(self.objects_to_plot) > 1:
                 object_axes[1].set_ylabel(
-                    "Residual PA$_{{{0}}}$ [$^{{\\circ}}$]".format(
-                        self._get_object_label(object_index)
-                    )
+                    f"Residual PA$_{{{self._get_object_label(object_index)}}}$ [$^{{\\circ}}$]"
                 )
             else:
                 object_axes[1].set_ylabel("Residual PA [$^{{\\circ}}$]")
@@ -2264,7 +2254,7 @@ class Plotter(object):
         axes[0].set_ylabel(r"$\mu_\alpha^*$ [mas/yr]")
 
         axes[0].errorbar(
-            np.nanmedian(self.system.gaia.hipparcos_epoch.jyear),
+            np.nanmedian(self.system.gaia.hipparcos_epoch.decimalyear),
             self.system.gaia.hip_pm[0],
             yerr=self.system.gaia.hip_pm_err[0],
             zorder=30,
@@ -2276,11 +2266,11 @@ class Plotter(object):
 
         hgca_epoch = (
             self.system.gaia.gaia_epoch_ra
-            + np.nanmedian(self.system.gaia.hipparcos_epoch.jyear)
+            + np.nanmedian(self.system.gaia.hipparcos_epoch.decimalyear)
         ) / 2
         hgca_epoch_err = (
             self.system.gaia.gaia_epoch_ra
-            - np.nanmedian(self.system.gaia.hipparcos_epoch.jyear)
+            - np.nanmedian(self.system.gaia.hipparcos_epoch.decimalyear)
         ) / 2
 
         axes[0].errorbar(
@@ -2310,7 +2300,7 @@ class Plotter(object):
         axes[1].yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
         axes[1].errorbar(
-            np.nanmedian(self.system.gaia.hipparcos_epoch.jyear),
+            np.nanmedian(self.system.gaia.hipparcos_epoch.decimalyear),
             self.system.gaia.hip_pm[1],
             yerr=self.system.gaia.hip_pm_err[1],
             zorder=30,
@@ -2353,7 +2343,7 @@ class Plotter(object):
         if show_colorbar:
             cbar_ax = fig.add_axes([1.03, 0.15, 0.03, 0.80])
 
-            cbar = mpl.colorbar.ColorbarBase(
+            _ = mpl.colorbar.ColorbarBase(
                 cbar_ax,
                 cmap=cmap,
                 norm=self.norm,
@@ -2382,6 +2372,480 @@ class Plotter(object):
 
         return fig
 
+    @staticmethod
+    @plt.style.context("default")
+    def plot_dr4_orbit(
+        results,
+        system,
+        num_orbits_to_plot=100,
+        num_epochs_to_plot=500,
+        square_plot=True,
+        show_colorbar=True,
+        cbar_param="Epoch [year]",
+        fontsize=20,
+        fig=None,
+        data_params=None,
+        include_jitter=False,
+        plot_map=False,
+        include_planet=False,
+        planet_to_plot=1,
+        mode="keplerian",
+    ):
+        """
+        Plot the stellar reflex motion from a Gaia DR4 fit.
+
+        Args:
+            results (orbitize.results.Results): Results object with posterior
+            system (orbitize.system.System): System object with system.gaia
+                set to a DR4LogProb instance
+            num_orbits_to_plot (int): number of posterior draws to overplot
+            num_epochs_to_plot (int): number of points per orbit track
+            square_plot (bool): if True, axes are square
+            show_colorbar (bool): display epoch colorbar
+            cbar_param (str): colorbar label
+            fontsize (int): font size for axis labels
+            fig (matplotlib.pyplot.Figure): optional predefined Figure
+            data_params (np.ndarray, optional): fitting-basis parameter vector
+                used to anchor the Gaia markers' unmeasured across-scan coordinate.
+                Defaults to the MAP sample when plot_map=True, or the
+                highest-likelihood sample otherwise.
+            include_jitter (bool): if True, add the jitter from ``data_params`` in
+                quadrature with each stored AL uncertainty. Default: False.
+            plot_map (bool): if True, plot only the stored sample with the
+                highest posterior probability.
+            include_planet (bool): add separate purple companion-orbit panels.
+                Default: False. Requires fig=None.
+            planet_to_plot (int or sequence of int): companion indices in panel
+                order, starting at 1. Default: 1.
+        Returns:
+            matplotlib.pyplot.Figure
+
+        Written: Clarissa Do O, 2026
+        """
+
+        if mode not in ("keplerian", "full_motion"):
+            raise ValueError("mode must be 'keplerian' or 'full_motion'.")
+
+        dr4 = system.gaia
+        post = results.post
+        epochs_mjd = dr4.epochs_mjd
+
+        if plot_map:
+            # compute log prior probability for each posterior sample
+            lnprior = np.zeros(len(post))
+            for i, prior in enumerate(system.sys_priors):
+                if hasattr(prior, "compute_lnprob"):
+                    lnprior += prior.compute_lnprob(post[:, i])
+
+            # pick sample with highes log posterior
+            map_idx = np.nanargmax(np.asarray(results.lnlike) + lnprior)
+            choose = [map_idx]
+
+            if data_params is None:
+                data_params = post[map_idx]
+        else:
+            n_draws = min(num_orbits_to_plot, len(post))
+            choose = np.random.randint(0, high=len(post), size=n_draws)
+
+        t_fine_mjd = np.linspace(epochs_mjd.min(), epochs_mjd.max(), num_epochs_to_plot)
+        if mode == "full_motion":
+            if "parallax_factor_ac" not in dr4.data_table.colnames:
+                raise ValueError("Full motion requires parallax_factor_ac.")
+
+            ac = dr4.data_table["parallax_factor_ac"]
+            if np.ma.getmaskarray(ac).any() or not np.isfinite(np.asarray(ac)).all():
+                raise ValueError(
+                    "Full motion requires finite, unmasked across-scan factors."
+                )
+
+            al = dr4.parallax_factor_al
+            s, c = dr4.sin_scan, dr4.cos_scan
+            parallax_sky = np.column_stack((al * s - ac * c, al * c + ac * s))
+            epoch_order = np.argsort(epochs_mjd)
+            t_fine_mjd = epochs_mjd[epoch_order]
+
+            param_idx = system.param_idx
+            offset_cols = [param_idx["alpha0"], param_idx["delta0"]]
+            pm_cols = [param_idx["pm_ra"], param_idx["pm_dec"]]
+            plx_col = param_idx["plx"]
+
+            def sky_baseline(params):
+                return (
+                    params[offset_cols]
+                    + dr4.dt_yr[:, None] * params[pm_cols]
+                    + params[plx_col] * parallax_sky
+                )
+
+        t_fine_decyr = Time(t_fine_mjd, format="mjd", scale=dr4.time_scale).decimalyear
+
+        norm_yr = mpl.colors.Normalize(vmin=t_fine_decyr.min(), vmax=t_fine_decyr.max())
+
+        planet_ids = []
+        if include_planet:
+            planet_ids = np.atleast_1d(planet_to_plot).tolist()
+            if not planet_ids or any(
+                not isinstance(body, (int, np.integer))
+                or not 1 <= body <= system.num_secondary_bodies
+                for body in planet_ids
+            ):
+                raise ValueError(
+                    "planet_to_plot must contain fitted companion indices."
+                )
+            if fig is not None:
+                raise ValueError("include_planet=True requires fig=None.")
+
+            if len(planet_ids) == 1:
+                fig, (ax, planet_ax) = plt.subplots(1, 2, figsize=(16, 7))
+                fig.subplots_adjust(wspace=0.45, right=0.90)
+                planet_axes = [planet_ax]
+            else:
+                n_panels = 1 + len(planet_ids)
+                ncols = min(3, n_panels)
+                nrows = (n_panels + ncols - 1) // ncols
+                fig, grid = plt.subplots(
+                    nrows,
+                    ncols,
+                    figsize=(6 * ncols, 5 * nrows),
+                    squeeze=False,
+                    layout="constrained",
+                )
+                axes = grid.ravel()
+                ax, planet_axes = axes[0], list(axes[1:n_panels])
+                for unused_ax in axes[n_panels:]:
+                    fig.delaxes(unused_ax)
+        elif fig is None:
+            fig, ax = plt.subplots(1, 1, figsize=(9, 8))
+            fig.subplots_adjust(right=0.82)
+        else:
+            ax = fig.get_axes()[0]
+
+        if data_params is None:
+            data_params = post[np.nanargmax(results.lnlike)]
+
+        # Posterior orbit draws
+        for idx in choose:
+            params = post[idx]
+            ra_fine, de_fine = _get_star_offsets_dr4(params, system, t_fine_mjd)
+
+            points = np.column_stack((ra_fine, de_fine))
+            if mode == "full_motion":
+                points += sky_baseline(params)[epoch_order]
+            points = points[:, None, :]
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(
+                segments,
+                cmap=dr4_cmap,
+                norm=norm_yr,
+                linewidth=1.5 if len(choose) == 1 else 1.0,
+                alpha=0.85 if len(choose) == 1 else 0.3,
+            )
+            lc.set_array(t_fine_decyr)
+            ax.add_collection(lc)
+
+        # Anchor the unmeasured across-scan coordinate to one fixed orbit, then
+        # place the observed AL residual and uncertainty along the scan direction.
+        scan_unit = np.column_stack((dr4.sin_scan, dr4.cos_scan))
+        ra_anchor, de_anchor = _get_star_offsets_dr4(data_params, system, epochs_mjd)
+        anchor_points = np.column_stack((ra_anchor, de_anchor))
+        if mode == "full_motion":
+            anchor_points += sky_baseline(data_params)
+        al_residual = dr4.centroid_pos_al - _model_along_scan_dr4(
+            data_params, system, dr4
+        )
+        al_points = anchor_points + al_residual[:, None] * scan_unit
+        al_sigma = dr4.centroid_pos_error_al
+        if include_jitter:
+            if dr4.fit_jitter:
+                jitter = data_params[system.param_idx["dr4_jitter"]]
+            else:
+                jitter = dr4.jitter
+            al_sigma = np.hypot(al_sigma, jitter)
+        al_errors = al_sigma[:, None] * scan_unit
+        al_segments = np.stack((al_points - al_errors, al_points + al_errors), axis=1)
+
+        ax.add_collection(
+            LineCollection(al_segments, colors="k", linewidths=0.6, alpha=0.5)
+        )
+        ax.scatter(
+            al_points[:, 0],
+            al_points[:, 1],
+            marker="*",
+            c="k",
+            edgecolors="0.2",
+            linewidths=0.6,
+            s=80,
+            zorder=10,
+        )
+
+        if mode == "full_motion":
+            ax.set_title("Full stellar motion + Gaia")
+        else:
+            ax.plot(0, 0, "+", color="k", ms=15, mew=2, zorder=10)
+            ax.set_title("Stellar reflex + Gaia (Keplerian)")
+
+        if square_plot:
+            ax.set_aspect("equal", adjustable="datalim")
+        ax.set_xlabel(r"$\Delta\alpha\cos\delta$ [mas]", fontsize=fontsize)
+        ax.set_ylabel(r"$\Delta\delta$ [mas]", fontsize=fontsize)
+        ax.invert_xaxis()
+        ax.locator_params(axis="x", nbins=6)
+        ax.locator_params(axis="y", nbins=6)
+        ax.tick_params(axis="both", labelsize=fontsize - 5)
+        ax.minorticks_on()
+
+        if show_colorbar and len(planet_ids) > 1:
+            cbar = fig.colorbar(
+                mpl.cm.ScalarMappable(norm=norm_yr, cmap=dr4_cmap),
+                ax=ax,
+            )
+            cbar.ax.tick_params(labelsize=fontsize - 5)
+            cbar.set_label(cbar_param, size=fontsize)
+        elif show_colorbar:
+            cbar_ax = fig.add_axes(
+                [
+                    ax.get_position().x1 + 0.01,
+                    ax.get_position().y0,
+                    0.02,
+                    ax.get_position().height,
+                ]
+            )
+            cbar = mpl.colorbar.ColorbarBase(
+                cbar_ax,
+                cmap=dr4_cmap,
+                norm=norm_yr,
+                orientation="vertical",
+                label=cbar_param,
+            )
+            cbar.ax.tick_params(labelsize=fontsize - 5)
+            cbar.set_label(label=cbar_param, size=fontsize)
+
+        if include_planet:
+            # Use exactly the same posterior draws selected for the stellar panel
+            selected_post = np.asarray(post)[choose].copy()
+            planet_plotter = Plotter(
+                results,
+                object_to_plot=planet_ids,
+                start=float(t_fine_mjd[0]),
+                end=float(t_fine_mjd[-1]),
+                time_format="mjd",
+                num_orbits_to_plot=len(selected_post),
+                num_epochs_to_plot=num_epochs_to_plot,
+                post_to_use=selected_post,
+            )
+            for body, planet_ax in zip(planet_ids, planet_axes):
+                planet_plotter.plot_sky_orbits(
+                    ax=planet_ax,
+                    show_colorbar=show_colorbar and len(planet_ids) == 1,
+                    fontsize=fontsize,
+                    object_to_plot=body,
+                )
+                planet_ax.set_title(f"Companion {body}: relative orbit")
+
+            if show_colorbar and len(planet_ids) > 1:
+                cbar = fig.colorbar(
+                    mpl.cm.ScalarMappable(
+                        norm=planet_plotter.norm_yr, cmap=planet_plotter.CMAP
+                    ),
+                    ax=planet_axes,
+                )
+                cbar.ax.tick_params(labelsize=fontsize - 5)
+                cbar.set_label(planet_plotter.cbar_param, size=fontsize)
+        return fig
+
+    @staticmethod
+    @plt.style.context("default")
+    def plot_dr4_al_residuals(results, combine_transits=True):
+        """Plot the Gaia DR4 along-scan stellar reflex and residuals.
+
+        Args:
+            results (orbitize.results.Results): Fit results with a Gaia DR4
+                likelihood attached to the system. The plot uses the posterior
+                draw with the highest stored log-likelihood.
+            combine_transits (bool, optional): Group CCD residuals into one
+                point per transit when the required columns are available.
+                If False, plot one point per fitted observation. Default: True.
+
+        Returns:
+            matplotlib.figure.Figure: The top panel shows the fitted stellar
+                reflex and the Gaia measurements after subtracting position,
+                proper motion, and parallax. The bottom panel shows observed
+                minus calculated residuals. Both panels use mas.
+        """
+        system = results.system
+        dr4 = system.gaia
+        best = results.post[np.nanargmax(results.lnlike)]
+
+        observations = dr4.data_table.copy()
+        observations["centroid_pos_al"][:] = (
+            dr4.centroid_pos_al - _model_along_scan_dr4(best, system, dr4)
+        )
+        if (
+            combine_transits
+            and observations.meta.get("observation_level") != "transit"
+            and {"source_id", "transit_id", "ipd_error_al"}.issubset(
+                observations.colnames
+            )
+        ):
+            observations = read_input.combine_transits(observations, rng=42)
+
+        epochs = np.asarray(observations["obs_time_tcb"])
+        years = Time(epochs, format="mjd", scale=dr4.time_scale).decimalyear
+        psi = np.asarray(observations["scan_pos_angle"])
+        ra, dec = _get_star_offsets_dr4(best, system, epochs)
+        reflex_al = ra * np.sin(psi) + dec * np.cos(psi)
+
+        oc = np.asarray(observations["centroid_pos_al"])
+        sigma = np.asarray(observations["centroid_pos_error_al"])
+        pink = "#C73573"
+
+        fig, (ax, resid_ax) = plt.subplots(
+            2, 1, sharex=True, figsize=(10, 6), layout="constrained"
+        )
+        ax.errorbar(
+            years,
+            reflex_al + oc,
+            yerr=sigma,
+            fmt="k.",
+            ms=4,
+            label="Gaia − position, proper motion, and parallax",
+        )
+        ax.scatter(
+            years,
+            reflex_al,
+            color=pink,
+            marker="x",
+            s=34,
+            label="Fitted stellar reflex",
+            zorder=3,
+        )
+        ax.set_ylabel("Along-scan offset [mas]")
+        ax.legend(frameon=False)
+
+        resid_ax.axhline(0, color="0.5", linewidth=1)
+        resid_ax.errorbar(years, oc, yerr=sigma, fmt="none", ecolor="0.6")
+        resid_ax.scatter(years, oc, color=pink, s=20, zorder=3)
+        resid_ax.set(xlabel="Epoch [year]", ylabel="O − C [mas]")
+        return fig
+
+    @staticmethod
+    @plt.style.context("default")
+    def plot_planet_position(
+        results,
+        date,
+        object_to_plot=1,
+        iwa=None,
+        owa=None,
+        percentiles=(68, 95),
+        num_samples=5000,
+        name=None,
+    ):
+        """Plot the sky plane posterior of a companion at one epoch.
+
+        Args:
+            results (orbitize.results.Results): Results of the orbital fit.
+            date (str or astropy.time.Time): UTC date or timestamp as a string,
+                converted to MJD(TCB), or a scalar Time in the fit's time scale.
+            object_to_plot (int): Companion index, starting at 1.
+            iwa (float, optional): Instrument inner working angle in mas.
+            owa (float, optional): Instrument outer working angle in mas.
+            percentiles (sequence of float): Enclosed posterior percentages for
+                the position contours, such as (68, 95).
+            num_samples (int): Maximum number of posterior draws to propagate.
+            name (str, optional): Companion name for the figure title.
+
+        Returns:
+            matplotlib.figure.Figure: Predicted companion offsets relative to
+            the host star, with optional working angle rings.
+        """
+        system = results.system
+        if not isinstance(object_to_plot, (int, np.integer)) or not (
+            1 <= object_to_plot <= system.num_secondary_bodies
+        ):
+            raise ValueError("object_to_plot must be a fitted companion index.")
+
+        angles = np.array([angle for angle in (iwa, owa) if angle is not None])
+        if not np.all(np.isfinite(angles) & (angles > 0)) or (
+            len(angles) == 2 and iwa >= owa
+        ):
+            raise ValueError(
+                "Working angles must be positive, finite, and satisfy iwa < owa."
+            )
+
+        levels = np.sort(np.atleast_1d(np.asarray(percentiles, dtype=float)))
+        if (
+            levels.ndim != 1
+            or levels.size == 0
+            or not np.all((0 < levels) & (levels < 100))
+            or np.any(np.diff(levels) == 0)
+        ):
+            raise ValueError("Provide distinct percentiles between 0 and 100.")
+
+        epoch = date if isinstance(date, Time) else Time(date, scale="utc").tcb
+        if not epoch.isscalar:
+            raise ValueError("Provide a single forecast date.")
+        epochs = np.atleast_1d(epoch.mjd)
+
+        posterior = results.weighted_post
+        if posterior is None or len(posterior) < 2 or num_samples < 2:
+            raise ValueError("Position contours require at least two posterior draws.")
+        draws, _ = results.downsample(
+            min(num_samples, len(posterior)), duplicates=results.weights is not None
+        )
+
+        offsets = np.empty((len(draws), 2))
+        for i, draw in enumerate(draws):
+            ra, dec, *_ = system.compute_all_orbits(
+                draw, epochs=epochs, params_basis="fitting"
+            )
+            offsets[i] = ra[0, object_to_plot, 0], dec[0, object_to_plot, 0]
+        if not np.isfinite(offsets).all():
+            raise ValueError("The predicted companion positions must be finite.")
+
+        fig, ax = plt.subplots(figsize=(6, 6), layout="constrained")
+        corner.hist2d(
+            *offsets.T,
+            ax=ax,
+            bins=45,
+            smooth=1,
+            levels=levels / 100,
+            color="#B2185B",
+            plot_datapoints=False,
+            plot_density=False,
+            no_fill_contours=True,
+            fill_contours=True,
+        )
+
+        ax.scatter(0, 0, marker="*", s=160, color="gold", edgecolor="black", zorder=5)
+        for label, angle, linestyle in (("IWA", iwa, "--"), ("OWA", owa, ":")):
+            if angle is not None:
+                ax.add_patch(
+                    mpl.patches.Circle(
+                        (0, 0),
+                        angle,
+                        fill=False,
+                        edgecolor="tab:orange",
+                        linewidth=2,
+                        linestyle=linestyle,
+                        label=f"{label} ({angle:g} mas)",
+                    )
+                )
+        if len(angles):
+            ax.legend(loc="upper right", frameon=False)
+
+        limit = 1.10 * max([np.max(np.abs(offsets)), *angles])
+        name = name or f"Companion {object_to_plot}"
+        date_label = epoch.utc.to_value("iso", subfmt="date")
+        level_label = ", ".join(f"{level:g}%" for level in levels)
+        ax.set(
+            xlim=(limit, -limit),
+            ylim=(-limit, limit),
+            aspect="equal",
+            xlabel=r"$\Delta\alpha\cos\delta$ [mas]",
+            ylabel=r"$\Delta\delta$ [mas]",
+            title=f"{name} · {date_label}\nPosition regions ({level_label})",
+        )
+        return fig
+
     def plot_corner(
         self, param_list=None, plot_priors=True, downsample=None, **corner_kwargs
     ):
@@ -2399,6 +2863,7 @@ def plot_corner(
     plot_priors=True,
     downsample=None,
     prior_color="orange",
+    use_standard_params=False,
     **corner_kwargs,
 ):
     """
@@ -2429,6 +2894,8 @@ def plot_corner(
         plot priors (bool): overplot prior probabilites on the 1d histograms (default: True)
         downsample (int):
             amount of samples to randomly draw from the posterior using ``results.downsample``
+        use_standard_params (bool): convert posterior to standard basis to plot posteriors of those parameters
+            (default: False)
 
         **corner_kwargs: any remaining keyword args are sent to ``corner.corner``.
                             See `here <https://corner.readthedocs.io/>`_.
@@ -2477,28 +2944,17 @@ def plot_corner(
     }
 
     if param_list is None:
-        param_list = results.labels
+        if use_standard_params:
+            param_list = list(results.standard_param_idx.keys())
+        else:
+            param_list = results.labels
 
     param_indices = []
+    sys_param_indices = []
+    converted_sys_param_indices = []
     angle_indices = []
     secondary_mass_indices = []
     fixed_indices = []
-    for i, label_key in enumerate(param_list):
-        index_num = results.param_idx[label_key]
-
-        # only plot non-fixed parameters
-        if not np.isclose(0.0, np.std(results.post[:, index_num])):
-            param_indices.append(index_num)
-            if (
-                label_key.startswith("aop")
-                or label_key.startswith("pan")
-                or label_key.startswith("inc")
-            ):
-                angle_indices.append(i - len(fixed_indices))
-            if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
-                secondary_mass_indices.append(i - len(fixed_indices))
-        else:
-            fixed_indices.append(i)
 
     if downsample is not None:
         post, _ = results.downsample(downsample)
@@ -2506,9 +2962,30 @@ def plot_corner(
     else:
         post = results.weighted_post
         weights = results.weights
+    if use_standard_params:
+        post = results.basis.to_standard_basis(np.copy(post).T).T
+
+    for i, label_key in enumerate(param_list):
+        if use_standard_params:
+            index_num = results.standard_param_idx[label_key]
+        else:
+            index_num = results.param_idx[label_key]
+
+        # only plot non-fixed parameters
+        if not np.isclose(0.0, np.std(post[:, index_num])):
+            param_indices.append(i)
+            sys_param_indices.append(index_num)
+            if use_standard_params and label_key not in results.param_idx:
+                converted_sys_param_indices.append(index_num)
+            if label_key.startswith(("aop", "pan", "inc")):
+                angle_indices.append(i - len(fixed_indices))
+            if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
+                secondary_mass_indices.append(i - len(fixed_indices))
+        else:
+            fixed_indices.append(i)
 
     samples = np.copy(
-        post[:, param_indices]
+        post[:, sys_param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -2521,32 +2998,24 @@ def plot_corner(
         "labels" not in corner_kwargs
     ):  # use default labels if user didn't already supply them
         reduced_labels_list = []
-        for i in range(len(param_indices)):
+        for i in param_indices:
             label_key = param_list[i]
             if label_key.startswith("m") and label_key != "m0" and label_key != "mtot":
                 body_num = label_key[1]
                 label_key = "m"
             elif (
                 label_key == "m0" or label_key == "mtot" or label_key.startswith("plx")
-            ):
+            ) or label_key in ["pm_ra", "pm_dec", "alpha0", "delta0", "u", "v"]:
                 body_num = ""
-                # maintain original label key
-            elif label_key in [
-                "pm_ra",
-                "pm_dec",
-                "alpha0",
-                "delta0",
-                "acc_ra",
-                "acc_dec",
-            ]:
-                body_num = ""
-            elif label_key.startswith("gamma") or label_key.startswith("sigma"):
+            elif label_key.startswith(("gamma", "sigma")):
                 body_num = ""
                 label_key = label_key[0:3]
             else:
                 body_num = label_key[-1]
                 label_key = label_key[0:-1]
-            reduced_labels_list.append(default_labels[label_key].format(body_num))
+            reduced_labels_list.append(
+                default_labels.get(label_key, label_key + "{}").format(body_num)
+            )
 
         corner_kwargs["labels"] = reduced_labels_list
 
@@ -2559,8 +3028,10 @@ def plot_corner(
 
     if plot_priors:
         axes = figure.axes
-        num_params = len(param_indices)
-        for i, param_i in enumerate(param_indices):
+        num_params = len(sys_param_indices)
+        for i, param_i in enumerate(sys_param_indices):
+            if param_i in converted_sys_param_indices:
+                continue
             prior = results.system.sys_priors[param_i]
             if not hasattr(prior, "compute_lnprob"):
                 continue
@@ -2580,9 +3051,7 @@ def plot_corner(
             if (
                 y.shape != x.shape
             ):  # Some priors may require specific input procedures (ObsPrior)
-                warnings.warn(
-                    "Could not compute prior probability for {0}".format(prior)
-                )
+                warnings.warn(f"Could not compute prior probability for {prior}")
                 continue
             if i in angle_indices:
                 y_plot = y / 180 * np.pi
@@ -2735,7 +3204,7 @@ def _get_star_offsets_dr4(params, system, epochs_mjd):
     """
     standard_params = system.basis.to_standard_basis(np.copy(params))
     raoff, deoff, _, _ = system.compute_all_orbits(standard_params, epochs=epochs_mjd)
-    return -raoff[:, 0, 0], -deoff[:, 0, 0]
+    return raoff[:, 0, 0], deoff[:, 0, 0]
 
 
 def _model_along_scan_dr4(params, system, dr4):
@@ -3083,7 +3552,7 @@ def _parallax_factors_dr4(dr4, epochs_mjd):
         if rms > 0.05:
             warnings.warn(
                 "Reconstructed parallax factors are a poor match to the along-scan "
-                "factors (rms={:.3f}). Pass ra and dec to DR4LogProb.".format(rms)
+                f"factors (rms={rms:.3f}). Pass ra and dec to DR4LogProb."
             )
 
     return factors(ra, dec, earth_position(epochs_mjd))

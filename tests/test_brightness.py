@@ -2,14 +2,12 @@
 Tests for the reflected-light calculation in system.compute_all_orbits
 """
 
-from orbitize import system, sampler, plot
-from orbitize import DATADIR, read_input
 import os
+
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from astropy.time import Time
 import pytest
+
+from orbitize import DATADIR, read_input, sampler, system
 
 
 def test_brightness_calculation():
@@ -39,7 +37,7 @@ def test_brightness_calculation():
         ]
     )
 
-    ra, dec, vz, brightness = test_system.compute_all_orbits(params)
+    _, _, _, brightness = test_system.compute_all_orbits(params)
 
     expected_brightness = np.zeros((len(times), num_secondary_bodies + 1, 1))
     expected_brightness[:, 1, :] = np.array(
@@ -58,8 +56,6 @@ def test_brightness_calculation():
 
 
 def test_read_input_with_brightness():
-
-    num_secondary_bodies = 1
 
     input_file = os.path.join(DATADIR, "reflected_light_example.csv")
 

@@ -1,15 +1,17 @@
-import pytest
-import numpy as np
 import os
-import orbitize
+
+import numpy as np
+import pytest
 from astropy import units as u
 from astropy.table import Table
+
+import orbitize
 from orbitize.read_input import (
+    bootstrap_transit,
     from_dl2,
     from_ohp_file,
     read_file,
     write_orbitize_input,
-    bootstrap_transit,
 )
 
 
@@ -88,16 +90,13 @@ def test_write_orbitize_input():
     # If temp output file already exists, delete it
     if os.path.isfile(output_file):
         os.remove(output_file)
-    try:  # Catch these tests so that we remove temporary file
-        # Test that we were able to write the table
-        write_orbitize_input(test_table, output_file)
-        assert os.path.isfile(output_file)
-        # Test that we can read the table and check if it's correct
-        test_table_2 = read_file(output_file)
-        _compare_table(test_table_2)
-    finally:
-        # Remove temporary file
-        os.remove(output_file)
+    write_orbitize_input(test_table, output_file)
+    assert os.path.isfile(output_file)
+    # Test that we can read the table and check if it's correct
+    test_table_2 = read_file(output_file)
+    _compare_table(test_table_2)
+    # Remove temporary file
+    os.remove(output_file)
 
 
 def test_cov_input():

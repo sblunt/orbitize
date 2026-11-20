@@ -2,13 +2,12 @@
 Test the functionality of the API
 """
 
-import numpy as np
-import orbitize
-import orbitize.lnlike as lnlike
-import orbitize.system as system
-import orbitize.sampler as sampler
-import orbitize.read_input as read_input
 import os
+
+import numpy as np
+
+import orbitize
+from orbitize import read_input, sampler, system
 
 
 def test_compute_model():
@@ -114,11 +113,11 @@ def test_systeminit():
         (1.0, 0.0): 14,
     }
 
-    for plx_e, mass_e in plx_mass_errs2lens.keys():
+    for (plx_e, mass_e), value in plx_mass_errs2lens.items():
         testSystem_priors = system.System(
             2, data_table, 10.0, 10.0, plx_err=plx_e, mass_err=mass_e
         )
-        assert len(testSystem_priors.sys_priors) == plx_mass_errs2lens[(plx_e, mass_e)]
+        assert len(testSystem_priors.sys_priors) == value
 
     testSystem_parsing = system.System(
         2, data_table, 10.0, 10.0, plx_err=0.5, mass_err=0.5
@@ -173,10 +172,10 @@ def test_custom_likelihood():
         orbit, 0, n_walkers, num_threads=1, custom_lnlike=my_likelihood
     )
 
-    param = np.array([2, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.01])
+    param = np.array([2, 0.5, 0.5, 0.5, 0.5, 0.5])
 
-    logl1 = mcmc1._logl(param)
-    logl2 = mcmc2._logl(param)
+    logl1, *_ = mcmc1._logl(param)
+    logl2, *_ = mcmc2._logl(param)
 
     assert logl1 == logl2 + 5
 

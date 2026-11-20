@@ -2,14 +2,15 @@
 Test the orbitize.kepler module which solves for the orbits of the planets
 """
 
-import pytest
-import sys
-import pstats
 import cProfile
 import os
+import pstats
+import sys
+
 import numpy as np
-import orbitize.kepler as kepler
-from orbitize import cext
+import pytest
+
+from orbitize import cext, kepler
 
 solver_threshold = 1e-7  # max precision on true data
 ecc_threshold = 2e-9  # a bit more than the tolerance
@@ -125,7 +126,7 @@ def test_orbit_e03_array():
         [[0.86448656, 0.86448656, 0.86448656], [0.97591289, 0.97591289, 0.97591289]]
     )
 
-    for ii in range(0, 3):
+    for ii in range(3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
             assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
@@ -244,7 +245,7 @@ def test_orbit_with_mass_array():
         ]
     )
 
-    for ii in range(0, 3):
+    for ii in range(3):
         for meas, truth in zip(raoffs[:, ii], true_raoff[:, ii]):
             assert truth == pytest.approx(meas, rel=solver_threshold)
         for meas, truth in zip(deoffs[:, ii], true_deoff[:, ii]):
@@ -288,7 +289,7 @@ def profile_iterative_ecc_anom_solver(n_orbits=1000, use_c=True):
     mean_anoms = np.linspace(0, 2.0 * np.pi, n_orbits)
     eccs = np.linspace(0, 0.9499999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler.calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c)
+        _ = kepler.calc_ecc_anom(mean_anoms, ee, tolerance=1e-9, use_c=use_c)
 
 
 def profile_mikkola_ecc_anom_solver(n_orbits=1000, use_c=True):
@@ -299,7 +300,7 @@ def profile_mikkola_ecc_anom_solver(n_orbits=1000, use_c=True):
     mean_anoms = np.linspace(0, 2.0 * np.pi, n_orbits)
     eccs = np.linspace(0.95, 0.999999, n_orbits)
     for ee in eccs:
-        ecc_anoms = kepler.calc_ecc_anom(mean_anoms, ee, use_c=use_c)
+        _ = kepler.calc_ecc_anom(mean_anoms, ee, use_c=use_c)
 
 
 def profile_solver(reps, n_params, n_epochs, **kwargs):
@@ -321,7 +322,7 @@ def profile_solver(reps, n_params, n_epochs, **kwargs):
 
 def profile_solve(reps=10, n_params=100000, n_epochs=5):
     profile_name = "Profile.prof"
-    d = dict()
+    d = {}
 
     cProfile.runctx(
         "profile_solver(reps=reps, n_params = n_params, n_epochs = n_epochs, max_iter=10, tolerance=1e-9, use_c=True)",
@@ -341,8 +342,8 @@ def profile_solve(reps=10, n_params=100000, n_epochs=5):
     s = pstats.Stats(profile_name)
     d[f"Py\t{n_params}\t{n_epochs}\t{reps}"] = s.__dict__["total_tt"]
 
-    for i in d.keys():
-        print(f"{i}\t{d[i]:.2f}")
+    for i, value in d.items():
+        print(f"{i}\t{value:.2f}")
 
     os.remove(profile_name)
 
@@ -350,7 +351,7 @@ def profile_solve(reps=10, n_params=100000, n_epochs=5):
 def profile_all(n_orbits, print_profiles=False):
     profile_name = "Profile.prof"
     n_print_lines = 15
-    d = dict()
+    d = {}
 
     if cext:
         cProfile.runctx(
@@ -361,7 +362,7 @@ def profile_all(n_orbits, print_profiles=False):
         )
         s = pstats.Stats(profile_name)
         if print_profiles:
-            print("Profiling Newton: C with {} orbits".format(n_orbits**2))
+            print(f"Profiling Newton: C with {n_orbits**2} orbits")
             s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
         d["Newton C Solver"] = s.__dict__["total_tt"]
     else:
@@ -375,7 +376,7 @@ def profile_all(n_orbits, print_profiles=False):
     )
     s = pstats.Stats(profile_name)
     if print_profiles:
-        print("Profiling Newton: Python with {} orbits".format(n_orbits**2))
+        print(f"Profiling Newton: Python with {n_orbits**2} orbits")
         s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
     d["Newton Python Solver"] = s.__dict__["total_tt"]
 
@@ -388,7 +389,7 @@ def profile_all(n_orbits, print_profiles=False):
         )
         s = pstats.Stats(profile_name)
         if print_profiles:
-            print("Profiling Mikkola: C with {} orbits".format(n_orbits**2))
+            print(f"Profiling Mikkola: C with {n_orbits**2} orbits")
             s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
         d["Mikkola C Solver"] = s.__dict__["total_tt"]
 
@@ -400,12 +401,12 @@ def profile_all(n_orbits, print_profiles=False):
     )
     s = pstats.Stats(profile_name)
     if print_profiles:
-        print("Profiling Mikkola: Python with {} orbits".format(n_orbits**2))
+        print(f"Profiling Mikkola: Python with {n_orbits**2} orbits")
         s.strip_dirs().sort_stats("time").print_stats(n_print_lines)
     d["Mikkola Python Solver"] = s.__dict__["total_tt"]
 
-    for i in d.keys():
-        print(f"{i}: {d[i]:.2f} seconds")
+    for i, value in d.items():
+        print(f"{i}: {value:.2f} seconds")
 
     os.remove(profile_name)
 
@@ -414,7 +415,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "-profile":
         try:
             n_orbits = int(sys.argv[2])
-        except:
+        except IndexError:
             n_orbits = 20000
 
         profile_all(n_orbits)
@@ -424,7 +425,7 @@ if __name__ == "__main__":
             n_params = int(sys.argv[2])
             n_epochs = int(sys.argv[3])
             reps = int(sys.argv[4])
-        except:
+        except IndexError:
             n_params = 100000
             n_epochs = 5
             reps = 10

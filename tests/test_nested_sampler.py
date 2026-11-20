@@ -2,11 +2,13 @@
 Tests the NestedSampler and MultiNest classes by fixing all parameters except for eccentricity.
 """
 
-from orbitize import system, sampler
+import sys
+
 import numpy as np
 import pytest
+
+from orbitize import sampler, system
 from orbitize.system import generate_synthetic_data
-import sys
 
 
 def test_nested_sampler():
@@ -83,14 +85,9 @@ def test_multinest():
         num_obs=30,
     )
 
-    # assumed ecc value
-    ecc = 0.5
-
     # initialize orbitize `System` object
     sys = system.System(1, data_table, mtot, plx)
     lab = sys.param_idx
-
-    ecc = 0.5  # eccentricity
 
     # set all parameters except eccentricity to fixed values (same as used to generate data)
     sys.sys_priors[lab["inc1"]] = np.pi / 4

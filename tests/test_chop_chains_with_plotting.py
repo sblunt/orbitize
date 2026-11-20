@@ -2,9 +2,9 @@
 Make sure orbit plotting can still occur after chopping chains.
 """
 
-import orbitize
-from orbitize import driver, DATADIR
 import multiprocessing as mp
+
+from orbitize import DATADIR, driver
 
 
 def verify_results_data(res, sys):
@@ -17,11 +17,8 @@ def verify_results_data(res, sys):
     assert res_data.equals(sys_data) == True
 
     # Make sure no error results when making the final orbit plot
-    try:
-        epochs = sys.data_table["epoch"]
-        res.plot_orbits(object_to_plot=1, num_orbits_to_plot=10, start_mjd=epochs[0])
-    except:
-        raise Exception("Plotting orbits failed.")
+    epochs = sys.data_table["epoch"]
+    res.plot_orbits(object_to_plot=1, num_orbits_to_plot=10, start_mjd=epochs[0])
 
 
 def test_chop_chains():
@@ -30,7 +27,7 @@ def test_chop_chains():
     function afterwards.
     """
 
-    filename = "{}/HD4747.csv".format(DATADIR)
+    filename = f"{DATADIR}/HD4747.csv"
 
     num_secondary_bodies = 1
     system_mass = 0.84
