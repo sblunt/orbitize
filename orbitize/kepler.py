@@ -2,9 +2,9 @@
 This module solves for the orbit of the planet given Keplerian parameters.
 """
 
-import numpy as np
-import astropy.units as u
 import astropy.constants as consts
+import astropy.units as u
+import numpy as np
 
 from orbitize import cext
 

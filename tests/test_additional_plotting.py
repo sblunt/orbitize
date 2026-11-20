@@ -3,9 +3,10 @@ Module to test plotting functions not tested by other tests/results testing.
 """
 
 import os
+
 import orbitize
 import orbitize.driver
-import orbitize.plot as plot
+from orbitize import plot
 
 
 def test_plot_residuals(debug=False):
@@ -29,10 +30,10 @@ def test_plot_residuals(debug=False):
     my_results = my_sampler.results
 
     # plot planet 1
-    fig1 = plot.plot_residuals(my_results)
+    _ = plot.plot_residuals(my_results)
 
     # plot with more samples, mod 180
-    fig2 = plot.plot_residuals(
+    _ = plot.plot_residuals(
         my_results, object_to_plot=1, mod180=True, num_orbits_to_plot=150
     )
 

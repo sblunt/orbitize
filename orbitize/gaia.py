@@ -1,17 +1,26 @@
 import os
+
 import numpy as np
-from astropy import units as u
-import astropy.io.fits as fits
-from astropy.time import Time
-from astropy.io.ascii import read
-from astropy.coordinates import get_body_barycentric_posvel
 import numpy.linalg
-from orbitize import priors
-from orbitize import DATADIR, read_input
+from astropy import units as u
+from astropy.io import fits
+from astropy.io.ascii import read
+from astropy.time import Time
+
 import orbitize.lnlike
+from orbitize import DATADIR, priors, read_input
 
 
-class GaiaLogProb(object):
+def _linear_pm_fit(along_scan, ra_projection, dec_projection, dt_ra, dt_dec, errs):
+    """Fit RA and Dec offsets and proper motions from along-scan values."""
+    design = np.column_stack(
+        (ra_projection, dec_projection, dt_ra * ra_projection, dt_dec * dec_projection)
+    )
+    errs = np.asarray(errs)
+    return np.linalg.lstsq(design / errs[..., None], along_scan / errs, rcond=None)[0]
+
+
+class GaiaLogProb:
     """
     Class to compute the log probability of an orbit with respect to a single
     astrometric position point from Gaia. To be used in conjunction with
@@ -161,7 +170,7 @@ class GaiaLogProb(object):
         return np.sum(lnlike)  # TODO: figure out what is adding a dimensions
 
 
-class HGCALogProb(object):
+class HGCALogProb:
     """
     Class to compute the log probability of an orbit with respect to the proper
     motion anomalies derived jointly from Gaia and Hipparcos using the HGCA catalogs
@@ -211,15 +220,13 @@ class HGCALogProb(object):
             # check we matched on a single target. mainly check if we typed hip id number incorrectly
             if len(entry_raw) != 1:
                 raise ValueError(
-                    "HIP {0} encountered {1} matches. Expected 1 match.".format(
-                        hip_id, len(entry_raw)
-                    )
+                    f"HIP {hip_id} encountered {len(entry_raw)} matches. Expected 1 match."
                 )
             cols = entry_raw.columns.names
             entry = dict(zip(cols, entry_raw[0]))
         else:
             if not isinstance(hgca_entry, dict):
-                raise TypeError("hgca_entry must be a dict {}".format(hgca_entry))
+                raise TypeError(f"hgca_entry must be a dict {hgca_entry}")
             entry = hgca_entry
         self.hgca_entry = entry
         self.hip_id = hip_id
@@ -414,26 +421,17 @@ class HGCALogProb(object):
         cos_phi,
         errs,
     ):
-        """
-        Performs a linear leastsq fit to determine the inferred proper motion given the stellar orbit around the barycenter
-        """
-        # Sovle y = A * x
-        # construct A matrix
-        A_pmra = cos_phi * (epochs.jyear - epoch_ref_ra) / errs
-        A_raoff = cos_phi / errs
-        A_pmdec = sin_phi * (epochs.jyear - epoch_ref_dec) / errs
-        A_decoff = sin_phi / errs
-        A_matrix = np.vstack((A_raoff, A_decoff, A_pmra, A_pmdec)).T
-
-        # construct y matrix
-        y_vec = (raoff_planet * cos_phi + decoff_planet * sin_phi) / errs
-
-        x, res, _, _ = numpy.linalg.lstsq(A_matrix, y_vec, rcond=None)
-
-        return x
+        return _linear_pm_fit(
+            raoff_planet * cos_phi + decoff_planet * sin_phi,
+            cos_phi,
+            sin_phi,
+            epochs.jyear - epoch_ref_ra,
+            epochs.jyear - epoch_ref_dec,
+            errs,
+        )
 
 
-class DR4LogProb(object):
+class DR4LogProb:
     r"""
     Class to compute the log probability of an orbit with respect to Gaia DR4
     astrometric measurements (epoch astrometry).
@@ -465,9 +463,8 @@ class DR4LogProb(object):
     - :math:`\varpi` is ``plx`` [mas], and :math:`P_i` is the
       dimensionless along-scan parallax factor.
     - :math:`\eta_{\mathrm{orb},i}` is the orbital contribution [mas],
-      computed as ``-raoff_model[i, 0]*sin(psi_i)
-      - deoff_model[i, 0]*cos(psi_i)`` using the likelihood's
-      existing sign convention.
+      computed as ``raoff_model[i, 0]*sin(psi_i)
+      + deoff_model[i, 0]*cos(psi_i)`` from the barycentric stellar offsets.
 
     These parameters are added by the fitting basis when System is
     constructed with gaia=dr4. Users can customize their priors through
@@ -498,7 +495,7 @@ class DR4LogProb(object):
             remain zero when fitting the jitter.
 
     Other data and the orbit's ``tau_ref_epoch`` must use a compatible time
-    scale for joint fits. This class does not convert RV or relative-astrometry
+    scale for joint fits. This class does not convert RV or relative astrometry
     timestamps whose time scale is unspecified.
 
     Written: Clarissa Do O, 2026
@@ -567,9 +564,34 @@ class DR4LogProb(object):
             self.epochs_mjd, format="mjd", scale=self.time_scale
         ).decimalyear
 
+    def guess_initial_astrometry(self, raoff, decoff, plx, jitter):
+        """Estimate the initial position offsets and proper motions for one trial orbit.
+
+        Args:
+            raoff (np.ndarray): Primary star's barycentric RA offsets, including
+                the cos(Dec) factor, at the Gaia observation epochs [mas].
+            decoff (np.ndarray): Primary star's barycentric Dec offsets at the
+                same epochs [mas].
+            plx (float): Trial parallax [mas].
+            jitter (float): Gaia jitter added in quadrature to the reported
+                along-scan uncertainties [mas].
+
+        Returns:
+            np.ndarray: Four starting values in the order
+                ``[alpha0, delta0, pm_ra, pm_dec]``. The position offsets are
+                in mas at ``ref_epoch_mjd``, and the proper motions are in
+                mas per Julian year.
+        """
+        orbit_al = raoff * self.sin_scan + decoff * self.cos_scan
+        residual = self.centroid_pos_al - plx * self.parallax_factor_al - orbit_al
+        sigma = np.hypot(self.centroid_pos_error_al, jitter)
+
+        return _linear_pm_fit(
+            residual, self.sin_scan, self.cos_scan, self.dt_yr, self.dt_yr, sigma
+        )
+
     def _save(self, hf):
         """Save to an open HDF5 file."""
-        hf.attrs["dr4_orbit_sign"] = 1
         hf.attrs["gaia_num"] = self.gaia_num
         hf.attrs["dr"] = "dr4"
         hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd

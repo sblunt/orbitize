@@ -3,10 +3,9 @@ Module to read user input from files and create standardized input for orbitize
 """
 
 import numpy as np
-import orbitize
-from astropy.table import Table
-from astropy.io.ascii import read, write
 from astropy import units as u
+from astropy.io.ascii import read, write
+from astropy.table import Table
 
 VALID_ATTRS = [
     "raoff",
@@ -135,24 +134,16 @@ def read_file(filename):
     # dict string to array of bools of which rows have each input attribute
     have = {}
 
-    # read file
-    try:
-        # load from file, unless a table is passed in
-        if not isinstance(filename, Table):
-            input_table = read(filename)
-        else:
-            input_table = filename
+    # read file: load from file, unless a table is passed in
+    if not isinstance(filename, Table):
+        input_table = read(filename)
+    else:
+        input_table = filename
 
-        # convert to masked table
-        if input_table.has_masked_columns:
-            input_table = Table(input_table, masked=True, copy=False)
+    # convert to masked table
+    if input_table.has_masked_columns:
+        input_table = Table(input_table, masked=True, copy=False)
 
-    except:
-        raise Exception(
-            "Unable to read file: {}. \n Please check file path and format.".format(
-                filename
-            )
-        )
     num_measurements = len(input_table)
 
     # Decide if input was given in the orbitize style
@@ -165,19 +156,19 @@ def read_file(filename):
         if "epoch" in input_table.columns:
             have_epoch = ~input_table["epoch"].mask
             if not have_epoch.all():
-                raise Exception("Invalid input format: missing some epoch entries")
+                raise ValueError("Invalid input format: missing some epoch entries")
         else:
-            raise Exception("Input table MUST have epoch!")
+            raise ValueError("Input table MUST have epoch!")
         if "object" in input_table.columns:
             have_object = ~input_table["object"].mask
             if not have_object.all():
-                raise Exception("Invalid input format: missing some object entries")
+                raise ValueError("Invalid input format: missing some object entries")
         else:
-            raise Exception("Input table MUST have object id!")
+            raise ValueError("Input table MUST have object id!")
         if (
             orbitize_style
         ):  # proper orbitize style should NEVER have masked entries (nan required)
-            raise Exception("Input table in orbitize style may NOT have empty cells")
+            raise ValueError("Input table in orbitize style may NOT have empty cells")
         else:  # Check for these things when not orbitize style
             for attr in VALID_ATTRS:
                 if attr in input_table.columns:
@@ -188,9 +179,9 @@ def read_file(filename):
                     )  # zeros are False
     else:  # no masked entries, just check for required columns
         if "epoch" not in input_table.columns:
-            raise Exception("Input table MUST have epoch!")
+            raise ValueError("Input table MUST have epoch!")
         if "object" not in input_table.columns:
-            raise Exception("Input table MUST have object id!")
+            raise ValueError("Input table MUST have object id!")
         if (
             not orbitize_style
         ):  # Set these flags only when not already in orbitize style
@@ -205,10 +196,10 @@ def read_file(filename):
     # orbitize! backwards compatability since we added new columns, some old data formats may not have them
     # fill in with default values
     if orbitize_style:
-        if "quant12_corr" not in input_table.keys():
+        if "quant12_corr" not in input_table.colnames:
             default_corrs = np.nan * np.ones(len(input_table))
             input_table.add_column(default_corrs, name="quant12_corr")
-        if "instrument" not in input_table.keys():
+        if "instrument" not in input_table.colnames:
             default_insts = []
             for this_quant_type in input_table["quant_type"]:
                 if this_quant_type == "radec":
@@ -218,10 +209,8 @@ def read_file(filename):
                 elif this_quant_type == "rv":
                     default_insts.append("defrv")
                 else:
-                    raise Exception(
-                        "Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(
-                            this_quant_type
-                        )
+                    raise ValueError(
+                        f"Invalid 'quant_type' {this_quant_type}. Valid values are 'radec', 'seppa' or 'rv'"
                     )
             input_table.add_column(default_insts, name="instrument")
 
@@ -229,9 +218,9 @@ def read_file(filename):
     for index, row in enumerate(input_table):
         # First check if epoch is a number
         try:
-            float_epoch = np.float64(row["epoch"])
-        except:
-            raise Exception(
+            np.float64(row["epoch"])
+        except ValueError:
+            raise ValueError(
                 "Problem reading epoch in the input file. Epoch should be given in MJD."
             )
         # check epoch format and put in MJD
@@ -243,7 +232,7 @@ def read_file(filename):
 
         # check that "object" is an integer (instead of ABC/bcd)
         if not isinstance(row["object"], (int, np.int32, np.int64)):
-            raise Exception("Invalid object ID. Object IDs must be integers.")
+            raise TypeError("Invalid object ID. Object IDs must be integers.")
 
         # determine input quantity type (RA/DEC, SEP/PA, RV, or BRIGHTNESS)
         if orbitize_style:
@@ -272,9 +261,7 @@ def read_file(filename):
                     quant12_corr = row["quant12_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
-                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
-                                index, quant12_corr
-                            )
+                            f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
                 else:
                     quant12_corr = None
@@ -292,10 +279,8 @@ def read_file(filename):
                     ]
                 )
             else:  # catch wrong formats
-                raise Exception(
-                    "Invalid 'quant_type' {0}. Valid values are 'radec', 'seppa' or 'rv'".format(
-                        row["quant_type"]
-                    )
+                raise ValueError(
+                    f"Invalid 'quant_type' {row['quant_type']}. Valid values are 'radec', 'seppa' or 'rv'"
                 )
 
         else:  # When not in orbitize style
@@ -305,9 +290,7 @@ def read_file(filename):
                     quant12_corr = row["radec_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
-                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
-                                index, quant12_corr
-                            )
+                            f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
                 else:
                     quant12_corr = None
@@ -338,9 +321,7 @@ def read_file(filename):
                     quant12_corr = row["seppa_corr"]
                     if quant12_corr > 1 or quant12_corr < -1:
                         raise ValueError(
-                            "Invalid correlation coefficient at line {0}. Value should be between -1 and 1 but got {1}".format(
-                                index, quant12_corr
-                            )
+                            f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
                 else:
                     quant12_corr = None
@@ -475,12 +456,10 @@ def from_ohp_file(filename):
     for name, unit in required_units.items():
         column = output_table[name]
         if column.ndim != 1 or np.iscomplexobj(column):
-            raise ValueError(
-                "OHP column '{}' must contain real scalar values.".format(name)
-            )
+            raise ValueError(f"OHP column '{name}' must contain real scalar values.")
         # Inspect the mask before converting: np.asarray discards Astropy masks.
         if np.any(np.ma.getmaskarray(column)):
-            raise ValueError("OHP column '{}' contains missing values.".format(name))
+            raise ValueError(f"OHP column '{name}' contains missing values.")
         input_unit = getattr(column, "unit", None)
         if input_unit is not None and input_unit != unit:
             raise ValueError(
@@ -492,10 +471,10 @@ def from_ohp_file(filename):
             values = np.asarray(column, dtype=np.float64)
         except (TypeError, ValueError) as exc:
             raise ValueError(
-                "OHP column '{}' must contain numeric scalars.".format(name)
+                f"OHP column '{name}' must contain numeric scalars."
             ) from exc
         if not np.all(np.isfinite(values)):
-            raise ValueError("OHP column '{}' contains nonfinite values.".format(name))
+            raise ValueError(f"OHP column '{name}' contains nonfinite values.")
         output_table[name] = values
         output_table[name].unit = unit
 
@@ -544,14 +523,15 @@ def from_dl2(filename, source_id, agis_only=True):
     ):
         if [np.shape(value) for value in data[name]] != [(size,) for size in sizes]:
             raise ValueError(
-                "EAS column '{}' must have one aligned CCD array per transit.".format(
-                    name
-                )
+                f"EAS column '{name}' must have one aligned CCD array per transit."
             )
         output_table[name] = np.ma.concatenate(data[name])
     transit_rows = np.repeat(np.arange(len(data)), sizes)
     for name in ("source_id", "transit_id", "ra0", "dec0", "parallax_factor_al"):
         output_table[name] = data[name][transit_rows]
+    if "parallax_factor_ac" in data.colnames:
+        output_table["parallax_factor_ac"] = data["parallax_factor_ac"][transit_rows]
+        output_table["parallax_factor_ac"].unit = u.dimensionless_unscaled
     output_table["component_index"] = np.concatenate(
         [np.arange(size) for size in sizes]
     )
@@ -649,7 +629,8 @@ def combine_transits(data, method=bootstrap_transit, **kwargs):
         kwargs["rng"] = np.random.default_rng(kwargs.get("rng"))
 
     rows = []
-    for ccd in data.group_by(["source_id", "transit_id"]).groups:
+    grouped = data.group_by(["source_id", "transit_id"])
+    for ccd in grouped.groups:
         first = ccd[0]
         position, error = method(ccd, **kwargs)
 
@@ -690,6 +671,11 @@ def combine_transits(data, method=bootstrap_transit, **kwargs):
     ):
         output[name].unit = data[name].unit
 
+    if "parallax_factor_ac" in grouped.colnames:
+        output["parallax_factor_ac"] = grouped["parallax_factor_ac"][
+            grouped.groups.indices[:-1]
+        ]
+
     output.meta.update(data.meta, observation_level="transit")
     return output
 
@@ -727,7 +713,7 @@ def write_orbitize_input(table, output_filename, file_type="csv"):
         "tab",
     ]
     if file_type not in valid_formats:
-        raise Exception("Invalid output format specified.")
+        raise ValueError("Invalid output format specified.")
 
     # write file
     write(table, output=output_filename, format=file_type)

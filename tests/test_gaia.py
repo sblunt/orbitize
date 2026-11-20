@@ -1,16 +1,18 @@
-import numpy as np
 import os
-from orbitize import DATADIR
+
+import numpy as np
 from astropy.table import Table
+
 from orbitize import (
-    hipparcos,
-    gaia,
+    DATADIR,
     basis,
-    system,
-    read_input,
-    sampler,
-    results,
+    gaia,
+    hipparcos,
     priors,
+    read_input,
+    results,
+    sampler,
+    system,
 )
 
 gaia_edr3_data = {
@@ -54,7 +56,7 @@ def test_dr2_edr3():
     dr2_number = 4792774797545105664
 
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
     myHip = hipparcos.HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
@@ -73,7 +75,7 @@ def test_system_setup():
     hip_num = "027321"  # beta Pic
     edr3_num = 4792774797545800832
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
     myHip = hipparcos.HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
@@ -125,13 +127,13 @@ def test_valueerror():
     hip_num = "027321"  # beta Pic
     edr3_num = 4792774797545800832
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
     myHip = hipparcos.HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
     )
     try:
-        myGaia = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
+        _ = gaia.GaiaLogProb(edr3_num, myHip, gaia_edr3_data, dr="dr3")
         assert False, "Test failed!"
     except ValueError:
         pass
@@ -170,7 +172,7 @@ def test_orbit_calculation():
     hip_num = "027321"  # beta Pic
     edr3_num = 4792774797545800832
     num_secondary_bodies = 1
-    path_to_iad_file = "{}HIP{}.d".format(DATADIR, hip_num)
+    path_to_iad_file = f"{DATADIR}HIP{hip_num}.d"
 
     myHip = hipparcos.HipparcosLogProb(
         path_to_iad_file, hip_num, num_secondary_bodies, hip_data=hip_data
@@ -320,7 +322,7 @@ def test_hgca():
         ]
     )
 
-    chi2 = this_sampler._logl(params)
+    chi2, *_ = this_sampler._logl(params)
 
     assert np.isfinite(chi2)
 

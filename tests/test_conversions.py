@@ -2,9 +2,10 @@
 Test the orbitize.basis which converts orbital elements
 """
 
-import pytest
 import numpy as np
-import orbitize.basis as basis
+import pytest
+
+from orbitize import basis
 
 
 def test_tau_tp_conversion():

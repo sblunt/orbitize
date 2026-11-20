@@ -1,15 +1,13 @@
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 
-import os
-import numpy as np
 import orbitize
+from orbitize import read_input, results, sampler, system
 from orbitize.driver import Driver
-import orbitize.sampler as sampler
-import orbitize.system as system
-import orbitize.read_input as read_input
-import orbitize.results as results
 from orbitize.plot import plot_corner
-import matplotlib.pyplot as plt
 
 std_param_idx_fixed_mtot_plx = {
     "sma1": 0,
@@ -88,6 +86,7 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
     assert np.all(saved_results.curr_pos == myDriver.sampler.curr_pos)
     # also check it is consistent with the internal results object in myDriver
     assert myDriver.sampler.results.post.shape[0] == 1500
+    end_pos = myDriver.sampler.results.curr_pos
 
     # run it a little more testing that everything gets saved even if prediodic_save_freq is not a multiple of the number of steps
     output_filename_2 = os.path.join(orbitize.DATADIR, "test_mcmc_v1.hdf5")
@@ -98,7 +97,9 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = myDriver.sampler.results.lnlike[0]
-    computed_lnlike_test = myDriver.sampler._logl(myDriver.sampler.results.post[0])
+    computed_lnlike_test, _, *_ = super(sampler.MCMC, myDriver.sampler)._logl(
+        myDriver.sampler.results.post[0]
+    )
 
     assert returned_lnlike_test == pytest.approx(computed_lnlike_test, abs=0.01)
 
@@ -110,8 +111,11 @@ def do_mcmc_runs(num_temps=1, num_threads=1, make_corner_plot=False):
         num_threads=num_threads,
         prev_result_filename=output_filename,
     )
-    assert new_sampler.results.post.shape[0] == 1500
+    # Check that the curr_pos was extracted and the results are not saved in memory
+    assert (new_sampler.curr_pos == end_pos).all()
+    assert new_sampler.results is None
     new_sampler.run_sampler(500, burn_steps=1)
+    # Results should be added on to previous ones
     assert new_sampler.results.post.shape[0] == 2000
     assert new_sampler.results.post[0, 0] == myDriver.sampler.results.post[0, 0]
 
