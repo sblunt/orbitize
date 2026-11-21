@@ -1,0 +1,9 @@
+/* Light purple code blocks in light mode only; dark mode keeps furo's dark style */
+body[data-theme="light"] .highlight {
+  background: #f3eefc;
+}
+@media (prefers-color-scheme: light) {
+  body[data-theme="auto"] .highlight {
+    background: #f3eefc;
+  }
+}
