@@ -18,7 +18,7 @@ authors:
   affiliation: '2'
 - name: Sarah Blunt
   orcid: 0000-0002-3199-2888
-  affiliation: '3'
+  affiliation: '3,2'
 - name: Vanessa P. Bailey
   orcid: 0000-0002-5407-2806
   affiliation: '4'
@@ -166,7 +166,7 @@ $$
 where $\psi_i$ is the scan position angle, $\Pi_i$ is the along-scan parallax factor,
 and $\varpi$ is the parallax. The proper motion components are
 $\mu_{\alpha*} = \dot{\alpha}\cos\delta$ in right ascension and
-$\mu_\delta = \dot{\delta}$ in declination, both expressed in mas yr$^{-1}$. The
+$\mu_\delta = \dot{\delta}$ in declination, both expressed in mas jyr$^{-1}$. The
 position offsets $\alpha_{*,0}$ and $\delta_0$ are defined at a reference epoch (by
 default the Gaia DR4 reference epoch of
 [J2017.5](https://esa.github.io/gaia-supdate/gaiasupdate.html#gaiasupdate.constants.DR4_REFERENCE_EPOCH)),
@@ -266,9 +266,9 @@ since v3 include:
     facilitates clearer code flow and new plotting capabilities. The `plot.Plotter`
     class precomputes shared attributes of the different plotting methods when
     initialized, so that they are not recomputed on each call of a plotting method. The
-    `plot.Plotter.plot_orbits` method has new capabilities in plotting the orbits of
-    multiple bodies, displaying correlated errorbars on Right Ascension/Declination
-    data, and customizing grouping of sources of error for Radial Velocity.
+    `plot.Plotter.plot_orbits` method has new capabilities for plotting the orbits of
+    multiple bodies, displaying correlated errorbars on right ascension/declination
+    data, and customizing grouping of sources of error for radial velocity.
     `plot.Plotter.plot_residuals` similarly supports multiple bodies and the separation
     of errors. Multiple tutorials, especially the [Advanced Plotting
     Tutorial](https://github.com/sblunt/orbitize/blob/v4/docs/tutorials/Plotting_tutorial.ipynb),
@@ -309,10 +309,11 @@ and can also fit Gaia DR4 epoch astrometry, as illustrated in its [prerelease-da
 tutorial](https://sefffal.github.io/Octofitter.jl/stable/gaia-dr4-prerelease/), which
 includes Gaia BH3. The `exoplanet` toolkit [@exoplanet] provides tools for building and
 fitting models of transit and radial velocity data using the Bayesian modeling package
-`PyMC`. A detailed performance comparison will be presented in a forthcoming paper (Dror
-et al., in preparation). `ExoPlanetLab` [@Hobbs:2026] also supports joint modeling of
+`PyMC`. `ExoPlanetLab` [@Hobbs:2026] also supports joint modeling of
 Gaia epoch astrometry, radial velocities, and relative astrometry, with multiple
-posterior sampling methods and a Student-$t$ likelihood.
+posterior sampling methods and a Student-$t$ likelihood. A detailed performance comparison 
+between `orbitize!` v4 and similar packages will be presented in a forthcoming paper (Dror
+et al., in preparation). 
 
 # Acknowledgements
 
@@ -322,7 +323,7 @@ Institute of Technology.
 This paper describes additions made to `orbitize!` between versions 3.0.0 and 4.0.0. We
 are extremely grateful to Isabel Angelo, Henry Ngo, James Graham, Logan Pearce, and
 Malena Rice, who contribtued code to version 1.0.0, and are included as authors in
-@Blunt:2020. We are also grateful for the useful discussions with William Thompson.
+@Blunt:2020. We are also grateful for useful discussions with William Thompson.
 
 # References
 
