@@ -21,12 +21,12 @@ jobs:
                 "\fancyfoot[L]{}" \
                 "\hypersetup{pdfdoi={},pdfvolumenum={},pdfissuenum={}}" \
                 > /tmp/joss-preprint-header.tex
-              inara -p -o tex,pdf -- paper/paper.md --include-in-header=/tmp/joss-preprint-header.tex
+              inara -p -o tex,pdf -- paper-v4/paper.md --include-in-header=/tmp/joss-preprint-header.tex
             '
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: paper
           path: |
-            paper/paper.pdf
-            paper/paper.tex
+            paper-v4/paper.pdf
+            paper-v4/paper.tex
