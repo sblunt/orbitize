@@ -597,7 +597,10 @@ class DR4LogProb:
         hf.attrs["dr4_ref_epoch_mjd"] = self.ref_epoch_mjd
         hf.attrs["dr4_time_format"] = "mjd"
         hf.attrs["dr4_time_scale"] = self.time_scale
-        hf.attrs["dr4_jitter"] = self.jitter
+        if self.fit_jitter:
+            self.jitter_prior._save(hf, "dr4_jitter_prior")
+        else:
+            hf.attrs["dr4_jitter"] = self.jitter
         hf.attrs["dr4_fit_jitter"] = self.fit_jitter
 
         dr4_dat = self.data_table.copy()

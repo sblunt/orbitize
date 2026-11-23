@@ -498,6 +498,10 @@ def test_save_and_load_dr4(tmp_path):
         assert restored.ref_epoch_mjd == dr4.ref_epoch_mjd
         assert restored.fit_jitter == fit_jitter
         assert restored.jitter == dr4.jitter
+        if fit_jitter:
+            assert isinstance(restored.jitter_prior, priors.UniformPrior)
+            assert restored.jitter_prior.minval == 0.0
+            assert restored.jitter_prior.maxval == 2.0
         assert loaded.param_idx == original.param_idx
         assert ("dr4_jitter" in loaded.param_idx) == fit_jitter
         np.testing.assert_array_equal(loaded.post, original.post)

@@ -1,4 +1,5 @@
 import abc
+import warnings
 
 import numpy as np
 import scipy.special
@@ -31,6 +32,25 @@ class Prior(abc.ABC):
     @abc.abstractmethod
     def compute_lnprob(self, element_array):
         pass
+
+    @abc.abstractmethod
+    def _save(self, hf, name=None):
+        """
+        Save to an open HDF5 file or Group. Creates a group `name` if not None.
+
+        Args:
+            hf (h5py.File or h5py.Group): Open file or group under which to save
+            name (string): Name of subgroup to create in hf if not None (default: None)
+        """
+
+    def _simple_save(self, hf, name, prior_type, kwargs):
+        if name is not None:
+            hgroup = hf.create_group(name)
+        else:
+            hgroup = hf
+        hgroup.attrs["prior_type"] = prior_type
+        params = {key: getattr(self, key) for key in kwargs}
+        hgroup.create_group("params").update(params)
 
 
 class NearestNDInterpPrior(Prior):
@@ -123,6 +143,12 @@ class NearestNDInterpPrior(Prior):
         else:
             self.increment_param_num()
             return 0
+
+    def _save(self, hf, name=None):
+        warnings.warn(
+            "NearestNDInterPrior cannot be automatically saved yet."
+            "If you changed it from the basis default recreate it when loading results."
+        )
 
 
 class KDEPrior(Prior):
@@ -250,6 +276,12 @@ class KDEPrior(Prior):
             self.increment_param_num()
             return 0
 
+    def _save(self, hf, name=None):
+        warnings.warn(
+            "KDEPrior cannot be automatically saved yet."
+            "If you changed it from the basis default recreate it when loading results."
+        )
+
 
 class GaussianPrior(Prior):
     """Gaussian prior.
@@ -341,6 +373,10 @@ class GaussianPrior(Prior):
 
         return lnprob
 
+    def _save(self, hf, name=None):
+        kwargs = ("mu", "sigma", "no_negatives")
+        self._simple_save(hf, name, "GaussianPrior", kwargs)
+
 
 class LogUniformPrior(Prior):
     """
@@ -429,6 +465,10 @@ class LogUniformPrior(Prior):
 
         return lnprob
 
+    def _save(self, hf, name=None):
+        kwargs = ("minval", "maxval")
+        self._simple_save(hf, name, "LogUniformPrior", kwargs)
+
 
 class UniformPrior(Prior):
     """
@@ -498,6 +538,10 @@ class UniformPrior(Prior):
         lnprob[(element_array > self.maxval) | (element_array < self.minval)] = -np.inf
 
         return lnprob
+
+    def _save(self, hf, name=None):
+        kwargs = ("minval", "maxval")
+        self._simple_save(hf, name, "UniformPrior", kwargs)
 
 
 class SinPrior(Prior):
@@ -570,6 +614,10 @@ class SinPrior(Prior):
             lnprob[(element_array >= np.pi) | (element_array <= 0)] = -np.inf
 
         return lnprob
+
+    def _save(self, hf, name=None):
+        kwargs = ()
+        self._simple_save(hf, name, "SinPrior", kwargs)
 
 
 class LinearPrior(Prior):
@@ -650,6 +698,10 @@ class LinearPrior(Prior):
             lnprob[(element_array >= x_intercept) | (element_array < 0)] = -np.inf
 
         return lnprob
+
+    def _save(self, hf, name=None):
+        kwargs = ("m", "b")
+        self._simple_save(hf, name, "LinearPrior", kwargs)
 
 
 class ObsPrior(Prior):
@@ -808,6 +860,12 @@ class ObsPrior(Prior):
             self.increment_param_num()
             return 0
 
+    def _save(self, hf, name=None):
+        warnings.warn(
+            "ObsPrior cannot be automatically saved yet."
+            "If you changed it from the basis default recreate it when loading results."
+        )
+
 
 class ReweightPrior(abc.ABC):
     def __init__(self, implied_prior, new_prior, basis):
@@ -885,6 +943,10 @@ class OFTeIMassPrior(Prior):
 
         with np.errstate(divide="ignore"):
             return np.log(f_Z / element_array)
+
+    def _save(self, hf, name=None):
+        kwargs = ("sma_min", "sma_max", "per_min", "per_max")
+        self._simple_save(hf, name, "OFTeIMassPrior", kwargs)
 
 
 class OFTeIMassReweightPrior(ReweightPrior):

@@ -380,6 +380,16 @@ class System:
         hf.attrs["fitting_basis"] = self.fitting_basis
         hf.attrs["use_rebound"] = self.use_rebound
 
+        prior_group = hf.create_group("sys_priors")
+        for i, prior in enumerate(self.sys_priors):
+            if hasattr(prior, "_save"):
+                prior._save(prior_group, str(i))
+            else:
+                # Fixed prior
+                fixed_prior_group = prior_group.create_group(str(i))
+                fixed_prior_group.attrs["prior_type"] = "fixed"
+                fixed_prior_group.attrs["value"] = prior
+
     def compute_all_orbits(
         self,
         params_arr,
