@@ -1,23 +1,32 @@
+name: JOSS preprint
 on: [push]
 
 jobs:
   paper:
     runs-on: ubuntu-latest
-    name: Paper Draft
+    name: JOSS preprint
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build draft PDF
-        uses: openjournals/openjournals-draft-action@master
-        with:
-          journal: joss
-          # This should be the path to the paper within your repo.
-          paper-path: paper/paper.md
+      - name: Build JOSS preprint
+        run: |
+          docker run --rm \
+            --volume "$PWD:/data" \
+            --workdir /data \
+            --user "$(id -u):$(id -g)" \
+            --env JOURNAL=joss \
+            --entrypoint /bin/sh \
+            openjournals/inara:latest -ec '
+              printf "%s\n" "\renewcommand{\marginpar}[1]{}" \
+                "\fancyfoot[L]{}" \
+                "\hypersetup{pdfdoi={},pdfvolumenum={},pdfissuenum={}}" \
+                > /tmp/joss-preprint-header.tex
+              inara -p -o tex,pdf -- paper-v4/paper.md --include-in-header=/tmp/joss-preprint-header.tex
+            '
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: paper
-          # This is the output path where Pandoc will write the compiled
-          # PDF. Note, this should be the same directory as the input
-          # paper.md
-          path: paper/paper.pdf
+          path: |
+            paper-v4/paper.pdf
+            paper-v4/paper.tex
