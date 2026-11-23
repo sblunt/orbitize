@@ -259,7 +259,7 @@ def read_file(filename):
                 # backwards compatability whether it has the covariance term or not
                 if "quant12_corr" in row.columns:
                     quant12_corr = row["quant12_corr"]
-                    if quant12_corr > 1 or quant12_corr < -1:
+                    if quant12_corr >= 1 or quant12_corr <= -1:
                         raise ValueError(
                             f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
@@ -288,7 +288,7 @@ def read_file(filename):
                 # check if there's a covariance term
                 if have["radec_corr"][index]:
                     quant12_corr = row["radec_corr"]
-                    if quant12_corr > 1 or quant12_corr < -1:
+                    if quant12_corr >= 1 or quant12_corr <= -1:
                         raise ValueError(
                             f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
@@ -319,7 +319,7 @@ def read_file(filename):
                 # check if there's a covariance term
                 if have["seppa_corr"][index]:
                     quant12_corr = row["seppa_corr"]
-                    if quant12_corr > 1 or quant12_corr < -1:
+                    if quant12_corr >= 1 or quant12_corr <= -1:
                         raise ValueError(
                             f"Invalid correlation coefficient at line {index}. Value should be between -1 and 1 but got {quant12_corr}"
                         )
