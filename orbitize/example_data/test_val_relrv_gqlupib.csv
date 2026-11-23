@@ -1,0 +1,15 @@
+epoch,object,sep,sep_err,pa,pa_err,rv,rv_err,raoff,raoff_err,decoff,decoff_err,radec_corr,ref,instrument
+49445.0,1,713.8,23.3,275.5,1.1,,,,,,,,"Janson et al., 2006",ESO 3.6 m/ComeOn+
+51279.0,1,739.0,11.0,275.62,0.8,,,,,,,,Neuhäuser et al. (2005a),HST/WFPC2
+53182.0,1,732.5,3.4,275.45,0.3,,,,,,,,Neuhäuser et al. (2005a),VLT/NACO
+57128.0,1,721.0,3.0,277.6,4.0,,,,,,,,"Wu et al., 2017",ALMA
+58345.1,1,711.6,2.4,278.27,0.24,,,,,,,,"Stolker et al., 2021",SPHERE
+58551.3,1,720.3,3.4,277.9,0.18,,,,,,,,"Stolker et al., 2021",NACO
+58557.2,1,715.0,2.8,277.82,0.17,,,,,,,,"Stolker et al., 2021",NACO
+58593.1,1,701.0,20.0,278.3,1.2,,,,,,,,"Stolker et al., 2021",MUSE
+59453.975,1,,,,,,,-702.069,0.027,110.363,0.057,0.208,GQ lup slack, Gravity
+59453.975,1,,,,,,,-702.018,0.034,110.313,0.034,-0.636,GQ lup slack, Gravity
+59805.051,1,,,,,,,-699.876,0.044,112.491,0.062,0.796,Gq lup Slack, Gravity
+59828.023,1,,,,,,,-699.789,0.06,112.615,0.057,0.652,GQ lup b Slack, Gravity
+60003.0,1,,,,,2.03,0.04,,,,,,"Gonzalez picoz et al., 2025",CRIRES+
+60022.256,1,,,,,,,-698.969,0.055,114.058,0.153,-0.843,GQ lup Slack,Gravity
